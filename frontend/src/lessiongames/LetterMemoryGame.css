@@ -1,0 +1,298 @@
+/* Letter Memory Game - Pure CSS styles for React+Vite */
+
+/* Reset va asosiy */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.lmg-container { 
+
+  background: #fff; 
+  border-radius: 10px;
+  min-height: 100vh; 
+  background: linear-gradient(135deg,#4c33ef,#6d28d9,#a749af); 
+  padding: 6px; 
+  display:flex; 
+
+  justify-content:center; 
+}
+
+.lmg-card { 
+    width: 475px;
+  height: 700px; 
+  max-width: 720px; 
+  background: rgba(65, 199, 163, 0.538); 
+  -webkit-backdrop-filter:blur(12px); 
+  backdrop-filter: blur(12px);
+  border-radius: 20px; 
+  padding: 16px; 
+    align-items:center; 
+  box-shadow: 0 20px 40px rgba(0,0,0,0.25); 
+}
+
+.lmg-title { 
+  color:#fff; 
+  font-size: 32px; 
+  font-weight: 900; 
+  text-align:center; 
+  margin: 4px 0 8px; 
+  text-shadow: 0 2px 6px rgba(0,0,0,0.3); 
+}
+
+.lmg-sub { 
+  color: rgba(255, 255, 255, 0.8);
+  text-align:center; 
+  margin-bottom: 16px; 
+  font-size: 18px;
+}
+
+.lmg-grid { 
+  display:grid; 
+  grid-template-columns: 1fr; 
+  gap: 10px; 
+}
+
+.lmg-btn { 
+  background: rgba(255,255,255,0.2); 
+  color:#fff; 
+  border:none; 
+  border-radius: 16px; 
+  padding: 16px; 
+  display:flex; 
+  align-items:center; 
+  justify-content:space-between; 
+  transition: transform .2s, box-shadow .2s, background .2s; 
+  cursor: pointer;
+}
+
+.lmg-btn:hover { 
+  transform: translateY(-2px); 
+  background: #ffffff47; 
+  box-shadow: 0 10px 24px rgba(0,0,0,0.2); 
+}
+
+.lmg-emoji { 
+  font-size: 44px; 
+  filter: saturate(1.5) brightness(1.1); /* To'q rang uchun */
+}
+
+.lmg-name { 
+  font-weight: 800; 
+  font-size: 20px; 
+}
+
+.lmg-info { 
+  opacity: .8; 
+}
+
+.lmg-header { 
+  display:flex; 
+  align-items:center; 
+  justify-content:space-between; 
+  margin-bottom: 12px; 
+}
+
+.lmg-icon-btn { 
+  width:48px; 
+  height:48px; 
+  display:flex; 
+  align-items:center; 
+  justify-content:center; 
+  background: rgba(255,255,255,0.2); 
+  color:#fff; 
+  border:none; 
+  border-radius: 12px; 
+  transition: transform .2s, box-shadow .2s; 
+  cursor: pointer;
+}
+
+.lmg-icon-btn:hover { 
+  transform: translateY(-2px); 
+  box-shadow: 0 10px 24px rgba(0,0,0,0.2); 
+}
+
+.lmg-title-row { 
+  text-align:center; 
+}
+
+.lmg-game { 
+  color:#fff; 
+  font-weight:900; 
+  font-size: 22px; 
+}
+
+.lmg-level { 
+  color: rgba(255,255,255,0.8); 
+  font-size: 12px; 
+}
+
+.lmg-stats { 
+  display:grid; 
+  grid-template-columns: repeat(3,1fr); 
+  gap:8px; 
+  margin-bottom: 12px; 
+}
+
+.lmg-stat { 
+  background: rgba(255,255,255,0.2); 
+  border-radius: 12px; 
+  padding:8px; 
+  text-align:center; 
+  color:#fff; 
+}
+
+.lmg-stat b { 
+  display:block; 
+  font-size: 14px; 
+}
+
+.lmg-stat small { 
+  opacity:.8; 
+}
+
+.lmg-grid-cards { 
+  display:grid; 
+  gap:8px; 
+  margin-bottom: 12px; 
+}
+
+.lmg-grid-cards.cols-4 { 
+  grid-template-columns: repeat(4,1fr); 
+}
+
+.lmg-grid-cards.cols-5 { 
+  grid-template-columns: repeat(5,1fr); 
+}
+
+.lmg-card-btn { 
+  position:relative; 
+  aspect-ratio:1; 
+  border:none; 
+  border-radius: 14px; 
+  background: rgba(255,255,255,0.95); /* Oq fon yorqinroq */
+  box-shadow: 0 10px 0 rgba(0,0,0,0.12), 0 16px 28px rgba(0,0,0,0.2); 
+  transition: transform .2s, box-shadow .2s, filter .2s; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.lmg-card-btn:hover { 
+  transform: translateY(-2px) scale(1.02); 
+  box-shadow: 0 12px 0 rgba(0,0,0,0.12), 0 20px 32px rgba(0,0,0,0.24); 
+}
+
+.lmg-card-btn:active { 
+  transform: translateY(2px) scale(0.99); 
+  box-shadow: 0 6px 0 rgba(0,0,0,0.12), 0 12px 22px rgba(0,0,0,0.18); 
+  filter: brightness(.98); 
+}
+
+.lmg-card-btn:disabled { 
+  opacity: 1; 
+  filter: none; 
+  box-shadow: 0 10px 0 rgba(0,0,0,0.12), 0 16px 28px rgba(0,0,0,0.2); 
+  cursor: default;
+}
+
+.lmg-card-btn:disabled:hover { 
+  transform: none; 
+  box-shadow: 0 10px 0 rgba(0,0,0,0.12), 0 16px 28px rgba(0,0,0,0.2); 
+}
+
+/* Har bir karta kontenti uchun umumiy stillar */
+.lmg-card-content { 
+  font-size: 44px; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+/* Harf kartalari uchun */
+.lmg-card-content.text-letter { 
+  font-weight: 900; 
+  color: #000000 !important; /* Qora rang, important qo'shildi */
+  text-shadow: none;
+}
+
+/* Emoji kartalari uchun - MUHIM */
+.lmg-card-content.text-emoji { 
+  font-size: 44px; 
+  color: initial !important; /* Asl rangni saqlash */
+  filter: saturate(1.8) brightness(1.2) !important; /* Kuchli filter */
+  -webkit-text-stroke: 0.5px rgba(0,0,0,0.1); /* Emoji chegaralarini yaxshilash */
+  text-shadow: 0 2px 8px rgba(0,0,0,0.15); /* Yorqinlik uchun */
+}
+
+/* Topilgan kartalar uchun */
+.matched .lmg-card-content.text-emoji {
+  filter: saturate(2) brightness(1.3) !important; /* Topilgan emojilar uchun yanada yorqin */
+}
+
+.lmg-progress { 
+  background: rgba(255,255,255,0.2); 
+  height: 10px; 
+  border-radius: 9999px; 
+  overflow:hidden; 
+  margin-bottom: 10px; 
+}
+
+.lmg-progress-bar { 
+  height: 100%; 
+  background-image: linear-gradient(90deg,#10b981,#059669); 
+}
+
+.lmg-hint { 
+  text-align:center; 
+  color: rgba(255,255,255,0.95);
+  font-size: 16px;
+  margin-top: 10px;
+}
+
+.lmg-best { 
+  font-size: 14px; 
+  opacity:.9;
+  margin-top: 6px;
+  display: block;
+}
+
+@media (max-width: 480px) {
+  .lmg-card { 
+    padding: 12px; 
+  }
+  
+  .lmg-grid-cards.cols-4 { 
+    grid-template-columns: repeat(3,1fr); 
+  }
+  /* Medium difficulty on mobile: force 4 columns (4x4 layout for 16 cards) */
+  .lmg-grid-cards.mdm {
+    grid-template-columns: repeat(4,1fr);
+  }
+  
+  .lmg-card-content.text-emoji,
+  .lmg-card-content.text-letter {
+    font-size: 36px;
+  }
+  
+  .lmg-title {
+    font-size: 28px;
+  }
+}
+
+/* Font rendering optimizatsiyasi */
+.lmg-emoji,
+.lmg-card-content.text-emoji {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+ -webkit-font-smoothing: subpixel-antialiased;
+  -webkit-font-smoothing: auto;
+
+  text-rendering: optimizeLegibility;
+}

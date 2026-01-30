@@ -1,0 +1,13 @@
+# Node modules
+node_modules/
+
+# Distribution folder
+dist/
+
+# Environment variables
+.env
+
+# Other standard ignores
+.DS_Store
+npm-debug.log
+yarn-error.log

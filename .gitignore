@@ -1,0 +1,44 @@
+# Root .gitignore for alif24-platform
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Sensitive config files
+**/config/database.json
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE files
+.idea/
+.vscode/
+*.code-workspace
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+*.tgz
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+

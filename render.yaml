@@ -1,0 +1,47 @@
+services:
+  # Backend Service (Python/FastAPI)
+  - type: web
+    name: alif24-backend
+    runtime: python
+    region: frankfurt
+    plan: free
+    repo: https://github.com/Hazratqul21/alif-24
+    branch: main
+    rootDir: backend
+    buildCommand: |
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.18
+      - key: ENVIRONMENT
+        value: production
+      - key: API_PREFIX
+        value: /api/v1
+    # Secrets that must be added manually in Render Dashboard:
+    # - DATABASE_URL (Internal connection string if using Render Postgres, or external URL)
+    # - JWT_SECRET
+    # - OPENAI_API_KEY
+    # - AZURE_SPEECH_KEY
+    # - AZURE_SPEECH_REGION
+
+  # Frontend Service (React/Vite)
+  - type: static
+    name: alif24-frontend
+    region: frankfurt
+    repo: https://github.com/Hazratqul21/alif-24
+    branch: main
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://alif24-backend.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0

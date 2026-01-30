@@ -1,0 +1,269 @@
+.nickname-form {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.nickname-form-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.nickname-form-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.nickname-form-header p {
+  font-size: 1.1rem;
+  color: #718096;
+}
+
+.selected-avatar-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f7fafc;
+  border-radius: 12px;
+}
+
+.selected-avatar-preview img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 0.5rem;
+}
+
+.selected-avatar-preview p {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0;
+}
+
+.nickname-input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.nickname-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nickname-input-wrapper input {
+  flex: 1;
+  padding-right: 3rem;
+}
+
+.checking-spinner {
+  position: absolute;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #4299e1;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.availability-icon {
+  position: absolute;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border-radius: 50%;
+}
+
+.availability-icon.success {
+  color: #38a169;
+  background: #c6f6d5;
+}
+
+.availability-icon.error {
+  color: #e53e3e;
+  background: #fed7d7;
+}
+
+.availability-message {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.availability-message.success {
+  color: #38a169;
+}
+
+.availability-message.error {
+  color: #e53e3e;
+}
+
+.nickname-hint {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.85rem;
+  color: #a0aec0;
+}
+
+/* Nickname subtitle */
+.nickname-subtitle {
+  font-size: 1.1rem;
+  color: #718096;
+  margin: 0;
+}
+
+.avatar-greeting {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0;
+}
+
+.nickname-error {
+  padding: 1rem;
+  background: #fed7d7;
+  border: 2px solid #fc8181;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.nickname-error p {
+  color: #c53030;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* Nickname Selection */
+.nickname-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.suggestion-card {
+  position: relative;
+  padding: 1.5rem 1rem;
+  background: white;
+  border: 3px solid #e2e8f0;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2d3748;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.suggestion-card:hover:not(:disabled) {
+  border-color: #4299e1;
+  background: #ebf8ff;
+  color: #2c5282;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(66, 153, 225, 0.2);
+}
+
+.suggestion-card.selected {
+  border-color: #4299e1;
+  background: #4299e1;
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 8px 16px rgba(66, 153, 225, 0.4);
+}
+
+.suggestion-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.suggestion-text {
+  display: block;
+  font-size: 1.1rem;
+}
+
+.selected-check {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  background: white;
+  color: #4299e1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Loading suggestions */
+.loading-suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  gap: 1rem;
+}
+
+.loading-suggestions .spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #4299e1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-suggestions p {
+  font-size: 1rem;
+  color: #718096;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .nickname-form {
+    padding: 1rem;
+  }
+
+  .nickname-form-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .suggestions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .suggestion-card {
+    padding: 1.2rem 0.8rem;
+    font-size: 1rem;
+  }
+}
