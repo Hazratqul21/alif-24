@@ -30,7 +30,7 @@ services:
   - type: web
     runtime: static
     name: alif24-frontend
-    region: frankfurt
+
     repo: https://github.com/Hazratqul21/alif-24
     branch: main
     rootDir: frontend
