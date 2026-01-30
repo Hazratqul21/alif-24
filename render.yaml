@@ -27,7 +27,8 @@ services:
     # - AZURE_SPEECH_REGION
 
   # Frontend Service (React/Vite)
-  - type: static
+  - type: web
+    runtime: static
     name: alif24-frontend
     region: frankfurt
     repo: https://github.com/Hazratqul21/alif-24
