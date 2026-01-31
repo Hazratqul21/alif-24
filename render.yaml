@@ -38,8 +38,12 @@ services:
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*"
     routes:
-      - type: rewrite
+      - type: proxy
         source: /api/*
         destination: https://alif24-backend.onrender.com/api/*
       - type: rewrite
@@ -48,3 +52,5 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20.11.0
+      - key: VITE_API_URL
+        value: /api/v1
