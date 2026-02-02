@@ -32,6 +32,7 @@ async def init_db():
             pass  # Connection test successful
             # logger.info("Database connection established successfully")  # Production: o'chirilgan
     except Exception as e:
-        logger.error(f"Unable to connect to the database: {e}")
-        raise
+        logger.error(f"⚠️ WARNING: Unable to connect to the database: {e}")
+        logger.error("The Application will start, but database features will fail until DATABASE_URL is configured.")
+        # raise  <-- Commented out to prevent Vercel 500 crash on startup
 
