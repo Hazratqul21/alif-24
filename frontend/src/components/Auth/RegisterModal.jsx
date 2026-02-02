@@ -59,27 +59,27 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       const submitData = {
         ...formData,
         [loginType]: formData[loginType]
       };
-      
-      // Remove empty email or phone
-      if (loginType === 'email' && !submitData.email) {
+
+      // Ensure unused or empty fields are strictly removed
+      if (!submitData.email || submitData.email.trim() === '') {
         delete submitData.email;
       }
-      if (loginType === 'phone' && !submitData.phone) {
+      if (!submitData.phone || submitData.phone.trim() === '') {
         delete submitData.phone;
       }
-      
+
       await register(submitData);
       onClose();
 
       // Redirect based on role
       const role = submitData.role;
-      switch(role) {
+      switch (role) {
         case 'admin':
           navigate('/admin');
           break;
@@ -168,11 +168,10 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               <button
                 type="button"
                 onClick={() => setLoginType('email')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md transition-all ${
-                  loginType === 'email'
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md transition-all ${loginType === 'email'
                     ? 'bg-white shadow-sm text-indigo-600'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 <Mail className="w-4 h-4" />
                 Email
@@ -180,11 +179,10 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
               <button
                 type="button"
                 onClick={() => setLoginType('phone')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md transition-all ${
-                  loginType === 'phone'
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md transition-all ${loginType === 'phone'
                     ? 'bg-white shadow-sm text-indigo-600'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 <Phone className="w-4 h-4" />
                 {t('auth_phone')}
@@ -290,8 +288,8 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                     key={role.value}
                     className={`
                       flex items-start p-3 border rounded-lg cursor-pointer transition-all
-                      ${formData.role === role.value 
-                        ? 'border-indigo-500 bg-indigo-50' 
+                      ${formData.role === role.value
+                        ? 'border-indigo-500 bg-indigo-50'
                         : 'border-gray-200 hover:border-gray-300'
                       }
                     `}
