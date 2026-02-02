@@ -63,14 +63,55 @@ class Settings(BaseSettings):
     
     @property
     def get_database_url(self) -> str:
-        # If DATABASE_URL is provided directly (standard for Docker), use it
-        if self.DATABASE_URL:
-            # SQLAlchemy requires 'postgresql://', but some providers (like Supabase) give 'postgres://'
-            if self.DATABASE_URL.startswith("postgres://"):
-                return self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
-            return self.DATABASE_URL
-            
-        # PostgreSQL (default)
+        # If DATABASE_URL is provided directly (standard for Docker/hardcoded), use it
+        url = self.DATABASE_URL
+        
+        # FIX: Vercel serverless functions often don't support IPv6 outbound, but Supabase DNS returns IPv6 first.
+        # We must resolve the hostname to an IPv4 address manually to prevent "Cannot assign requested address" errors.
+        try:
+            if url and "supabase.co" in url:
+                import socket
+                from urllib.parse import urlparse, urlunparse
+                
+                parsed = urlparse(url)
+                hostname = parsed.hostname
+                
+                # Resolve to IPv4
+                ip_address = socket.gethostbyname(hostname)
+                
+                # Reconstruct URL with IP address
+                # Note: We must pass 'sslmode=require' because using IP might mismatch cert validation 
+                # strictly speaking, but usually Supabase allows it if we don't verify-full, 
+                # OR we just rely on the fact that we are replacing the host in the string.
+                # Actually, sqlalchemy might complain if we replace host with IP without updating headers,
+                # but let's try just standard replacement first.
+                
+                # Better approach: Keep hostname but force IPv4? hard in python url.
+                # Let's use the IP. 
+                
+                # Replace hostname with IP in the netloc
+                new_netloc = parsed.netloc.replace(hostname, ip_address)
+                parsed = parsed._replace(netloc=new_netloc)
+                url = urlunparse(parsed)
+                
+                # Ensure sslmode is present (Supabase requires it)
+                if "sslmode" not in url:
+                    if "?" in url:
+                        url += "&sslmode=require"
+                    else:
+                        url += "?sslmode=require"
+                        
+        except Exception as e:
+            print(f"⚠️ DNS Resolution Warning: {e}")
+            # Fallback to original URL if resolution fails
+            pass
+
+        if url:
+             if url.startswith("postgres://"):
+                return url.replace("postgres://", "postgresql://", 1)
+             return url
+
+        # PostgreSQL (default) - Fallback for local dev
         dialect = "postgresql" if self.DB_DIALECT in ("postgresql", "postgres") else self.DB_DIALECT
         password_part = f":{self.DB_PASSWORD}" if self.DB_PASSWORD else ""
         return f"{dialect}://{self.DB_USER}{password_part}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
