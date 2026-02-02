@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+// Hardcoded Backend URL for Vercel Deployment
+const API_URL = 'https://alif-24.vercel.app/api/v1';
 
 /**
  * API Service
@@ -7,6 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 class ApiService {
   constructor() {
     this.baseUrl = API_URL;
+    this.token = localStorage.getItem('token');
   }
 
   /**
