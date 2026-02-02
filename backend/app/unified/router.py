@@ -4,7 +4,10 @@ Unified Speech Router - Supports Uzbek, Russian, and English TTS/STT
 from fastapi import APIRouter, HTTPException, Response, UploadFile, File
 from pydantic import BaseModel
 import os
-import azure.cognitiveservices.speech as speechsdk
+try:
+    import azure.cognitiveservices.speech as speechsdk
+except ImportError:
+    speechsdk = None
 from urllib.parse import quote
 from typing import Optional
 
@@ -62,6 +65,9 @@ def get_voice_config(language, custom_voice=None):
     if not speech_key:
         return None, "Azure Speech key not configured"
     
+    if speechsdk is None:
+        return None, "Azure Speech SDK not installed"
+
     speech_config = speechsdk.SpeechConfig(
         subscription=speech_key,
         region=os.getenv("AZURE_SPEECH_REGION", "westeurope")

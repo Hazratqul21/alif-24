@@ -4,7 +4,10 @@ Unified Letters Learning Router - Supports Uzbek and Russian
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 import os
-import azure.cognitiveservices.speech as speechsdk
+try:
+    import azure.cognitiveservices.speech as speechsdk
+except ImportError:
+    speechsdk = None
 from app.core.config import settings
 
 router = APIRouter()
@@ -132,6 +135,12 @@ async def text_to_speech(request: TextToSpeechRequest):
             detail="Azure Speech key not configured"
         )
     
+    if speechsdk is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Speech synthesis is currently unavailable (Dependency missing)."
+        )
+
     speech_config = speechsdk.SpeechConfig(
         subscription=speech_key,
         region=settings.AZURE_SPEECH_REGION

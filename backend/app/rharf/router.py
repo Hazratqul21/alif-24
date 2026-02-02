@@ -4,7 +4,10 @@ Russian Letters Learning Router
 from fastapi import APIRouter, HTTPException, Response, UploadFile, File
 from pydantic import BaseModel
 import os
-import azure.cognitiveservices.speech as speechsdk
+try:
+    import azure.cognitiveservices.speech as speechsdk
+except ImportError:
+    speechsdk = None
 from urllib.parse import quote
 
 router = APIRouter()

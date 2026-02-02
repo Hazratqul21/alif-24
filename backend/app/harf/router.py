@@ -1,7 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
-import azure.cognitiveservices.speech as speechsdk
+try:
+    import azure.cognitiveservices.speech as speechsdk
+except ImportError:
+    speechsdk = None
 from app.core.config import settings
 import os
 

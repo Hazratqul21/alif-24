@@ -2,7 +2,10 @@ import re
 from typing import List, Dict
 import pdfplumber
 from docx import Document
-import pytesseract
+try:
+    import pytesseract
+except ImportError:
+    pytesseract = None
 from PIL import Image
 import io
 
@@ -401,7 +404,11 @@ def parse_image_tests(image_content: bytes) -> List[Dict]:
         image = enhancer.enhance(2.0)
         
         # OCR bilan matn olish
-        text = pytesseract.image_to_string(image, lang='eng+rus+uzb')
+        if pytesseract is None:
+            print("WARNING: pytesseract not installed, skipping OCR")
+            text = ""
+        else:
+            text = pytesseract.image_to_string(image, lang='eng+rus+uzb')
         print(f"DEBUG: OCR bilan matn olingan: {len(text)} belgi")
         print(f"DEBUG: OCR natijasi:\n{text}")
         
