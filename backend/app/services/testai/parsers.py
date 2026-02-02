@@ -385,6 +385,9 @@ def parse_word(docx_content: bytes) -> List[Dict]:
 def parse_image(image_content: bytes) -> List[Dict]:
     """Rasmdan OCR orqali matn o'qish"""
     image = Image.open(io.BytesIO(image_content))
+    if pytesseract is None:
+        print("WARNING: pytesseract not installed, skipping OCR")
+        return []
     text = pytesseract.image_to_string(image, lang='eng+rus+uzb')
     return parse_tests(text)
 
@@ -537,6 +540,9 @@ def parse_fallback_image_format(text: str) -> List[Dict]:
 def parse_image(image_content: bytes) -> List[Dict]:
     """Rasmdan OCR orqali matn o'qish"""
     image = Image.open(io.BytesIO(image_content))
+    if pytesseract is None:
+        print("WARNING: pytesseract not installed, skipping OCR")
+        return []
     text = pytesseract.image_to_string(image, lang='eng+rus+uzb')
     return parse_tests(text)
 
