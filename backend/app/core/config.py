@@ -20,37 +20,39 @@ class Settings(BaseSettings):
     DB_DIALECT: str = "postgresql"
     
     # JWT
-    JWT_SECRET: str = "your-secret-key-change-this-in-production"
+    JWT_SECRET: str = "f3611a8f90f3e156a3e018e52289758c0bd68e6c6e372c2cfb036f75a2ff2cfa"
     JWT_EXPIRES_IN: str = "7d"
-    JWT_REFRESH_SECRET: str = "your-refresh-secret-change-this-in-production"
+    JWT_REFRESH_SECRET: str = "8d1be0276394ed5252926104b25a0bfb1444e15be3cfd4c0fefd51bb14a96fa2"
     JWT_REFRESH_EXPIRES_IN: str = "30d"
     JWT_ALGORITHM: str = "HS256"
     
     # OpenAI
-    OPENAI_API_KEY: str = ""
+    OPENAI_API_KEY: str = "your_openai_api_key_here"
     OPENAI_MODEL: str = "gpt-4"
     
     # Azure
-    AZURE_STORAGE_CONNECTION_STRING: str = ""
-    AZURE_CONTAINER_NAME: str = "alif24-assets"
-    AZURE_SPEECH_KEY: Optional[str] = None
-    AZURE_SPEECH_REGION: str = "westeurope"
-    AZURE_OPENAI_KEY: Optional[str] = None
-    AZURE_OPENAI_ENDPOINT: Optional[str] = None
+    AZURE_STORAGE_CONNECTION_STRING: str = "DefaultEndpointsProtocol=https;AccountName=alifbe24;AccountKey=kNOPukOWmPce4VbxB7FSXL4SgVMml4zXkMTPdouqFhRLJwvp0Cp3rNpxFb3pkA766hfa00BBHSjR+AStteDO3Q==;EndpointSuffix=core.windows.net"
+    AZURE_CONTAINER_NAME: str = "audiostories"
+    AZURE_SPEECH_KEY: Optional[str] = "54V9TJPS3HtXlzdnmUY0sgRv6NtugLsgFcf2s3yZlwS0Ogint3u6JQQJ99BLACYeBjFXJ3w3AAAYACOGlQP9"
+    AZURE_SPEECH_REGION: str = "eastus"
+    AZURE_OPENAI_KEY: Optional[str] = "Ekghfq1yMBAeGkHM6kKpsfPrWP77Ab7x0NaQaS81I9I7zGDfbt8lJQQJ99BLACfhMk5XJ3w3AAABACOGUD56"
+    AZURE_OPENAI_ENDPOINT: Optional[str] = "https://deplo.cognitiveservices.azure.com/"
     AZURE_OPENAI_REGION: Optional[str] = None
-    AZURE_OPENAI_DEPLOYMENT_NAME: Optional[str] = None
-    AZURE_OPENAI_API_VERSION: Optional[str] = None
+    AZURE_OPENAI_DEPLOYMENT_NAME: Optional[str] = "gpt-5-chat"
+    AZURE_OPENAI_API_VERSION: Optional[str] = "2025-01-01-preview"
     
     # Logging
-    LOG_LEVEL: str = "ERROR"  # Production: faqat ERROR va yuqori
+    LOG_LEVEL: str = "info"  # Production: faqat ERROR va yuqori
     
     # CORS
-    CORS_ORIGINS: Optional[str] = None
-    CORS_ORIGIN: Optional[str] = None
+    CORS_ORIGINS: str = "*"
+    CORS_ORIGIN: str = "*"
     
     # Rate Limiting
-    RATE_LIMIT_WINDOW_MS: int = 15 * 60 * 1000
+    RATE_LIMIT_WINDOW_MS: int = 900000
     RATE_LIMIT_MAX: int = 100
+    
+    ADMIN_SECRET_KEY: str = "nurali_secret_2026"
     
     class Config:
         # .env faylini backend papkasidan qidirish
