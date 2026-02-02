@@ -91,6 +91,11 @@ const TeacherDashboard = () => {
           <Award size={20} />
           <span>Baholash</span>
         </button>
+        {/* TestAI - AI yordamida test yaratish */}
+        <button className="nav-item testai-btn" onClick={() => navigate('/teacher/test-ai')} style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+          <FileText size={20} />
+          <span>🤖 TestAI</span>
+        </button>
         <button className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
           <MessageSquare size={20} />
           <span>Xabarlar</span>
@@ -375,7 +380,7 @@ const TeacherDashboard = () => {
   const SettingsView = () => (
     <div className="settings-view">
       <h2>Shaxsiy kabinet va sozlamalar</h2>
-      
+
       <div className="settings-grid">
         <div className="card profile-card">
           <div className="card-header">
@@ -477,7 +482,7 @@ const TeacherDashboard = () => {
   );
 
   const renderContent = () => {
-    switch(activeTab) {
+    switch (activeTab) {
       case 'dashboard': return <DashboardView />;
       case 'students': return <StudentsView />;
       case 'messages': return <MessagesView />;
@@ -1620,4 +1625,3 @@ const TeacherDashboard = () => {
 };
 
 export default TeacherDashboard;
-   

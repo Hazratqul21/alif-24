@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     def get_database_url(self) -> str:
         # If DATABASE_URL is provided directly (standard for Docker), use it
         if self.DATABASE_URL:
+            # SQLAlchemy requires 'postgresql://', but some providers (like Supabase) give 'postgres://'
+            if self.DATABASE_URL.startswith("postgres://"):
+                return self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
             return self.DATABASE_URL
             
         # PostgreSQL (default)

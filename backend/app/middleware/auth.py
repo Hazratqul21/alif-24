@@ -43,6 +43,7 @@ async def get_current_user(
 ) -> User:
     """Get current authenticated user"""
     from app.models.rbac_models import AccountStatus
+    from uuid import UUID
     
     token = credentials.credentials
     
@@ -52,7 +53,13 @@ async def get_current_user(
     except Exception as e:
         raise UnauthorizedError(str(e))
     
-    user = db.query(User).filter(User.id == user_id).first()
+    # Convert string to UUID for proper SQLAlchemy filtering
+    try:
+        user_uuid = UUID(user_id)
+    except (ValueError, TypeError):
+        raise UnauthorizedError("Invalid user ID format")
+    
+    user = db.query(User).filter(User.id == user_uuid).first()
     if not user:
         raise UnauthorizedError("User not found")
     

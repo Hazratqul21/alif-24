@@ -17,6 +17,10 @@ router = APIRouter()
 
 # --- Pydantic Schemas ---
 
+class TextParseRequest(BaseModel):
+    """Request body for text parsing"""
+    text: str
+
 class QuestionSchema(BaseModel):
     id: Optional[str] = None
     question: str
@@ -62,12 +66,12 @@ async def health_check():
 
 @router.post("/parse/text")
 async def parse_text(
-    text: str = Form(...),
+    request: TextParseRequest,
     current_user: User = Depends(get_current_user)
 ):
     """Parse text from textarea to generate questions"""
     try:
-        tests = parse_tests(text)
+        tests = parse_tests(request.text)
         return {"status": "success", "tests": tests, "count": len(tests)}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Parsing error: {str(e)}")
@@ -165,7 +169,21 @@ async def save_test_logic(test_data: TestCreateSchema, db: Session, current_user
         db.commit()
         db.refresh(new_test)
         
-        return {"status": "success", "test_id": str(new_test.id), "test": new_test}
+        # Return serializable dict instead of SQLAlchemy model
+        return {
+            "status": "success", 
+            "test_id": str(new_test.id), 
+            "test": {
+                "id": str(new_test.id),
+                "title": new_test.title,
+                "description": new_test.description,
+                "questions": new_test.questions,
+                "category": new_test.category,
+                "tags": new_test.tags,
+                "total_points": new_test.total_points,
+                "created_at": str(new_test.created_at) if new_test.created_at else None
+            }
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
