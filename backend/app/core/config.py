@@ -11,12 +11,12 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # Database
-    DATABASE_URL: Optional[str] = None
-    DB_HOST: str = "localhost"
+    DATABASE_URL: Optional[str] = "postgresql://postgres:Xazrat_ali571@db.rvboscxljclteqvlxmeo.supabase.co:5432/postgres"
+    DB_HOST: str = "db.rvboscxljclteqvlxmeo.supabase.co"
     DB_PORT: int = 5432
-    DB_NAME: str = "alif24_db"
+    DB_NAME: str = "postgres"
     DB_USER: str = "postgres"
-    DB_PASSWORD: str = ""
+    DB_PASSWORD: str = "Xazrat_ali571"
     DB_DIALECT: str = "postgresql"
     
     # JWT
