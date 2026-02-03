@@ -1,6 +1,9 @@
 import re
 from typing import List, Dict
-import pdfplumber
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
 from docx import Document
 try:
     import pytesseract
@@ -368,6 +371,10 @@ def parse_flexible_tests(text: str) -> List[Dict]:
 
 def parse_pdf(pdf_content: bytes) -> List[Dict]:
     """PDF fayldan testlarni ajratib olish"""
+    if pdfplumber is None:
+        print("WARNING: pdfplumber not installed, skipping PDF parsing")
+        return []
+
     text = ""
     with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
         for page in pdf.pages:

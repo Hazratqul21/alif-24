@@ -1,5 +1,5 @@
-// Hardcoded Backend URL for Vercel Deployment
-const API_URL = 'https://alif-24.vercel.app/api/v1';
+// Backend URL from environment variables or default to Vercel production
+const API_URL = import.meta.env.VITE_API_URL || 'https://alif-24.vercel.app/api/v1';
 
 /**
  * API Service
