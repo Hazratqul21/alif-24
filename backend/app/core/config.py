@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # Database
-    DATABASE_URL: Optional[str] = "postgresql://postgres:Xazrat_ali571@db.rvboscxljclteqvlxmeo.supabase.co:5432/postgres"
+    # Database
+    DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL") or "postgresql://postgres:Xazrat_ali571@db.rvboscxljclteqvlxmeo.supabase.co:5432/postgres"
     DB_HOST: str = "db.rvboscxljclteqvlxmeo.supabase.co"
     DB_PORT: int = 5432
     DB_NAME: str = "postgres"
