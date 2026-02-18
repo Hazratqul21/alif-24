@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, RotateCcw, Coins } from 'lucide-react';
-import { useLanguage } from '../context/LanguageContext';
-import coinService from '../services/coinService';
+import { useLanguage } from '../../context/LanguageContext';
+import coinService from '../../services/coinService';
 import './LetterMemoryGame.css';
 
 // React + Vite + CSS versiyasi (framer-motion/react-query/base44 yo'q)
@@ -12,7 +12,7 @@ const getDifficultyLevels = (t) => ({
 });
 
 const UZBEK_SET = [
-  { letter: 'O', emoji: '🍎'},
+  { letter: 'O', emoji: '🍎' },
   { letter: 'A', emoji: '🐝' },
   { letter: 'I', emoji: '🐶' },
   { letter: 'T', emoji: '🥚' },
@@ -181,20 +181,20 @@ export default function MemoryGame() {
         </div>
 
         {showWin && (
-          <div style={{position:'fixed',inset:0,zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.5)',backdropFilter:'blur(4px)'}}>
-            <div style={{background:'white',borderRadius:'24px',padding:'32px',maxWidth:'360px',width:'90%',textAlign:'center',boxShadow:'0 25px 50px rgba(0,0,0,0.25)'}}>
-              <div style={{fontSize:'4rem',marginBottom:'12px'}}>🎉</div>
-              <h2 style={{fontSize:'1.5rem',fontWeight:'bold',color:'#1F2937',marginBottom:'8px'}}>Tabriklaymiz!</h2>
-              <p style={{color:'#6B7280',marginBottom:'16px'}}>Barcha juftliklarni topdingiz! {moves} ta urinish</p>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+            <div style={{ background: 'white', borderRadius: '24px', padding: '32px', maxWidth: '360px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
+              <div style={{ fontSize: '4rem', marginBottom: '12px' }}>🎉</div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1F2937', marginBottom: '8px' }}>Tabriklaymiz!</h2>
+              <p style={{ color: '#6B7280', marginBottom: '16px' }}>Barcha juftliklarni topdingiz! {moves} ta urinish</p>
               {earnedCoins > 0 && (
-                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',margin:'12px 0',padding:'10px 16px',background:'#FEF3C7',borderRadius:'12px',border:'1px solid #FDE68A'}}>
-                  <Coins size={20} style={{color:'#D97706'}} />
-                  <span style={{fontWeight:'bold',color:'#92400E',fontSize:'1.1rem'}}>+{earnedCoins} coin</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '12px 0', padding: '10px 16px', background: '#FEF3C7', borderRadius: '12px', border: '1px solid #FDE68A' }}>
+                  <Coins size={20} style={{ color: '#D97706' }} />
+                  <span style={{ fontWeight: 'bold', color: '#92400E', fontSize: '1.1rem' }}>+{earnedCoins} coin</span>
                 </div>
               )}
-              <div style={{display:'flex',gap:'8px',marginTop:'16px'}}>
-                <button onClick={() => { setShowWin(false); setEarnedCoins(0); initializeGame(); }} style={{flex:1,padding:'12px',background:'#3B82F6',color:'white',border:'none',borderRadius:'12px',fontWeight:'bold',fontSize:'1rem',cursor:'pointer'}}>Qayta o'ynash</button>
-                <button onClick={() => { setShowWin(false); setEarnedCoins(0); initializeGame(true); }} style={{flex:1,padding:'12px',background:'#E5E7EB',color:'#374151',border:'none',borderRadius:'12px',fontWeight:'bold',fontSize:'1rem',cursor:'pointer'}}>Orqaga</button>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                <button onClick={() => { setShowWin(false); setEarnedCoins(0); initializeGame(); }} style={{ flex: 1, padding: '12px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>Qayta o'ynash</button>
+                <button onClick={() => { setShowWin(false); setEarnedCoins(0); initializeGame(true); }} style={{ flex: 1, padding: '12px', background: '#E5E7EB', color: '#374151', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>Orqaga</button>
               </div>
             </div>
           </div>

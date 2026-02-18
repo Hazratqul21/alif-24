@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Star } from 'lucide-react';
 import "../harf/Harf.css";
 import EharfModal from "./EharfModal";
-import Navbar from '../components/Common/Navbar';
-import GuestGuard from '../components/Common/GuestGuard';
+import Navbar from '../Common/Navbar';
+import GuestGuard from '../Common/GuestGuard';
 
 // English alphabet (A-Z)
 const items = [
@@ -71,7 +71,7 @@ export default function Eharf() {
           starsMap[entry.letter] = entry.stars;
         });
         setLetterStars(starsMap);
-      } catch {}
+      } catch { }
     };
 
     const interval = setInterval(updateStars, 2000);
@@ -84,7 +84,7 @@ export default function Eharf() {
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem("en_harfProgressUnlocked", String(unlocked)); } catch {}
+    try { localStorage.setItem("en_harfProgressUnlocked", String(unlocked)); } catch { }
   }, [unlocked]);
 
   const handleCardClick = (card, index) => {
