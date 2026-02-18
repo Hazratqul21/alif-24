@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Filter, RefreshCw } from 'lucide-react';
-import CRMBoard from '../../components/crm/CRMBoard';
-import LeadModal from '../../components/crm/LeadModal';
-import crmService from '../../services/crmService';
-import DashboardLayout from '../../components/Dashboard/DashboardLayout';
+import CRMBoard from '../components/crm/CRMBoard';
+import LeadModal from '../components/crm/LeadModal';
+import crmService from '../services/crmService';
+import DashboardLayout from '../components/Dashboard/DashboardLayout';
 
 const CRMPage = () => {
     const [leads, setLeads] = useState([]);
