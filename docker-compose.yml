@@ -1,0 +1,292 @@
+services:
+  # Database Service
+  postgres:
+    image: postgres:15
+    container_name: alif24-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alif24_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-alif24}
+    ports:
+      - "5432:5432"
+    volumes:
+      - /data/postgres:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - alif24-network
+
+  # Redis Service
+  redis:
+    image: redis:7
+    container_name: alif24-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - alif24-network
+
+  # Main Platform
+  main-backend:
+    build:
+      context: .
+      dockerfile: MainPlatform/backend/Dockerfile
+    container_name: main-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_change_in_production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dev_refresh_secret_change_in_production}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - alif24-network
+
+  main-frontend:
+    build:
+      context: ./MainPlatform/frontend
+      dockerfile: Dockerfile
+    container_name: main-frontend
+    restart: always
+    ports:
+      - "5173:80"
+    networks:
+      - alif24-network
+
+  # Harf Platform
+  harf-backend:
+    build:
+      context: .
+      dockerfile: Harf/backend/Dockerfile
+    container_name: harf-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_change_in_production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dev_refresh_secret_change_in_production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+    networks:
+      - alif24-network
+
+  harf-frontend:
+    build:
+      context: ./Harf/frontend
+      dockerfile: Dockerfile
+    container_name: harf-frontend
+    restart: always
+    ports:
+      - "5174:80"
+    networks:
+      - alif24-network
+
+  # TestAI Platform
+  testai-backend:
+    build:
+      context: .
+      dockerfile: TestAI/backend/Dockerfile
+    container_name: testai-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_change_in_production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dev_refresh_secret_change_in_production}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+    ports:
+      - "8002:8002"
+    depends_on:
+      - postgres
+    networks:
+      - alif24-network
+
+  testai-frontend:
+    build:
+      context: ./TestAI/frontend
+      dockerfile: Dockerfile
+    container_name: testai-frontend
+    restart: always
+    ports:
+      - "5175:80"
+    networks:
+      - alif24-network
+
+  # CRM Platform
+  crm-backend:
+    build:
+      context: .
+      dockerfile: CRM/backend/Dockerfile
+    container_name: crm-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_change_in_production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dev_refresh_secret_change_in_production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+    ports:
+      - "8003:8003"
+    depends_on:
+      - postgres
+    networks:
+      - alif24-network
+
+  crm-frontend:
+    build:
+      context: ./CRM/frontend
+      dockerfile: Dockerfile
+    container_name: crm-frontend
+    restart: always
+    ports:
+      - "5176:80"
+    networks:
+      - alif24-network
+
+  # Games Platform
+  games-backend:
+    build:
+      context: .
+      dockerfile: Games/backend/Dockerfile
+    container_name: games-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_change_in_production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dev_refresh_secret_change_in_production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+    ports:
+      - "8004:8004"
+    depends_on:
+      - postgres
+    networks:
+      - alif24-network
+
+  games-frontend:
+    build:
+      context: ./Games/frontend
+      dockerfile: Dockerfile
+    container_name: games-frontend
+    restart: always
+    ports:
+      - "5177:80"
+    networks:
+      - alif24-network
+
+  # Olimp Platform
+  olimp-backend:
+    build:
+      context: .
+      dockerfile: Olimp/backend/Dockerfile
+    container_name: olimp-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_change_in_production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dev_refresh_secret_change_in_production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+    ports:
+      - "8005:8005"
+    depends_on:
+      - postgres
+    networks:
+      - alif24-network
+
+  olimp-frontend:
+    build:
+      context: ./Olimp/frontend
+      dockerfile: Dockerfile
+    container_name: olimp-frontend
+    restart: always
+    ports:
+      - "5178:80"
+    networks:
+      - alif24-network
+
+  # Lessions Platform
+  lessions-backend:
+    build:
+      context: .
+      dockerfile: Lessions/backend/Dockerfile
+    container_name: lessions-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_change_in_production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dev_refresh_secret_change_in_production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+    ports:
+      - "8006:8006"
+    depends_on:
+      - postgres
+    networks:
+      - alif24-network
+
+  lessions-frontend:
+    build:
+      context: ./Lessions/frontend
+      dockerfile: Dockerfile
+    container_name: lessions-frontend
+    restart: always
+    ports:
+      - "5179:80"
+    networks:
+      - alif24-network
+
+  # Nginx Gateway
+  nginx:
+    image: nginx:alpine
+    container_name: alif24-gateway
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - main-frontend
+      - main-backend
+      - harf-frontend
+      - harf-backend
+      - testai-frontend
+      - testai-backend
+      - crm-frontend
+      - crm-backend
+      - games-frontend
+      - games-backend
+      - olimp-frontend
+      - olimp-backend
+      - lessions-frontend
+      - lessions-backend
+    networks:
+      - alif24-network
+
+  # pgAdmin — DB Monitoring
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: alif24-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@ali24.uz}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-alif24_admin_2026}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - alif24-network
+
+networks:
+  alif24-network:
+    driver: bridge
