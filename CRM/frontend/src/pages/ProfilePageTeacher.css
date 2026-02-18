@@ -1,0 +1,254 @@
+.profile-teacher-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  padding-bottom: 100px;
+}
+
+/* Header */
+.profile-header {
+  background: linear-gradient(135deg, #4b30fb 0%, #764ba2 100%);
+  padding: 40px 20px;
+}
+
+.profile-welcome {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  border: 3px solid rgba(255, 255, 255, 0.5);
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-name {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 8px;
+}
+
+.user-role {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+/* Sections */
+.profile-stats-section,
+.profile-children-section,
+.profile-activity-section,
+.profile-settings-section {
+  padding: 40px 20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 25px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+/* Statistics */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #2a2a3e 0%, #1e1e2f 100%);
+  border-radius: 15px;
+  padding: 25px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border: 2px solid rgba(75, 48, 251, 0.2);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  border-color: #4b30fb;
+  box-shadow: 0 8px 25px rgba(75, 48, 251, 0.3);
+}
+
+.stat-icon {
+  font-size: 3rem;
+}
+
+.stat-info {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Children/Students Grid */
+.children-grid {
+  min-height: 200px;
+}
+
+/* Activity List */
+.activity-list {
+  min-height: 200px;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: linear-gradient(135deg, #2a2a3e 0%, #1e1e2f 100%);
+  border-radius: 15px;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+}
+
+.empty-icon {
+  font-size: 5rem;
+  opacity: 0.5;
+  margin-bottom: 15px;
+}
+
+.empty-state p {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+/* Settings List */
+.settings-list {
+  display: grid;
+  gap: 15px;
+}
+
+.setting-item {
+  background: linear-gradient(135deg, #2a2a3e 0%, #1e1e2f 100%);
+  border: 2px solid rgba(75, 48, 251, 0.2);
+  border-radius: 12px;
+  padding: 20px 25px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #ffffff;
+  font-size: 1.1rem;
+}
+
+.setting-item:hover {
+  transform: translateX(5px);
+  border-color: #4b30fb;
+  background: linear-gradient(135deg, #2a2a3e 0%, #1e1e2f 100%);
+}
+
+.setting-icon {
+  font-size: 1.8rem;
+}
+
+.setting-label {
+  flex: 1;
+  text-align: left;
+}
+
+.setting-arrow {
+  font-size: 1.8rem;
+  opacity: 0.5;
+}
+
+/* Buttons */
+.btn-add {
+  background: linear-gradient(135deg, #00ff88 0%, #00d9ff 100%);
+  border: none;
+  color: #1e1e2f;
+  padding: 12px 25px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-add:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .user-name {
+    font-size: 1.5rem;
+  }
+
+  .user-role {
+    font-size: 0.95rem;
+  }
+
+  .user-avatar {
+    width: 60px;
+    height: 60px;
+    font-size: 2rem;
+  }
+
+  .section-title {
+    font-size: 1.4rem;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    padding: 20px;
+  }
+
+  .stat-icon {
+    font-size: 2.5rem;
+  }
+
+  .stat-value {
+    font-size: 1.6rem;
+  }
+
+  .setting-item {
+    padding: 15px 20px;
+    font-size: 1rem;
+  }
+}

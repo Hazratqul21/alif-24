@@ -1,0 +1,3 @@
+"""
+MainPlatform App Package
+"""

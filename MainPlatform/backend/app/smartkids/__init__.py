@@ -1,0 +1,1 @@
+# SmartKids AI Module

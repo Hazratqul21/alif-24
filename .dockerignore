@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+docs/
+ARCHITECTURE.md
+COMPREHENSIVE_TECHNICAL_AUDIT_2026.md
+Kimining_auditi.md
+SENIOR_AUDIT*.md
+MIGRATION_PROGRESS.md
+RUN_GUIDE.md
+
+# Node modules (frontend builds use their own context)
+**/node_modules
+**/dist
+
+# Python cache
+**/__pycache__
+**/*.pyc
+**/*.pyo
+*.egg-info
+
+# Docker
+docker/postgres/data
+
+# Tests
+tests/
+test_*.py
+
+# Misc
+*.log
+.env
+.env.*

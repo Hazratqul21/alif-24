@@ -1,0 +1,60 @@
+name: Alif24 Platform CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f MainPlatform/backend/requirements.txt ]; then pip install -r MainPlatform/backend/requirements.txt; fi
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install pytest pytest-asyncio httpx playwright
+    
+    - name: Run Shared Module Tests
+      run: |
+        pytest tests/unit/test_shared_extended.py
+    
+    # Add more backend tests here
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+    
+    - name: Install MainPlatform Dependencies
+      run: |
+        cd MainPlatform/frontend
+        npm ci
+    
+    - name: Build MainPlatform
+      run: |
+        cd MainPlatform/frontend
+        npm run build --if-present
+
