@@ -16,6 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, desc
 
 from shared.database.models import PhoneVerification, TelegramUser, User, StudentProfile
+from shared.database.models.achievement import Achievement, StudentAchievement
+from shared.database.models.coin import StudentCoin
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +53,44 @@ Qoidalar:
 - Agar bilmagan savolingiz bo'lsa, shunday deb ayting
 - Doim do'stona va pozitiv bo'l
 - Texnik muammolar bo'lsa, admin bilan bog'lanishni tavsiya qil
+"""
+
+MATH_SYSTEM_PROMPT = """Sen Alif24 platformasining matematika o'qituvchi botisan.
+Vazifang:
+- Matematika masalalarini bosqichma-bosqich yechishda yordam berish
+- Bolalarga (4-12 yosh) tushunarli tilda tushuntirish
+- Qo'shish, ayirish, ko'paytirish, bo'lish, kasrlar, geometriya
+- Har bir qadamni emoji bilan bezash
+- Agar foydalanuvchi masala bersa — yechimni ko'rsat
+- Agar savol bersa — tushuntir
+- Doim o'zbek tilida javob ber (agar boshqa tilda so'ralmasa)
+- Javob oxirida "Yana masala yechmoqchimisiz? 🧮" deb so'ra
+"""
+
+TEST_SYSTEM_PROMPT = """Sen Alif24 platformasining test yaratuvchi botisan.
+Vazifang:
+- Foydalanuvchi so'ragan mavzu bo'yicha 5 ta test savoli yaratish
+- Har bir savolda 4 ta variant bo'lsin (A, B, C, D)
+- To'g'ri javobni oxirida ko'rsat
+- Savollar qiyinlik darajasi: oson, o'rta, qiyin (foydalanuvchi tanlaydi)
+- Mavzular: Matematika, Ona tili, Ingliz tili, Tabiatshunoslik, Tarix, va boshqalar
+- Agar mavzu ko'rsatilmasa, umumiy bilim savollarini ber
+- Format:
+  1️⃣ Savol matni
+  A) variant  B) variant  C) variant  D) variant
+- Doim o'zbek tilida (agar boshqa tilda so'ralmasa)
+"""
+
+STORY_SYSTEM_PROMPT = """Sen Alif24 platformasining ertak yaratuvchi botisan.
+Vazifang:
+- Bolalar uchun qisqa va qiziqarli ertaklar yaratish (4-10 yosh)
+- Ertak ta'limiy bo'lsin — oxirida saboq bo'lsin
+- Emoji va tasviriy so'zlardan foydalanish
+- Agar mavzu berilsa — shu mavzuda ertak yoz
+- Agar berilmasa — o'zing qiziqarli mavzu tanla
+- Ertak uzunligi: 150-300 so'z
+- Oxirida: "📖 Bu ertakdan nima o'rgandik?" deb saboqni yoz
+- Doim o'zbek tilida (agar boshqa tilda so'ralmasa)
 """
 
 
@@ -257,19 +298,23 @@ Tabriklaymiz! 🎉
             "message": "Telefon raqami muvaffaqiyatli bog'landi"
         }
     
-    async def _get_ai_response(self, chat_id: str, user_message: str) -> str:
+    async def _get_ai_response(self, chat_id: str, user_message: str, system_prompt: Optional[str] = None) -> str:
         """
         OpenAI GPT-4 orqali foydalanuvchi savoliga javob olish.
         Chat tarixini saqlaydi (oxirgi 10 ta xabar).
+        system_prompt — maxsus rejim uchun (math, test, story)
         """
         if not self.openai_api_key or self.openai_api_key == "":
             return "⚠️ AI xizmati hozirda mavjud emas. Iltimos, keyinroq urinib ko'ring."
         
-        # Chat tarixini olish yoki yangisini yaratish
-        if chat_id not in self._chat_history:
-            self._chat_history[chat_id] = []
+        prompt = system_prompt or ALIF24_SYSTEM_PROMPT
         
-        history = self._chat_history[chat_id]
+        # Chat tarixini olish yoki yangisini yaratish
+        history_key = f"{chat_id}:{id(prompt)}"
+        if history_key not in self._chat_history:
+            self._chat_history[history_key] = []
+        
+        history = self._chat_history[history_key]
         
         # Foydalanuvchi xabarini tarixga qo'shish
         history.append({"role": "user", "content": user_message})
@@ -277,11 +322,11 @@ Tabriklaymiz! 🎉
         # Oxirgi 10 ta xabarni saqlash (xotira uchun)
         if len(history) > 10:
             history = history[-10:]
-            self._chat_history[chat_id] = history
+            self._chat_history[history_key] = history
         
         # OpenAI API ga so'rov
         messages = [
-            {"role": "system", "content": ALIF24_SYSTEM_PROMPT},
+            {"role": "system", "content": prompt},
             *history
         ]
         
@@ -296,7 +341,7 @@ Tabriklaymiz! 🎉
                     json={
                         "model": self.openai_model,
                         "messages": messages,
-                        "max_tokens": 500,
+                        "max_tokens": 800,
                         "temperature": 0.7,
                     },
                     timeout=30.0
@@ -308,7 +353,7 @@ Tabriklaymiz! 🎉
                     
                     # AI javobini tarixga qo'shish
                     history.append({"role": "assistant", "content": ai_reply})
-                    self._chat_history[chat_id] = history
+                    self._chat_history[history_key] = history
                     
                     return ai_reply
                 else:
@@ -320,6 +365,201 @@ Tabriklaymiz! 🎉
         except Exception as e:
             logger.error(f"AI response error: {e}")
             return "⚠️ Texnik xatolik yuz berdi. Iltimos, keyinroq urinib ko'ring."
+    
+    async def _get_student_profile(self, chat_id: str) -> Optional[StudentProfile]:
+        """Telegram chat_id orqali o'quvchi profilini olish"""
+        stmt = select(TelegramUser).filter(TelegramUser.telegram_chat_id == chat_id)
+        result = await self.db.execute(stmt)
+        tg_user = result.scalar_one_or_none()
+        
+        if not tg_user or not tg_user.user_id:
+            return None
+        
+        stmt = select(StudentProfile).filter(StudentProfile.user_id == tg_user.user_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+    
+    async def handle_progress(self, chat_id: str) -> None:
+        """O'quvchining o'quv progressini ko'rsatish"""
+        profile = await self._get_student_profile(chat_id)
+        
+        if not profile:
+            await self._send_message(
+                chat_id,
+                "📊 Progressni ko'rish uchun avval platformada ro'yxatdan o'ting va "
+                "botni telefon raqamingiz bilan bog'lang."
+            )
+            return
+        
+        # Coin balansini olish
+        stmt = select(StudentCoin).filter(StudentCoin.student_id == profile.id)
+        result = await self.db.execute(stmt)
+        coin = result.scalar_one_or_none()
+        coin_balance = coin.current_balance if coin else 0
+        
+        msg = (
+            f"📊 *O'quv Progressi*\n\n"
+            f"🎓 Daraja: *{profile.level}*\n"
+            f"⭐ Umumiy ball: *{profile.total_points}*\n"
+            f"🪙 Coinlar: *{coin_balance}*\n"
+            f"📚 Tugatilgan darslar: *{profile.total_lessons_completed}*\n"
+            f"🎮 O'ynalgan o'yinlar: *{profile.total_games_played}*\n"
+            f"⏱ Umumiy vaqt: *{profile.total_time_spent}* daqiqa\n"
+            f"📈 O'rtacha ball: *{profile.average_score:.1f}%*\n"
+            f"🔥 Joriy streak: *{profile.current_streak}* kun\n"
+            f"🏆 Eng uzun streak: *{profile.longest_streak}* kun\n\n"
+            f"Zo'r natijalar! Davom eting! 💪"
+        )
+        await self._send_message(chat_id, msg, parse_mode="Markdown")
+    
+    async def handle_achievements(self, chat_id: str) -> None:
+        """O'quvchining yutuqlarini ko'rsatish"""
+        profile = await self._get_student_profile(chat_id)
+        
+        if not profile:
+            await self._send_message(
+                chat_id,
+                "🏆 Yutuqlarni ko'rish uchun avval platformada ro'yxatdan o'ting."
+            )
+            return
+        
+        stmt = (
+            select(StudentAchievement, Achievement)
+            .join(Achievement, StudentAchievement.achievement_id == Achievement.id)
+            .filter(StudentAchievement.student_id == profile.id)
+            .order_by(desc(StudentAchievement.earned_at))
+            .limit(10)
+        )
+        result = await self.db.execute(stmt)
+        rows = result.all()
+        
+        if not rows:
+            await self._send_message(
+                chat_id,
+                "🏆 Hali yutuqlar yo'q.\n\nPlatformada darslarni o'qing, o'yinlar o'ynang "
+                "va yutuqlarni qo'lga kiriting! 🎯"
+            )
+            return
+        
+        lines = ["🏆 *Sizning Yutuqlaringiz*\n"]
+        for sa, ach in rows:
+            status = "✅" if sa.is_completed else f"⏳ {sa.progress_current}/{sa.progress_target}"
+            lines.append(f"{status} *{ach.name_uz}*")
+        
+        lines.append(f"\nJami: *{len(rows)}* ta yutuq")
+        await self._send_message(chat_id, "\n".join(lines), parse_mode="Markdown")
+    
+    async def handle_settings(self, chat_id: str, args: str = "") -> None:
+        """Foydalanuvchi sozlamalarini boshqarish"""
+        stmt = select(TelegramUser).filter(TelegramUser.telegram_chat_id == chat_id)
+        result = await self.db.execute(stmt)
+        tg_user = result.scalar_one_or_none()
+        
+        if not tg_user:
+            await self._send_message(chat_id, "⚙️ Avval botni /start bilan ishga tushuring.")
+            return
+        
+        # Agar argument berilgan bo'lsa — o'zgartirish
+        arg = args.strip().lower()
+        if arg == "uz" or arg == "ru" or arg == "en":
+            tg_user.language = arg
+            await self.db.commit()
+            lang_names = {"uz": "O'zbek", "ru": "Русский", "en": "English"}
+            await self._send_message(chat_id, f"✅ Til o'zgartirildi: *{lang_names[arg]}*", parse_mode="Markdown")
+            return
+        
+        if arg == "notify_on":
+            tg_user.notifications_enabled = True
+            await self.db.commit()
+            await self._send_message(chat_id, "🔔 Bildirishnomalar yoqildi!")
+            return
+        
+        if arg == "notify_off":
+            tg_user.notifications_enabled = False
+            await self.db.commit()
+            await self._send_message(chat_id, "🔕 Bildirishnomalar o'chirildi.")
+            return
+        
+        # Joriy sozlamalarni ko'rsatish
+        lang_names = {"uz": "O'zbek", "ru": "Русский", "en": "English"}
+        current_lang = lang_names.get(tg_user.language, "O'zbek")
+        notify_status = "Yoqilgan" if tg_user.notifications_enabled else "O'chirilgan"
+        report_status = "Yoqilgan" if tg_user.daily_report_enabled else "O'chirilgan"
+        
+        msg = (
+            "⚙️ *Sozlamalar*\n\n"
+            f"🌐 Til: *{current_lang}*\n"
+            f"📢 Bildirishnomalar: *{notify_status}*\n"
+            f"📊 Kunlik hisobot: *{report_status}*\n\n"
+            "*O'zgartirish uchun:*\n"
+            "/settings uz — O'zbek tili\n"
+            "/settings ru — Rus tili\n"
+            "/settings en — Ingliz tili\n"
+            "/settings notify\\_on — Bildirishnomalarni yoqish\n"
+            "/settings notify\\_off — Bildirishnomalarni o'chirish"
+        )
+        await self._send_message(chat_id, msg, parse_mode="Markdown")
+    
+    async def broadcast_message(self, message: str, parse_mode: Optional[str] = None,
+                                  filter_type: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Barcha Telegram foydalanuvchilarga ommaviy xabar jo'natish.
+        filter_type: None (hammaga), "students", "parents", "teachers"
+        Telegram API cheklovi: 30 msg/sec — shuning uchun 0.05s kechikish
+        """
+        stmt = select(TelegramUser).filter(TelegramUser.notifications_enabled == True)
+        result = await self.db.execute(stmt)
+        users = result.scalars().all()
+        
+        if filter_type and filter_type != "all":
+            # Filter by user role if needed
+            filtered = []
+            for tg_user in users:
+                if tg_user.user_id:
+                    user_stmt = select(User).filter(User.id == tg_user.user_id)
+                    user_result = await self.db.execute(user_stmt)
+                    user = user_result.scalar_one_or_none()
+                    if user and hasattr(user, 'role'):
+                        role = str(user.role.value if hasattr(user.role, 'value') else user.role).lower()
+                        if filter_type == "students" and role == "student":
+                            filtered.append(tg_user)
+                        elif filter_type == "parents" and role == "parent":
+                            filtered.append(tg_user)
+                        elif filter_type == "teachers" and role == "teacher":
+                            filtered.append(tg_user)
+                    else:
+                        # Agar filter bo'lsa lekin role topilmasa — o'tkazib yuborish
+                        pass
+                else:
+                    # user_id bog'lanmagan — faqat "all" da yuborish
+                    pass
+            users = filtered
+        
+        total = len(users)
+        success_count = 0
+        fail_count = 0
+        
+        for tg_user in users:
+            try:
+                sent = await self._send_message(tg_user.telegram_chat_id, message, parse_mode=parse_mode)
+                if sent:
+                    success_count += 1
+                else:
+                    fail_count += 1
+            except Exception as e:
+                logger.error(f"Broadcast error for {tg_user.telegram_chat_id}: {e}")
+                fail_count += 1
+            
+            # Telegram API rate limit: 30 msg/sec
+            await asyncio.sleep(0.05)
+        
+        return {
+            "success": True,
+            "total": total,
+            "sent": success_count,
+            "failed": fail_count,
+            "message": f"Xabar {success_count}/{total} foydalanuvchiga yuborildi."
+        }
     
     async def _send_message(self, chat_id: str, message: str, parse_mode: Optional[str] = None) -> bool:
         """Internal method to send Telegram message"""
@@ -411,13 +651,21 @@ Tabriklaymiz! 🎉
                     await self._send_message(
                         chat_id,
                         f"Assalomu alaykum, {first_name or 'Foydalanuvchi'}! 👋\n\n"
-                        f"🎓 *Alif24 Platformasi* botiga xush kelibsiz!\n\n"
-                        f"📱 Platformada telefon raqamingizni tasdiqlash uchun botni ishga tushuring.\n\n"
-                        f"💬 Menga istalgan savolingizni yuboring — men AI yordamchi sifatida javob beraman!\n\n"
-                        f"📝 Buyruqlar:\n"
-                        f"/start — Botni qayta ishga tushirish\n"
-                        f"/help — Yordam\n"
-                        f"/about — Alif24 haqida",
+                        "🎓 *Alif24 Platformasi* botiga xush kelibsiz!\n\n"
+                        "📱 Platformada telefon raqamingizni tasdiqlash uchun botni ishga tushuring.\n\n"
+                        "💬 Menga istalgan savolingizni yuboring — men AI yordamchi sifatida javob beraman!\n\n"
+                        "📝 *Buyruqlar:*\n"
+                        "/start — Botni qayta ishga tushirish\n"
+                        "/help — Yordam\n"
+                        "/about — Alif24 haqida\n\n"
+                        "🤖 *AI Chatbotlar:*\n"
+                        "/math — Matematika yordamchisi\n"
+                        "/test — Test yaratuvchi\n"
+                        "/story — Ertak yaratuvchi\n\n"
+                        "📊 *Shaxsiy:*\n"
+                        "/progress — O'quv progressi\n"
+                        "/achievements — Yutuqlar\n"
+                        "/settings — Sozlamalar",
                         parse_mode="Markdown"
                     )
             
@@ -429,6 +677,15 @@ Tabriklaymiz! 🎉
                     "📱 *Telefon bog'lash:* Platformadan ro'yxatdan o'ting, bot avtomatik bog'lanadi.\n"
                     "🔐 *Tasdiqlash:* Kod shu yerga yuboriladi.\n"
                     "💬 *Savol berish:* Istalgan savolingizni yozing, AI javob beradi.\n\n"
+                    "🤖 *AI Chatbotlar:*\n"
+                    "/math — 🧮 Matematika masalalarini yechish\n"
+                    "/test — 📝 Mavzu bo'yicha test yaratish\n"
+                    "/story — 📖 Bolalar uchun ertak yaratish\n\n"
+                    "📊 *Shaxsiy kabinet:*\n"
+                    "/progress — O'quv progressingiz\n"
+                    "/achievements — Yutuqlaringiz\n"
+                    "/settings — Til va bildirishnoma sozlamalari\n\n"
+                    "💡 *Maslahat:* /math 25+37 yoki /test Matematika deb yozing!\n\n"
                     "❓ Muammo bo'lsa admin bilan bog'laning.",
                     parse_mode="Markdown"
                 )
@@ -440,26 +697,109 @@ Tabriklaymiz! 🎉
                     "🎓 *Alif24 — AI Ta'lim Platformasi*\n\n"
                     "O'zbekistondagi bolalar uchun sun'iy intellekt asosida ta'lim beruvchi zamonaviy platforma.\n\n"
                     "📚 SmartKids AI, MathKids AI, Harf, TestAI, Live Quiz, Games va boshqalar!\n\n"
-                    "🌐 Veb-sayt: ali24.uz",
+                    "🌐 Veb-sayt: alif24.uz",
                     parse_mode="Markdown"
                 )
             
+            # Handle /math command — AI matematika yordamchisi
+            elif text.startswith("/math"):
+                args = text[5:].strip()
+                if not args:
+                    await self._send_message(
+                        chat_id,
+                        "🧮 *Matematika Yordamchisi*\n\n"
+                        "Menga istalgan matematika masalasini yuboring!\n\n"
+                        "Misollar:\n"
+                        "/math 125 + 376\n"
+                        "/math 15 x 23 ni yech\n"
+                        "/math Uchburchakning yuzini top\n\n"
+                        "Yoki shunchaki masalani yozing! 📐",
+                        parse_mode="Markdown"
+                    )
+                else:
+                    await self._send_typing(chat_id)
+                    ai_response = await self._get_ai_response(chat_id, args, MATH_SYSTEM_PROMPT)
+                    await self._send_message(chat_id, ai_response)
+            
+            # Handle /test command — AI test yaratuvchi
+            elif text.startswith("/test"):
+                args = text[5:].strip()
+                if not args:
+                    await self._send_message(
+                        chat_id,
+                        "📝 *Test Yaratuvchi*\n\n"
+                        "Mavzu va qiyinlik darajasini yozing, men test yarataman!\n\n"
+                        "Misollar:\n"
+                        "/test Matematika oson\n"
+                        "/test Ingliz tili o'rta\n"
+                        "/test Tarix qiyin\n"
+                        "/test Tabiatshunoslik\n\n"
+                        "Qiyinlik: oson, o'rta, qiyin 📚",
+                        parse_mode="Markdown"
+                    )
+                else:
+                    await self._send_typing(chat_id)
+                    ai_response = await self._get_ai_response(chat_id, args, TEST_SYSTEM_PROMPT)
+                    await self._send_message(chat_id, ai_response)
+            
+            # Handle /story command — AI ertak yaratuvchi
+            elif text.startswith("/story"):
+                args = text[6:].strip()
+                if not args:
+                    await self._send_message(
+                        chat_id,
+                        "📖 *Ertak Yaratuvchi*\n\n"
+                        "Mavzu yozing yoki shunchaki /story bosing — men ertak yarataman!\n\n"
+                        "Misollar:\n"
+                        "/story Mehnatsevar chumoli\n"
+                        "/story Kosmosga sayohat\n"
+                        "/story Do'stlik haqida\n\n"
+                        "Keling, ertak boshlaymiz! ✨",
+                        parse_mode="Markdown"
+                    )
+                    # Mavzusiz ham ertak yaratish
+                    await self._send_typing(chat_id)
+                    ai_response = await self._get_ai_response(
+                        chat_id, "Menga qiziqarli ta'limiy ertak yarat", STORY_SYSTEM_PROMPT
+                    )
+                    await self._send_message(chat_id, ai_response)
+                else:
+                    await self._send_typing(chat_id)
+                    ai_response = await self._get_ai_response(
+                        chat_id, f"Shu mavzuda ertak yarat: {args}", STORY_SYSTEM_PROMPT
+                    )
+                    await self._send_message(chat_id, ai_response)
+            
+            # Handle /progress command
+            elif text.startswith("/progress"):
+                await self.handle_progress(chat_id)
+            
+            # Handle /achievements command
+            elif text.startswith("/achievements"):
+                await self.handle_achievements(chat_id)
+            
+            # Handle /settings command
+            elif text.startswith("/settings"):
+                args = text[9:].strip()
+                await self.handle_settings(chat_id, args)
+            
             # AI Chatbot — har qanday boshqa xabarga javob berish
             else:
-                # "Typing" indikatorni ko'rsatish
-                try:
-                    async with httpx.AsyncClient() as client:
-                        await client.post(
-                            f"{self.api_url}/sendChatAction",
-                            json={"chat_id": chat_id, "action": "typing"},
-                            timeout=5.0
-                        )
-                except Exception:
-                    pass
-                
-                # AI javobini olish
+                await self._send_typing(chat_id)
                 ai_response = await self._get_ai_response(chat_id, text)
                 await self._send_message(chat_id, ai_response)
                     
         except Exception as e:
             logger.error(f"Error processing webhook update: {e}")
+    
+    async def _send_typing(self, chat_id: str) -> None:
+        """Typing indikatorni ko'rsatish"""
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"{self.api_url}/sendChatAction",
+                    json={"chat_id": chat_id, "action": "typing"},
+                    timeout=5.0
+                )
+        except Exception:
+            pass
