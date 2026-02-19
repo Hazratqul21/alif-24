@@ -294,8 +294,8 @@ services:
     container_name: alif24-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@alif24.uz}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-alif24_admin_2026}
+      PGADMIN_DEFAULT_EMAIL: admin@alif24.uz
+      PGADMIN_DEFAULT_PASSWORD: alif24_admin_2026
       PGADMIN_CONFIG_SCRIPT_NAME: "'/pgadmin'"
     ports:
       - "5050:80"
