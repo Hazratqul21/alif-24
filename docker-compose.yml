@@ -285,6 +285,7 @@ services:
       - olimp-backend
       - lessions-frontend
       - lessions-backend
+      - pgadmin
     networks:
       - alif24-network
 
