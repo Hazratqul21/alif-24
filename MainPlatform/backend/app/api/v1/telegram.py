@@ -67,6 +67,20 @@ async def broadcast_message(
     return result
 
 
+@router.post("/register-commands")
+async def register_bot_commands(
+    admin: bool = Depends(verify_broadcast_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Telegram menyusida buyruqlarni ro'yxatdan o'tkazish (bir marta chaqirish kifoya)"""
+    if not TELEGRAM_BOT_TOKEN:
+        return {"status": "error", "message": "Bot token not configured"}
+    
+    service = TelegramBotService(db, TELEGRAM_BOT_TOKEN)
+    success = await service.register_bot_commands()
+    return {"status": "ok" if success else "error"}
+
+
 @router.get("/stats")
 async def telegram_stats(
     admin: bool = Depends(verify_broadcast_admin),
