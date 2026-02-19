@@ -46,6 +46,7 @@ services:
       - AZURE_OPENAI_KEY=Ekghfq1yMBAeGkHM6kKpsfPrWP77Ab7x0NaQaS81I9I7zGDfbt8lJQQJ99BLACfhMk5XJ3w3AAABACOGUD56
       - AZURE_OPENAI_ENDPOINT=https://deplo.cognitiveservices.azure.com/
       - AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-chat
+      - AZURE_OPENAI_API_VERSION=2025-01-01-preview
       - AZURE_SPEECH_KEY=54V9TJPS3HtXlzdnmUY0sgRv6NtugLsgFcf2s3yZlwS0Ogint3u6JQQJ99BLACYeBjFXJ3w3AAAYACOGlQP9
       - AZURE_SPEECH_REGION=eastus
       - AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=alifbe24;AccountKey=kNOPukOWmPce4VbxB7FSXL4SgVMml4zXkMTPdouqFhRLJwvp0Cp3rNpxFb3pkA766hfa00BBHSjR+AStteDO3Q==;EndpointSuffix=core.windows.net
