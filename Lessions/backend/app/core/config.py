@@ -1,22 +1,23 @@
-"""Lessions Platform Configuration"""
+"""Lessions Platform Configuration — hardcoded for VDS"""
 
 import os
 from typing import Optional
 
 
 class Settings:
-    """Application settings"""
-
     # App
     APP_NAME: str = "Lessions Platform"
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    DEBUG: bool = False
     API_PREFIX: str = "/api/v1"
 
-    # Database (from shared - requires DATABASE_URL env var)
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    # Database
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24"
+    )
 
-    # JWT (from shared)
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "")
+    # JWT
+    JWT_SECRET: str = "super_secure_jwt_secret_key_for_local_development_only_12345"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 

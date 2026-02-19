@@ -1,14 +1,21 @@
-"""Games Platform Configuration"""
+"""Games Platform Configuration — hardcoded for VDS"""
 
 import os
 
 
 class Settings:
     APP_NAME: str = "Games Platform"
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    DEBUG: bool = False
     API_PREFIX: str = "/api/v1"
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "your-secret-key")
+
+    # Database
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24"
+    )
+
+    # JWT
+    JWT_SECRET: str = "super_secure_jwt_secret_key_for_local_development_only_12345"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 

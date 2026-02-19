@@ -1,29 +1,30 @@
-"""TestAI Platform Configuration"""
+"""TestAI Platform Configuration — hardcoded for VDS"""
 
 import os
 from typing import Optional
 
 
 class Settings:
-    """Application settings"""
-    
     # App
     APP_NAME: str = "TestAI Platform"
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    DEBUG: bool = False
     API_PREFIX: str = "/api/v1"
-    
-    # Database (from shared - requires DATABASE_URL env var)
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-    
-    # JWT (from shared)
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "your-secret-key")
+
+    # Database
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24"
+    )
+
+    # JWT
+    JWT_SECRET: str = "super_secure_jwt_secret_key_for_local_development_only_12345"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
-    # OpenAI for AI test generation
-    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4")
-    
+
+    # OpenAI
+    OPENAI_API_KEY: str = "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"
+    OPENAI_MODEL: str = "gpt-4"
+
     # Quiz Settings
     MAX_PARTICIPANTS_PER_QUIZ: int = 40
     DEFAULT_TIME_PER_QUESTION: int = 30
