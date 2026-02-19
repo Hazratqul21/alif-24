@@ -561,7 +561,8 @@ Tabriklaymiz! 🎉
             "message": f"Xabar {success_count}/{total} foydalanuvchiga yuborildi."
         }
     
-    async def _send_message(self, chat_id: str, message: str, parse_mode: Optional[str] = None) -> bool:
+    async def _send_message(self, chat_id: str, message: str, parse_mode: Optional[str] = None,
+                              reply_markup: Optional[Dict] = None) -> bool:
         """Internal method to send Telegram message"""
         try:
             payload = {
@@ -570,6 +571,8 @@ Tabriklaymiz! 🎉
             }
             if parse_mode:
                 payload["parse_mode"] = parse_mode
+            if reply_markup:
+                payload["reply_markup"] = reply_markup
             
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -588,6 +591,31 @@ Tabriklaymiz! 🎉
             logger.error(f"Error sending Telegram message: {e}")
             return False
     
+    def _contact_keyboard(self) -> Dict:
+        """Kontakt ulashish tugmasi (ReplyKeyboardMarkup)"""
+        return {
+            "keyboard": [
+                [{"text": "📱 Kontaktni ulashish", "request_contact": True}]
+            ],
+            "resize_keyboard": True,
+            "one_time_keyboard": True
+        }
+    
+    def _main_menu_keyboard(self) -> Dict:
+        """Asosiy menyu tugmalari"""
+        return {
+            "keyboard": [
+                [{"text": "🧮 Matematika"}, {"text": "📝 Test"}],
+                [{"text": "📖 Ertak"}, {"text": "📊 Progress"}],
+                [{"text": "🏆 Yutuqlar"}, {"text": "⚙️ Sozlamalar"}],
+            ],
+            "resize_keyboard": True
+        }
+    
+    def _remove_keyboard(self) -> Dict:
+        """Klaviaturani olib tashlash"""
+        return {"remove_keyboard": True}
+    
     def _validate_phone(self, phone: str) -> bool:
         """Validate Uzbek phone number format"""
         pattern = r'^\+998\d{9}$'
@@ -596,7 +624,7 @@ Tabriklaymiz! 🎉
     async def process_webhook_update(self, update: Dict[str, Any]) -> None:
         """
         Process incoming Telegram webhook update
-        Handles /start command, phone linking, and AI chatbot
+        Handles /start, contact sharing, AI chatbot, and all commands
         """
         try:
             message = update.get("message", {})
@@ -605,12 +633,10 @@ Tabriklaymiz! 🎉
                 
             chat_id = str(message.get("chat", {}).get("id"))
             text = message.get("text", "")
+            contact = message.get("contact")
             username = message.get("from", {}).get("username")
             first_name = message.get("from", {}).get("first_name")
             last_name = message.get("from", {}).get("last_name")
-            
-            if not text:
-                return
             
             # Update last interaction
             stmt = select(TelegramUser).filter(TelegramUser.telegram_chat_id == chat_id)
@@ -621,11 +647,50 @@ Tabriklaymiz! 🎉
                 tg_user.last_interaction_at = datetime.now(timezone.utc)
                 await self.db.commit()
             
-            # Handle /start command
+            # ===== CONTACT SHARING — telefon raqamni bog'lash =====
+            if contact:
+                phone_number = contact.get("phone_number", "")
+                # +998 bilan boshlanmasa, qo'shish
+                if not phone_number.startswith("+"):
+                    phone_number = f"+{phone_number}"
+                
+                await self.link_phone_to_telegram(
+                    phone=phone_number,
+                    telegram_chat_id=chat_id,
+                    username=username,
+                    first_name=first_name,
+                    last_name=last_name
+                )
+                await self._send_message(
+                    chat_id,
+                    f"✅ Rahmat, {first_name or 'Foydalanuvchi'}!\n\n"
+                    f"📱 Telefon raqamingiz ({phone_number}) muvaffaqiyatli bog'landi.\n\n"
+                    "🔐 Endi platformada ro'yxatdan o'tganingizda tasdiqlash kodi shu yerga keladi.\n\n"
+                    "💬 Quyidagi tugmalar orqali AI yordamchilardan foydalaning!",
+                    reply_markup=self._main_menu_keyboard()
+                )
+                return
+            
+            if not text:
+                return
+            
+            # ===== BUTTON TEXT MAPPING — tugma matnlarini buyruqlarga moslashtirish =====
+            button_map = {
+                "🧮 Matematika": "/math",
+                "📝 Test": "/test",
+                "📖 Ertak": "/story",
+                "📊 Progress": "/progress",
+                "🏆 Yutuqlar": "/achievements",
+                "⚙️ Sozlamalar": "/settings",
+            }
+            if text in button_map:
+                text = button_map[text]
+            
+            # ===== /start =====
             if text.startswith("/start"):
                 parts = text.split()
                 if len(parts) > 1:
-                    # Phone number passed as start parameter
+                    # Deep link — telefon raqam parametr bilan keldi (saytdan)
                     phone = parts[1]
                     if self._validate_phone(phone):
                         await self.link_phone_to_telegram(
@@ -639,58 +704,72 @@ Tabriklaymiz! 🎉
                             chat_id,
                             f"Assalomu alaykum, {first_name or 'Foydalanuvchi'}! 👋\n\n"
                             f"✅ Telefon raqamingiz ({phone}) muvaffaqiyatli bog'landi.\n\n"
-                            f"📱 Endi tasdiqlash kodlari shu yerga yuboriladi.\n\n"
-                            f"💬 Menga istalgan savolingizni yuboring — men AI yordamchi sifatida javob beraman!"
+                            "� Endi tasdiqlash kodlari shu yerga yuboriladi.\n\n"
+                            "💬 Quyidagi tugmalar orqali AI yordamchilardan foydalaning!",
+                            reply_markup=self._main_menu_keyboard()
                         )
                     else:
                         await self._send_message(
                             chat_id,
                             "❌ Noto'g'ri telefon raqam format. Iltimos, platformadan qaytadan urinib ko'ring."
                         )
-                else:
+                elif tg_user and tg_user.phone:
+                    # Allaqachon bog'langan — asosiy menyuni ko'rsat
                     await self._send_message(
                         chat_id,
                         f"Assalomu alaykum, {first_name or 'Foydalanuvchi'}! 👋\n\n"
                         "🎓 *Alif24 Platformasi* botiga xush kelibsiz!\n\n"
-                        "📱 Platformada telefon raqamingizni tasdiqlash uchun botni ishga tushuring.\n\n"
-                        "💬 Menga istalgan savolingizni yuboring — men AI yordamchi sifatida javob beraman!\n\n"
-                        "📝 *Buyruqlar:*\n"
-                        "/start — Botni qayta ishga tushirish\n"
-                        "/help — Yordam\n"
-                        "/about — Alif24 haqida\n\n"
-                        "🤖 *AI Chatbotlar:*\n"
-                        "/math — Matematika yordamchisi\n"
-                        "/test — Test yaratuvchi\n"
-                        "/story — Ertak yaratuvchi\n\n"
-                        "📊 *Shaxsiy:*\n"
-                        "/progress — O'quv progressi\n"
-                        "/achievements — Yutuqlar\n"
-                        "/settings — Sozlamalar",
-                        parse_mode="Markdown"
+                        "Quyidagi tugmalardan foydalaning yoki menga savol yuboring! 💬",
+                        parse_mode="Markdown",
+                        reply_markup=self._main_menu_keyboard()
+                    )
+                else:
+                    # Yangi foydalanuvchi — kontakt so'rash
+                    await self._send_message(
+                        chat_id,
+                        f"Assalomu alaykum, {first_name or 'Foydalanuvchi'}! 👋\n\n"
+                        "🎓 *Alif24 Platformasi* botiga xush kelibsiz!\n\n"
+                        "📱 Davom etish uchun telefon raqamingizni ulashing.\n"
+                        "Pastdagi tugmani bosing:",
+                        parse_mode="Markdown",
+                        reply_markup=self._contact_keyboard()
                     )
             
-            # Handle /help command
+            # ===== /cancel =====
+            elif text.startswith("/cancel"):
+                # Chat tarixini tozalash
+                keys_to_remove = [k for k in self._chat_history if k.startswith(f"{chat_id}:")]
+                for k in keys_to_remove:
+                    del self._chat_history[k]
+                await self._send_message(
+                    chat_id,
+                    "🔄 Bekor qilindi. Asosiy menyuga qaytdingiz.",
+                    reply_markup=self._main_menu_keyboard()
+                )
+            
+            # ===== /help =====
             elif text.startswith("/help"):
                 await self._send_message(
                     chat_id,
                     "🆘 *Yordam*\n\n"
-                    "📱 *Telefon bog'lash:* Platformadan ro'yxatdan o'ting, bot avtomatik bog'lanadi.\n"
-                    "🔐 *Tasdiqlash:* Kod shu yerga yuboriladi.\n"
+                    "📱 *Telefon bog'lash:* /start bosing va kontaktingizni ulashing.\n"
+                    "🔐 *Tasdiqlash:* 6 xonalik kod shu yerga yuboriladi.\n"
                     "💬 *Savol berish:* Istalgan savolingizni yozing, AI javob beradi.\n\n"
                     "🤖 *AI Chatbotlar:*\n"
-                    "/math — 🧮 Matematika masalalarini yechish\n"
-                    "/test — 📝 Mavzu bo'yicha test yaratish\n"
-                    "/story — 📖 Bolalar uchun ertak yaratish\n\n"
+                    "🧮 Matematika — masalalarni yechish\n"
+                    "📝 Test — mavzu bo'yicha test yaratish\n"
+                    "📖 Ertak — bolalar uchun ertak yaratish\n\n"
                     "📊 *Shaxsiy kabinet:*\n"
-                    "/progress — O'quv progressingiz\n"
-                    "/achievements — Yutuqlaringiz\n"
-                    "/settings — Til va bildirishnoma sozlamalari\n\n"
-                    "💡 *Maslahat:* /math 25+37 yoki /test Matematika deb yozing!\n\n"
+                    "📊 Progress — o'quv progressingiz\n"
+                    "🏆 Yutuqlar — yutuqlaringiz\n"
+                    "⚙️ Sozlamalar — til va bildirishnomalar\n\n"
+                    "/cancel — AI rejimdan chiqish\n\n"
                     "❓ Muammo bo'lsa admin bilan bog'laning.",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
+                    reply_markup=self._main_menu_keyboard()
                 )
             
-            # Handle /about command
+            # ===== /about =====
             elif text.startswith("/about"):
                 await self._send_message(
                     chat_id,
@@ -701,7 +780,7 @@ Tabriklaymiz! 🎉
                     parse_mode="Markdown"
                 )
             
-            # Handle /math command — AI matematika yordamchisi
+            # ===== /math =====
             elif text.startswith("/math"):
                 args = text[5:].strip()
                 if not args:
@@ -721,7 +800,7 @@ Tabriklaymiz! 🎉
                     ai_response = await self._get_ai_response(chat_id, args, MATH_SYSTEM_PROMPT)
                     await self._send_message(chat_id, ai_response)
             
-            # Handle /test command — AI test yaratuvchi
+            # ===== /test =====
             elif text.startswith("/test"):
                 args = text[5:].strip()
                 if not args:
@@ -742,7 +821,7 @@ Tabriklaymiz! 🎉
                     ai_response = await self._get_ai_response(chat_id, args, TEST_SYSTEM_PROMPT)
                     await self._send_message(chat_id, ai_response)
             
-            # Handle /story command — AI ertak yaratuvchi
+            # ===== /story =====
             elif text.startswith("/story"):
                 args = text[6:].strip()
                 if not args:
@@ -757,7 +836,6 @@ Tabriklaymiz! 🎉
                         "Keling, ertak boshlaymiz! ✨",
                         parse_mode="Markdown"
                     )
-                    # Mavzusiz ham ertak yaratish
                     await self._send_typing(chat_id)
                     ai_response = await self._get_ai_response(
                         chat_id, "Menga qiziqarli ta'limiy ertak yarat", STORY_SYSTEM_PROMPT
@@ -770,20 +848,20 @@ Tabriklaymiz! 🎉
                     )
                     await self._send_message(chat_id, ai_response)
             
-            # Handle /progress command
+            # ===== /progress =====
             elif text.startswith("/progress"):
                 await self.handle_progress(chat_id)
             
-            # Handle /achievements command
+            # ===== /achievements =====
             elif text.startswith("/achievements"):
                 await self.handle_achievements(chat_id)
             
-            # Handle /settings command
+            # ===== /settings =====
             elif text.startswith("/settings"):
                 args = text[9:].strip()
                 await self.handle_settings(chat_id, args)
             
-            # AI Chatbot — har qanday boshqa xabarga javob berish
+            # ===== AI Chatbot — har qanday boshqa xabarga javob berish =====
             else:
                 await self._send_typing(chat_id)
                 ai_response = await self._get_ai_response(chat_id, text)
@@ -803,3 +881,37 @@ Tabriklaymiz! 🎉
                 )
         except Exception:
             pass
+    
+    async def register_bot_commands(self) -> bool:
+        """
+        Telegram menyusida buyruqlar ro'yxatini ro'yxatdan o'tkazish (setMyCommands).
+        Bir marta chaqirish kifoya — Telegram eslab qoladi.
+        """
+        commands = [
+            {"command": "start", "description": "Botni ishga tushirish"},
+            {"command": "help", "description": "Yordam"},
+            {"command": "about", "description": "Alif24 haqida"},
+            {"command": "math", "description": "Matematika yordamchisi"},
+            {"command": "test", "description": "Test yaratuvchi"},
+            {"command": "story", "description": "Ertak yaratuvchi"},
+            {"command": "progress", "description": "O'quv progressi"},
+            {"command": "achievements", "description": "Yutuqlar"},
+            {"command": "settings", "description": "Sozlamalar"},
+            {"command": "cancel", "description": "Bekor qilish"},
+        ]
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.api_url}/setMyCommands",
+                    json={"commands": commands},
+                    timeout=10.0
+                )
+                if response.status_code == 200:
+                    logger.info("Bot commands registered successfully")
+                    return True
+                else:
+                    logger.error(f"setMyCommands error: {response.text}")
+                    return False
+        except Exception as e:
+            logger.error(f"setMyCommands error: {e}")
+            return False
