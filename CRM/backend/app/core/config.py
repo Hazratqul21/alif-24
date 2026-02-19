@@ -1,24 +1,29 @@
-"""CRM Platform Configuration"""
+"""CRM Platform Configuration — hardcoded for VDS"""
 
 import os
 from typing import Optional
 
 
 class Settings:
-    """Application settings"""
-    
     # App
     APP_NAME: str = "CRM Platform"
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    DEBUG: bool = False
     API_PREFIX: str = "/api/v1"
-    
-    # Database (from shared - requires DATABASE_URL env var)
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-    
-    # JWT (from shared)
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "your-secret-key")
+
+    # Database
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24"
+    )
+
+    # JWT
+    JWT_SECRET: str = "super_secure_jwt_secret_key_for_local_development_only_12345"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # Telegram (for notifications)
+    TELEGRAM_BOT_TOKEN: str = "8379431489:AAH2xUGuEy0_FZV8vnN8_vyIII13VqDPryU"
+    TELEGRAM_CHAT_ID: str = "234413715"
 
 
 settings = Settings()

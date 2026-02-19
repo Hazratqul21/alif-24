@@ -1,37 +1,35 @@
-"""Harf Platform Configuration"""
+"""Harf Platform Configuration — hardcoded for VDS"""
 
 import os
 from typing import Optional
 
 
 class Settings:
-    """Application settings"""
-    
     # App
     APP_NAME: str = "Harf Platform"
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    DEBUG: bool = False
     API_PREFIX: str = "/api/v1"
-    
-    # Database (from shared - requires DATABASE_URL env var)
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-    
-    # JWT (from shared)
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "your-secret-key")
+
+    # Database
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24"
+    )
+
+    # JWT
+    JWT_SECRET: str = "super_secure_jwt_secret_key_for_local_development_only_12345"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
-    # Azure Services
-    AZURE_SPEECH_KEY: Optional[str] = os.getenv("AZURE_SPEECH_KEY")
-    AZURE_SPEECH_REGION: str = os.getenv("AZURE_SPEECH_REGION", "eastus")
-    
-    # Storage
-    AZURE_STORAGE_CONNECTION: Optional[str] = os.getenv("AZURE_STORAGE_CONNECTION")
-    
-    # Audio Settings
-    AUDIO_BASE_URL: str = os.getenv(
-        "AUDIO_BASE_URL",
-        "https://alif24storage.blob.core.windows.net/harflar"
-    )
+
+    # Azure Speech
+    AZURE_SPEECH_KEY: str = "54V9TJPS3HtXlzdnmUY0sgRv6NtugLsgFcf2s3yZlwS0Ogint3u6JQQJ99BLACYeBjFXJ3w3AAAYACOGlQP9"
+    AZURE_SPEECH_REGION: str = "eastus"
+
+    # Azure Storage
+    AZURE_STORAGE_CONNECTION: str = "DefaultEndpointsProtocol=https;AccountName=alifbe24;AccountKey=kNOPukOWmPce4VbxB7FSXL4SgVMml4zXkMTPdouqFhRLJwvp0Cp3rNpxFb3pkA766hfa00BBHSjR+AStteDO3Q==;EndpointSuffix=core.windows.net"
+
+    # Audio
+    AUDIO_BASE_URL: str = "https://alif24storage.blob.core.windows.net/harflar"
 
 
 settings = Settings()
