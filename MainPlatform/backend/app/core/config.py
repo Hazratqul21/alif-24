@@ -27,7 +27,7 @@ class Settings:
     JWT_ALGORITHM: str = "HS256"
 
     # OpenAI (MathKids / SmartKids)
-    OPENAI_API_KEY: str = "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"
+    OPENAI_API_KEY: str = "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"
     OPENAI_MODEL: str = "gpt-4"
 
     # Azure OpenAI (SmartKids)

@@ -42,7 +42,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
       - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
       - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - OPENAI_API_KEY=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
+      - OPENAI_API_KEY=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
       - AZURE_OPENAI_KEY=Ekghfq1yMBAeGkHM6kKpsfPrWP77Ab7x0NaQaS81I9I7zGDfbt8lJQQJ99BLACfhMk5XJ3w3AAABACOGUD56
       - AZURE_OPENAI_ENDPOINT=https://deplo.cognitiveservices.azure.com/
       - AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-chat
@@ -117,7 +117,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
       - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
       - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - OPENAI_API_KEY=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
+      - OPENAI_API_KEY=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
       - CORS_ORIGINS=
     ports:
       - "8002:8002"
