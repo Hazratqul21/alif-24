@@ -301,7 +301,7 @@ export default function StoryReader({ storyText, age = 7 }) {
     // 2. Rus tilini aniqlash (rus xarakterli harflar bor va kiril harflar ko'p)
     if (russianSpecificCount > 0 || (russianCount > 50 && russianCount / totalLetters > 0.5)) {
       console.log("🇷🇺 Rus tili aniqlandi");
-      return { code: 'ru-RU', voice: 'ru-RU-DariyaNeural', name: 'Rus' };
+      return { code: 'ru-RU', voice: 'ru-RU-SvetlanaNeural', name: 'Rus' };
     }
     
     // 3. O'zbek kiril (rus xarakterli harflar yo'q, lekin kiril harflar bor)
@@ -317,7 +317,7 @@ export default function StoryReader({ storyText, age = 7 }) {
       // Ingliz so'zlari yoki strukturalari mavjudligini tekshiramiz
       if (englishWordMatches >= 2 || englishPatternMatches >= 1) {
         console.log("🇺🇸 Ingliz tili aniqlandi (so'zlar/strukturalar asosida)");
-        return { code: 'en-US', voice: 'en-US-JennyNeural', name: 'Ingliz' };
+        return { code: 'en-US', voice: 'en-US-AriaNeural', name: 'Ingliz' };
       }
     }
     
@@ -333,16 +333,16 @@ export default function StoryReader({ storyText, age = 7 }) {
       englishCount / totalLetters > 0.5
     ) {
       console.log("🇺🇸 Lotin-only matn: default inglizga tanlandi");
-      return { code: 'en-US', voice: 'en-US-JennyNeural', name: 'Ingliz' };
+      return { code: 'en-US', voice: 'en-US-AriaNeural', name: 'Ingliz' };
     }
     
     // 6. Agar aniq aniqlanmasa, eng ko'p bo'lgan tilni qaytaramiz
     if (russianCount > englishCount && russianCount > uzbekKirilCount) {
       console.log("🇷🇺 Rus tili aniqlandi (nisbat bo'yicha)");
-      return { code: 'ru-RU', voice: 'ru-RU-DariyaNeural', name: 'Rus' };
+      return { code: 'ru-RU', voice: 'ru-RU-SvetlanaNeural', name: 'Rus' };
     } else if (englishCount > uzbekKirilCount && (englishWordMatches > 0 || englishPatternMatches > 0)) {
       console.log("🇺🇸 Ingliz tili aniqlandi (nisbat bo'yicha)");
-      return { code: 'en-US', voice: 'en-US-JennyNeural', name: 'Ingliz' };
+      return { code: 'en-US', voice: 'en-US-AriaNeural', name: 'Ingliz' };
     } else if (uzbekKirilCount > 0 || (englishCount > 0 && englishWordMatches === 0 && englishPatternMatches === 0)) {
       console.log("🇺🇿 O'zbek tili aniqlandi (nisbat bo'yicha)");
       return { code: 'uz-UZ', voice: 'uz-UZ-MadinaNeural', name: "O'zbek" };

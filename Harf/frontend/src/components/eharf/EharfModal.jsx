@@ -71,7 +71,7 @@ const EharfModal = ({ isOpen, onClose, card, externalTranscript, onAskStateChang
       const data = await resp.json();
       const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
       cfg.speechRecognitionLanguage = 'en-US';
-      cfg.speechSynthesisVoiceName = 'en-US-JennyNeural';
+      cfg.speechSynthesisVoiceName = 'en-US-AriaNeural';
       try {
         cfg.setSpeechSynthesisOutputFormat(
           SpeechSDK.SpeechSynthesisOutputFormat.Audio16Khz128KBitRateMonoMp3
@@ -227,7 +227,7 @@ const EharfModal = ({ isOpen, onClose, card, externalTranscript, onAskStateChang
       const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfigRef.current, sdkAudioConfig);
       synthesizerRef.current = synthesizer;
 
-      const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US"><voice name="en-US-JennyNeural">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</voice></speak>`;
+      const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US"><voice name="en-US-AriaNeural">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</voice></speak>`;
 
       const audioArrayBuffer = await new Promise((resolve, reject) => {
         synthesizer.speakSsmlAsync(

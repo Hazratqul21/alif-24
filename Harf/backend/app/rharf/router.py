@@ -1,11 +1,11 @@
 """
 Russian Letters Learning Router
 """
-from fastapi import APIRouter, HTTPException, Response, UploadFile, File
+from fastapi import APIRouter, HTTPException, Response, UploadFile, File, Query
 from pydantic import BaseModel
-import os
-import httpx
-from app.core.config import settings
+from typing import Optional
+
+from shared.services.azure_speech_service import speech_service, get_voice_for_language
 
 router = APIRouter()
 
@@ -13,22 +13,8 @@ router = APIRouter()
 class TextToSpeechRequest(BaseModel):
     text: str
     language: str = "ru-RU"
-
-def normalize_russian(text):
-    """Normalize Russian text for TTS"""
-    if not text:
-        return text
-    
-    # Basic Russian text normalization
-    replacements = {
-        'ё': 'е',
-        'Ё': 'Е',
-    }
-    
-    for old, new in replacements.items():
-        text = text.replace(old, new)
-    
-    return text.strip()
+    gender: Optional[str] = "female"
+    voice: Optional[str] = None
 
 @router.options("/text-to-speech")
 async def text_to_speech_options():
@@ -37,49 +23,24 @@ async def text_to_speech_options():
 
 @router.post("/text-to-speech")
 async def text_to_speech(request: TextToSpeechRequest):
-    """Convert Russian text to speech"""
+    """
+    Convert Russian text to speech using Azure TTS.
+    Default voice: ru-RU-SvetlanaNeural
+    """
     if not request.text:
         raise HTTPException(status_code=400, detail="Текст не введен.")
     
-    norm_text = normalize_russian(request.text)
-    
-    # Configure Azure Speech
-    speech_key = settings.AZURE_SPEECH_KEY
-    speech_region = settings.AZURE_SPEECH_REGION
-    
-    if not speech_key:
-        raise HTTPException(status_code=501, detail="Azure Speech key not configured")
-    
-    # Use REST API instead of SDK
-    from xml.sax.saxutils import escape
-    escaped = escape(norm_text)
-    ssml = f"""<speak version='1.0' xml:lang='ru-RU'>
-        <voice name='ru-RU-DariyaNeural'>
-            {escaped}
-        </voice>
-    </speak>"""
+    voice_name = request.voice or get_voice_for_language(request.language, request.gender or "female")
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            # Get token
-            token_url = f"https://{speech_region}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
-            token_resp = await client.post(token_url, headers={"Ocp-Apim-Subscription-Key": speech_key})
-            token_resp.raise_for_status()
-            token = token_resp.text
-            
-            # TTS
-            tts_url = f"https://{speech_region}.tts.speech.microsoft.com/cognitiveservices/v1"
-            tts_resp = await client.post(tts_url, headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/ssml+xml",
-                "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
-                "User-Agent": "Alif24-Backend"
-            }, content=ssml.encode('utf-8'))
-            tts_resp.raise_for_status()
-            
-            return Response(content=tts_resp.content, media_type="audio/mpeg")
+        audio_data = await speech_service.generate_speech(
+            text=request.text,
+            voice_name=voice_name,
+            language=request.language,
+        )
+        return Response(content=audio_data, media_type="audio/mpeg")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"TTS ошибка: {str(e)}")
 
 @router.get("/")
 async def rharf_home():
@@ -92,16 +53,46 @@ async def speech_to_text_options():
     return Response(status_code=200)
 
 @router.post("/speech-to-text")
-async def speech_to_text(file: UploadFile = File(...)):
-    """Convert Russian speech to text"""
+async def speech_to_text(
+    file: UploadFile = File(...),
+    language: str = Query("ru-RU", description="Til kodi: ru-RU, uz-UZ, en-US"),
+):
+    """
+    Convert Russian speech to text using Azure STT REST API.
+    """
     audio_data = await file.read()
-    
     if not audio_data:
         raise HTTPException(status_code=400, detail="Аудио данные не отправлены.")
     
-    # STT via REST API is not supported server-side without SDK.
-    # The frontend uses Azure Speech SDK directly via browser for STT.
-    raise HTTPException(
-        status_code=501,
-        detail="Server-side STT is disabled. Use browser-based Azure Speech SDK instead."
+    content_type = file.content_type or "audio/wav"
+    audio_format_map = {
+        "audio/wav": "audio/wav",
+        "audio/wave": "audio/wav",
+        "audio/x-wav": "audio/wav",
+        "audio/webm": "audio/webm",
+        "audio/ogg": "audio/ogg",
+        "audio/mpeg": "audio/mpeg",
+        "audio/mp3": "audio/mpeg",
+    }
+    audio_format = audio_format_map.get(content_type, "audio/wav")
+    
+    result = await speech_service.recognize_speech(
+        audio_data=audio_data,
+        language=language,
+        audio_format=audio_format,
     )
+    
+    if result["status"] == "Success":
+        return {
+            "transcript": result["text"],
+            "confidence": result["confidence"],
+            "language": result["language"],
+        }
+    elif result["status"] == "NoMatch":
+        return {
+            "transcript": "",
+            "confidence": 0,
+            "error": "Голос не распознан. Попробуйте еще раз.",
+        }
+    else:
+        raise HTTPException(status_code=500, detail=result.get("error", "Ошибка STT"))
