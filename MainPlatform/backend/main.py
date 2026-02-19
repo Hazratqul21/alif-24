@@ -121,7 +121,7 @@ async def add_security_headers(request, call_next):
     return response
 
 # Include Routers
-from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback
+from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback, telegram
 from app.smartkids import story_router, image_reader_router, file_reader_router, speech_token_router
 from app.mathkids import math_solver_router, math_image_router
 
@@ -132,8 +132,9 @@ app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["aut
 # Admin Panel
 app.include_router(admin_panel.router, prefix=f"{settings.API_PREFIX}/admin", tags=["admin"])
 
-# Phone Verification
+# Phone Verification & Telegram Bot
 app.include_router(verification.router, prefix=f"{settings.API_PREFIX}/verification", tags=["verification"])
+app.include_router(telegram.router, prefix=f"{settings.API_PREFIX}/telegram", tags=["telegram"])
 
 # SmartKids routes
 app.include_router(story_router.router, prefix=f"{settings.API_PREFIX}/smartkids", tags=["smartkids"])
