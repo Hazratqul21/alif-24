@@ -168,8 +168,9 @@ const AppRoutes = () => {
       <Route path="/games/math-monster" element={<MathMonsterGame />} />
 
       {/* Admin Panel */}
-      <Route path="/admin" element={<AdminLogin />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<AdminDashboard />} />
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="teachers" element={<TeachersPage />} />

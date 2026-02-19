@@ -443,12 +443,11 @@ async def get_active_olympiads(db: AsyncSession = Depends(get_db)):
 @app.post("/api/v1/olympiad/{olympiad_id}/register")
 async def register_for_olympiad(
     olympiad_id: str,
-    request: Request,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Register for an olympiad"""
-    user_payload = verify_token(request.headers.get("Authorization").split(" ")[1])
-    user_id = user_payload.get("sub")
+    user_id = current_user.id
     
     # Check if olympiad exists
     result = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
