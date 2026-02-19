@@ -110,6 +110,11 @@ class TelegramBotService:
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}"
         self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
         self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4")
+        # Azure OpenAI (fallback)
+        self.azure_openai_key = os.getenv("AZURE_OPENAI_KEY", "")
+        self.azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+        self.azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-chat")
+        self.azure_openai_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview")
         # Chat tarixi (xotirada, oxirgi 10 ta xabar)
         self._chat_history: Dict[str, List[Dict]] = {}
     
@@ -330,41 +335,75 @@ Tabriklaymiz! 🎉
             *history
         ]
         
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.openai_api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": self.openai_model,
-                        "messages": messages,
-                        "max_tokens": 800,
-                        "temperature": 0.7,
-                    },
-                    timeout=30.0
+        # 1. OpenAI API orqali urinib ko'rish
+        if self.openai_api_key:
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {self.openai_api_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": self.openai_model,
+                            "messages": messages,
+                            "max_tokens": 800,
+                            "temperature": 0.7,
+                        },
+                        timeout=30.0
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        ai_reply = data["choices"][0]["message"]["content"]
+                        history.append({"role": "assistant", "content": ai_reply})
+                        self._chat_history[history_key] = history
+                        return ai_reply
+                    else:
+                        logger.warning(f"OpenAI API error {response.status_code}: {response.text[:200]} — Azure OpenAI ga o'tilmoqda")
+            except httpx.TimeoutException:
+                logger.warning("OpenAI timeout — Azure OpenAI ga o'tilmoqda")
+            except Exception as e:
+                logger.warning(f"OpenAI error: {e} — Azure OpenAI ga o'tilmoqda")
+        
+        # 2. Azure OpenAI fallback
+        if self.azure_openai_key and self.azure_openai_endpoint:
+            try:
+                azure_url = (
+                    f"{self.azure_openai_endpoint.rstrip('/')}/openai/deployments/"
+                    f"{self.azure_openai_deployment}/chat/completions"
+                    f"?api-version={self.azure_openai_api_version}"
                 )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    ai_reply = data["choices"][0]["message"]["content"]
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        azure_url,
+                        headers={
+                            "api-key": self.azure_openai_key,
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "messages": messages,
+                            "max_tokens": 800,
+                            "temperature": 0.7,
+                        },
+                        timeout=30.0
+                    )
                     
-                    # AI javobini tarixga qo'shish
-                    history.append({"role": "assistant", "content": ai_reply})
-                    self._chat_history[history_key] = history
-                    
-                    return ai_reply
-                else:
-                    logger.error(f"OpenAI API error: {response.status_code} - {response.text}")
-                    return "⚠️ AI javob berishda xatolik yuz berdi. Keyinroq urinib ko'ring."
-                    
-        except httpx.TimeoutException:
-            return "⏳ Javob olishda kutish vaqti tugadi. Iltimos, qayta urinib ko'ring."
-        except Exception as e:
-            logger.error(f"AI response error: {e}")
-            return "⚠️ Texnik xatolik yuz berdi. Iltimos, keyinroq urinib ko'ring."
+                    if response.status_code == 200:
+                        data = response.json()
+                        ai_reply = data["choices"][0]["message"]["content"]
+                        history.append({"role": "assistant", "content": ai_reply})
+                        self._chat_history[history_key] = history
+                        return ai_reply
+                    else:
+                        logger.error(f"Azure OpenAI error {response.status_code}: {response.text[:200]}")
+            except httpx.TimeoutException:
+                return "⏳ Javob olishda kutish vaqti tugadi. Iltimos, qayta urinib ko'ring."
+            except Exception as e:
+                logger.error(f"Azure OpenAI error: {e}")
+        
+        return "⚠️ AI xizmati hozirda mavjud emas. Iltimos, keyinroq urinib ko'ring."
     
     async def _get_student_profile(self, chat_id: str) -> Optional[StudentProfile]:
         """Telegram chat_id orqali o'quvchi profilini olish"""
