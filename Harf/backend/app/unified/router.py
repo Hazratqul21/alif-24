@@ -1,10 +1,9 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Response
 from pydantic import BaseModel
 from typing import Optional
-import os
-import httpx
 import logging
-from app.core.config import settings
+
+from shared.services.azure_speech_service import speech_service, get_voice_for_language
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -14,18 +13,7 @@ class TTSRequest(BaseModel):
     text: str
     language: str  # uz-UZ, ru-RU, en-US
     voice: Optional[str] = None
-
-VOICE_MAPPING = {
-    "uz-UZ": "uz-UZ-MadinaNeural",
-    "ru-RU": "ru-RU-DariyaNeural",
-    "en-US": "en-US-JennyNeural"
-}
-
-def get_voice_name(language, custom_voice=None):
-    """Get voice name for language"""
-    if custom_voice:
-        return custom_voice
-    return VOICE_MAPPING.get(language, "en-US-JennyNeural")
+    gender: Optional[str] = "female"
 
 @router.options("/tts")
 async def tts_options():
@@ -33,41 +21,24 @@ async def tts_options():
 
 @router.post("/tts")
 async def text_to_speech(request: TTSRequest):
-    """Unified Text to Speech endpoint via REST API"""
-    speech_key = settings.AZURE_SPEECH_KEY
-    speech_region = settings.AZURE_SPEECH_REGION
+    """
+    Unified Text to Speech endpoint.
+    Supports: uz-UZ (MadinaNeural), ru-RU (SvetlanaNeural), en-US (AriaNeural)
+    """
+    if not request.text or not request.text.strip():
+        raise HTTPException(status_code=400, detail="Matn kiritilmadi")
     
-    if not speech_key:
-        raise HTTPException(status_code=501, detail="Azure Speech key not configured")
-    
-    voice_name = get_voice_name(request.language, request.voice)
-    
-    from xml.sax.saxutils import escape
-    escaped = escape(request.text)
-    ssml = f"""<speak version='1.0' xml:lang='{request.language}'>
-        <voice name='{voice_name}'>
-            {escaped}
-        </voice>
-    </speak>"""
+    voice_name = request.voice or get_voice_for_language(request.language, request.gender or "female")
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            token_url = f"https://{speech_region}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
-            token_resp = await client.post(token_url, headers={"Ocp-Apim-Subscription-Key": speech_key})
-            token_resp.raise_for_status()
-            
-            tts_url = f"https://{speech_region}.tts.speech.microsoft.com/cognitiveservices/v1"
-            tts_resp = await client.post(tts_url, headers={
-                "Authorization": f"Bearer {token_resp.text}",
-                "Content-Type": "application/ssml+xml",
-                "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
-                "User-Agent": "Alif24-Backend"
-            }, content=ssml.encode('utf-8'))
-            tts_resp.raise_for_status()
-            
-            return Response(content=tts_resp.content, media_type="audio/mpeg")
+        audio_data = await speech_service.generate_speech(
+            text=request.text,
+            voice_name=voice_name,
+            language=request.language,
+        )
+        return Response(content=audio_data, media_type="audio/mpeg")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
 
 @router.options("/stt")
 async def stt_options():
@@ -76,12 +47,45 @@ async def stt_options():
 @router.post("/stt")
 async def speech_to_text(
     file: UploadFile = File(...),
-    language: str = Form(...)
+    language: str = Form("uz-UZ")
 ):
-    """Unified Speech to Text endpoint"""
-    # STT via REST API is not supported server-side without SDK.
-    # The frontend uses Azure Speech SDK directly via browser for STT.
-    raise HTTPException(
-        status_code=501,
-        detail="Server-side STT is disabled. Use browser-based Azure Speech SDK instead."
+    """
+    Unified Speech to Text endpoint via Azure REST API.
+    Supports: uz-UZ, ru-RU, en-US
+    """
+    audio_data = await file.read()
+    if not audio_data:
+        raise HTTPException(status_code=400, detail="Audio fayl yuborilmadi")
+    
+    content_type = file.content_type or "audio/wav"
+    audio_format_map = {
+        "audio/wav": "audio/wav",
+        "audio/wave": "audio/wav",
+        "audio/x-wav": "audio/wav",
+        "audio/webm": "audio/webm",
+        "audio/ogg": "audio/ogg",
+        "audio/mpeg": "audio/mpeg",
+        "audio/mp3": "audio/mpeg",
+    }
+    audio_format = audio_format_map.get(content_type, "audio/wav")
+    
+    result = await speech_service.recognize_speech(
+        audio_data=audio_data,
+        language=language,
+        audio_format=audio_format,
     )
+    
+    if result["status"] == "Success":
+        return {
+            "transcript": result["text"],
+            "confidence": result["confidence"],
+            "language": result["language"],
+        }
+    elif result["status"] == "NoMatch":
+        return {
+            "transcript": "",
+            "confidence": 0,
+            "error": "Ovoz aniqlanmadi",
+        }
+    else:
+        raise HTTPException(status_code=500, detail=result.get("error", "STT xatoligi"))

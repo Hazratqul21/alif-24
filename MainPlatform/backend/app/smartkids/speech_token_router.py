@@ -1,9 +1,9 @@
 """
 Azure Speech SDK Token endpoint
+Frontend bu tokenni SpeechConfig.fromAuthorizationToken() da ishlatadi.
 """
 from fastapi import APIRouter, HTTPException
-import httpx
-from ..core.config import settings
+from shared.services.azure_speech_service import speech_service
 
 router = APIRouter()
 
@@ -11,35 +11,15 @@ router = APIRouter()
 async def get_speech_token():
     """
     Azure Speech SDK uchun token olish.
-    Frontend bu token bilan ishlatadi (key o'rniga)
+    Frontend bu token bilan bevosita Azure Speech SDK ishlatadi (key o'rniga).
+    Token 10 daqiqa amal qiladi, server tomonida 9 daqiqa cache qilinadi.
     """
     try:
-        speech_key = settings.AZURE_SPEECH_KEY
-        speech_region = settings.AZURE_SPEECH_REGION
-        
-        if not speech_key:
-            raise HTTPException(status_code=500, detail="AZURE_SPEECH_KEY not configured")
-        
-        # Azure Speech token endpoint
-        token_url = f"https://{speech_region}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
-        
-        headers = {
-            'Ocp-Apim-Subscription-Key': speech_key
-        }
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(token_url, headers=headers, timeout=10.0)
-        
-        if response.status_code == 200:
-            return {
-                "token": response.text,
-                "region": speech_region
-            }
-        else:
-            raise HTTPException(
-                status_code=response.status_code,
-                detail=f"Failed to get token: {response.text}"
-            )
-            
+        return await speech_service.get_token_for_client()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/voices")
+async def get_available_voices():
+    """Mavjud ovozlar ro'yxati — frontend til tanlash uchun"""
+    return speech_service.get_available_voices()
