@@ -296,6 +296,7 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@alif24.uz}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-alif24_admin_2026}
+      PGADMIN_CONFIG_SCRIPT_NAME: "'/pgadmin'"
     ports:
       - "5050:80"
     depends_on:
