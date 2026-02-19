@@ -17,7 +17,7 @@ export default function AdminLayout() {
     const navigate = useNavigate();
 
     if (!adminService.isLoggedIn()) {
-        return <Navigate to="/admin" replace />;
+        return <Navigate to="/admin/login" replace />;
     }
 
     const role = adminService.getRole();
@@ -28,7 +28,7 @@ export default function AdminLayout() {
 
     const handleLogout = () => {
         adminService.logout();
-        navigate('/admin');
+        navigate('/admin/login');
     };
 
     const roleLabels = {

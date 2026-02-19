@@ -94,11 +94,11 @@ class ApiService {
       if (response.ok) {
         const data = await response.json();
         // Backend returns snake_case tokens in data.data
-        const accessToken = data.data.access_token || data.data.accessToken;
-        const refreshToken = data.data.refresh_token || data.data.refreshToken;
+        const newAccessToken = data.data.access_token || data.data.accessToken;
+        const newRefreshToken = data.data.refresh_token || data.data.refreshToken;
 
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('accessToken', newAccessToken);
+        if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
         return true;
       }
     } catch {

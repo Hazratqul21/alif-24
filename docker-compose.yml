@@ -254,6 +254,8 @@ services:
       - "443:443"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - main-frontend
       - main-backend
@@ -278,7 +280,7 @@ services:
     container_name: alif24-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@ali24.uz}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@alif24.uz}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-alif24_admin_2026}
     ports:
       - "5050:80"
