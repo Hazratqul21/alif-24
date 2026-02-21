@@ -24,7 +24,7 @@ class QuizService {
   }
 
   async openLobby(quizId) {
-    const res = await apiService.post(`/live-quiz/${quizId}/open-lobby`);
+    const res = await apiService.post(`/live-quiz/${quizId}/open`);
     return res.data || res;
   }
 
@@ -39,12 +39,12 @@ class QuizService {
   }
 
   async getCurrentQuestion(quizId) {
-    const res = await apiService.get(`/live-quiz/${quizId}/current-question`);
+    const res = await apiService.get(`/live-quiz/${quizId}/question`);
     return res.data || res;
   }
 
   async nextQuestion(quizId) {
-    const res = await apiService.post(`/live-quiz/${quizId}/next-question`);
+    const res = await apiService.post(`/live-quiz/${quizId}/next`);
     return res.data || res;
   }
 
@@ -75,12 +75,12 @@ class QuizService {
   }
 
   async getStudentQuestion(quizId) {
-    const res = await apiService.get(`/live-quiz/${quizId}/student/question`);
+    const res = await apiService.get(`/live-quiz/${quizId}/student-question`);
     return res.data || res;
   }
 
   async submitAnswer(quizId, questionId, selectedAnswer, timeMs) {
-    const res = await apiService.post(`/live-quiz/${quizId}/student/answer`, {
+    const res = await apiService.post(`/live-quiz/${quizId}/answer`, {
       question_id: questionId,
       selected_answer: selectedAnswer,
       time_to_answer_ms: timeMs
@@ -89,7 +89,7 @@ class QuizService {
   }
 
   async getStudentResults(quizId) {
-    const res = await apiService.get(`/live-quiz/${quizId}/student/results`);
+    const res = await apiService.get(`/live-quiz/${quizId}/results`);
     return res.data || res;
   }
 }

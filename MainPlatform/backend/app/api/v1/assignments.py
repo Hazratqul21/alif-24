@@ -73,7 +73,9 @@ async def get_teacher_profile(user: User, db: AsyncSession) -> TeacherProfile:
     res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == user.id))
     profile = res.scalar_one_or_none()
     if not profile:
-        raise HTTPException(status_code=404, detail="O'qituvchi profili topilmadi")
+        profile = TeacherProfile(user_id=user.id)
+        db.add(profile)
+        await db.flush()
     return profile
 
 

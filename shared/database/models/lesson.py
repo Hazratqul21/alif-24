@@ -1,20 +1,20 @@
-import uuid
-from sqlalchemy import Column, String, Text, ForeignKey, DateTime
+from sqlalchemy import Column, String, Text, ForeignKey, DateTime, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from shared.database.base import Base
+from shared.database.id_generator import generate_8_digit_id
 
 class Lesson(Base):
     __tablename__ = "lessons"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    teacher_id = Column(String, ForeignKey("teacher_profiles.id"), nullable=False)
-    title = Column(String, nullable=False)
-    subject = Column(String, nullable=True)
-    grade_level = Column(String, nullable=True)
+    id = Column(String(8), primary_key=True, default=generate_8_digit_id)
+    teacher_id = Column(String(8), ForeignKey("teacher_profiles.id"), nullable=False)
+    title = Column(String(300), nullable=False)
+    subject = Column(String(100), nullable=True)
+    grade_level = Column(String(20), nullable=True)
     content = Column(Text, nullable=True)
-    video_url = Column(String, nullable=True)
-    attachments = Column(Text, nullable=True)
+    video_url = Column(String(500), nullable=True)
+    attachments = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

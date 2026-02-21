@@ -4,7 +4,7 @@ Student and Parent dashboards
 """
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.database import get_db
 from shared.database.models import User
@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get("/student")
 async def get_student_dashboard(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Get student dashboard data"""
     # TODO: Implement dashboard logic using shared models
@@ -35,7 +35,7 @@ async def get_student_dashboard(
 @router.get("/parent")
 async def get_parent_dashboard(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Get parent dashboard data"""
     # TODO: Implement dashboard logic

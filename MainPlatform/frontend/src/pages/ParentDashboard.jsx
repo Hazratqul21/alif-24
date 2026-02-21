@@ -3,7 +3,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import parentService from '../services/parentService';
 import Navbar from '../components/Common/Navbar';
-import { Users, CreditCard, Bell, Settings, PieChart, Calendar, TrendingUp, Plus, X, Eye, EyeOff, Key, UserCheck, ArrowDown, ArrowUp, School, BookOpen, ClipboardList } from 'lucide-react';
+import { Users, CreditCard, Bell, Settings, PieChart, Calendar, TrendingUp, Plus, X, Eye, EyeOff, Key, UserCheck, ArrowDown, ArrowUp, School, BookOpen, ClipboardList, Zap } from 'lucide-react';
 
 const ParentDashboard = () => {
     const { language } = useLanguage();
@@ -89,11 +89,11 @@ const ParentDashboard = () => {
             if (assignmentFile) {
                 try {
                     const upRes = await parentService.uploadAssignmentFile(assignmentFile);
-                    if (upRes.data && upRes.data.url) {
+                    if (upRes.url) {
                         payload.attachments = [{
                             name: assignmentFile.name,
-                            url: upRes.data.url,
-                            size: upRes.data.size || assignmentFile.size
+                            url: upRes.url,
+                            size: upRes.size || assignmentFile.size
                         }];
                     }
                 } catch (upErr) {
@@ -233,7 +233,7 @@ const ParentDashboard = () => {
                                 onClick={async () => {
                                     try {
                                         const res = await parentService.getChildDetails(child.id);
-                                        setSelectedChildStats(res.data);
+                                        setSelectedChildStats(res);
                                         setShowReportModal(true);
                                     } catch (err) {
                                         alert(err.message || 'Xatolik');
@@ -712,56 +712,62 @@ const ParentDashboard = () => {
             )}
 
             {showReportModal && selectedChildStats && (
-                <Modal title={`${selectedChildStats.first_name} ${selectedChildStats.last_name} hisoboti`} onClose={() => setShowReportModal(false)}>
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-amber-100 p-4 rounded-xl border border-amber-200">
-                                <h4 className="text-amber-800 text-sm font-semibold mb-1">XP / Ballar</h4>
-                                <p className="text-2xl font-bold text-amber-600">{selectedChildStats.stats?.total_points || 0}</p>
-                            </div>
-                            <div className="bg-yellow-100 p-4 rounded-xl border border-yellow-200">
-                                <h4 className="text-yellow-800 text-sm font-semibold mb-1">Tangalar</h4>
-                                <p className="text-2xl font-bold text-yellow-600">🪙 {selectedChildStats.stats?.total_coins || 0}</p>
-                            </div>
-                            <div className="bg-blue-100 p-4 rounded-xl border border-blue-200">
-                                <h4 className="text-blue-800 text-sm font-semibold mb-1">Daraja (Level)</h4>
-                                <p className="text-2xl font-bold text-blue-600">{selectedChildStats.stats?.level || 1}</p>
-                            </div>
-                            <div className="bg-emerald-100 p-4 rounded-xl border border-emerald-200">
-                                <h4 className="text-emerald-800 text-sm font-semibold mb-1">O'rtacha baho</h4>
-                                <p className="text-2xl font-bold text-emerald-600">{selectedChildStats.stats?.average_score || 0}%</p>
-                            </div>
-                        </div>
-
-                        <div className="bg-white border rounded-xl p-4">
-                            <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                                <TrendingUp size={18} className="text-emerald-500" />
-                                O'quv faolligi
-                            </h4>
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                                    <span className="text-gray-600">Tamomlangan darslar:</span>
-                                    <span className="font-bold text-gray-800">{selectedChildStats.stats?.total_lessons || 0}</span>
-                                </div>
-                                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                                    <span className="text-gray-600">Joriy ketma-ketlik (kun):</span>
-                                    <span className="font-bold text-orange-500 flex items-center gap-1">
-                                        <Zap size={16} /> {selectedChildStats.stats?.current_streak || 0}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-4">
-                            <button
-                                onClick={() => setShowReportModal(false)}
-                                className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition"
-                            >
-                                Yopish
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowReportModal(false)}>
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-gray-800">{selectedChildStats.first_name} {selectedChildStats.last_name} hisoboti</h3>
+                            <button onClick={() => setShowReportModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                <X size={20} className="text-gray-500" />
                             </button>
                         </div>
+                        <div className="p-6 space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-amber-100 p-4 rounded-xl border border-amber-200">
+                                    <h4 className="text-amber-800 text-sm font-semibold mb-1">XP / Ballar</h4>
+                                    <p className="text-2xl font-bold text-amber-600">{selectedChildStats.stats?.total_points || 0}</p>
+                                </div>
+                                <div className="bg-yellow-100 p-4 rounded-xl border border-yellow-200">
+                                    <h4 className="text-yellow-800 text-sm font-semibold mb-1">Tangalar</h4>
+                                    <p className="text-2xl font-bold text-yellow-600">{selectedChildStats.stats?.total_coins || 0}</p>
+                                </div>
+                                <div className="bg-blue-100 p-4 rounded-xl border border-blue-200">
+                                    <h4 className="text-blue-800 text-sm font-semibold mb-1">Daraja (Level)</h4>
+                                    <p className="text-2xl font-bold text-blue-600">{selectedChildStats.stats?.level || 1}</p>
+                                </div>
+                                <div className="bg-emerald-100 p-4 rounded-xl border border-emerald-200">
+                                    <h4 className="text-emerald-800 text-sm font-semibold mb-1">O'rtacha baho</h4>
+                                    <p className="text-2xl font-bold text-emerald-600">{selectedChildStats.stats?.average_score || 0}%</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-50 border rounded-xl p-4">
+                                <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                    <TrendingUp size={18} className="text-emerald-500" />
+                                    O'quv faolligi
+                                </h4>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                        <span className="text-gray-600">Tamomlangan darslar:</span>
+                                        <span className="font-bold text-gray-800">{selectedChildStats.stats?.total_lessons || 0}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-gray-600">Joriy ketma-ketlik (kun):</span>
+                                        <span className="font-bold text-orange-500">{selectedChildStats.stats?.current_streak || 0} kun</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() => setShowReportModal(false)}
+                                    className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition"
+                                >
+                                    Yopish
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </Modal>
+                </div>
             )}
         </>
     );

@@ -35,7 +35,8 @@ async def upload_assignment_file(
     
     # Pre-check headers if content-length is provided
     content_length = request.headers.get("content-length")
-    if content_length and role in ["teacher", "parent"]:
+    role_str = role.value if hasattr(role, 'value') else str(role)
+    if content_length and role_str in ["teacher", "parent"]:
         if int(content_length) > TEACHER_PARENT_LIMIT:
             raise HTTPException(status_code=413, detail=f"File too large. Max size is 10MB for {role}s")
 
@@ -49,10 +50,10 @@ async def upload_assignment_file(
     with open(file_path, "wb") as f:
         while chunk := await file.read(1024 * 1024):  # read in 1MB chunks
             total_size += len(chunk)
-            if role in ["teacher", "parent"] and total_size > TEACHER_PARENT_LIMIT:
+            if role_str in ["teacher", "parent"] and total_size > TEACHER_PARENT_LIMIT:
                 f.close()
                 os.remove(file_path)
-                raise HTTPException(status_code=413, detail=f"File too large. Max size is 10MB for {role}s")
+                raise HTTPException(status_code=413, detail=f"File too large. Max size is 10MB for {role_str}s")
             f.write(chunk)
 
     # Note: Returning just the path for Nginx to serve

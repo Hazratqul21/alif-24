@@ -89,7 +89,7 @@ const StudentDashboard = () => {
         const notifInterval = setInterval(async () => {
             try {
                 const res = await notificationService.getUnreadCount();
-                setUnreadNotifCount(res.data?.count || 0);
+                setUnreadNotifCount(res.data?.unread_count || 0);
             } catch (e) {
                 // Ignore silent errors
             }

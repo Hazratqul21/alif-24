@@ -72,15 +72,6 @@ class TeacherService {
     }
 
     /**
-     * Create a new lesson
-     * @param {Object} lessonData - Lesson data
-     * @returns {Promise<Object>} Created lesson
-     */
-    async createLesson(lessonData) {
-        return apiService.post('/lessons', lessonData);
-    }
-
-    /**
      * Create a new quiz (TeacherTest)
      * @param {Object} quizData - Quiz data
      * @returns {Promise<Object>} Created quiz
@@ -129,11 +120,7 @@ class TeacherService {
     async uploadAssignmentFile(file) {
         const formData = new FormData();
         formData.append('file', file);
-        return apiService.post('/upload/assignment-file', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
+        return apiService.post('/upload/assignment-file', formData);
     }
 
     async gradeSubmission(assignmentId, submissionId, data) {

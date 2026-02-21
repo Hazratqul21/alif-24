@@ -191,11 +191,11 @@ const TeacherDashboard = () => {
       if (assignmentFile) {
         try {
           const upRes = await teacherService.uploadAssignmentFile(assignmentFile);
-          if (upRes.data && upRes.data.url) {
+          if (upRes.url) {
             payload.attachments = [{
               name: assignmentFile.name,
-              url: upRes.data.url,
-              size: upRes.data.size || assignmentFile.size
+              url: upRes.url,
+              size: upRes.size || assignmentFile.size
             }];
           }
         } catch (upErr) {
@@ -233,8 +233,8 @@ const TeacherDashboard = () => {
         question_count: 5,
         difficulty: 'medium'
       });
-      if (res.data?.success) {
-        const questions = res.data.data;
+      if (res.success && res.data) {
+        const questions = res.data;
         let formatted = "AI Test natijasi:\n\n";
         questions.forEach((q, i) => {
           formatted += `${i + 1}. ${q.question}\n`;
@@ -723,7 +723,7 @@ const TeacherDashboard = () => {
           <textarea placeholder="Tavsif (ixtiyoriy)" value={newClass.description} onChange={e => setNewClass({ ...newClass, description: e.target.value })}
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb] h-20 resize-none" />
           <button type="submit" disabled={loading} className="w-full bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white py-3 rounded-xl border-none cursor-pointer font-bold disabled:opacity-50">
-            {loading ? 'Bajarilmoqda...' : 'Vazifani yuborish'}
+            {loading ? 'Bajarilmoqda...' : 'Sinf yaratish'}
           </button>
         </form>
       )}
