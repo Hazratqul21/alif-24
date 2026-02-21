@@ -93,13 +93,13 @@ async def create_notification(
 
 async def notify_telegram(db: AsyncSession, user_id: str, message: str):
     try:
-        import os
         from shared.database.models import TelegramUser
+        from app.core.config import settings
         tg_res = await db.execute(select(TelegramUser).where(TelegramUser.user_id == user_id))
         tg_user = tg_res.scalar_one_or_none()
         if tg_user and tg_user.telegram_chat_id and tg_user.notifications_enabled:
             import httpx
-            token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+            token = settings.TELEGRAM_BOT_TOKEN
             if token:
                 async with httpx.AsyncClient(timeout=5) as client:
                     await client.post(

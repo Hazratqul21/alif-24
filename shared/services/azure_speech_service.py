@@ -77,8 +77,9 @@ class AzureSpeechService:
     """
     
     def __init__(self, speech_key: Optional[str] = None, speech_region: Optional[str] = None):
-        self.speech_key = speech_key or os.getenv("AZURE_SPEECH_KEY", "")
-        self.speech_region = speech_region or os.getenv("AZURE_SPEECH_REGION", "eastus")
+        # Hardcoded kalitlar (shared module — config.py dan import qilmaslik uchun)
+        self.speech_key = speech_key or "54V9TJPS3HtXlzdnmUY0sgRv6NtugLsgFcf2s3yZlwS0Ogint3u6JQQJ99BLACYeBjFXJ3w3AAAYACOGlQP9"
+        self.speech_region = speech_region or "eastus"
         self.token_url = f"https://{self.speech_region}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
         self.tts_url = f"https://{self.speech_region}.tts.speech.microsoft.com/cognitiveservices/v1"
         self.stt_url = f"https://{self.speech_region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1"
