@@ -104,6 +104,38 @@ class StudentService {
     const response = await apiService.post(`/student-lessons/${lessonId}/complete`, answers);
     return response.data;
   }
+
+  // ============ LMS: Classrooms ============
+
+  async getMyClassrooms() {
+    return apiService.get('/students/classrooms');
+  }
+
+  async joinByCode(inviteCode) {
+    return apiService.post('/students/classrooms/join', { invite_code: inviteCode });
+  }
+
+  // ============ LMS: Invitations ============
+
+  async getInvitations() {
+    return apiService.get('/students/invitations');
+  }
+
+  async respondInvitation(invitationId, action) {
+    return apiService.post(`/students/invitations/${invitationId}/respond`, { action });
+  }
+
+  // ============ LMS: Assignments ============
+
+  async getAssignments(status = null) {
+    const params = {};
+    if (status) params.status = status;
+    return apiService.get('/students/assignments', params);
+  }
+
+  async submitAssignment(assignmentId, data) {
+    return apiService.post(`/students/assignments/${assignmentId}/submit`, data);
+  }
 }
 
 export const studentService = new StudentService();

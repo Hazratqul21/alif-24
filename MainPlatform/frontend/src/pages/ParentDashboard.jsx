@@ -3,7 +3,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import parentService from '../services/parentService';
 import Navbar from '../components/Common/Navbar';
-import { Users, CreditCard, Bell, Settings, PieChart, Calendar, TrendingUp, Plus, X, Eye, EyeOff, Key, UserCheck, ArrowDown, ArrowUp, School } from 'lucide-react';
+import { Users, CreditCard, Bell, Settings, PieChart, Calendar, TrendingUp, Plus, X, Eye, EyeOff, Key, UserCheck, ArrowDown, ArrowUp, School, BookOpen, ClipboardList } from 'lucide-react';
 
 const ParentDashboard = () => {
     const { language } = useLanguage();
@@ -12,16 +12,25 @@ const ParentDashboard = () => {
     const [children, setChildren] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [selectedChildStats, setSelectedChildStats] = useState(null);
+
     const [newChild, setNewChild] = useState({ first_name: '', last_name: '', date_of_birth: '', gender: '', grade: '' });
     const [createdChild, setCreatedChild] = useState(null);
 
+    // Assignment/Task state
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [selectedChild, setSelectedChild] = useState(null);
+    const [childAssignments, setChildAssignments] = useState({});
+    const [assignmentForm, setAssignmentForm] = useState({
+        title: '',
+        description: '',
+        due_date: '',
+        max_score: 100
+    });
+
     // Notifications state
-    const [notifications, setNotifications] = useState([
-        { id: 1, title: 'Matematika bahosi yangilandi', desc: 'Ali 5 baho oldi', time: '2 soat oldin', read: false, type: 'grade' },
-        { id: 2, title: 'Yangi vazifa berildi', desc: 'Ingliz tili: New Words', time: '5 soat oldin', read: false, type: 'task' },
-        { id: 3, title: 'Haftalik hisobot tayyor', desc: 'Ali\'ning o\'tgan hafta natijalari', time: '1 kun oldin', read: true, type: 'report' },
-        { id: 4, title: 'Davomat ogohlantirishi', desc: 'Ali bugun 1-darsga kelmadi', time: '2 kun oldin', read: true, type: 'attendance' }
-    ]);
+    const [notifications, setNotifications] = useState([]);
 
     // Settings state
     const [parentSettings, setParentSettings] = useState(() => {
@@ -37,6 +46,12 @@ const ParentDashboard = () => {
         fetchChildren();
     }, []);
 
+    useEffect(() => {
+        if (children.length > 0) {
+            fetchAllChildrenAssignments();
+        }
+    }, [children]);
+
     const fetchChildren = async () => {
         try {
             setLoading(true);
@@ -46,6 +61,35 @@ const ParentDashboard = () => {
             console.error("Error fetching children:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchAllChildrenAssignments = async () => {
+        const assignmentsMap = {};
+        for (const child of children) {
+            try {
+                const res = await parentService.getChildAssignments(child.id);
+                assignmentsMap[child.id] = res.data?.assignments || [];
+            } catch (e) {
+                assignmentsMap[child.id] = [];
+            }
+        }
+        setChildAssignments(assignmentsMap);
+    };
+
+    const handleAssignTask = async (e) => {
+        e.preventDefault();
+        if (!selectedChild) return;
+        try {
+            const payload = { ...assignmentForm, target_student_ids: [selectedChild.id] };
+            if (!payload.due_date) delete payload.due_date;
+            await parentService.assignTask(payload);
+            setShowAssignModal(false);
+            setAssignmentForm({ title: '', description: '', due_date: '', max_score: 100 });
+            fetchAllChildrenAssignments();
+            alert('Vazifa muvaffaqiyatli berildi!');
+        } catch (e) {
+            alert(e.message || 'Vazifa berishda xatolik');
         }
     };
 
@@ -127,10 +171,7 @@ const ParentDashboard = () => {
     const t = content[language] || content.uz;
 
     // Transactions mock data for UI
-    const transactions = [
-        { id: 1, desc: 'Obuna (Pro)', amount: '-50,000 UZS', date: '01.12.2023', status: 'success' },
-        { id: 2, desc: 'Hamyon to\'ldirish', amount: '+100,000 UZS', date: '30.11.2023', status: 'success' }
-    ];
+    const transactions = [];
 
     const renderDashboard = () => (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -169,10 +210,28 @@ const ParentDashboard = () => {
 
                         <div className="flex gap-3">
                             <button
-                                onClick={() => alert(`${child.first_name} uchun hisobot tez orada tayyor bo'ladi`)}
+                                onClick={async () => {
+                                    try {
+                                        const res = await parentService.getChildDetails(child.id);
+                                        setSelectedChildStats(res.data);
+                                        setShowReportModal(true);
+                                    } catch (err) {
+                                        alert(err.message || 'Xatolik');
+                                    }
+                                }}
                                 className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition"
                             >
                                 {t.children.viewReport}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setSelectedChild(child);
+                                    setShowAssignModal(true);
+                                }}
+                                className="px-4 py-2.5 bg-green-100 text-green-700 rounded-xl font-medium hover:bg-green-200 transition"
+                                title="Vazifa berish"
+                            >
+                                <ClipboardList size={18} />
                             </button>
                             <button
                                 onClick={async () => {
@@ -188,6 +247,30 @@ const ParentDashboard = () => {
                                 <Key size={18} />
                             </button>
                         </div>
+
+                        {/* Assignments for this child */}
+                        {childAssignments[child.id]?.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                    <BookOpen size={16} /> Vazifalar ({childAssignments[child.id].length})
+                                </h4>
+                                <div className="space-y-2">
+                                    {childAssignments[child.id].slice(0, 3).map(a => (
+                                        <div key={a.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg text-sm">
+                                            <span className="font-medium text-gray-800 truncate">{a.title}</span>
+                                            <span className={`text-xs px-2 py-1 rounded-full ${a.submission_status === 'submitted' ? 'bg-green-100 text-green-700' :
+                                                a.submission_status === 'graded' ? 'bg-blue-100 text-blue-700' :
+                                                    'bg-yellow-100 text-yellow-700'
+                                                }`}>
+                                                {a.submission_status === 'submitted' ? 'Bajarildi' :
+                                                    a.submission_status === 'graded' ? 'Baholandi' :
+                                                        'Kutilmoqda'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             })}
@@ -307,16 +390,15 @@ const ParentDashboard = () => {
                                     <div key={notif.id}
                                         onClick={() => setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n))}
                                         className={`p-4 border-b border-gray-100 last:border-0 flex items-start gap-4 cursor-pointer hover:bg-gray-50 transition-colors ${!notif.read ? 'bg-blue-50/50' : ''}`}>
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                            notif.type === 'grade' ? 'bg-green-100 text-green-600' :
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'grade' ? 'bg-green-100 text-green-600' :
                                             notif.type === 'task' ? 'bg-blue-100 text-blue-600' :
-                                            notif.type === 'report' ? 'bg-purple-100 text-purple-600' :
-                                            'bg-orange-100 text-orange-600'
-                                        }`}>
+                                                notif.type === 'report' ? 'bg-purple-100 text-purple-600' :
+                                                    'bg-orange-100 text-orange-600'
+                                            }`}>
                                             {notif.type === 'grade' ? <TrendingUp size={18} /> :
-                                             notif.type === 'task' ? <Calendar size={18} /> :
-                                             notif.type === 'report' ? <PieChart size={18} /> :
-                                             <Bell size={18} />}
+                                                notif.type === 'task' ? <Calendar size={18} /> :
+                                                    notif.type === 'report' ? <PieChart size={18} /> :
+                                                        <Bell size={18} />}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-start">
@@ -462,15 +544,13 @@ const ParentDashboard = () => {
                                         <div>
                                             <label className="block text-sm font-semibold text-gray-700 mb-1">Jins</label>
                                             <div className="flex gap-2">
-                                                <label className={`flex-1 flex items-center justify-center py-3 rounded-xl cursor-pointer transition-all text-sm font-medium ${
-                                                    newChild.gender === 'male' ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                                                }`}>
+                                                <label className={`flex-1 flex items-center justify-center py-3 rounded-xl cursor-pointer transition-all text-sm font-medium ${newChild.gender === 'male' ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                                    }`}>
                                                     <input type="radio" name="child_gender" value="male" checked={newChild.gender === 'male'} onChange={(e) => setNewChild({ ...newChild, gender: e.target.value })} className="sr-only" />
                                                     Erkak
                                                 </label>
-                                                <label className={`flex-1 flex items-center justify-center py-3 rounded-xl cursor-pointer transition-all text-sm font-medium ${
-                                                    newChild.gender === 'female' ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-400' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                                                }`}>
+                                                <label className={`flex-1 flex items-center justify-center py-3 rounded-xl cursor-pointer transition-all text-sm font-medium ${newChild.gender === 'female' ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-400' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                                    }`}>
                                                     <input type="radio" name="child_gender" value="female" checked={newChild.gender === 'female'} onChange={(e) => setNewChild({ ...newChild, gender: e.target.value })} className="sr-only" />
                                                     Ayol
                                                 </label>
@@ -480,10 +560,9 @@ const ParentDashboard = () => {
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Sinf</label>
                                         <div className="grid grid-cols-4 gap-1.5">
-                                            {['1-sinf','2-sinf','3-sinf','4-sinf','5-sinf','6-sinf','7-sinf','8-sinf','9-sinf','10-sinf','11-sinf'].map(g => (
-                                                <label key={g} className={`flex items-center justify-center py-2 rounded-lg cursor-pointer transition-all text-xs font-medium ${
-                                                    newChild.grade === g ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                                                }`}>
+                                            {['1-sinf', '2-sinf', '3-sinf', '4-sinf', '5-sinf', '6-sinf', '7-sinf', '8-sinf', '9-sinf', '10-sinf', '11-sinf'].map(g => (
+                                                <label key={g} className={`flex items-center justify-center py-2 rounded-lg cursor-pointer transition-all text-xs font-medium ${newChild.grade === g ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                                    }`}>
                                                     <input type="radio" name="child_grade" value={g} checked={newChild.grade === g} onChange={(e) => setNewChild({ ...newChild, grade: e.target.value })} className="sr-only" />
                                                     {g}
                                                 </label>
@@ -524,6 +603,118 @@ const ParentDashboard = () => {
                         </div>
                     </div>
                 </div>
+            )}
+            {/* Assign Task Modal */}
+            {showAssignModal && selectedChild && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-gray-800">Vazifa berish - {selectedChild.first_name}</h3>
+                            <button onClick={() => setShowAssignModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                <X size={20} className="text-gray-500" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAssignTask} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Sarlavha</label>
+                                <input
+                                    type="text" required
+                                    value={assignmentForm.title}
+                                    onChange={(e) => setAssignmentForm({ ...assignmentForm, title: e.target.value })}
+                                    placeholder="Masalan: Matematika mashqlari"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Tavsif</label>
+                                <textarea
+                                    value={assignmentForm.description}
+                                    onChange={(e) => setAssignmentForm({ ...assignmentForm, description: e.target.value })}
+                                    placeholder="Vazifa tavsifi..."
+                                    rows={3}
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none resize-none"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Muddat</label>
+                                    <input
+                                        type="date"
+                                        value={assignmentForm.due_date}
+                                        onChange={(e) => setAssignmentForm({ ...assignmentForm, due_date: e.target.value })}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Max ball</label>
+                                    <input
+                                        type="number"
+                                        min={1} max={100}
+                                        value={assignmentForm.max_score}
+                                        onChange={(e) => setAssignmentForm({ ...assignmentForm, max_score: parseInt(e.target.value) || 100 })}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+                            <button type="submit" className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition">
+                                Vazifa berish
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showReportModal && selectedChildStats && (
+                <Modal title={`${selectedChildStats.first_name} ${selectedChildStats.last_name} hisoboti`} onClose={() => setShowReportModal(false)}>
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-amber-100 p-4 rounded-xl border border-amber-200">
+                                <h4 className="text-amber-800 text-sm font-semibold mb-1">XP / Ballar</h4>
+                                <p className="text-2xl font-bold text-amber-600">{selectedChildStats.stats?.total_points || 0}</p>
+                            </div>
+                            <div className="bg-yellow-100 p-4 rounded-xl border border-yellow-200">
+                                <h4 className="text-yellow-800 text-sm font-semibold mb-1">Tangalar</h4>
+                                <p className="text-2xl font-bold text-yellow-600">🪙 {selectedChildStats.stats?.total_coins || 0}</p>
+                            </div>
+                            <div className="bg-blue-100 p-4 rounded-xl border border-blue-200">
+                                <h4 className="text-blue-800 text-sm font-semibold mb-1">Daraja (Level)</h4>
+                                <p className="text-2xl font-bold text-blue-600">{selectedChildStats.stats?.level || 1}</p>
+                            </div>
+                            <div className="bg-emerald-100 p-4 rounded-xl border border-emerald-200">
+                                <h4 className="text-emerald-800 text-sm font-semibold mb-1">O'rtacha baho</h4>
+                                <p className="text-2xl font-bold text-emerald-600">{selectedChildStats.stats?.average_score || 0}%</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white border rounded-xl p-4">
+                            <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <TrendingUp size={18} className="text-emerald-500" />
+                                O'quv faolligi
+                            </h4>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                    <span className="text-gray-600">Tamomlangan darslar:</span>
+                                    <span className="font-bold text-gray-800">{selectedChildStats.stats?.total_lessons || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                    <span className="text-gray-600">Joriy ketma-ketlik (kun):</span>
+                                    <span className="font-bold text-orange-500 flex items-center gap-1">
+                                        <Zap size={16} /> {selectedChildStats.stats?.current_streak || 0}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-4">
+                            <button
+                                onClick={() => setShowReportModal(false)}
+                                className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition"
+                            >
+                                Yopish
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
             )}
         </>
     );

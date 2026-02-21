@@ -221,8 +221,10 @@ class TelegramBotService:
                 result = await self.db.execute(stmt)
                 user = result.scalar_one_or_none()
                 
-                if user and not tg_user.user_id:
-                    tg_user.user_id = user.id
+                if user:
+                    user.phone_verified = True
+                    if not tg_user.user_id:
+                        tg_user.user_id = user.id
                     await self.db.commit()
             
             return {"success": True, "message": "Tasdiqlash muvaffaqiyatli"}
@@ -234,9 +236,16 @@ class TelegramBotService:
                 "message": f"Noto'g'ri kod. {remaining} urinish qoldi."
             }
     
-    async def send_notification(self, chat_id: str, message: str) -> bool:
+    async def send_notification(self, chat_id: str, message: str, url: Optional[str] = None, url_text: Optional[str] = "Batafsil ko'rish") -> bool:
         """Send notification to Telegram user"""
-        return await self._send_message(chat_id, message)
+        reply_markup = None
+        if url:
+            reply_markup = {
+                "inline_keyboard": [
+                    [{"text": url_text, "url": url}]
+                ]
+            }
+        return await self._send_message(chat_id, message, reply_markup=reply_markup)
     
     async def send_parent_report(self, chat_id: str, student_name: str, report_data: Dict) -> bool:
         """
@@ -252,7 +261,12 @@ class TelegramBotService:
 
 Keep up the good work! 🌟
 """
-        return await self._send_message(chat_id, message, parse_mode="Markdown")
+        reply_markup = {
+            "inline_keyboard": [
+                [{"text": "📊 To'liq hisobotni ko'rish", "url": "https://ali24.uz/parent"}]
+            ]
+        }
+        return await self._send_message(chat_id, message, parse_mode="Markdown", reply_markup=reply_markup)
     
     async def send_achievement_alert(self, chat_id: str, student_name: str, achievement_name: str) -> bool:
         """Send achievement unlocked notification"""
@@ -263,7 +277,12 @@ Keep up the good work! 🌟
 
 Tabriklaymiz! 🎉
 """
-        return await self._send_message(chat_id, message, parse_mode="Markdown")
+        reply_markup = {
+            "inline_keyboard": [
+                [{"text": "🏆 Barcha yutuqlarni ko'rish", "url": "https://ali24.uz/student"}]
+            ]
+        }
+        return await self._send_message(chat_id, message, parse_mode="Markdown", reply_markup=reply_markup)
     
     async def link_phone_to_telegram(self, phone: str, telegram_chat_id: str, 
                                        username: Optional[str] = None,
@@ -900,6 +919,10 @@ Tabriklaymiz! 🎉
                 args = text[9:].strip()
                 await self.handle_settings(chat_id, args)
             
+            # ===== /invitations =====
+            elif text.startswith("/invitations") or text.startswith("/sinflar"):
+                await self.handle_classroom_invitations(chat_id)
+            
             # ===== AI Chatbot — har qanday boshqa xabarga javob berish =====
             else:
                 await self._send_typing(chat_id)
@@ -908,6 +931,79 @@ Tabriklaymiz! 🎉
                     
         except Exception as e:
             logger.error(f"Error processing webhook update: {e}")
+    
+    async def handle_classroom_invitations(self, chat_id: str) -> None:
+        """
+        Sinf takliflarini ko'rsatish va qabul qilish/rad etish imkoniyatini taqdim etish
+        """
+        try:
+            from shared.database.models.classroom import ClassroomInvitation, Classroom, InvitationStatus
+            from shared.database.models.user import User
+            
+            # Get Telegram user
+            stmt = select(TelegramUser).filter(TelegramUser.telegram_chat_id == chat_id)
+            result = await self.db.execute(stmt)
+            tg_user = result.scalar_one_or_none()
+            
+            if not tg_user or not tg_user.user_id:
+                await self._send_message(
+                    chat_id,
+                    "❌ Sinf takliflarini ko'rish uchun avval platformaga kiring va telefon raqamingizni bog'lang.\n\n"
+                    "📱 /start bosing va kontaktingizni ulashing."
+                )
+                return
+            
+            # Get pending invitations for this user
+            stmt = (
+                select(ClassroomInvitation, Classroom)
+                .join(Classroom, ClassroomInvitation.classroom_id == Classroom.id)
+                .filter(
+                    ClassroomInvitation.identifier == tg_user.phone,
+                    ClassroomInvitation.status == InvitationStatus.pending
+                )
+                .order_by(ClassroomInvitation.created_at.desc())
+            )
+            result = await self.db.execute(stmt)
+            invitations = result.all()
+            
+            if not invitations:
+                await self._send_message(
+                    chat_id,
+                    "📚 Sizda hozircha kutilayotgan sinf takliflari yo'q.\n\n"
+                    "O'qituvchidan taklif kuting yoki platformada sinf kodini kiriting!"
+                )
+                return
+            
+            # Show invitations
+            message = f"📬 Sizda {len(invitations)} ta sinf taklifi:\n\n"
+            
+            for idx, (inv, classroom) in enumerate(invitations, 1):
+                # Get teacher name
+                teacher_stmt = select(User).filter(User.id == inv.invited_by)
+                teacher_result = await self.db.execute(teacher_stmt)
+                teacher = teacher_result.scalar_one_or_none()
+                teacher_name = f"{teacher.first_name} {teacher.last_name}" if teacher else "Noma'lum o'qituvchi"
+                
+                message += (
+                    f"{idx}. 📖 *{classroom.name}*\n"
+                    f"   👨‍🏫 O'qituvchi: {teacher_name}\n"
+                    f"   📅 Yuborilgan: {inv.created_at.strftime('%d.%m.%Y')}\n\n"
+                )
+            
+            message += (
+                "Taklifni qabul qilish yoki rad etish uchun platformaga kiring:\n"
+                "🌐 https://alif24.uz/student\n\n"
+                "Yoki /start bosing va platforma orqali javob bering."
+            )
+            
+            await self._send_message(chat_id, message, parse_mode="Markdown")
+            
+        except Exception as e:
+            logger.error(f"Error handling classroom invitations: {e}")
+            await self._send_message(
+                chat_id,
+                "❌ Sinf takliflarini yuklashda xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko'ring."
+            )
     
     async def _send_typing(self, chat_id: str) -> None:
         """Typing indikatorni ko'rsatish"""

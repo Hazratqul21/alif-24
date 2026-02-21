@@ -270,14 +270,56 @@ async def list_children(
     from shared.database.models import UserRole
 
     if current_user.role != UserRole.parent:
-        raise HTTPException(status_code=403, detail="Faqat ota-ona bolalarni ko'ra oladi")
-
+        raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun ruxsat etilgan")
+        
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(User).where(User.parent_id == current_user.id)
+        select(User).options(selectinload(User.student_profile)).where(User.parent_id == current_user.id)
     )
     children = result.scalars().all()
+    
+    data = []
+    for child in children:
+        c_dict = child.to_dict()
+        if child.student_profile:
+            c_dict["stats"] = {
+                "level": child.student_profile.level,
+                "total_points": child.student_profile.total_points,
+                "total_coins": child.student_profile.total_coins,
+                "current_streak": child.student_profile.current_streak,
+            }
+        data.append(c_dict)
 
     return {
         "success": True,
-        "data": [child.to_dict() for child in children]
+        "data": data
     }
+
+@router.get("/children/{child_id}")
+async def get_child_details(
+    child_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.role != UserRole.parent:
+        raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun ruxsat etilgan")
+        
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(User).options(selectinload(User.student_profile)).where(User.id == child_id, User.parent_id == current_user.id)
+    )
+    child = result.scalar_one_or_none()
+    if not child:
+        raise HTTPException(status_code=404, detail="Bola topilmadi")
+        
+    c_dict = child.to_dict()
+    if child.student_profile:
+        c_dict["stats"] = {
+            "level": child.student_profile.level,
+            "total_points": child.student_profile.total_points,
+            "total_coins": child.student_profile.total_coins,
+            "current_streak": child.student_profile.current_streak,
+            "total_lessons": child.student_profile.total_lessons_completed,
+            "average_score": child.student_profile.average_score
+        }
+    return {"success": True, "data": c_dict}

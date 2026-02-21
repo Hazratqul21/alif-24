@@ -54,6 +54,16 @@ class ParentService {
         const response = await apiService.post(`/auth/children/${childId}/regenerate-pin`);
         return response.data;
     }
+
+    // ============ LMS: Child Assignments ============
+
+    async getChildAssignments(childUserId) {
+        return apiService.get(`/parents/children/${childUserId}/assignments`);
+    }
+
+    async assignTask(data) {
+        return apiService.post('/parents/assign', data);
+    }
 }
 
 export const parentService = new ParentService();
