@@ -9,7 +9,7 @@ FIX: Previously returned HTTP 200 with {"error": "..."} on failures.
      - 500: AI processing failure
 """
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 import base64
 import os
 from app.core.config import settings
@@ -17,12 +17,8 @@ from app.core.config import settings
 router = APIRouter()
 
 def get_client():
-    """Create Azure OpenAI async client from settings (env vars)"""
-    return AsyncAzureOpenAI(
-        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-        api_key=settings.AZURE_OPENAI_KEY,
-        api_version=settings.AZURE_OPENAI_API_VERSION
-    )
+    """Create OpenAI async client from settings"""
+    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 def clean_text_for_tts(text):
@@ -66,7 +62,7 @@ async def read_image(file: UploadFile = File(...)):
     try:
         client = get_client()
         response = await client.chat.completions.create(
-            model=os.getenv("AZURE_OPENAI_MODEL", settings.AZURE_OPENAI_DEPLOYMENT_NAME),
+            model=settings.OPENAI_MODEL or "gpt-4",
             messages=[{
                 "role": "user",
                 "content": [

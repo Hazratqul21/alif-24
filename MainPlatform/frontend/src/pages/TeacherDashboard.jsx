@@ -34,6 +34,8 @@ const TeacherDashboard = () => {
   const [showCreateAssignment, setShowCreateAssignment] = useState(false);
   const [showCreateLesson, setShowCreateLesson] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [studentDetail, setStudentDetail] = useState(null);
+  const [studentDetailLoading, setStudentDetailLoading] = useState(false);
 
   // Form states
   const [newClass, setNewClass] = useState({ name: '', subject: '', grade_level: '', description: '' });
@@ -64,6 +66,18 @@ const TeacherDashboard = () => {
   const showNotif = (type, message) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handleStudentClick = async (studentUserId) => {
+    setStudentDetailLoading(true);
+    try {
+      const res = await teacherService.getStudentDetail(studentUserId);
+      setStudentDetail(res.data || res);
+    } catch (e) {
+      showNotif('error', e.message || "O'quvchi ma'lumotlarini yuklashda xatolik");
+    } finally {
+      setStudentDetailLoading(false);
+    }
   };
 
   // ============ DATA FETCHING ============
@@ -485,7 +499,7 @@ const TeacherDashboard = () => {
           ) : (
             <div className="space-y-2">
               {students.map((s, i) => (
-                <div key={s.user_id} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl">
+                <div key={s.user_id} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer" onClick={() => handleStudentClick(s.user_id)}>
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                     {i + 1}
                   </div>
@@ -493,7 +507,7 @@ const TeacherDashboard = () => {
                     <div className="text-sm text-white font-medium">{s.first_name} {s.last_name}</div>
                     <div className="text-xs text-white/40">{s.phone || s.email || ''}</div>
                   </div>
-                  <button onClick={() => teacherService.removeStudentFromClass(selectedClassroom, s.user_id).then(() => { showNotif('success', 'Chiqarildi'); fetchClassroomDetail(selectedClassroom); }).catch(e => showNotif('error', e.message))}
+                  <button onClick={(e) => { e.stopPropagation(); teacherService.removeStudentFromClass(selectedClassroom, s.user_id).then(() => { showNotif('success', 'Chiqarildi'); fetchClassroomDetail(selectedClassroom); }).catch(err => showNotif('error', err.message)); }}
                     className="text-white/20 hover:text-red-400 bg-transparent border-none cursor-pointer p-1">
                     <X size={14} />
                   </button>
@@ -891,6 +905,129 @@ const TeacherDashboard = () => {
             Darsni saqlash
           </button>
         </form>
+      )}
+
+      {/* Student Detail Modal */}
+      {(studentDetail || studentDetailLoading) && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setStudentDetail(null)}>
+          <div className="bg-[#1e1e3a] border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-white/10">
+              <h3 className="text-white font-bold text-lg">O'quvchi ma'lumotlari</h3>
+              <button onClick={() => setStudentDetail(null)} className="text-white/40 hover:text-white bg-transparent border-none cursor-pointer"><X size={20} /></button>
+            </div>
+            {studentDetailLoading ? (
+              <div className="p-8 text-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#4b30fb] mx-auto"></div><p className="text-white/40 mt-3">Yuklanmoqda...</p></div>
+            ) : studentDetail && (
+              <div className="p-5 space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                    {studentDetail.first_name?.charAt(0)}{studentDetail.last_name?.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="text-white text-lg font-bold">{studentDetail.first_name} {studentDetail.last_name}</h4>
+                    <p className="text-white/50 text-sm font-mono">ID: {studentDetail.id}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {studentDetail.phone && (
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <div className="text-white/40 text-xs mb-1 flex items-center gap-1"><Phone size={12} /> Telefon</div>
+                      <div className="text-white text-sm font-medium">{studentDetail.phone}</div>
+                    </div>
+                  )}
+                  {studentDetail.email && (
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <div className="text-white/40 text-xs mb-1 flex items-center gap-1"><Mail size={12} /> Email</div>
+                      <div className="text-white text-sm font-medium">{studentDetail.email}</div>
+                    </div>
+                  )}
+                  {studentDetail.birth_date && (
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <div className="text-white/40 text-xs mb-1">Tug'ilgan sana</div>
+                      <div className="text-white text-sm font-medium">{new Date(studentDetail.birth_date).toLocaleDateString('uz')}</div>
+                    </div>
+                  )}
+                  {studentDetail.created_at && (
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <div className="text-white/40 text-xs mb-1">Ro'yxatdan o'tgan</div>
+                      <div className="text-white text-sm font-medium">{new Date(studentDetail.created_at).toLocaleDateString('uz')}</div>
+                    </div>
+                  )}
+                </div>
+
+                {studentDetail.profile && (
+                  <div>
+                    <h5 className="text-white/60 text-xs font-bold uppercase tracking-wider mb-2">O'quv progressi</h5>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
+                        <div className="text-blue-400 text-lg font-bold">{studentDetail.profile.level}</div>
+                        <div className="text-white/40 text-[10px]">Daraja</div>
+                      </div>
+                      <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+                        <div className="text-green-400 text-lg font-bold">{studentDetail.profile.total_points}</div>
+                        <div className="text-white/40 text-[10px]">Ball</div>
+                      </div>
+                      <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 text-center">
+                        <div className="text-purple-400 text-lg font-bold">{studentDetail.profile.total_lessons_completed}</div>
+                        <div className="text-white/40 text-[10px]">Darslar</div>
+                      </div>
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-center">
+                        <div className="text-amber-400 text-lg font-bold">{studentDetail.profile.total_games_played}</div>
+                        <div className="text-white/40 text-[10px]">O'yinlar</div>
+                      </div>
+                      <div className="bg-pink-500/10 border border-pink-500/20 rounded-xl p-3 text-center">
+                        <div className="text-pink-400 text-lg font-bold">{studentDetail.profile.average_score}%</div>
+                        <div className="text-white/40 text-[10px]">O'rtacha</div>
+                      </div>
+                      <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3 text-center">
+                        <div className="text-orange-400 text-lg font-bold">{studentDetail.profile.current_streak}</div>
+                        <div className="text-white/40 text-[10px]">Streak</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {studentDetail.parent && (
+                  <div>
+                    <h5 className="text-white/60 text-xs font-bold uppercase tracking-wider mb-2">Ota-ona ma'lumotlari</h5>
+                    <div className="bg-white/5 rounded-xl p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <UserIcon size={16} className="text-white/40" />
+                        <span className="text-white font-medium">{studentDetail.parent.first_name} {studentDetail.parent.last_name}</span>
+                      </div>
+                      {studentDetail.parent.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone size={14} className="text-white/40" />
+                          <span className="text-white/70 text-sm">{studentDetail.parent.phone}</span>
+                        </div>
+                      )}
+                      {studentDetail.parent.email && (
+                        <div className="flex items-center gap-2">
+                          <Mail size={14} className="text-white/40" />
+                          <span className="text-white/70 text-sm">{studentDetail.parent.email}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {studentDetail.classrooms?.length > 0 && (
+                  <div>
+                    <h5 className="text-white/60 text-xs font-bold uppercase tracking-wider mb-2">Sinflar</h5>
+                    <div className="space-y-1">
+                      {studentDetail.classrooms.map(c => (
+                        <div key={c.id} className="bg-white/5 rounded-lg px-3 py-2 text-sm text-white/70">
+                          <span className="text-white font-medium">{c.name}</span> {c.subject && <span className="text-white/40">• {c.subject}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

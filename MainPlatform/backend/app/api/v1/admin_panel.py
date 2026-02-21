@@ -34,9 +34,9 @@ router = APIRouter(tags=["admin"])
 
 # Admin Secret Keys from environment
 ADMIN_KEYS = {
-    "hazratqul": os.getenv("ADMIN_HAZRATQUL_KEY", "hazratqul2024"),
-    "nurali": os.getenv("ADMIN_NURALI_KEY", "nurali2024"),
-    "pedagog": os.getenv("ADMIN_PEDAGOG_KEY", "pedagog2024")
+    "hazratqul": "alif24_rahbariyat26!",
+    "nurali": "alif24_rahbariyat26!",
+    "pedagog": "alif24_rahbariyat26!",
 }
 
 # nurali = hazratqul (bir xil huquqlar)

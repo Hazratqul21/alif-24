@@ -91,13 +91,13 @@ async def create_notification(
 
 async def notify_telegram(db: AsyncSession, user_id: str, message: str):
     try:
-        import os
         from shared.database.models import TelegramUser
+        from app.core.config import settings
         tg_res = await db.execute(select(TelegramUser).where(TelegramUser.user_id == user_id))
         tg_user = tg_res.scalar_one_or_none()
         if tg_user and tg_user.telegram_chat_id and tg_user.notifications_enabled:
             import httpx
-            token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+            token = settings.TELEGRAM_BOT_TOKEN
             if token:
                 async with httpx.AsyncClient(timeout=5) as client:
                     await client.post(
@@ -248,6 +248,89 @@ async def delete_classroom(
     teacher.total_classrooms = max(0, (teacher.total_classrooms or 1) - 1)
     await db.commit()
     return {"success": True, "message": "Sinf o'chirildi"}
+
+
+# ============================================================
+# TEACHER: STUDENT DETAIL
+# ============================================================
+
+@router.get("/teachers/students/{student_user_id}/detail")
+async def get_student_detail(
+    student_user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """O'quvchi haqida to'liq ma'lumot — ism, yosh, ota-ona, telefon, progress"""
+    await get_teacher_profile(current_user, db)
+
+    # Get student user
+    u_res = await db.execute(select(User).where(User.id == student_user_id))
+    student = u_res.scalar_one_or_none()
+    if not student or student.role != UserRole.student:
+        raise HTTPException(status_code=404, detail="O'quvchi topilmadi")
+
+    # Get student profile
+    from shared.database.models import StudentProfile
+    sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == student.id))
+    profile = sp_res.scalar_one_or_none()
+
+    # Find parent via StudentProfile.parent_user_id
+    parent_info = None
+    if profile and profile.parent_user_id:
+        parent_res = await db.execute(select(User).where(User.id == profile.parent_user_id))
+        parent = parent_res.scalar_one_or_none()
+        if parent:
+            parent_info = {
+                "id": parent.id,
+                "first_name": parent.first_name,
+                "last_name": parent.last_name,
+                "phone": parent.phone,
+                "email": parent.email,
+            }
+
+    # Get classrooms this student is in (for this teacher)
+    student_classes = []
+    try:
+        from shared.database.models.classroom import TeacherProfile as TP
+        tp_res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == current_user.id))
+        tp = tp_res.scalar_one_or_none()
+        if tp:
+            cls_res = await db.execute(
+                select(ClassroomStudent, Classroom)
+                .join(Classroom, ClassroomStudent.classroom_id == Classroom.id)
+                .where(
+                    ClassroomStudent.student_user_id == student.id,
+                    ClassroomStudent.status == ClassroomStudentStatus.active,
+                    Classroom.teacher_id == tp.id,
+                )
+            )
+            for cs, cls in cls_res.all():
+                student_classes.append({"id": cls.id, "name": cls.name, "subject": cls.subject})
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "data": {
+            "id": student.id,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "email": student.email,
+            "phone": student.phone,
+            "birth_date": student.birth_date.isoformat() if hasattr(student, 'birth_date') and student.birth_date else None,
+            "created_at": student.created_at.isoformat() if student.created_at else None,
+            "profile": {
+                "level": profile.level if profile else 1,
+                "total_points": profile.total_points if profile else 0,
+                "total_lessons_completed": profile.total_lessons_completed if profile else 0,
+                "total_games_played": profile.total_games_played if profile else 0,
+                "average_score": profile.average_score if profile else 0,
+                "current_streak": profile.current_streak if profile else 0,
+            } if profile else None,
+            "parent": parent_info,
+            "classrooms": student_classes,
+        }
+    }
 
 
 # ============================================================
@@ -621,3 +704,74 @@ async def join_by_code(
     await db.commit()
     return {"success": True, "message": f"«{classroom.name}» sinfiga qo'shildingiz!",
             "data": {"classroom_id": classroom.id, "name": classroom.name}}
+
+
+# ============================================================
+# PARENT: CHILD'S TEACHERS INFO
+# ============================================================
+
+@router.get("/parents/children/{child_id}/teachers")
+async def get_child_teachers(
+    child_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Ota-ona uchun: bolasining o'qituvchilari haqida ma'lumot.
+    Bolaning qaysi sinflarda ekanligini va har bir sinf o'qituvchisini qaytaradi.
+    """
+    if current_user.role != UserRole.parent:
+        raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun")
+
+    # Verify this is parent's child
+    from shared.database.models import StudentProfile
+    sp_res = await db.execute(select(StudentProfile).where(
+        StudentProfile.user_id == child_id,
+        StudentProfile.parent_user_id == current_user.id,
+    ))
+    profile = sp_res.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Bola topilmadi yoki sizning bolangiz emas")
+
+    # Get child's classrooms
+    cs_res = await db.execute(
+        select(ClassroomStudent, Classroom)
+        .join(Classroom, ClassroomStudent.classroom_id == Classroom.id)
+        .where(
+            ClassroomStudent.student_user_id == child_id,
+            ClassroomStudent.status == ClassroomStudentStatus.active,
+        )
+    )
+    rows = cs_res.all()
+
+    teachers_info = []
+    for cs, cls in rows:
+        # Get teacher user via TeacherProfile
+        t_res = await db.execute(
+            select(User, TeacherProfile)
+            .join(TeacherProfile, TeacherProfile.user_id == User.id)
+            .where(TeacherProfile.id == cls.teacher_id)
+        )
+        row = t_res.first()
+        if row:
+            teacher_user, teacher_profile = row
+            teachers_info.append({
+                "classroom": {
+                    "id": cls.id,
+                    "name": cls.name,
+                    "subject": cls.subject,
+                    "grade_level": cls.grade_level,
+                },
+                "teacher": {
+                    "id": teacher_user.id,
+                    "first_name": teacher_user.first_name,
+                    "last_name": teacher_user.last_name,
+                    "phone": teacher_user.phone,
+                    "email": teacher_user.email,
+                    "specialty": teacher_profile.specialty if hasattr(teacher_profile, 'specialty') else None,
+                    "experience_years": teacher_profile.experience_years if hasattr(teacher_profile, 'experience_years') else None,
+                    "bio": teacher_profile.bio if hasattr(teacher_profile, 'bio') else None,
+                },
+            })
+
+    return {"success": True, "data": teachers_info}

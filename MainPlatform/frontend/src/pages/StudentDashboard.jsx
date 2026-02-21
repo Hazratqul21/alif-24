@@ -306,6 +306,7 @@ const StudentDashboard = () => {
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <h2 className="text-xl md:text-3xl font-bold">{t.welcome}, {user.name}!</h2>
                             <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">Lvl {user.level}</span>
+                            {authUser?.id && <span className="bg-white/15 px-2 py-0.5 rounded-full text-[10px] font-mono opacity-70 cursor-pointer hover:opacity-100" onClick={() => { navigator.clipboard.writeText(authUser.id); setNotification({ type: 'success', text: 'ID nusxalandi!' }); }} title="ID nusxalash">ID: {authUser.id}</span>}
                         </div>
                         <p className="opacity-90 mb-6 flex items-center gap-2">
                             {user.parent ? <>Ota-onangiz sizni kuzatib bormoqda <Shield size={16} /></> : "Bugungi rejangizda 2 ta yangi vazifa bor."}

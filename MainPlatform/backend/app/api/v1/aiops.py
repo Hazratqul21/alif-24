@@ -40,8 +40,8 @@ async def generate_test(
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Faqat o'qituvchilar ruxsatga ega")
 
-    client = get_azure_client()
-    model = os.getenv("AZURE_OPENAI_MODEL", settings.AZURE_OPENAI_DEPLOYMENT_NAME)
+    client = get_openai_client()
+    model = settings.OPENAI_MODEL or "gpt-4"
     
     system_prompt = (
         "Siz o'qituvchilarga sifatli test tuzishda yordam beruvchi AI assistentisiz. "

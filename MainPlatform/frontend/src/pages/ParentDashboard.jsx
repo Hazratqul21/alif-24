@@ -18,6 +18,9 @@ const ParentDashboard = () => {
     const [newChild, setNewChild] = useState({ first_name: '', last_name: '', date_of_birth: '', gender: '', grade: '' });
     const [createdChild, setCreatedChild] = useState(null);
 
+    // Teacher info state
+    const [childTeachers, setChildTeachers] = useState({});
+
     // Assignment/Task state
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [selectedChild, setSelectedChild] = useState(null);
@@ -67,6 +70,7 @@ const ParentDashboard = () => {
 
     const fetchAllChildrenAssignments = async () => {
         const assignmentsMap = {};
+        const teachersMap = {};
         for (const child of children) {
             try {
                 const res = await parentService.getChildAssignments(child.id);
@@ -74,8 +78,15 @@ const ParentDashboard = () => {
             } catch (e) {
                 assignmentsMap[child.id] = [];
             }
+            try {
+                const tRes = await parentService.getChildTeachers(child.id);
+                teachersMap[child.id] = tRes.data || [];
+            } catch (e) {
+                teachersMap[child.id] = [];
+            }
         }
         setChildAssignments(assignmentsMap);
+        setChildTeachers(teachersMap);
     };
 
     const handleAssignTask = async (e) => {
@@ -267,6 +278,34 @@ const ParentDashboard = () => {
                                 <Key size={18} />
                             </button>
                         </div>
+
+                        {/* Teachers for this child */}
+                        {childTeachers[child.id]?.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                    <School size={16} /> O'qituvchilar ({childTeachers[child.id].length})
+                                </h4>
+                                <div className="space-y-2">
+                                    {childTeachers[child.id].map((info, idx) => (
+                                        <div key={idx} className="bg-indigo-50 p-3 rounded-xl">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <span className="font-bold text-gray-800 text-sm">{info.teacher.first_name} {info.teacher.last_name}</span>
+                                                    {info.teacher.specialty && <span className="text-xs text-indigo-600 ml-2">({info.teacher.specialty})</span>}
+                                                </div>
+                                                <span className="text-xs bg-white text-indigo-600 px-2 py-0.5 rounded-full font-medium">{info.classroom.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                                {info.classroom.subject && <span>{info.classroom.subject}</span>}
+                                                {info.teacher.experience_years && <span>{info.teacher.experience_years} yil tajriba</span>}
+                                                {info.teacher.phone && <span>{info.teacher.phone}</span>}
+                                            </div>
+                                            {info.teacher.bio && <p className="text-xs text-gray-500 mt-1 italic">{info.teacher.bio}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Assignments for this child */}
                         {childAssignments[child.id]?.length > 0 && (

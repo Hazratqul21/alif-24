@@ -127,6 +127,10 @@ class TeacherService {
         return apiService.post(`/teachers/assignments/${assignmentId}/grade/${submissionId}`, data);
     }
 
+    async getStudentDetail(studentUserId) {
+        return apiService.get(`/teachers/students/${studentUserId}/detail`);
+    }
+
     async getClassroomDetail(classroomId) {
         return apiService.get(`/teachers/classrooms/${classroomId}`);
     }

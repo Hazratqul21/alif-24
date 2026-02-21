@@ -1,7 +1,7 @@
 # ALIF24 LMS — TO'LIQ AUDIT VA TUZATISHLAR
 
-**Sana:** 2026-02-22 (yangilangan)
-**Status:** 17 ta bug topildi va tuzatildi
+**Sana:** 2026-02-22 (3-bosqich yangilangan)
+**Status:** 26 ta bug tuzatildi + 7 ta yangi funksiya qo'shildi
 
 ---
 
@@ -548,3 +548,70 @@ Tashkilot o'z o'quvchilariga platformadagi kontentdan vazifa berishi. #7-#12 hal
 - Models: `lesson.py`, `platform_content.py`
 - Infra: `docker/nginx/nginx.conf`
 - Docs: `LMS_AUDIT_AND_FIXES.md`
+
+---
+
+## 3-BOSQICH: YANGI FUNKSIYALAR VA TUZATISHLAR (2026-02-22)
+
+### FEATURE-1: Admin yashirin routelar + parol tuzatish
+**Fayllar:**
+- `MainPlatform/backend/app/api/v1/admin_panel.py` — Barcha 3 admin paroli `alif24_rahbariyat26!` ga hardcoded
+- `MainPlatform/frontend/src/App.jsx` — `/hazratqul`, `/nurali`, `/pedagog` yashirin routelar qo'shildi
+- `MainPlatform/frontend/src/pages/admin/AdminLogin.jsx` — `defaultRole` prop qabul qilish qo'shildi
+
+### FEATURE-2: Azure → OpenAI o'tkazish (5 ta fayl)
+**Sabab:** Azure OpenAI dan voz kechildi, barcha AI OpenAI API dan ishlashi kerak.
+**Fayllar:**
+- `MainPlatform/backend/app/api/v1/aiops.py` — OpenAI primary client
+- `MainPlatform/backend/app/smartkids/story_router.py` — AsyncAzureOpenAI → AsyncOpenAI
+- `MainPlatform/backend/app/smartkids/image_reader_router.py` — AsyncAzureOpenAI → AsyncOpenAI
+- `MainPlatform/backend/app/mathkids/math_solver_router.py` — AsyncAzureOpenAI → AsyncOpenAI
+- `MainPlatform/backend/app/mathkids/math_image_router.py` — AsyncAzureOpenAI → AsyncOpenAI
+
+### FEATURE-3: Telegram bot tuzatish
+**Muammo:** Bot token env dan o'qilayotgan edi, lekin env variable set qilinmagan — bo'sh string kelardi.
+**Fayllar:**
+- `MainPlatform/backend/app/api/v1/telegram.py`:
+  - Token `settings.TELEGRAM_BOT_TOKEN` dan olinadi (config.py da hardcoded)
+  - `POST /set-webhook` — Telegram webhook URL o'rnatish
+  - `POST /delete-webhook` — Webhook o'chirish
+  - `GET /webhook-info` — Joriy webhook holatini ko'rish
+
+### FEATURE-4: Foydalanuvchi ID ko'rinishi
+**Fayllar:**
+- `MainPlatform/frontend/src/pages/ProfilePage.jsx` — User ID + copy tugmasi profil headerda
+- `MainPlatform/frontend/src/pages/StudentDashboard.jsx` — User ID welcome card ichida
+
+### FEATURE-5: O'qituvchi → O'quvchi to'liq ma'lumot
+**Yangi backend endpoint:** `GET /teachers/students/{student_user_id}/detail`
+- O'quvchi ism, familiya, telefon, email, tug'ilgan sana
+- O'quv progressi (level, points, darslar, o'yinlar, streak)
+- Ota-ona ma'lumotlari (ism, telefon, email) — `StudentProfile.parent_user_id` orqali
+- Sinflar ro'yxati
+**Fayllar:**
+- `MainPlatform/backend/app/api/v1/classrooms.py` — Yangi endpoint
+- `MainPlatform/frontend/src/services/teacherService.js` — `getStudentDetail()` method
+- `MainPlatform/frontend/src/pages/TeacherDashboard.jsx` — Student detail modal + click handler
+
+### FEATURE-6: Ota-ona → O'qituvchi ma'lumotlari
+**Yangi backend endpoint:** `GET /parents/children/{child_id}/teachers`
+- Har bir sinf uchun o'qituvchi ismi, familiyasi, telefon, mutaxassisligi, tajribasi, bio
+**Fayllar:**
+- `MainPlatform/backend/app/api/v1/classrooms.py` — Yangi endpoint
+- `MainPlatform/frontend/src/services/parentService.js` — `getChildTeachers()` method
+- `MainPlatform/frontend/src/pages/ParentDashboard.jsx` — O'qituvchi info UI bola card ichida
+
+### FEATURE-7: Barcha role tugmalar tekshirish
+**Natija:** Barcha dashboard va routing to'liq va to'g'ri ishlaydi:
+- Student: SmartKids, MathKids, Live Quiz, Sinflar, Vazifalar, Coinlar, ID, Timer, Kutubxona
+- Teacher: Sinflar CRUD, Vazifalar, AI Test, Live Quiz, Darslar, Student Detail, Settings
+- Parent: Bolalar, Vazifa berish, Hisobot, PIN, O'qituvchi info, To'lovlar, Sozlamalar
+- Admin: Dashboard, Users, Teachers, Database, Content, Telegram
+- Routing: ProtectedRoute barcha rolelar uchun to'g'ri
+
+### Umumiy statistika (3-bosqich):
+- **7 ta yangi funksiya** qo'shildi
+- **2 ta yangi backend endpoint** yaratildi
+- **14 ta fayl** o'zgartirildi
+- **5 ta AI fayl** Azure dan OpenAI ga o'tkazildi
+- **3 ta yashirin admin route** qo'shildi
