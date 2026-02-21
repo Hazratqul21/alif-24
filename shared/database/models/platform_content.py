@@ -1,7 +1,7 @@
 import uuid
 from sqlalchemy import Column, String, JSON, DateTime
 from datetime import datetime, timezone
-from shared.database.database import Base
+from shared.database.base import Base
 
 class PlatformContent(Base):
     __tablename__ = "platform_content"
