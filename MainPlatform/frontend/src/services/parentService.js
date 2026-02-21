@@ -62,7 +62,7 @@ class ParentService {
     }
 
     async assignTask(data) {
-        return apiService.post('/parents/assignments', data);
+        return apiService.post('/parents/assign', data);
     }
 
     /**
@@ -73,11 +73,7 @@ class ParentService {
     async uploadAssignmentFile(file) {
         const formData = new FormData();
         formData.append('file', file);
-        return apiService.post('/upload/assignment-file', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
+        return apiService.post('/upload/assignment-file', formData);
     }
 }
 

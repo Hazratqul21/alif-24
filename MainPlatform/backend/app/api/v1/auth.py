@@ -323,3 +323,37 @@ async def get_child_details(
             "average_score": child.student_profile.average_score
         }
     return {"success": True, "data": c_dict}
+
+
+@router.post("/children/{child_id}/regenerate-pin")
+async def regenerate_child_pin(
+    child_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Bola uchun yangi PIN yaratish"""
+    from shared.database.models import UserRole
+
+    if current_user.role != UserRole.parent:
+        raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun ruxsat etilgan")
+
+    from sqlalchemy import select as sa_select
+    result = await db.execute(
+        sa_select(User).where(User.id == child_id, User.parent_id == current_user.id)
+    )
+    child = result.scalar_one_or_none()
+    if not child:
+        raise HTTPException(status_code=404, detail="Bola topilmadi")
+
+    new_pin = User.generate_pin(4)
+    child.set_pin(new_pin)
+    await db.commit()
+
+    return {
+        "success": True,
+        "data": {
+            "username": child.username,
+            "new_pin": new_pin,
+        },
+        "message": "PIN muvaffaqiyatli yangilandi"
+    }

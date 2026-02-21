@@ -1,6 +1,7 @@
 # ALIF24 LMS — TO'LIQ AUDIT VA TUZATISHLAR
 
-**Sana:** 2026-02-21
+**Sana:** 2026-02-22 (yangilangan)
+**Status:** 17 ta bug topildi va tuzatildi
 
 ---
 
@@ -289,3 +290,193 @@ Tashkilot o'z o'quvchilariga platformadagi kontentdan vazifa berishi. #7-#12 hal
 - **Gradebook:** Sinf bo'yicha baholar jurnali
 - **Calendar:** Dars jadvali va deadline kalendar
 - **Mock data olib tashlash:** StudentDashboard 174-176, ParentDashboard 19-24, 130-133 qatorlardagi hardcoded data
+
+---
+
+# 2026-02-22 TO'LIQ AUDIT NATIJALARI — 17 TA BUG TUZATILDI
+
+## KRITIK BUGLAR (Crash/404/noto'g'ri ishlash)
+
+### BUG-1: parentService.assignTask URL mismatch ✅
+- **Fayl:** `MainPlatform/frontend/src/services/parentService.js:65`
+- **Muammo:** Frontend `/parents/assignments` chaqirardi, backend `/parents/assign`
+- **Tuzatish:** URL ni `/parents/assign` ga o'zgartirdim
+
+### BUG-2: assignments.py get_teacher_profile 404 beradi ✅
+- **Fayl:** `MainPlatform/backend/app/api/v1/assignments.py:70-79`
+- **Muammo:** TeacherProfile topilmasa 404 qaytarardi (classrooms.py auto-create qiladi)
+- **Tuzatish:** Auto-create pattern qo'shdim (classrooms.py kabi)
+
+### BUG-3: uploads.py role enum vs string solishtirish ✅
+- **Fayl:** `MainPlatform/backend/app/api/v1/uploads.py:38`
+- **Muammo:** `role in ["teacher", "parent"]` — lekin `role` UserRole enum, string emas
+- **Tuzatish:** `role.value` ishlatdim
+
+### BUG-4: StudentDashboard notification field nomi noto'g'ri ✅
+- **Fayl:** `MainPlatform/frontend/src/pages/StudentDashboard.jsx:92`
+- **Muammo:** `res.data?.count` — backend `unread_count` qaytaradi
+- **Tuzatish:** `res.data?.unread_count` ga o'zgartirdim
+
+### BUG-5: TeacherDashboard AI test response parsing noto'g'ri ✅
+- **Fayl:** `MainPlatform/frontend/src/pages/TeacherDashboard.jsx:236-237`
+- **Muammo:** `res.data?.success` va `res.data.data` — apiService to'g'ridan-to'g'ri JSON qaytaradi
+- **Tuzatish:** `res.success && res.data` va `res.data` (to'g'ridan-to'g'ri questions array)
+
+### BUG-7: ParentDashboard getChildDetails double .data unwrap ✅
+- **Fayl:** `MainPlatform/frontend/src/pages/ParentDashboard.jsx:236`
+- **Muammo:** `parentService.getChildDetails` allaqachon `.data` qaytaradi, keyin yana `res.data` = undefined
+- **Tuzatish:** `setSelectedChildStats(res)` ga o'zgartirdim
+
+### BUG-9: Backend regenerate-pin endpoint yo'q ✅
+- **Fayl:** `MainPlatform/backend/app/api/v1/auth.py` (oxiriga qo'shildi)
+- **Muammo:** ParentDashboard `regenerateChildPin` chaqirardi lekin backend da endpoint yo'q edi
+- **Tuzatish:** `POST /children/{child_id}/regenerate-pin` endpoint yaratdim
+
+### BUG-11: TeacherDashboard upload response parsing ✅
+- **Fayl:** `MainPlatform/frontend/src/pages/TeacherDashboard.jsx:194`
+- **Muammo:** `upRes.data.url` — backend `{success, url, ...}` to'g'ridan-to'g'ri qaytaradi
+- **Tuzatish:** `upRes.url` ga o'zgartirdim
+
+### BUG-12: ParentDashboard upload response parsing ✅
+- **Fayl:** `MainPlatform/frontend/src/pages/ParentDashboard.jsx:92`
+- **Muammo:** Xuddi BUG-11 kabi — `upRes.data.url` noto'g'ri
+- **Tuzatish:** `upRes.url` ga o'zgartirdim
+
+### BUG-13: ParentDashboard Modal component mavjud emas ✅
+- **Fayl:** `MainPlatform/frontend/src/pages/ParentDashboard.jsx:715`
+- **Muammo:** `<Modal>` component ishlatilgan lekin hech qayerda yaratilmagan/import qilinmagan — CRASH
+- **Tuzatish:** Inline modal markup bilan almashtirdim
+
+### BUG-14: Lesson/PlatformContent model ID format noto'g'ri ✅
+- **Fayllar:** `shared/database/models/lesson.py`, `shared/database/models/platform_content.py`
+- **Muammo:** `uuid.uuid4()` (36 char) ishlatilgan, lekin loyiha standarti `String(8)` + `generate_8_digit_id`
+- **Tuzatish:** `String(8)` + `generate_8_digit_id` ga o'zgartirdim, `attachments` Text→JSON
+
+### BUG-15: dashboard.py sync Session import ✅
+- **Fayl:** `MainPlatform/backend/app/api/v1/dashboard.py:7`
+- **Muammo:** `from sqlalchemy.orm import Session` — async app da sync Session ishlatilgan
+- **Tuzatish:** `AsyncSession` ga o'zgartirdim
+
+### BUG-16: dashboard.router main.py da registratsiya qilinmagan ✅
+- **Fayl:** `MainPlatform/backend/main.py`
+- **Muammo:** `dashboard` import qilingan lekin `app.include_router(dashboard.router)` yo'q — 404
+- **Tuzatish:** `include_router(dashboard.router, prefix="/api/v1/dashboard")` qo'shdim
+
+### BUG-17: ParentDashboard Zap import yo'q ✅
+- **Fayl:** `MainPlatform/frontend/src/pages/ParentDashboard.jsx:6`
+- **Muammo:** Report modal da `Zap` icon ishlatilgan lekin import qilinmagan — CRASH
+- **Tuzatish:** Lucide import ga `Zap` qo'shdim
+
+## O'RTA DARAJALI BUGLAR
+
+### BUG-6: TeacherDashboard sinf yaratish button text noto'g'ri ✅
+- **Fayl:** `MainPlatform/frontend/src/pages/TeacherDashboard.jsx:726`
+- **Muammo:** "Vazifani yuborish" deb yozilgan — "Sinf yaratish" bo'lishi kerak
+- **Tuzatish:** Matn tuzatildi
+
+### BUG-8: Upload service keraksiz 3-argument ✅
+- **Fayllar:** `teacherService.js:132`, `parentService.js:76`
+- **Muammo:** `apiService.post` faqat 2 arg qabul qiladi, 3-arg e'tiborga olinmaydi
+- **Tuzatish:** Keraksiz `{ headers: {...} }` argument olib tashlandi
+
+### BUG-10: teacherService duplicate createLesson ✅
+- **Fayl:** `MainPlatform/frontend/src/services/teacherService.js:79`
+- **Muammo:** 2 ta `createLesson` — biri `/lessons` (noto'g'ri), biri `/teachers/lessons` (to'g'ri)
+- **Tuzatish:** Noto'g'ri (birinchi) method olib tashlandi
+
+---
+
+## TEKSHIRILGAN VA TO'G'RI ISHLAYOTGAN FAYLLAR
+
+### Backend (hammasi tekshirildi):
+- `main.py` — Barcha router'lar to'g'ri registratsiya qilingan
+- `auth.py` — Login, register, profile, password, children CRUD, regenerate-pin
+- `classrooms.py` — Teacher CRUD, invite, search, student join/respond
+- `assignments.py` — Teacher CRUD, grade, student list/submit, parent assign
+- `notifications.py` — CRUD, unread-count, mark-read
+- `lessons.py` — Teacher lesson CRUD
+- `uploads.py` — File upload with role-based limits
+- `aiops.py` — AI test generation
+- `dashboard.py` — Student/parent dashboard
+- `feedback.py` — Feedback CRUD
+- `verification.py` — Phone verification via Telegram
+- `telegram.py` — Webhook, broadcast, stats
+- `health.py` — Health check endpoints
+- `platform_content.py` — Content management
+- `admin_panel.py` — Admin CRUD, stats, content proxy
+- `middleware/auth.py` — JWT authentication
+
+### Frontend Services (hammasi tekshirildi):
+- `apiService.js` — Base API, auth headers, token refresh, FormData detect
+- `authService.js` — Login, register, profile, password
+- `teacherService.js` — Classrooms, assignments, lessons, AI test, upload
+- `studentService.js` — Classrooms, invitations, assignments, lessons
+- `parentService.js` — Children, assignments, upload
+- `notificationService.js` — Notifications, unread count
+- `coinService.js` — Balance, daily bonus, transactions
+- `quizService.js` — Live quiz CRUD
+- `lessonService.js` — Lesson CRUD
+- `organizationService.js` — Organization management
+- `adminService.js` — Admin operations
+
+### Frontend Pages (hammasi tekshirildi):
+- `TeacherDashboard.jsx` — Sinflar, vazifalar, darslar, AI test, upload
+- `StudentDashboard.jsx` — Dashboard, sinflar, vazifalar, kutubxona, yutuqlar
+- `ParentDashboard.jsx` — Farzandlar, vazifa berish, hisobot, to'lovlar, sozlamalar
+- `OrganizationDashboard.jsx` — Stats, teachers, students, analytics
+- `ProfilePage.jsx` — Profil tahrirlash, parol o'zgartirish
+- `HomePage.jsx` — Bosh sahifa
+- `LiveQuizTeacher.jsx` / `LiveQuizStudent.jsx` — Live quiz
+- Admin sahifalar: AdminDashboard, UsersPage, TeachersPage, ContentPage, DatabasePage, TelegramPage
+
+### Database Models (hammasi tekshirildi):
+- `user.py` — 8-digit ID, dual auth (email+phone, username+PIN)
+- `classroom.py` — Classroom, ClassroomStudent, ClassroomInvitation
+- `assignment.py` — Assignment, AssignmentTarget, AssignmentSubmission
+- `in_app_notification.py` — InAppNotification
+- `lesson.py` — Lesson (8-digit ID ga tuzatildi)
+- `platform_content.py` — PlatformContent (8-digit ID ga tuzatildi)
+
+### Docker/Deployment (tekshirildi):
+- `docker-compose.yml` — 7 microservice + postgres + redis + nginx + pgadmin
+- Barcha portlar to'g'ri: 8000-8006 (backends), 5173-5179 (frontends)
+- Environment variables to'g'ri
+- Alembic migrations: 001 (initial), 002 (LMS), 003 (lessons + content), 004 (coin tables)
+
+---
+
+## QOSHIMCHA BUGLAR (2026-02-22 chuqur tekshiruv)
+
+### BUG-18: Coin endpointlar backendda mavjud emas ✅
+- **Muammo:** `coinService.js` `/coins/balance`, `/coins/daily-bonus` chaqiradi, lekin backendda hech qanday coin router yo'q edi. `StudentDashboard.jsx` da coin balance va daily bonus funksiyalari 404 qaytarardi.
+- **Tuzatish:**
+  - `MainPlatform/backend/app/api/v1/coins.py` — yangi router yaratdim (balance, daily-bonus, game-reward, transactions)
+  - `MainPlatform/backend/main.py` — coins router registratsiya qildim
+  - `alembic/versions/004_add_coin_tables.py` — coin jadvallar migration yaratdim (student_coins, coin_transactions, coin_withdrawals, prizes, prize_redemptions)
+
+### BUG-19: LiveQuiz frontend-backend URL mismatch + nginx proxy ✅
+- **Muammo:** `quizService.js` `/live-quiz/*` chaqiradi, lekin TestAI backend `/api/v1/quiz/*` ishlatadi. Bundan tashqari LiveQuiz sahifalari MainPlatform frontend da, lekin endpointlar TestAI backend da (port 8002). Nginx faqat MainPlatform backend ga proxy qilardi.
+- **Tuzatish:**
+  - `docker/nginx/nginx.conf` — `/api/v1/live-quiz/` → TestAI backend ga proxy + `/quiz/` ga rewrite qo'shdim
+  - `quizService.js` — URL larni TestAI backend ga moslashtirdim: `open-lobby`→`open`, `current-question`→`question`, `next-question`→`next`, `student/question`→`student-question`, `student/answer`→`answer`, `student/results`→`results`
+
+---
+
+## YAKUNIY XULOSA
+
+**Jami 19 ta bug topildi va tuzatildi:**
+- 13 ta kritik (crash, 404, noto'g'ri ishlash)
+- 3 ta o'rta (UI text, dead code, keraksiz argument)
+- 3 ta infratuzilma (missing router, missing endpoints, nginx proxy)
+
+**Yangi yaratilgan fayllar:**
+- `MainPlatform/backend/app/api/v1/coins.py` — Coin API router
+- `MainPlatform/backend/alembic/versions/004_add_coin_tables.py` — Coin DB migration
+
+**O'zgartirilgan fayllar (19 ta):**
+- Backend: `main.py`, `auth.py`, `assignments.py`, `uploads.py`, `dashboard.py`
+- Frontend services: `teacherService.js`, `parentService.js`, `quizService.js`
+- Frontend pages: `TeacherDashboard.jsx`, `StudentDashboard.jsx`, `ParentDashboard.jsx`
+- Models: `lesson.py`, `platform_content.py`
+- Infra: `docker/nginx/nginx.conf`
+- Docs: `LMS_AUDIT_AND_FIXES.md`
