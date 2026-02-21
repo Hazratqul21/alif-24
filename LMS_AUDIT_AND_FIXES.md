@@ -1,0 +1,291 @@
+# ALIF24 LMS — TO'LIQ AUDIT VA TUZATISHLAR
+
+**Sana:** 2026-02-21
+
+---
+
+## MUAMMO #1: StudentDashboard — LMS data fetch YO'Q
+
+**Fayl:** `MainPlatform/frontend/src/pages/StudentDashboard.jsx` (46-68 qatorlar)
+
+**Muammo:** `classrooms`, `invitations`, `assignments` state'lari bor (36-42), lekin ularni backenddan fetch qiladigan useEffect **yo'q**. Faqat eski dashboard va coin fetch bor.
+
+**Yechim:** Mavjud useEffect ichiga LMS data fetch qo'shish + handler funksiyalar + notification polling.
+
+### Prompt #1
+```
+MainPlatform/frontend/src/pages/StudentDashboard.jsx faylida 46-68 qatorlardagi useEffect ichiga LMS data fetchni qo'sh. Quyidagilarni qilish kerak:
+
+1. useEffect ichida fetchDashboard() dan keyin fetchLMSData() chaqir:
+- studentService.getMyClassrooms() -> setClassrooms(res.data?.classes || [])
+- studentService.getInvitations() -> setInvitations(res.data?.invitations || [])  
+- studentService.getAssignments() -> assignments mapping: a.assignment?.title ishlatish chunki backend submission+assignment birga qaytaradi
+
+2. Yangi useEffect qo'sh — notification polling har 30s:
+- notificationService.getUnreadCount() -> setUnreadNotifCount
+
+3. Handler funksiyalar qo'sh (handleDailyBonus dan keyin):
+- showNotif(type, message) — notification state set + 4s timeout
+- handleJoinClass(e) — studentService.joinByCode(joinCode), keyin classrooms refresh
+- handleRespondInvitation(invitationId, action) — studentService.respondInvitation, keyin invitations va classrooms refresh
+
+Import lar allaqachon bor: studentService (7-qator), notificationService (8-qator).
+displayTasks (167-177) da a.assignment?.title ishlatish kerak chunki backend AssignmentSubmission + Assignment birga qaytaradi.
+```
+
+---
+
+## MUAMMO #2: O'qituvchi "Dars yaratish" funksiyasi YO'Q
+
+**Muammo:** TeacherDashboard da dars yaratish mavjud emas. Sinf/vazifa bor, lekin dars (mavzu, rasm, matn, material) yaratish yo'q.
+
+### Prompt #2
+```
+Alif24 LMS ga o'qituvchi uchun dars yaratish tizimini qo'sh.
+
+1. BACKEND MODEL: shared/database/models/lesson.py — Lesson modeli:
+   id, created_by, classroom_id, title, subject, content(Text), attachments(JSON), cover_image, video_url, grade_level, difficulty, duration_minutes, is_published, order_index, created_at
+
+2. BACKEND ROUTER: app/api/v1/lessons.py:
+   POST /teachers/lessons, GET /teachers/lessons, GET/PUT/DELETE /teachers/lessons/{id}, GET /students/lessons (sinflari bo'yicha)
+
+3. main.py ga lessons router qo'sh
+
+4. teacherService.js: createLesson, getMyLessons, getLessonDetail, updateLesson, deleteLesson
+
+5. TeacherDashboard.jsx: "Darslarim" tab qo'sh, renderLessons() funksiyasi, dars yaratish modal (sarlavha, fan, matn textarea, rasm URL, video URL, fayl URL, sinf tanlash, qiyinlik, davomiylik)
+
+6. Alembic migration: lessons jadvali
+
+Fayl yuklash hozircha URL kiritish bilan. Attachments JSON: [{name, url, type}]
+```
+
+---
+
+## MUAMMO #3: TestAI — AI orqali test yaratish va sinfga berish
+
+**Muammo:** AI bilan test yaratish tugmasi yo'q. Yaratilgan testni sinfga berish imkoniyati yo'q.
+
+### Prompt #3
+```
+Alif24 LMS ga AI orqali test yaratish qo'sh.
+
+1. BACKEND: app/api/v1/ai_tests.py yoki assignments.py ga:
+   POST /teachers/ai-test/generate — OpenAI API bilan test savollarini generatsiya qilish
+   Request: subject, topic, difficulty, question_count(5-20), grade_level, language
+   Response: questions array [{question, options[4], correct_answer(0-3), explanation}]
+
+2. teacherService.js: generateAITest(data)
+
+3. TeacherDashboard.jsx: "AI Test yaratish" modal — fan, mavzu, qiyinlik, savollar soni, sinf, til, "AI bilan yaratish" tugma (loading), test preview, "Sinfga yuborish" tugma (assignment yaratish: assignment_type="test", content=JSON.stringify(questions))
+
+4. StudentDashboard.jsx: assignment_type==='test' bo'lsa test interface — savollarni ko'rsatish, javob tanlash, natija
+
+OPENAI_API_KEY env variable kerak. Azure OpenAI fallback qo'shish mumkin (telegram_bot_service.py dagi pattern).
+```
+
+---
+
+## MUAMMO #4: Sinf yaratish — tekshirish va tuzatish
+
+**Muammo:** Backend/frontend bor, lekin migration ishlaganmi, TeacherProfile mavjudmi tekshirish kerak.
+
+### Prompt #4
+```
+Sinf yaratish tizimini tekshir va tuzat:
+
+1. Migration: alembic current, agar 002 ishlamagan bo'lsa alembic upgrade head
+2. get_teacher_profile (classrooms.py:67-74): profil yo'q bo'lsa auto-create qo'sh:
+   if not profile: profile = TeacherProfile(user_id=user.id); db.add(profile); await db.flush()
+3. Select elementlarda dark theme CSS: option ga className="bg-gray-800 text-white"
+4. copyInviteCode: navigator.clipboard fallback qo'sh (HTTP da ishlamaydi)
+5. Error handling: e?.detail || e?.message ishlatish
+```
+
+---
+
+## MUAMMO #5: Vazifa berish — individual o'quvchiga
+
+**Muammo:** Faqat sinfga berish bor. Individual o'quvchiga berish yo'q frontendda.
+
+### Prompt #5
+```
+TeacherDashboard.jsx vazifa yaratish modaliga individual o'quvchiga berish qo'sh:
+
+1. State: assignTarget('classroom'|'student'), selectedStudentIds[]
+2. "Kimga berish" toggle: Sinfga / Individual
+3. Individual tanlansa — classroomDetail.students checkbox ro'yxati
+4. handleCreateAssignment: assignTarget==='student' bo'lsa payload.target_student_ids = selectedStudentIds
+Backend allaqachon target_student_ids ni qo'llab-quvvatlaydi (assignments.py:217-224).
+```
+
+---
+
+## MUAMMO #6: O'quvchi vazifalarni ko'rish va bajarish
+
+**Muammo:** Vazifalar ro'yxati bor, lekin tafsilot ko'rish, topshirish, test yechish yo'q.
+
+### Prompt #6
+```
+StudentDashboard.jsx vazifalar bo'limini to'ldirish:
+
+1. Filter: taskFilter state (all/pending/submitted/graded)
+2. Vazifa tafsilot modal: selectedTask state, assignment content, topshirish textarea
+3. Test viewer: assignment_type==='test' bo'lsa savollar interface
+4. handleSubmitAssignment: studentService.submitAssignment(assignmentId, {content})
+5. Baholangan vazifa: score/max_score ko'rsatish, feedback
+
+studentService.submitAssignment allaqachon bor (studentService.js:136-138).
+"Bajarish" tugmasini /smartkids ga emas, selectedTask modalga yo'naltirish.
+```
+
+---
+
+## MUAMMO #7: Admin — darslik, kontent, material tizimi
+
+**Muammo:** Admin panelda faqat Lessions microservice orqali dars/ertak bor. Umumiy kontent, PDF, material yuborish yo'q.
+
+### Prompt #7
+```
+Umumiy kontent tizimi yaratish:
+
+1. MODEL: shared/database/models/content.py — PlatformContent:
+   id, created_by, creator_role, title, description, content_type(lesson/material/book/video/document), content_body, attachments(JSON), cover_image, video_url, subject, grade_level, language, tags(JSON), visibility(public/students/classroom/grade), target_classroom_id, is_published, view_count, created_at
+
+2. BACKEND: app/api/v1/content.py:
+   Admin: POST/GET/PUT/DELETE /admin/content/platform
+   Public: GET /content/public (autentifikatsiya bilan, filter: type, subject, grade)
+
+3. admin_panel.py ga content endpointlari qo'sh
+
+4. adminService.js: getPlatformContent, createPlatformContent, updatePlatformContent, deletePlatformContent
+
+5. ContentPage.jsx: "Platform kontentlari" tab, CRUD modal
+
+6. StudentDashboard kutubxona bo'limini GET /content/public dan real data bilan yangilash
+
+7. Alembic migration: platform_content jadvali
+```
+
+---
+
+## MUAMMO #8: Telegram bot — inline tugmalar
+
+**Muammo:** Xabar keladi, lekin "Platformaga o'tish" inline tugmasi yo'q. /invitations register_bot_commands ga qo'shilmagan.
+
+### Prompt #8
+```
+1. classrooms.py va assignments.py dagi notify_telegram ga inline_buttons parametr qo'sh:
+   reply_markup: {"inline_keyboard": [[{"text":"Platformaga o'tish","url":"https://alif24.uz/student"}]]}
+
+2. Taklif/vazifa xabarlarida inline tugma qo'sh
+
+3. telegram_bot_service.py register_bot_commands ga qo'sh:
+   {"command": "invitations", "description": "Sinf takliflari"}
+
+4. TAVSIYA: notify_telegram ni shared/services/notification_helper.py ga chiqarish (ikkala faylda takrorlangan)
+```
+
+---
+
+## MUAMMO #9: Email ro'yxatdan o'tish + telefon qo'shish
+
+**Muammo:** Login dual (email/phone) ishlaydi. Lekin keyinchalik telefon qo'shish va Telegram tasdiqlash yo'q.
+
+### Prompt #9
+```
+1. BACKEND: auth.py ga POST /auth/add-phone va POST /auth/verify-phone qo'sh
+   - add-phone: telefon dublikat tekshiruvi, TelegramBotService.send_verification_code chaqirish
+   - verify-phone: PhoneVerification tekshiruvi, user.phone yangilash
+
+2. User modeliga phone_verified Boolean field qo'sh
+
+3. FRONTEND: ProfilePage yoki Settings da "Telefon qo'shish" tugma va modal
+
+4. Migration: users jadvaliga phone_verified column
+```
+
+---
+
+## MUAMMO #10: Ota-ona — bolaning to'liq hisoboti
+
+**Muammo:** Farzand kartasida faqat basic info. Sinflar, baholar, coin, yutuqlar ko'rinmaydi.
+
+### Prompt #10
+```
+1. BACKEND: GET /parents/children/{child_id}/report — sinflar, vazifalar statistikasi (total/completed/avg_score), coin balans
+
+2. parentService.js: getChildReport(childUserId)
+
+3. ParentDashboard.jsx: "To'liq hisobot" modal — sinflar ro'yxati, vazifalar stats, o'rtacha ball, coin
+```
+
+---
+
+## MUAMMO #11: Ota-ona — darslikdan vazifa berish
+
+**Muammo:** Faqat freeform vazifa bor. Platformadagi kontentdan tanlab berish yo'q.
+
+### Prompt #11
+```
+ParentDashboard vazifa berish modaliga "Darslikdan tanlash" tab qo'sh:
+1. GET /content/public dan kontent yuklash
+2. Kontent tanlash -> assignmentForm.reference_id/reference_type set
+3. Backend allaqachon reference_id qo'llab-quvvatlaydi
+
+DEPENDENCY: #7 (kontent tizimi) hal bo'lgandan keyin ishlaydi.
+```
+
+---
+
+## MUAMMO #12: Admin — darsliklar boshqaruvi
+
+**Muammo:** Admin panelda umumiy darsliklar bo'limi yo'q.
+
+### Prompt #12
+```
+#7 dagi PlatformContent asosida admin panelni kengaytirish:
+1. admin_panel.py: GET/POST/PUT/DELETE /admin/content/platform
+2. adminService.js: CRUD metodlar
+3. ContentPage.jsx: "Platform kontentlari" tab, jadval, CRUD modal
+```
+
+---
+
+## MUAMMO #13: CRM kontent integratsiyasi (PAST PRIORITY)
+
+Tashkilot o'z o'quvchilariga platformadagi kontentdan vazifa berishi. #7-#12 hal bo'lgandan keyin.
+
+---
+
+## AMALGA OSHIRISH TARTIBI
+
+| # | Vazifa | Priority |
+|---|--------|----------|
+| 1 | StudentDashboard LMS data fetch | 🔴 YUQORI |
+| 4 | Sinf yaratish tekshiruvi + migration | 🔴 YUQORI |
+| 5 | Individual vazifa berish | 🔴 YUQORI |
+| 6 | O'quvchi vazifa ko'rish/bajarish | 🔴 YUQORI |
+| 2 | O'qituvchi dars yaratish | 🔴 YUQORI |
+| 7 | Admin kontent tizimi + model | 🔴 YUQORI |
+| 12 | Admin darsliklar boshqaruvi | 🔴 YUQORI |
+| 8 | Telegram inline tugmalar | 🟡 O'RTA |
+| 3 | AI Test yaratish | 🟡 O'RTA |
+| 9 | Dual login + telefon qo'shish | 🟡 O'RTA |
+| 10 | Ota-ona bolaning hisoboti | 🟡 O'RTA |
+| 11 | Ota-ona darslikdan vazifa | 🟡 O'RTA |
+| 13 | CRM kontent integratsiyasi | 🟢 PAST |
+
+## KERAK BO'LGAN MIGRATION (003)
+
+1. `lessons` jadvali (#2)
+2. `platform_content` jadvali (#7)
+3. `users.phone_verified` Boolean column (#9)
+
+## TAVSIYALAR
+
+- **File Upload:** MinIO/S3 + POST /upload endpoint (PDF, DOCX, rasm)
+- **WebSocket:** Real-time notification (hozircha polling yetarli)
+- **Gradebook:** Sinf bo'yicha baholar jurnali
+- **Calendar:** Dars jadvali va deadline kalendar
+- **Mock data olib tashlash:** StudentDashboard 174-176, ParentDashboard 19-24, 130-133 qatorlardagi hardcoded data

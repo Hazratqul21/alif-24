@@ -94,6 +94,36 @@ from shared.database.models.notification import (
     NotificationLog
 )
 
+# Classroom System
+from shared.database.models.classroom import (
+    Classroom,
+    ClassroomStudent,
+    ClassroomInvitation,
+    ClassroomStudentStatus,
+    InvitationStatus,
+    InvitationType,
+)
+
+# Assignment System
+from shared.database.models.assignment import (
+    Assignment,
+    AssignmentTarget,
+    AssignmentSubmission,
+    AssignmentType,
+    AssignmentTargetType,
+    SubmissionStatus,
+    AssignmentCreatorRole,
+)
+
+# In-App Notification System
+from shared.database.models.in_app_notification import (
+    InAppNotification,
+    InAppNotifType,
+)
+
+from shared.database.models.lesson import Lesson
+from shared.database.models.platform_content import PlatformContent
+
 __all__ = [
     # User Models
     "User",
@@ -172,4 +202,31 @@ __all__ = [
     "NotificationType",
     "NotificationStatus",
     "NotificationLog",
+
+    # Classroom Models
+    "Classroom",
+    "ClassroomStudent",
+    "ClassroomInvitation",
+    "ClassroomStudentStatus",
+    "InvitationStatus",
+    "InvitationType",
+
+    # Assignment Models
+    "Assignment",
+    "AssignmentTarget",
+    "AssignmentSubmission",
+    "AssignmentType",
+    "AssignmentTargetType",
+    "SubmissionStatus",
+    "AssignmentCreatorRole",
+
+    # In-App Notification Models
+    "InAppNotification",
+    "InAppNotifType",
+
+    # Lesson Models
+    "Lesson",
+
+    # Platform Content
+    "PlatformContent",
 ]

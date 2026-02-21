@@ -57,10 +57,10 @@ class TeacherService {
      * Get assignments
      * @returns {Promise<Array>} List of assignments
      */
-    async getAssignments() {
-        // Placeholder until backend endpoint is ready, returning empty array to prevent crash
-        // return apiService.get('/teachers/assignments'); 
-        return [];
+    async getAssignments(classroomId = null) {
+        const params = {};
+        if (classroomId) params.classroom_id = classroomId;
+        return apiService.get('/teachers/assignments', params);
     }
 
     /**
@@ -68,9 +68,7 @@ class TeacherService {
      * @returns {Promise<Array>} List of messages
      */
     async getMessages() {
-        // Placeholder until backend endpoint is ready
-        // return apiService.get('/messages');
-        return [];
+        return apiService.get('/notifications');
     }
 
     /**
@@ -108,16 +106,73 @@ class TeacherService {
     }
 
     async createAssignment(data) {
-        return apiService.post('/teacher-tests', {
-            title: data.title,
-            description: data.description,
-            due_date: data.due_date,
-            classroom_id: data.classroom_id
-        });
+        return apiService.post('/teachers/assignments', data);
+    }
+
+    async getAssignmentDetail(assignmentId) {
+        return apiService.get(`/teachers/assignments/${assignmentId}`);
+    }
+
+    async updateAssignment(assignmentId, data) {
+        return apiService.put(`/teachers/assignments/${assignmentId}`, data);
+    }
+
+    async deleteAssignment(assignmentId) {
+        return apiService.delete(`/teachers/assignments/${assignmentId}`);
+    }
+
+    async gradeSubmission(assignmentId, submissionId, data) {
+        return apiService.post(`/teachers/assignments/${assignmentId}/grade/${submissionId}`, data);
+    }
+
+    async getClassroomDetail(classroomId) {
+        return apiService.get(`/teachers/classrooms/${classroomId}`);
+    }
+
+    async updateClassroom(classroomId, data) {
+        return apiService.put(`/teachers/classrooms/${classroomId}`, data);
+    }
+
+    async deleteClassroom(classroomId) {
+        return apiService.delete(`/teachers/classrooms/${classroomId}`);
+    }
+
+    async inviteStudent(classroomId, data) {
+        return apiService.post(`/teachers/classrooms/${classroomId}/invite`, data);
+    }
+
+    async removeStudentFromClass(classroomId, studentUserId) {
+        return apiService.delete(`/teachers/classrooms/${classroomId}/students/${studentUserId}`);
     }
 
     async sendMessage(data) {
         return apiService.post('/messages', data);
+    }
+
+    // AI Test Generator
+    async generateAITest(data) {
+        return apiService.post('/teachers/ai/generate-test', data);
+    }
+
+    // Lessons API
+    async getLessons() {
+        return apiService.get('/teachers/lessons');
+    }
+
+    async getLessonDetail(lessonId) {
+        return apiService.get(`/teachers/lessons/${lessonId}`);
+    }
+
+    async createLesson(data) {
+        return apiService.post('/teachers/lessons', data);
+    }
+
+    async updateLesson(lessonId, data) {
+        return apiService.put(`/teachers/lessons/${lessonId}`, data);
+    }
+
+    async deleteLesson(lessonId) {
+        return apiService.delete(`/teachers/lessons/${lessonId}`);
     }
 }
 

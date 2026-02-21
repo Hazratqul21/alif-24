@@ -122,6 +122,7 @@ async def add_security_headers(request, call_next):
 
 # Include Routers
 from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback, telegram
+from app.api.v1 import classrooms, assignments, notifications, lessons, platform_content, aiops
 from app.smartkids import story_router, image_reader_router, file_reader_router, speech_token_router
 from app.mathkids import math_solver_router, math_image_router
 
@@ -131,6 +132,9 @@ app.include_router(health.router, prefix=f"{settings.API_PREFIX}")
 app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["auth"])
 # Admin Panel
 app.include_router(admin_panel.router, prefix=f"{settings.API_PREFIX}/admin", tags=["admin"])
+
+# Platform Content
+app.include_router(platform_content.router, prefix=f"{settings.API_PREFIX}", tags=["content"])
 
 # Phone Verification & Telegram Bot
 app.include_router(verification.router, prefix=f"{settings.API_PREFIX}/verification", tags=["verification"])
@@ -149,13 +153,20 @@ app.include_router(math_image_router.router, prefix=f"{settings.API_PREFIX}/math
 # Feedback
 app.include_router(feedback.router, prefix=f"{settings.API_PREFIX}", tags=["feedback"])
 
+# LMS: Classrooms, Assignments, Notifications, Lessons, AI
+app.include_router(classrooms.router, prefix=f"{settings.API_PREFIX}", tags=["classrooms"])
+app.include_router(aiops.router, prefix=f"{settings.API_PREFIX}", tags=["aiops"])
+app.include_router(assignments.router, prefix=f"{settings.API_PREFIX}", tags=["assignments"])
+app.include_router(notifications.router, prefix=f"{settings.API_PREFIX}", tags=["notifications"])
+app.include_router(lessons.router, prefix=f"{settings.API_PREFIX}", tags=["lessons"])
+
 @app.get("/")
 async def root():
     return {
         "service": "MainPlatform",
         "status": "running",
         "docs": f"{settings.API_PREFIX}/docs",
-        "features": ["auth", "smartkids", "mathkids"]
+        "features": ["auth", "smartkids", "mathkids", "classrooms", "assignments", "notifications"]
     }
 
 if __name__ == "__main__":

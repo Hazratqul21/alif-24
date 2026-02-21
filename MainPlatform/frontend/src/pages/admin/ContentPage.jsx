@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Plus, Trash2, X, Book } from 'lucide-react';
+import { BookOpen, Plus, Trash2, X, Book, Globe } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 export default function ContentPage() {
@@ -10,6 +10,8 @@ export default function ContentPage() {
     const [createModal, setCreateModal] = useState(null); // 'lesson' | 'ertak'
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const [platformContent, setPlatformContent] = useState({});
+    const [rawJsonText, setRawJsonText] = useState('{}');
 
     const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', difficulty: 'medium', duration_minutes: 30, language: 'uz' });
     const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
@@ -19,12 +21,18 @@ export default function ContentPage() {
     const loadContent = async () => {
         try {
             setLoading(true);
-            const [lessRes, ertRes] = await Promise.allSettled([
+            const [lessRes, ertRes, pcRes] = await Promise.allSettled([
                 adminService.getLessons(),
-                adminService.getErtaklar()
+                adminService.getErtaklar(),
+                adminService.getPublicContent()
             ]);
             if (lessRes.status === 'fulfilled') setLessons(lessRes.value.data?.lessons || lessRes.value.data || []);
             if (ertRes.status === 'fulfilled') setErtaklar(ertRes.value.data?.ertaklar || ertRes.value.data || []);
+            if (pcRes.status === 'fulfilled') {
+                const data = pcRes.value.data?.data || {};
+                setPlatformContent(data);
+                setRawJsonText(JSON.stringify(data, null, 2));
+            }
         } catch (err) {
             console.error(err);
         } finally {
@@ -106,6 +114,7 @@ export default function ContentPage() {
                 {[
                     { key: 'lessons', label: 'Darslar', icon: BookOpen, count: lessons.length },
                     { key: 'ertaklar', label: 'Ertaklar', icon: Book, count: ertaklar.length },
+                    { key: 'platform', label: 'Sayt Kontenti', icon: Globe, count: Object.keys(platformContent).length },
                 ].map(t => (
                     <button
                         key={t.key}
@@ -170,6 +179,49 @@ export default function ContentPage() {
                             <button onClick={() => handleDeleteErtak(e.id)} className="p-2 text-gray-500 hover:text-red-400 shrink-0"><Trash2 className="w-4 h-4" /></button>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Platform Content */}
+            {tab === 'platform' && (
+                <div className="space-y-4">
+                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-white font-medium text-lg">Umumiy ma'lumotlar (JSON formati)</h3>
+                                <p className="text-gray-500 text-sm mt-1">Bu yerdagi o'zgarishlar asosiy landing sahifasida ko'rinadi.</p>
+                            </div>
+                        </div>
+                        <textarea
+                            className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl p-4 mb-4 min-h-[400px] font-mono text-sm leading-relaxed focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            value={rawJsonText}
+                            onChange={(e) => setRawJsonText(e.target.value)}
+                            spellCheck={false}
+                        />
+                        <div className="flex justify-end">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const parsed = JSON.parse(rawJsonText);
+                                        setSaving(true);
+                                        for (const [key, val] of Object.entries(parsed)) {
+                                            await adminService.updatePlatformContent(key, { value: val });
+                                        }
+                                        alert("Kontent muvaffaqiyatli saqlandi!");
+                                        loadContent();
+                                    } catch (err) {
+                                        alert("JSON formatida xatolik bor!");
+                                    } finally {
+                                        setSaving(false);
+                                    }
+                                }}
+                                disabled={saving}
+                                className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-medium disabled:opacity-50 hover:bg-emerald-700 transition-colors flex items-center gap-2">
+                                {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                                {saving ? "Saqlanmoqda..." : "Saqlash"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

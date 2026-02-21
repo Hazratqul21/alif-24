@@ -4,6 +4,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Common/Navbar';
 import coinService from '../services/coinService';
+import { studentService } from '../services/studentService';
+import notificationService from '../services/notificationService';
 import {
     BookOpen, Trophy, Clock, Star, Play, CheckCircle, Search, Filter,
     TrendingUp, Award, Target, Calendar, MessageSquare, Users, Bell,
@@ -11,7 +13,8 @@ import {
     Video, Phone, Mail, MapPin, GraduationCap, FileText, BarChart3,
     ChevronRight, Plus, X, Eye, Lock, Globe, Palette, Moon, Sun,
     Image, Flag, Gift, Zap, Shield, HelpCircle, MessageCircle,
-    Home, Book, ClipboardList, Medal, School, Activity, TrendingDown, Bot, Coins, Flame, Languages, Laptop
+    Home, Book, ClipboardList, Medal, School, Activity, TrendingDown, Bot, Coins, Flame, Languages, Laptop,
+    School as SchoolIcon, UserPlus, LogIn
 } from 'lucide-react';
 
 const STORY_API_BASE = import.meta.env.VITE_API_URL
@@ -30,8 +33,33 @@ const StudentDashboard = () => {
     const [selectedBook, setSelectedBook] = useState(null);
     const [libraryFilter, setLibraryFilter] = useState('all');
     const [coinBalance, setCoinBalance] = useState(null);
+    const [classrooms, setClassrooms] = useState([]);
+    const [invitations, setInvitations] = useState([]);
+    const [assignments, setAssignments] = useState([]);
+    const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+    const [showJoinModal, setShowJoinModal] = useState(false);
+    const [joinCode, setJoinCode] = useState('');
+    const [notification, setNotification] = useState(null);
     const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
     const [bonusMessage, setBonusMessage] = useState(null);
+    const [taskFilter, setTaskFilter] = useState('all');
+    const [selectedTask, setSelectedTask] = useState(null);
+    const [submissionContent, setSubmissionContent] = useState('');
+
+    const fetchLMSData = async () => {
+        try {
+            const [classesRes, invitesRes, assignsRes] = await Promise.all([
+                studentService.getMyClassrooms(),
+                studentService.getInvitations(),
+                studentService.getAssignments()
+            ]);
+            setClassrooms(classesRes.data?.classes || []);
+            setInvitations(invitesRes.data?.invitations || []);
+            setAssignments(assignsRes.data?.assignments || []);
+        } catch (err) {
+            console.error("Error fetching LMS data:", err);
+        }
+    };
 
     useEffect(() => {
         const fetchDashboard = async () => {
@@ -50,11 +78,24 @@ const StudentDashboard = () => {
             }
         };
         fetchDashboard();
-        
+        fetchLMSData();
+
         // Fetch coin balance
         coinService.getBalance().then(data => {
             setCoinBalance(data);
-        }).catch(() => {});
+        }).catch(() => { });
+
+        // Notification polling har 30 sek
+        const notifInterval = setInterval(async () => {
+            try {
+                const res = await apiService.get('/notifications/unread-count');
+                setUnreadNotifCount(res.data?.count || 0);
+            } catch (e) {
+                // Ignore silent errors
+            }
+        }, 30000);
+
+        return () => clearInterval(notifInterval);
     }, []);
 
     const handleDailyBonus = async () => {
@@ -74,12 +115,54 @@ const StudentDashboard = () => {
         }
     };
 
+    const showNotif = (type, message) => {
+        setNotification({ type, message });
+        setTimeout(() => setNotification(null), 4000);
+    };
+
+    const handleJoinClass = async (e) => {
+        e.preventDefault();
+        try {
+            await studentService.joinByCode(joinCode);
+            showNotif('success', "Sinfga muvaffaqiyatli qo'shildingiz!");
+            setShowJoinModal(false);
+            setJoinCode('');
+            await fetchLMSData();
+        } catch (err) {
+            showNotif('error', err.response?.data?.detail || "Sinfga qo'shilishda xatolik");
+        }
+    };
+
+    const handleRespondInvitation = async (invitationId, action) => {
+        try {
+            await studentService.respondInvitation(invitationId, action);
+            showNotif('success', action === 'accept' ? "Taklif qabul qilindi!" : "Taklif rad etildi");
+            await fetchLMSData();
+        } catch (err) {
+            showNotif('error', err.response?.data?.detail || "Xatolik yuz berdi");
+        }
+    };
+
+    const handleSubmitAssignment = async () => {
+        if (!selectedTask || !submissionContent.trim()) return;
+        try {
+            await studentService.submitAssignment(selectedTask.id, { content: submissionContent });
+            showNotif('success', "Vazifa topshirildi!");
+            setSubmissionContent('');
+            setSelectedTask(null);
+            await fetchLMSData(); // Refresh assignments list
+        } catch (err) {
+            showNotif('error', err.response?.data?.detail || "Vazifa topshirishda xatolik");
+        }
+    };
+
     const content = {
         uz: {
             title: 'Mening Kabinetim',
             welcome: 'Salom',
             tabs: {
                 dashboard: 'Bosh sahifa',
+                classes: 'Sinflarim',
                 profile: 'Shaxsiy kabinet',
                 academic: 'Akademik',
                 tasks: 'Vazifalar',
@@ -108,6 +191,7 @@ const StudentDashboard = () => {
             welcome: 'Привет',
             tabs: {
                 dashboard: 'Главная',
+                classes: 'Мои классы',
                 profile: 'Профиль',
                 academic: 'Академия',
                 tasks: 'Задания',
@@ -151,12 +235,22 @@ const StudentDashboard = () => {
     const readingAnalyses = dashboardData?.reading_stats || {};
     const loadingAnalyses = loading;
 
-    // Use tasks from API if available, else fallback
-    const tasks = dashboardData?.tasks || [
-        { id: 1, title: 'Matematika: Ko\'paytirish jadvali', deadline: 'Bugun, 18:00', xp: 50, status: 'pending' },
-        { id: 2, title: 'English: New Words', deadline: 'Ertaga', xp: 30, "status": "pending" },
-        { id: 3, title: 'Ona tili: Mashq 54', deadline: 'Bajarildi', xp: 40, status: 'completed' }
-    ];
+    // Use assignments from LMS API if available, else fallback
+    const displayTasks = assignments.length > 0 ? assignments.map(a => {
+        // Backend returns either Assignment direct, or AssignmentSubmission wrapped
+        const assign = a.assignment || a;
+        return {
+            id: a.id || assign.id, // submission id or assignment id
+            assignment_id: assign.id,
+            title: assign.title,
+            deadline: assign.due_date ? new Date(assign.due_date).toLocaleDateString('uz') : 'Muddatsiz',
+            xp: assign.max_score || 50,
+            status: a.submission_status === 'submitted' ? 'completed' : 'pending',
+            assignment: assign,
+            submission: a.submission_status ? a : null,
+            score: a.score
+        };
+    }) : (dashboardData?.tasks || []);
 
     const subjects = [
         { id: 1, name: 'Matematika', teacher: 'Nodira Karimova', avgGrade: 4.8, color: '#8B5CF6' },
@@ -183,19 +277,7 @@ const StudentDashboard = () => {
         { id: 8, title: 'Champion', desc: 'Sinf birinchisi bo\'ldingiz', icon: <Trophy size={32} className="text-yellow-600" />, earned: false }
     ];
 
-    useEffect(() => {
-        let interval;
-        if (isTimerRunning) {
-            interval = setInterval(() => setTimer(t => t + 1), 1000);
-        }
-        return () => clearInterval(interval);
-    }, [isTimerRunning]);
-
-    const formatTime = (seconds) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    };
+    const filteredBooks = libraryFilter === 'all' ? books : books.filter(b => b.category === libraryFilter);
 
     const renderDashboard = () => (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -326,7 +408,7 @@ const StudentDashboard = () => {
                         <CheckCircle size={20} className="text-green-500" /> Vazifalarim
                     </h3>
                     <div className="space-y-3">
-                        {tasks.filter(t => t.status === 'pending').map(task => (
+                        {displayTasks.filter(t => t.status === 'pending').slice(0, 3).map(task => (
                             <div key={task.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100">
                                 <h4 className="font-semibold text-gray-800 text-sm">{task.title}</h4>
                                 <p className="text-xs text-gray-500">{task.deadline}</p>
@@ -341,7 +423,80 @@ const StudentDashboard = () => {
         </div>
     );
 
-    const filteredBooks = libraryFilter === 'all' ? books : books.filter(b => b.category === libraryFilter);
+    const renderClasses = () => (
+        <div className="space-y-6">
+            {/* Invitations */}
+            {invitations.length > 0 && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6">
+                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <UserPlus size={20} className="text-blue-500" /> Sinfga takliflar ({invitations.length})
+                    </h3>
+                    <div className="space-y-3">
+                        {invitations.map(inv => (
+                            <div key={inv.invitation_id} className="bg-white p-4 rounded-xl shadow-sm flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-bold text-gray-800">{inv.classroom_name}</h4>
+                                    <p className="text-sm text-gray-500">{inv.subject || 'Fan belgilanmagan'} • {inv.teacher_name}</p>
+                                    {inv.message && <p className="text-xs text-gray-400 mt-1">"{inv.message}"</p>}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => handleRespondInvitation(inv.invitation_id, 'accept')}
+                                        className="px-4 py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors">
+                                        Qabul qilish
+                                    </button>
+                                    <button onClick={() => handleRespondInvitation(inv.invitation_id, 'decline')}
+                                        className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                                        Rad etish
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* My Classrooms */}
+            <div className="flex items-center justify-between">
+                <h3 className="font-bold text-gray-800 text-xl flex items-center gap-2">
+                    <SchoolIcon size={24} className="text-indigo-500" /> Sinflarim ({classrooms.length})
+                </h3>
+                <button onClick={() => setShowJoinModal(true)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                    <LogIn size={18} /> Kod bilan qo'shilish
+                </button>
+            </div>
+
+            {classrooms.length === 0 ? (
+                <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
+                    <SchoolIcon size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p className="text-gray-500">Hozircha hech qanday sinfga qo'shilmagansiz</p>
+                    <p className="text-sm text-gray-400 mt-2">O'qituvchidan taklif kuting yoki kod bilan qo'shiling</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {classrooms.map(c => (
+                        <div key={c.classroom_id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
+                                        <SchoolIcon size={24} className="text-white" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-gray-800">{c.name}</h4>
+                                        <p className="text-sm text-gray-500">{c.subject || ''} {c.grade_level ? `| ${c.grade_level}` : ''}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-500">O'qituvchi: <span className="font-medium text-gray-700">{c.teacher_name || "Noma'lum"}</span></span>
+                                <span className="text-xs text-gray-400">{new Date(c.joined_at).toLocaleDateString('uz')}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 
     const renderLibrary = () => (
         <div className="space-y-6">
@@ -394,16 +549,109 @@ const StudentDashboard = () => {
     return (
         <>
             <Navbar />
+
+            {/* Notification Toast */}
+            {notification && (
+                <div className={`fixed top-20 right-4 z-[9999] px-4 py-3 rounded-xl text-sm font-medium shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                    }`}>
+                    {notification.message}
+                </div>
+            )}
+
+            {/* Task Detail Modal */}
+            {selectedTask && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]" onClick={() => setSelectedTask(null)}>
+                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-start sticky top-0 bg-white z-10">
+                            <div>
+                                <h3 className="text-2xl font-bold text-gray-800">{selectedTask.title}</h3>
+                                <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                                    <Calendar size={14} /> {selectedTask.deadline} • {selectedTask.xp} ball
+                                </p>
+                            </div>
+                            <button onClick={() => setSelectedTask(null)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full"><X size={20} /></button>
+                        </div>
+
+                        <div className="p-6 flex-1 text-gray-700 whitespace-pre-wrap">
+                            {selectedTask.assignment?.content || "Vazifa matni mavjud emas."}
+                        </div>
+
+                        {selectedTask.status === 'completed' && selectedTask.submission && (
+                            <div className="p-6 bg-gray-50 border-t border-gray-100">
+                                <h4 className="font-bold text-gray-800 mb-2">Sizning javobingiz</h4>
+                                <div className="p-4 bg-white border border-gray-200 rounded-xl whitespace-pre-wrap">
+                                    {selectedTask.submission.content || "Fayl yuborilgan."}
+                                </div>
+                                {selectedTask.submission.feedback && (
+                                    <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                                        <h4 className="font-bold text-blue-800 mb-1">O'qituvchi izohi:</h4>
+                                        <p className="text-blue-700">{selectedTask.submission.feedback}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {selectedTask.status === 'pending' && (
+                            <div className="p-6 bg-gray-50 border-t border-gray-100">
+                                <h4 className="font-bold text-gray-800 mb-2">Javobingizni kiriting</h4>
+                                <textarea
+                                    value={submissionContent}
+                                    onChange={e => setSubmissionContent(e.target.value)}
+                                    className="w-full p-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white min-h-[150px] resize-y"
+                                    placeholder="Ustoz, vazifani bajardim..."
+                                />
+                                <div className="mt-4 flex justify-end">
+                                    <button
+                                        onClick={handleSubmitAssignment}
+                                        disabled={!submissionContent.trim()}
+                                        className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    >
+                                        <Send size={18} /> Topshirish
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Join Class Modal */}
+            {showJoinModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]" onClick={() => setShowJoinModal(false)}>
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-lg font-bold text-gray-800">Sinfga qo'shilish</h3>
+                            <button onClick={() => setShowJoinModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-4">O'qituvchi bergan 6 xonali kodni kiriting</p>
+                        <form onSubmit={handleJoinClass} className="space-y-4">
+                            <input
+                                type="text"
+                                value={joinCode}
+                                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                                placeholder="ABC123"
+                                maxLength={6}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-center text-lg font-bold tracking-wider uppercase focus:outline-none focus:border-indigo-500"
+                            />
+                            <button type="submit" className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+                                Qo'shilish
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-[#f0f2f5] min-h-screen pt-4 pb-20 md:pb-4">
                 <div className="container mx-auto px-4">
                     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 flex justify-around items-center">
-                        {['dashboard', 'tasks', 'library', 'achievements'].map(tab => (
+                        {['dashboard', 'classes', 'tasks', 'library', 'achievements'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-[64px] h-[56px] transition-all ${activeTab === tab ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
                             >
                                 {tab === 'dashboard' && <Star size={22} />}
+                                {tab === 'classes' && <SchoolIcon size={22} />}
                                 {tab === 'tasks' && <CheckCircle size={22} />}
                                 {tab === 'library' && <BookOpen size={22} />}
                                 {tab === 'achievements' && <Trophy size={22} />}
@@ -413,7 +661,7 @@ const StudentDashboard = () => {
                     </div>
 
                     <div className="hidden md:flex gap-2 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 w-fit">
-                        {['dashboard', 'tasks', 'library', 'achievements'].map(tab => (
+                        {['dashboard', 'classes', 'tasks', 'library', 'achievements'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -425,21 +673,49 @@ const StudentDashboard = () => {
                     </div>
 
                     {activeTab === 'dashboard' && renderDashboard()}
+                    {activeTab === 'classes' && renderClasses()}
                     {activeTab === 'library' && renderLibrary()}
                     {activeTab === 'tasks' && (
                         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm">
-                            <h2 className="text-lg md:text-xl font-bold mb-4 md:mb-6">Vazifalarim</h2>
-                            {tasks.map(task => (
-                                <div key={task.id} className="flex items-center justify-between p-3 md:p-4 border-b border-gray-100 gap-3">
-                                    <div>
-                                        <h4 className={`font-bold ${task.status === 'completed' ? 'text-gray-400' : 'text-gray-800'}`}>{task.title}</h4>
-                                        <p className="text-sm text-gray-500">{task.deadline}</p>
-                                    </div>
-                                    {task.status === 'pending' && (
-                                        <button onClick={() => navigate('/smartkids')} className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg font-medium hover:bg-blue-200 transition-colors">Bajarish</button>
-                                    )}
+                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                                <h2 className="text-lg md:text-xl font-bold">Vazifalarim</h2>
+                                <div className="flex gap-2 bg-gray-100 p-1 rounded-lg w-full overflow-x-auto min-w-max">
+                                    {['all', 'pending', 'completed'].map(filter => (
+                                        <button key={filter} onClick={() => setTaskFilter(filter)}
+                                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${taskFilter === filter ? 'bg-white text-blue-600 shadow' : 'text-gray-500'}`}>
+                                            {filter === 'all' ? 'Barchasi' : filter === 'pending' ? 'Bajarilmagan' : 'Bajarilgan'}
+                                        </button>
+                                    ))}
                                 </div>
-                            ))}
+                            </div>
+
+                            <div className="space-y-3">
+                                {displayTasks.filter(t => taskFilter === 'all' || t.status === taskFilter).map(task => (
+                                    <div key={task.id} className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 bg-gray-50 border border-gray-100 rounded-xl gap-3">
+                                        <div>
+                                            <h4 className={`font-bold ${task.status === 'completed' ? 'text-gray-500' : 'text-gray-800'}`}>{task.title}</h4>
+                                            <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                                                <Calendar size={14} /> {task.deadline}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-3 self-end md:self-auto">
+                                            {task.status === 'completed' && task.score !== undefined && task.score !== null && (
+                                                <span className="font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full text-xs md:text-sm">{task.score} / {task.xp} ball</span>
+                                            )}
+                                            {task.status === 'pending' ? (
+                                                <button onClick={() => setSelectedTask(task)} className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg font-medium hover:bg-blue-200 transition-colors">Bajarish</button>
+                                            ) : (
+                                                <button onClick={() => setSelectedTask(task)} className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-300 transition-colors">Ko'rish</button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                                {displayTasks.filter(t => taskFilter === 'all' || t.status === taskFilter).length === 0 && (
+                                    <div className="text-center py-8 text-gray-500">
+                                        Bu bo'limda vazifalar yo'q.
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                     {activeTab === 'achievements' && (

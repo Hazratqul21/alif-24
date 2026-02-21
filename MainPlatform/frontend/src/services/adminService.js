@@ -78,6 +78,8 @@ const adminService = {
     deleteTableRow: (table, id) => adminApi.delete(`/db/tables/${table}/${id}`),
 
     // Content
+    getPublicContent: () => axios.get(`${API_URL}/public/content`),
+    updatePlatformContent: (key, data) => adminApi.put(`/content/${key}`, data),
     getLessons: (params) => adminApi.get('/content/lessons', { params }),
     createLesson: (data) => adminApi.post('/content/lessons', data),
     updateLesson: (id, data) => adminApi.put(`/content/lessons/${id}`, data),

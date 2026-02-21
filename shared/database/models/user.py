@@ -85,6 +85,7 @@ class User(Base):
     # Autentifikatsiya
     email = Column(String(255), unique=True, nullable=True, index=True)
     phone = Column(String(20), unique=True, nullable=True, index=True)
+    phone_verified = Column(Boolean, default=False)
     password_hash = Column(String(255), nullable=True)  # Bolalar uchun null
     
     # Bolalar uchun (PIN-based auth)
@@ -176,6 +177,7 @@ class User(Base):
             "id": self.id,
             "email": self.email,
             "phone": self.phone,
+            "phone_verified": self.phone_verified,
             "username": self.username,
             "first_name": self.first_name,
             "last_name": self.last_name,
