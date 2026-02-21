@@ -11,7 +11,7 @@ from shared.database import get_db
 from shared.database.models import User, UserRole
 from app.middleware.auth import get_current_user
 from app.core.config import settings
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI, AsyncAzureOpenAI
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -23,6 +23,9 @@ def get_azure_client():
         api_version=settings.AZURE_OPENAI_API_VERSION
     )
 
+def get_openai_client():
+    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
 class AITestGenerateRequest(BaseModel):
     text: str = Field(..., description="Dars yoki matn", min_length=20)
     question_count: int = Field(default=5, ge=1, le=20)
@@ -33,7 +36,8 @@ async def generate_test(
     request: AITestGenerateRequest,
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.role != UserRole.teacher:
+    allowed_roles = [UserRole.teacher, UserRole.organization, UserRole.moderator]
+    if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Faqat o'qituvchilar ruxsatga ega")
 
     client = get_azure_client()
@@ -55,18 +59,36 @@ async def generate_test(
         "}"
     )
 
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": f"Matn: {request.text}"}
+    ]
+
+    # Try Azure OpenAI first, fallback to OpenAI
     try:
         response = await client.chat.completions.create(
             model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Matn: {request.text}"}
-            ],
+            messages=messages,
             response_format={"type": "json_object"},
             temperature=0.7,
         )
         data = json.loads(response.choices[0].message.content.strip())
         return {"success": True, "data": data.get("questions", [])}
-    except Exception as e:
-        logger.error(f"AI error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as azure_err:
+        logger.warning(f"Azure OpenAI failed, trying OpenAI fallback: {azure_err}")
+
+    # Fallback to regular OpenAI
+    try:
+        fallback_client = get_openai_client()
+        fallback_model = settings.OPENAI_MODEL or "gpt-4"
+        response = await fallback_client.chat.completions.create(
+            model=fallback_model,
+            messages=messages,
+            response_format={"type": "json_object"},
+            temperature=0.7,
+        )
+        data = json.loads(response.choices[0].message.content.strip())
+        return {"success": True, "data": data.get("questions", [])}
+    except Exception as openai_err:
+        logger.error(f"Both Azure and OpenAI failed: {openai_err}")
+        raise HTTPException(status_code=500, detail="AI xizmati vaqtincha ishlamayapti. Keyinroq urinib ko'ring.")
