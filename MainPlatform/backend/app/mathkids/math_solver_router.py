@@ -4,7 +4,7 @@ MathKids Solver - Matematik masalalarni yechish va o'rgatish
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, HTTPException, Depends
 from shared.database import get_db
@@ -15,11 +15,8 @@ from ..services.ai_cache_service import AICacheService
 
 router = APIRouter()
 
-# Configuration from settings (env vars)
-AZURE_ENDPOINT = settings.AZURE_OPENAI_ENDPOINT
-AZURE_KEY = settings.AZURE_OPENAI_KEY
-AZURE_VERSION = settings.AZURE_OPENAI_API_VERSION
-AZURE_MODEL = settings.AZURE_OPENAI_DEPLOYMENT_NAME
+# OpenAI configuration
+OPENAI_MODEL = settings.OPENAI_MODEL or "gpt-4"
 
 # Request models
 class SolveProblemRequest(BaseModel):
@@ -58,18 +55,14 @@ async def solve_math_problem(request: SolveProblemRequest, db: AsyncSession = De
     """
     try:
         # 1. Semantic Caching check
-        cache_key = AICacheService.generate_hash(request.problem, str(request.grade_level), model=AZURE_MODEL)
+        cache_key = AICacheService.generate_hash(request.problem, str(request.grade_level), model=OPENAI_MODEL)
         cached = await AICacheService.get_cached_response(db, cache_key)
         if cached:
             return {"solution": cached}
 
         # Initialize Async Client
-        async_client = AsyncAzureOpenAI(
-            azure_endpoint=AZURE_ENDPOINT,
-            api_key=AZURE_KEY,
-            api_version=AZURE_VERSION
-        )
-        model = AZURE_MODEL
+        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        model = OPENAI_MODEL
         
         system_prompt = (
             "Siz bog'cha va 1-4 sinf bolalari uchun matematik masalalarni yechadigan o'qituvchisiz. "
@@ -128,17 +121,13 @@ async def explain_step(request: ExplainStepRequest, db: AsyncSession = Depends(g
     """
     try:
         # Cache check
-        cache_key = AICacheService.generate_hash(request.step_content, request.question, model=AZURE_MODEL)
+        cache_key = AICacheService.generate_hash(request.step_content, request.question, model=OPENAI_MODEL)
         cached = await AICacheService.get_cached_response(db, cache_key)
         if cached:
             return cached
 
-        async_client = AsyncAzureOpenAI(
-            azure_endpoint=AZURE_ENDPOINT,
-            api_key=AZURE_KEY,
-            api_version=AZURE_VERSION
-        )
-        model = AZURE_MODEL
+        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        model = OPENAI_MODEL
         
         system_prompt = (
             "Siz matematika o'qituvchisisiz. Talaba konkret qadam haqida savol bermoqda. "
@@ -179,12 +168,8 @@ async def generate_similar(request: GenerateSimilarRequest, db: AsyncSession = D
     O'xshash masala yaratish (Async)
     """
     try:
-        async_client = AsyncAzureOpenAI(
-            azure_endpoint=AZURE_ENDPOINT,
-            api_key=AZURE_KEY,
-            api_version=AZURE_VERSION
-        )
-        model = AZURE_MODEL
+        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        model = OPENAI_MODEL
         
         system_prompt = (
             "Siz matematika o'qituvchisisiz. Berilgan masalaga o'xshash, lekin biroz boshqacha "
@@ -224,12 +209,8 @@ async def chat_about_solution(request: ChatRequest, db: AsyncSession = Depends(g
     Yechim haqida savolga javob berish (Async)
     """
     try:
-        async_client = AsyncAzureOpenAI(
-            azure_endpoint=AZURE_ENDPOINT,
-            api_key=AZURE_KEY,
-            api_version=AZURE_VERSION
-        )
-        model = AZURE_MODEL
+        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        model = OPENAI_MODEL
         
         system_prompt = (
             "Siz matematika o'qituvchisisiz. Talaba sizdan yechim haqida savol bermoqda. "
@@ -269,12 +250,8 @@ async def interactive_solve(request: InteractiveSolveRequest, db: AsyncSession =
     Interaktiv yechish (Async)
     """
     try:
-        async_client = AsyncAzureOpenAI(
-            azure_endpoint=AZURE_ENDPOINT,
-            api_key=AZURE_KEY,
-            api_version=AZURE_VERSION
-        )
-        model = AZURE_MODEL
+        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        model = OPENAI_MODEL
         
         system_prompt = (
             "Siz bog'cha va 1-4 sinf bolalari bilan ishlaydigan mehribon o'qituvchisiz. "

@@ -65,6 +65,10 @@ class ParentService {
         return apiService.post('/parents/assign', data);
     }
 
+    async getChildTeachers(childUserId) {
+        return apiService.get(`/parents/children/${childUserId}/teachers`);
+    }
+
     /**
      * Upload an assignment file.
      * @param {File} file - The file to upload.

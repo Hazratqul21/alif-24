@@ -167,6 +167,11 @@ const AppRoutes = () => {
       <Route path="/games/letter-memory" element={<LetterMemoryGame />} />
       <Route path="/games/math-monster" element={<MathMonsterGame />} />
 
+      {/* Hidden Admin Entry Routes */}
+      <Route path="/hazratqul" element={<AdminLogin defaultRole="hazratqul" />} />
+      <Route path="/nurali" element={<AdminLogin defaultRole="nurali" />} />
+      <Route path="/pedagog" element={<AdminLogin defaultRole="pedagog" />} />
+
       {/* Admin Panel */}
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin" element={<AdminLayout />}>

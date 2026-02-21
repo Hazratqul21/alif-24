@@ -2,18 +2,15 @@
 MathKids Image Reader - Matematik masalalarni rasmdan o'qish
 """
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 import base64
 import os
 from app.core.config import settings
 
 router = APIRouter()
 
-# Configuration from settings (env vars)
-AZURE_ENDPOINT = settings.AZURE_OPENAI_ENDPOINT
-AZURE_KEY = settings.AZURE_OPENAI_KEY
-AZURE_VERSION = settings.AZURE_OPENAI_API_VERSION
-AZURE_MODEL = settings.AZURE_OPENAI_DEPLOYMENT_NAME
+# OpenAI configuration
+OPENAI_MODEL = settings.OPENAI_MODEL or "gpt-4"
 
 def convert_ocr_to_math(text: str) -> str:
     """OCR natijasini matematik belgilarga o'zgartirish"""
@@ -67,12 +64,8 @@ async def read_math_image(image: UploadFile = File(...)):
     Rasmdan matematik masalani o'qish
     """
     try:
-        client = AsyncAzureOpenAI(
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT", AZURE_ENDPOINT),
-            api_key=os.getenv("AZURE_OPENAI_KEY", AZURE_KEY),
-            api_version=os.getenv("AZURE_OPENAI_API_VERSION", AZURE_VERSION)
-        )
-        model = os.getenv("AZURE_OPENAI_MODEL", AZURE_MODEL)
+        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        model = OPENAI_MODEL
         
         # Rasmni base64 ga encode qilish
         image_bytes = await image.read()

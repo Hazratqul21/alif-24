@@ -129,9 +129,20 @@ const ProfilePage = () => {
             <div>
               <h2 className="text-xl font-bold text-white">{user?.first_name} {user?.last_name}</h2>
               <p className="text-white/60 text-sm">{user?.email || user?.phone}</p>
-              <span className="inline-block mt-1 bg-[#4b30fb]/20 text-[#4b30fb] px-3 py-0.5 rounded-full text-xs font-medium">
-                {roleLabels[user?.role] || user?.role}
-              </span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="bg-[#4b30fb]/20 text-[#4b30fb] px-3 py-0.5 rounded-full text-xs font-medium">
+                  {roleLabels[user?.role] || user?.role}
+                </span>
+                {user?.id && (
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(user.id); setMessage({ type: 'success', text: 'ID nusxalandi!' }); setTimeout(() => setMessage(null), 2000); }}
+                    className="bg-white/10 text-white/50 hover:text-white px-2 py-0.5 rounded-full text-xs font-mono cursor-pointer border border-white/10 hover:border-white/30 transition-all flex items-center gap-1"
+                    title="ID ni nusxalash"
+                  >
+                    🆔 {user.id}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

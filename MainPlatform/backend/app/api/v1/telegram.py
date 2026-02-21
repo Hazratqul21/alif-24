@@ -4,14 +4,19 @@ from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Optional
 import os
+import httpx
+import logging
 
 from shared.database import get_db
 from shared.database.models.telegram import TelegramUser
 from shared.services.telegram_bot_service import TelegramBotService
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["telegram"])
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "alif24_rahbariyat26!")
+TELEGRAM_BOT_TOKEN = settings.TELEGRAM_BOT_TOKEN
+ADMIN_SECRET_KEY = settings.ADMIN_SECRET_KEY
 
 
 class BroadcastRequest(BaseModel):
@@ -79,6 +84,75 @@ async def register_bot_commands(
     service = TelegramBotService(db, TELEGRAM_BOT_TOKEN)
     success = await service.register_bot_commands()
     return {"status": "ok" if success else "error"}
+
+
+@router.post("/set-webhook")
+async def set_webhook(
+    admin: bool = Depends(verify_broadcast_admin),
+):
+    """
+    Telegram webhook URL ni o'rnatish.
+    Bir marta chaqirish kifoya — Telegram eslab qoladi.
+    POST /api/v1/telegram/set-webhook
+    Headers: X-Admin-Key: alif24_rahbariyat26!
+    """
+    if not TELEGRAM_BOT_TOKEN:
+        return {"status": "error", "message": "Bot token not configured"}
+    
+    webhook_url = "https://alif24.uz/api/v1/telegram/webhook"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook",
+                json={"url": webhook_url, "drop_pending_updates": True},
+                timeout=15.0
+            )
+            data = response.json()
+            logger.info(f"Telegram setWebhook response: {data}")
+            return {"status": "ok" if data.get("ok") else "error", "data": data}
+    except Exception as e:
+        logger.error(f"setWebhook error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/delete-webhook")
+async def delete_webhook(
+    admin: bool = Depends(verify_broadcast_admin),
+):
+    """Telegram webhook ni o'chirish (polling rejimiga o'tish uchun)"""
+    if not TELEGRAM_BOT_TOKEN:
+        return {"status": "error", "message": "Bot token not configured"}
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/deleteWebhook",
+                json={"drop_pending_updates": True},
+                timeout=15.0
+            )
+            data = response.json()
+            return {"status": "ok" if data.get("ok") else "error", "data": data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/webhook-info")
+async def get_webhook_info(
+    admin: bool = Depends(verify_broadcast_admin),
+):
+    """Joriy webhook holatini ko'rish"""
+    if not TELEGRAM_BOT_TOKEN:
+        return {"status": "error", "message": "Bot token not configured"}
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getWebhookInfo",
+                timeout=15.0
+            )
+            return response.json()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 @router.get("/stats")

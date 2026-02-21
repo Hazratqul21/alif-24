@@ -9,8 +9,8 @@ const roles = [
     { id: 'pedagog', label: 'Pedagog', desc: 'Kontent boshqaruvchi', icon: '📚', color: 'from-green-500 to-emerald-600' },
 ];
 
-export default function AdminLogin() {
-    const [selectedRole, setSelectedRole] = useState(null);
+export default function AdminLogin({ defaultRole = null }) {
+    const [selectedRole, setSelectedRole] = useState(defaultRole);
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');

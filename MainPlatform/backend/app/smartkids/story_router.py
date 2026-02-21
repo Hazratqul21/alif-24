@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta, timezone
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, cast, Date, select
 from shared.database import get_db
@@ -18,11 +18,9 @@ from app.services.ai_cache_service import AICacheService
 
 router = APIRouter()
 
-# Configuration from settings (env vars)
-AZURE_ENDPOINT = settings.AZURE_OPENAI_ENDPOINT
-AZURE_KEY = settings.AZURE_OPENAI_KEY
-AZURE_VERSION = settings.AZURE_OPENAI_API_VERSION
-AZURE_MODEL = settings.AZURE_OPENAI_DEPLOYMENT_NAME
+# OpenAI configuration
+OPENAI_API_KEY = settings.OPENAI_API_KEY
+OPENAI_MODEL = settings.OPENAI_MODEL or "gpt-4"
 
 # Language-specific prompts
 def get_system_prompt(language: str, prompt_type: str):
@@ -197,13 +195,9 @@ class DetectLanguageRequest(BaseModel):
     text: str
 
 
-def get_azure_client():
-    """Azure OpenAI async client yaratish"""
-    return AsyncAzureOpenAI(
-        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-        api_key=settings.AZURE_OPENAI_KEY,
-        api_version=settings.AZURE_OPENAI_API_VERSION
-    )
+def get_openai_client():
+    """OpenAI async client yaratish"""
+    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 @router.post("/detect-language")
@@ -245,8 +239,8 @@ async def next_question(request: NextQuestionRequest):
         except:
             request.language = "uz-UZ"
             
-        client = get_azure_client()
-        model = os.getenv("AZURE_OPENAI_MODEL", AZURE_MODEL)
+        client = get_openai_client()
+        model = OPENAI_MODEL
         
         # Get language-specific system prompt
         system_prompt = get_system_prompt(request.language, "next-question")
@@ -303,8 +297,8 @@ async def analyze_answer(request: AnalyzeRequest):
         except:
             pass
             
-        client = get_azure_client()
-        model = os.getenv("AZURE_OPENAI_MODEL", AZURE_MODEL)
+        client = get_openai_client()
+        model = OPENAI_MODEL
         
         # Get language-specific system prompt
         system_prompt = get_system_prompt(request.language, "analyze")
@@ -410,8 +404,8 @@ async def analyze_reading(request: AnalyzeReadingRequest):
         except:
             pass
 
-        client = get_azure_client()
-        model = os.getenv("AZURE_OPENAI_MODEL", AZURE_MODEL)
+        client = get_openai_client()
+        model = OPENAI_MODEL
         
         # Language-specific prompts
         language_prompts = {
@@ -493,8 +487,8 @@ async def chat_and_ask(request: ChatRequest):
         except:
             pass
 
-        client = get_azure_client()
-        model = os.getenv("AZURE_OPENAI_MODEL", AZURE_MODEL)
+        client = get_openai_client()
+        model = OPENAI_MODEL
         
         # Get language-specific system prompt
         system_prompt = get_system_prompt(request.language, "chat-and-ask")
