@@ -193,6 +193,10 @@ class SaveAnalysisRequest(BaseModel):
     ai_feedback: Optional[str] = None
 
 
+class DetectLanguageRequest(BaseModel):
+    text: str
+
+
 def get_azure_client():
     """Azure OpenAI async client yaratish"""
     return AsyncAzureOpenAI(
@@ -200,6 +204,29 @@ def get_azure_client():
         api_key=settings.AZURE_OPENAI_KEY,
         api_version=settings.AZURE_OPENAI_API_VERSION
     )
+
+
+@router.post("/detect-language")
+async def detect_language_endpoint(request: DetectLanguageRequest):
+    """
+    Matn tilini aniqlash (TTS uchun)
+    Frontend StoryReader.jsx chaqiradi
+    Returns: { code, voice, name } — Azure Speech TTS format
+    """
+    voice_map = {
+        "uz": {"code": "uz-UZ", "voice": "uz-UZ-MadinaNeural", "name": "O'zbek"},
+        "ru": {"code": "ru-RU", "voice": "ru-RU-SvetlanaNeural", "name": "Rus"},
+        "en": {"code": "en-US", "voice": "en-US-AriaNeural", "name": "Ingliz"},
+        "tr": {"code": "tr-TR", "voice": "tr-TR-EmelNeural", "name": "Turk"},
+        "kk": {"code": "kk-KZ", "voice": "kk-KZ-AigulNeural", "name": "Qozoq"},
+    }
+    default = voice_map["uz"]
+    try:
+        detected = detect(request.text)
+        result = voice_map.get(detected, default)
+        return result
+    except (LangDetectException, Exception):
+        return default
 
 
 @router.post("/next-question")

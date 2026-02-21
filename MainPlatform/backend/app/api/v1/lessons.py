@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, List
+from typing import Optional, List, Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
@@ -18,7 +18,7 @@ class LessonCreate(BaseModel):
     grade_level: Optional[str] = None
     content: Optional[str] = None
     video_url: Optional[str] = None
-    attachments: Optional[str] = None
+    attachments: Optional[Any] = None
 
 class LessonUpdate(BaseModel):
     title: Optional[str] = None
@@ -26,7 +26,7 @@ class LessonUpdate(BaseModel):
     grade_level: Optional[str] = None
     content: Optional[str] = None
     video_url: Optional[str] = None
-    attachments: Optional[str] = None
+    attachments: Optional[Any] = None
 
 async def get_teacher_profile_local(user: User, db: AsyncSession) -> TeacherProfile:
     if user.role != UserRole.teacher:

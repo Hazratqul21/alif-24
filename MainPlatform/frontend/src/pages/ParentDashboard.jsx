@@ -109,7 +109,7 @@ const ParentDashboard = () => {
             fetchAllChildrenAssignments();
             alert('Vazifa muvaffaqiyatli berildi!');
         } catch (e) {
-            alert(e.response?.data?.detail || e.message || 'Vazifa berishda xatolik');
+            alert(e.message || 'Vazifa berishda xatolik');
         }
     };
 
