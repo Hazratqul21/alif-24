@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy import Column, String, Text, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
-from shared.database.database import Base
+from shared.database.base import Base
 
 class Lesson(Base):
     __tablename__ = "lessons"
