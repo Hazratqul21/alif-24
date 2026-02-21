@@ -62,7 +62,22 @@ class ParentService {
     }
 
     async assignTask(data) {
-        return apiService.post('/parents/assign', data);
+        return apiService.post('/parents/assignments', data);
+    }
+
+    /**
+     * Upload an assignment file.
+     * @param {File} file - The file to upload.
+     * @returns {Promise<Object>} Response from the upload.
+     */
+    async uploadAssignmentFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        return apiService.post('/upload/assignment-file', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
     }
 }
 

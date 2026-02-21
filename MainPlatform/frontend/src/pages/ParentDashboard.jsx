@@ -22,6 +22,7 @@ const ParentDashboard = () => {
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [selectedChild, setSelectedChild] = useState(null);
     const [childAssignments, setChildAssignments] = useState({});
+    const [assignmentFile, setAssignmentFile] = useState(null);
     const [assignmentForm, setAssignmentForm] = useState({
         title: '',
         description: '',
@@ -81,15 +82,34 @@ const ParentDashboard = () => {
         e.preventDefault();
         if (!selectedChild) return;
         try {
-            const payload = { ...assignmentForm, target_student_ids: [selectedChild.id] };
+            const payload = { ...assignmentForm, target_student_ids: [selectedChild.id], assignment_type: 'homework' };
             if (!payload.due_date) delete payload.due_date;
+
+            // Optional upload
+            if (assignmentFile) {
+                try {
+                    const upRes = await parentService.uploadAssignmentFile(assignmentFile);
+                    if (upRes.data && upRes.data.url) {
+                        payload.attachments = [{
+                            name: assignmentFile.name,
+                            url: upRes.data.url,
+                            size: upRes.data.size || assignmentFile.size
+                        }];
+                    }
+                } catch (upErr) {
+                    alert(upErr.response?.data?.detail || 'Fayl yuklashda xatolik yuz berdi');
+                    return;
+                }
+            }
+
             await parentService.assignTask(payload);
             setShowAssignModal(false);
             setAssignmentForm({ title: '', description: '', due_date: '', max_score: 100 });
+            setAssignmentFile(null);
             fetchAllChildrenAssignments();
             alert('Vazifa muvaffaqiyatli berildi!');
         } catch (e) {
-            alert(e.message || 'Vazifa berishda xatolik');
+            alert(e.response?.data?.detail || e.message || 'Vazifa berishda xatolik');
         }
     };
 
@@ -635,6 +655,33 @@ const ParentDashboard = () => {
                                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none resize-none"
                                 />
                             </div>
+
+                            {/* File Upload Section for Parents */}
+                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Material / Fayl biriktirish (Max: 10M)</label>
+                                <input
+                                    type="file"
+                                    onChange={(e) => {
+                                        const f = e.target.files[0];
+                                        if (f) {
+                                            if (f.size > 10 * 1024 * 1024) {
+                                                alert('Fayl hajmi 10MB dan oshmasligi kerak!');
+                                                e.target.value = '';
+                                                setAssignmentFile(null);
+                                            } else {
+                                                setAssignmentFile(f);
+                                            }
+                                        }
+                                    }}
+                                    className="block w-full text-sm text-gray-500
+                                    file:mr-4 file:py-2 file:px-4
+                                    file:rounded-full file:border-0
+                                    file:text-sm file:font-semibold
+                                    file:bg-green-50 file:text-green-700
+                                    hover:file:bg-green-100"
+                                />
+                            </div>
+
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-1">Muddat</label>

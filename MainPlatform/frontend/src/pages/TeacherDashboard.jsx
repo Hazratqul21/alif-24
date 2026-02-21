@@ -46,6 +46,8 @@ const TeacherDashboard = () => {
   });
   const [assignTarget, setAssignTarget] = useState('classroom');
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [assignmentFile, setAssignmentFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [newLesson, setNewLesson] = useState({ title: '', subject: '', grade_level: '', content: '', video_url: '' });
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiPromptText, setAiPromptText] = useState('');
@@ -177,18 +179,41 @@ const TeacherDashboard = () => {
       return showNotif('error', "Kamida bitta o'quvchini tanlang");
     }
     try {
+      setLoading(true);
       const payload = { ...newAssignment };
       if (!payload.classroom_id) delete payload.classroom_id;
       if (!payload.due_date) delete payload.due_date;
       if (assignTarget === 'student' && selectedStudentIds.length > 0) {
         payload.target_student_ids = selectedStudentIds;
       }
+
+      // Handle file upload first if present
+      if (assignmentFile) {
+        try {
+          const upRes = await teacherService.uploadAssignmentFile(assignmentFile);
+          if (upRes.data && upRes.data.url) {
+            payload.attachments = [{
+              name: assignmentFile.name,
+              url: upRes.data.url,
+              size: upRes.data.size || assignmentFile.size
+            }];
+          }
+        } catch (upErr) {
+          showNotif('error', upErr.response?.data?.detail || 'Fayl yuklashda xatolik yuz berdi');
+          setLoading(false);
+          return;
+        }
+      }
+
       await teacherService.createAssignment(payload);
       showNotif('success', 'Vazifa yaratildi va yuborildi!');
       setShowCreateAssignment(false);
       setNewAssignment({ title: '', description: '', assignment_type: 'homework', classroom_id: '', due_date: '', max_score: 100 });
       setAssignTarget('classroom');
       setSelectedStudentIds([]);
+      setAssignmentFile(null);
+      setUploadProgress(0);
+      fetchAssignments();
     } catch (e) {
       showNotif('error', e.response?.data?.detail || 'Xatolik yuz berdi');
     } finally {
@@ -697,8 +722,8 @@ const TeacherDashboard = () => {
           </select>
           <textarea placeholder="Tavsif (ixtiyoriy)" value={newClass.description} onChange={e => setNewClass({ ...newClass, description: e.target.value })}
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb] h-20 resize-none" />
-          <button type="submit" className="w-full bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white py-3 rounded-xl border-none cursor-pointer font-bold hover:scale-[1.02] transition-transform">
-            Yaratish
+          <button type="submit" disabled={loading} className="w-full bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white py-3 rounded-xl border-none cursor-pointer font-bold disabled:opacity-50">
+            {loading ? 'Bajarilmoqda...' : 'Vazifani yuborish'}
           </button>
         </form>
       )}
@@ -785,6 +810,33 @@ const TeacherDashboard = () => {
             <option value="reading" className="bg-gray-800 text-white">O'qish</option>
             <option value="project" className="bg-gray-800 text-white">Loyiha</option>
           </select>
+
+          {/* File Upload Section */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <label className="text-sm text-white/80 font-medium mb-2 block">Material yoki fayl biriktirish (Max: 10M)</label>
+            <input
+              type="file"
+              onChange={(e) => {
+                const f = e.target.files[0];
+                if (f) {
+                  if (f.size > 10 * 1024 * 1024) {
+                    showNotif('error', 'Fayl hajmi 10MB dan oshmasligi kerak!');
+                    e.target.value = '';
+                    setAssignmentFile(null);
+                  } else {
+                    setAssignmentFile(f);
+                  }
+                }
+              }}
+              className="block w-full text-sm text-white/60
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-[#4b30fb] file:text-white
+                hover:file:bg-[#6149fd]"
+            />
+            {assignmentFile && <p className="text-green-400 text-xs mt-2">Tanlandi: {assignmentFile.name}</p>}
+          </div>
 
           {newAssignment.assignment_type === 'test' && (
             <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/20 rounded-xl p-4">

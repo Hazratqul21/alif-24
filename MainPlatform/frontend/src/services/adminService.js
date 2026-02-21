@@ -90,6 +90,22 @@ const adminService = {
 
     // Telegram
     getTelegramUsers: (params) => adminApi.get('/telegram/users', { params }),
+
+    /**
+     * Upload an assignment or content file (No size limit).
+     * @param {File} file - The file to upload.
+     * @returns {Promise<Object>} Response from the upload.
+     */
+    uploadFile: async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return adminApi.post('/upload/assignment-file', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+            baseURL: API_URL // Force use main API url rather than /admin route 
+        });
+    }
 };
 
 export default adminService;
