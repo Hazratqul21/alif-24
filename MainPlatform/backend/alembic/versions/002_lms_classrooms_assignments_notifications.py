@@ -15,14 +15,13 @@ depends_on = None
 
 def upgrade() -> None:
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
-    
+    inspector = Inspector.from_engine(conn)    
     # helper for enum
     def create_enum(name, *values):
-        try:
+        # check if type already exists
+        res = conn.execute(sa.text(f"SELECT 1 FROM pg_type WHERE typname = '{name}'"))
+        if not res.fetchone():
             sa.Enum(*values, name=name).create(conn)
-        except sa.exc.ProgrammingError:
-            pass
 
     create_enum('classroomstudentstatus', 'invited', 'active', 'removed')
     create_enum('invitationtype', 'phone', 'email', 'user_id')
