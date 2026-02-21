@@ -88,7 +88,7 @@ const StudentDashboard = () => {
         // Notification polling har 30 sek
         const notifInterval = setInterval(async () => {
             try {
-                const res = await apiService.get('/notifications/unread-count');
+                const res = await notificationService.getUnreadCount();
                 setUnreadNotifCount(res.data?.count || 0);
             } catch (e) {
                 // Ignore silent errors
@@ -97,6 +97,19 @@ const StudentDashboard = () => {
 
         return () => clearInterval(notifInterval);
     }, []);
+
+    // Timer logic
+    useEffect(() => {
+        let interval;
+        if (isTimerRunning) {
+            interval = setInterval(() => {
+                setTimer((prev) => prev + 1);
+            }, 1000);
+        } else if (!isTimerRunning && timer !== 0) {
+            clearInterval(interval);
+        }
+        return () => clearInterval(interval);
+    }, [isTimerRunning, timer]);
 
     const handleDailyBonus = async () => {
         try {
@@ -113,6 +126,12 @@ const StudentDashboard = () => {
             setBonusMessage('Xatolik yuz berdi');
             setTimeout(() => setBonusMessage(null), 3000);
         }
+    };
+
+    const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
     const showNotif = (type, message) => {
