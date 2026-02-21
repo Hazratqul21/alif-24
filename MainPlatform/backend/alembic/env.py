@@ -25,6 +25,9 @@ config = context.config
 # Override sqlalchemy.url from DATABASE_URL environment variable
 database_url = os.getenv("DATABASE_URL")
 if database_url:
+    # Alembic sinxron ishlaydi, shuning uchun asyncpg → psycopg2 ga almashtirish kerak
+    database_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    database_url = database_url.replace("postgresql://", "postgresql+psycopg2://")
     config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging
