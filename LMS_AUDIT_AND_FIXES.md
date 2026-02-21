@@ -464,17 +464,35 @@ Tashkilot o'z o'quvchilariga platformadagi kontentdan vazifa berishi. #7-#12 hal
 
 ## YAKUNIY XULOSA
 
-**Jami 19 ta bug topildi va tuzatildi:**
-- 13 ta kritik (crash, 404, noto'g'ri ishlash)
+**Jami 22 ta bug topildi va tuzatildi:**
+- 15 ta kritik (crash, 404, noto'g'ri ishlash)
 - 3 ta o'rta (UI text, dead code, keraksiz argument)
-- 3 ta infratuzilma (missing router, missing endpoints, nginx proxy)
+- 4 ta infratuzilma (missing router, missing endpoints, nginx proxy, AI fallback)
+
+### BUG-20: Error handling pattern noto'g'ri (6 joyda) ✅
+- **Muammo:** `apiService` (fetch-based) `throw new Error(message)` qiladi, lekin frontend `err.response?.data?.detail` (axios pattern) ishlatardi — xato xabari hech qachon ko'rinmasdi
+- **Tuzatish:** `err.message` ga o'zgartirdim:
+  - `TeacherDashboard.jsx` — 2 joyda (AI test + upload error)
+  - `StudentDashboard.jsx` — 3 joyda (join class, respond invitation, submit assignment)
+  - `ParentDashboard.jsx` — 1 joyda (upload error)
+- **Eslatma:** Admin sahifalar `adminService` (axios) ishlatadi — ular to'g'ri
+
+### BUG-21: AI test faqat teacher role uchun ✅
+- **Fayl:** `MainPlatform/backend/app/api/v1/aiops.py:36`
+- **Muammo:** `organization` va `moderator` ham TeacherDashboard ga kiradi, lekin AI test 403 qaytarardi
+- **Tuzatish:** `allowed_roles = [teacher, organization, moderator]` qildim
+
+### BUG-22: AI test Azure ishlamasa fallback yo'q ✅
+- **Fayl:** `MainPlatform/backend/app/api/v1/aiops.py`
+- **Muammo:** Faqat Azure OpenAI ishlatilardi — agar Azure vaqtincha ishlamasa, butun funksiya 500 qaytarardi
+- **Tuzatish:** Azure → OpenAI fallback qo'shdim. Config da ikkala kalit ham bor
 
 **Yangi yaratilgan fayllar:**
 - `MainPlatform/backend/app/api/v1/coins.py` — Coin API router
 - `MainPlatform/backend/alembic/versions/004_add_coin_tables.py` — Coin DB migration
 
-**O'zgartirilgan fayllar (19 ta):**
-- Backend: `main.py`, `auth.py`, `assignments.py`, `uploads.py`, `dashboard.py`
+**O'zgartirilgan fayllar (jami):**
+- Backend: `main.py`, `auth.py`, `assignments.py`, `uploads.py`, `dashboard.py`, `aiops.py`
 - Frontend services: `teacherService.js`, `parentService.js`, `quizService.js`
 - Frontend pages: `TeacherDashboard.jsx`, `StudentDashboard.jsx`, `ParentDashboard.jsx`
 - Models: `lesson.py`, `platform_content.py`

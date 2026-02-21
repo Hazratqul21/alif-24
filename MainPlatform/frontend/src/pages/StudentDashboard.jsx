@@ -148,7 +148,7 @@ const StudentDashboard = () => {
             setJoinCode('');
             await fetchLMSData();
         } catch (err) {
-            showNotif('error', err.response?.data?.detail || "Sinfga qo'shilishda xatolik");
+            showNotif('error', err.message || "Sinfga qo'shilishda xatolik");
         }
     };
 
@@ -158,7 +158,7 @@ const StudentDashboard = () => {
             showNotif('success', action === 'accept' ? "Taklif qabul qilindi!" : "Taklif rad etildi");
             await fetchLMSData();
         } catch (err) {
-            showNotif('error', err.response?.data?.detail || "Xatolik yuz berdi");
+            showNotif('error', err.message || "Xatolik yuz berdi");
         }
     };
 
@@ -171,7 +171,7 @@ const StudentDashboard = () => {
             setSelectedTask(null);
             await fetchLMSData(); // Refresh assignments list
         } catch (err) {
-            showNotif('error', err.response?.data?.detail || "Vazifa topshirishda xatolik");
+            showNotif('error', err.message || "Vazifa topshirishda xatolik");
         }
     };
 

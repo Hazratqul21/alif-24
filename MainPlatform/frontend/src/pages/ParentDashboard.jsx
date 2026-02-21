@@ -97,7 +97,7 @@ const ParentDashboard = () => {
                         }];
                     }
                 } catch (upErr) {
-                    alert(upErr.response?.data?.detail || 'Fayl yuklashda xatolik yuz berdi');
+                    alert(upErr.message || 'Fayl yuklashda xatolik yuz berdi');
                     return;
                 }
             }

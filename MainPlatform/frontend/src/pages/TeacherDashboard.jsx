@@ -199,7 +199,7 @@ const TeacherDashboard = () => {
             }];
           }
         } catch (upErr) {
-          showNotif('error', upErr.response?.data?.detail || 'Fayl yuklashda xatolik yuz berdi');
+          showNotif('error', upErr.message || 'Fayl yuklashda xatolik yuz berdi');
           setLoading(false);
           return;
         }
@@ -246,7 +246,7 @@ const TeacherDashboard = () => {
         showNotif('success', 'Test muvaffaqiyatli yaratildi!');
       }
     } catch (err) {
-      showNotif('error', err.response?.data?.detail || "Test yaratishda xatolik yuz berdi");
+      showNotif('error', err.message || "Test yaratishda xatolik yuz berdi");
     } finally {
       setAiGenerating(false);
     }
