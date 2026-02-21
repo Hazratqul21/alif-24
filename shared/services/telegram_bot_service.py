@@ -106,15 +106,11 @@ class TelegramBotService:
     
     def __init__(self, db: AsyncSession, bot_token: Optional[str] = None):
         self.db = db
-        self.bot_token = bot_token or os.getenv("TELEGRAM_BOT_TOKEN", "TELEGRAM_BOT_TOKEN_NOT_SET")
+        # Hardcoded kalitlar (config.py dan import qilmaslik uchun — shared module)
+        self.bot_token = bot_token or "8379431489:AAH2xUGuEy0_FZV8vnN8_vyIII13VqDPryU"
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}"
-        self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
-        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4")
-        # Azure OpenAI (fallback)
-        self.azure_openai_key = os.getenv("AZURE_OPENAI_KEY", "")
-        self.azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-        self.azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-chat")
-        self.azure_openai_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview")
+        self.openai_api_key = "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"
+        self.openai_model = "gpt-4"
         # Chat tarixi (xotirada, oxirgi 10 ta xabar)
         self._chat_history: Dict[str, List[Dict]] = {}
     
@@ -382,45 +378,9 @@ Tabriklaymiz! 🎉
                     else:
                         logger.warning(f"OpenAI API error {response.status_code}: {response.text[:200]} — Azure OpenAI ga o'tilmoqda")
             except httpx.TimeoutException:
-                logger.warning("OpenAI timeout — Azure OpenAI ga o'tilmoqda")
+                logger.warning("OpenAI timeout")
             except Exception as e:
-                logger.warning(f"OpenAI error: {e} — Azure OpenAI ga o'tilmoqda")
-        
-        # 2. Azure OpenAI fallback
-        if self.azure_openai_key and self.azure_openai_endpoint:
-            try:
-                azure_url = (
-                    f"{self.azure_openai_endpoint.rstrip('/')}/openai/deployments/"
-                    f"{self.azure_openai_deployment}/chat/completions"
-                    f"?api-version={self.azure_openai_api_version}"
-                )
-                async with httpx.AsyncClient() as client:
-                    response = await client.post(
-                        azure_url,
-                        headers={
-                            "api-key": self.azure_openai_key,
-                            "Content-Type": "application/json"
-                        },
-                        json={
-                            "messages": messages,
-                            "max_tokens": 800,
-                            "temperature": 0.7,
-                        },
-                        timeout=30.0
-                    )
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        ai_reply = data["choices"][0]["message"]["content"]
-                        history.append({"role": "assistant", "content": ai_reply})
-                        self._chat_history[history_key] = history
-                        return ai_reply
-                    else:
-                        logger.error(f"Azure OpenAI error {response.status_code}: {response.text[:200]}")
-            except httpx.TimeoutException:
-                return "⏳ Javob olishda kutish vaqti tugadi. Iltimos, qayta urinib ko'ring."
-            except Exception as e:
-                logger.error(f"Azure OpenAI error: {e}")
+                logger.warning(f"OpenAI error: {e}")
         
         return "⚠️ AI xizmati hozirda mavjud emas. Iltimos, keyinroq urinib ko'ring."
     

@@ -8,14 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, Field
 from typing import Optional
-import os
-
 from shared.database import get_db
 from shared.services.telegram_bot_service import TelegramBotService
+from app.core.config import settings
 
 router = APIRouter(tags=["verification"])
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_BOT_TOKEN = settings.TELEGRAM_BOT_TOKEN
 
 
 class SendCodeRequest(BaseModel):
