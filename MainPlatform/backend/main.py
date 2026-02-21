@@ -16,6 +16,7 @@ sys.path.insert(0, str(project_root))
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from slowapi import Limiter, _rate_limit_exceeded_handler
