@@ -122,7 +122,7 @@ async def add_security_headers(request, call_next):
 
 # Include Routers
 from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback, telegram
-from app.api.v1 import classrooms, assignments, notifications, lessons, platform_content, aiops
+from app.api.v1 import classrooms, assignments, notifications, lessons, platform_content, aiops, uploads # Added uploads
 from app.smartkids import story_router, image_reader_router, file_reader_router, speech_token_router
 from app.mathkids import math_solver_router, math_image_router
 
@@ -159,6 +159,11 @@ app.include_router(aiops.router, prefix=f"{settings.API_PREFIX}", tags=["aiops"]
 app.include_router(assignments.router, prefix=f"{settings.API_PREFIX}", tags=["assignments"])
 app.include_router(notifications.router, prefix=f"{settings.API_PREFIX}", tags=["notifications"])
 app.include_router(lessons.router, prefix=f"{settings.API_PREFIX}", tags=["lessons"])
+app.include_router(uploads.router, prefix="/api/v1/upload", tags=["Uploads"]) # Added uploads router
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/api/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 @app.get("/")
 async def root():

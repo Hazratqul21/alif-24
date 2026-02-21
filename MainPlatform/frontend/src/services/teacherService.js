@@ -121,6 +121,21 @@ class TeacherService {
         return apiService.delete(`/teachers/assignments/${assignmentId}`);
     }
 
+    /**
+     * Upload an assignment file.
+     * @param {File} file - The file to upload.
+     * @returns {Promise<Object>} Response from the upload.
+     */
+    async uploadAssignmentFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        return apiService.post('/upload/assignment-file', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    }
+
     async gradeSubmission(assignmentId, submissionId, data) {
         return apiService.post(`/teachers/assignments/${assignmentId}/grade/${submissionId}`, data);
     }

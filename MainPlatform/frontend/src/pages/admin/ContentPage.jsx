@@ -15,6 +15,7 @@ export default function ContentPage() {
 
     const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', difficulty: 'medium', duration_minutes: 30, language: 'uz' });
     const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
+    const [uploadFile, setUploadFile] = useState(null);
 
     useEffect(() => { loadContent(); }, []);
 
@@ -44,9 +45,23 @@ export default function ContentPage() {
         try {
             setSaving(true);
             setError('');
-            await adminService.createLesson(lessonForm);
+
+            const payload = { ...lessonForm };
+            if (uploadFile) {
+                const upRes = await adminService.uploadFile(uploadFile);
+                if (upRes.data?.url) {
+                    payload.attachments = [{
+                        name: uploadFile.name,
+                        url: upRes.data.url,
+                        size: upRes.data.size || uploadFile.size
+                    }];
+                }
+            }
+
+            await adminService.createLesson(payload);
             setCreateModal(null);
             setLessonForm({ title: '', subject: '', content: '', grade_level: '', difficulty: 'medium', duration_minutes: 30, language: 'uz' });
+            setUploadFile(null);
             loadContent();
         } catch (err) {
             setError(err.response?.data?.detail || 'Xatolik');
@@ -59,9 +74,23 @@ export default function ContentPage() {
         try {
             setSaving(true);
             setError('');
-            await adminService.createErtak(ertakForm);
+
+            const payload = { ...ertakForm };
+            if (uploadFile) {
+                const upRes = await adminService.uploadFile(uploadFile);
+                if (upRes.data?.url) {
+                    payload.attachments = [{
+                        name: uploadFile.name,
+                        url: upRes.data.url,
+                        size: upRes.data.size || uploadFile.size
+                    }];
+                }
+            }
+
+            await adminService.createErtak(payload);
             setCreateModal(null);
             setErtakForm({ title: '', content: '', language: 'uz', age_group: '6-8' });
+            setUploadFile(null);
             loadContent();
         } catch (err) {
             setError(err.response?.data?.detail || 'Xatolik');
@@ -249,6 +278,10 @@ export default function ContentPage() {
                             <Input label="Davomiyligi (min)" value={lessonForm.duration_minutes} onChange={(v) => setLessonForm({ ...lessonForm, duration_minutes: parseInt(v) || 30 })} type="number" />
                             <Select label="Til" value={lessonForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setLessonForm({ ...lessonForm, language: v })} />
                         </div>
+                        <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Fayl / Material yuklash (Ixtiyoriy)</label>
+                            <input type="file" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                        </div>
                     </div>
                     {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
                     <div className="flex justify-end gap-3 mt-6">
@@ -278,6 +311,10 @@ export default function ContentPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <Select label="Til" value={ertakForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setErtakForm({ ...ertakForm, language: v })} />
                             <Select label="Yosh guruhi" value={ertakForm.age_group} options={['4-6', '6-8', '8-10', '10-12']} onChange={(v) => setErtakForm({ ...ertakForm, age_group: v })} />
+                        </div>
+                        <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Audio / Fayl yuklash (Ixtiyoriy)</label>
+                            <input type="file" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
                         </div>
                     </div>
                     {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
