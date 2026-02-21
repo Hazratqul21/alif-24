@@ -10,8 +10,8 @@ const API_BASE = import.meta.env.VITE_API_URL
   : "/api/v1/smartkids";
 
 const STORY_API_BASE = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/story` 
-  : "/api/v1/story";
+  ? `${import.meta.env.VITE_API_URL}/smartkids` 
+  : "/api/v1/smartkids";
 
 function PlayCircleIcon({ size = 20 }) {
   return (

@@ -215,7 +215,7 @@ const TeacherDashboard = () => {
       setUploadProgress(0);
       fetchAssignments();
     } catch (e) {
-      showNotif('error', e.response?.data?.detail || 'Xatolik yuz berdi');
+      showNotif('error', e.message || 'Xatolik yuz berdi');
     } finally {
       setLoading(false);
     }

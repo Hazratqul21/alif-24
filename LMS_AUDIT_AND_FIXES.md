@@ -487,14 +487,64 @@ Tashkilot o'z o'quvchilariga platformadagi kontentdan vazifa berishi. #7-#12 hal
 - **Muammo:** Faqat Azure OpenAI ishlatilardi — agar Azure vaqtincha ishlamasa, butun funksiya 500 qaytarardi
 - **Tuzatish:** Azure → OpenAI fallback qo'shdim. Config da ikkala kalit ham bor
 
+---
+
+## 🔍 Ikkinchi Chuqur Skanerlash (2-bosqich)
+
+### BUG-23: Qolgan err.response?.data?.detail pattern (CRITICAL)
+**Fayl:** `TeacherDashboard.jsx` (handleCreateAssignment), `ParentDashboard.jsx` (handleAssignTask)
+**Muammo:** apiService fetch-based, lekin yana 2 ta joyda axios-style error handling qolgan edi. Xato xabari hech qachon ko'rinmasdi.
+**Tuzatish:** `e.response?.data?.detail` → `e.message`
+
+### BUG-24: lessons.py schema attachments turi noto'g'ri (MEDIUM)
+**Fayl:** `MainPlatform/backend/app/api/v1/lessons.py`
+**Muammo:** `LessonCreate` va `LessonUpdate` schema da `attachments: Optional[str]` — lekin Lesson model JSON column ishlatadi. String yuborilsa serialize/deserialize xato chiqardi.
+**Tuzatish:** `Optional[str]` → `Optional[Any]`, `from typing import Any` qo'shildi.
+
+### BUG-25: StoryReader STORY_API_BASE noto'g'ri URL (CRITICAL)
+**Fayl:** `MainPlatform/frontend/src/components/smartkids/StoryReader.jsx`
+**Muammo:** `STORY_API_BASE = "/api/v1/story"` — lekin backend da `story_router` `/api/v1/smartkids` prefiksi bilan registratsiya qilingan. StoryReader dagi barcha API chaqiruvlar (next-question, analyze, chat-and-ask, save-analysis, analyze-reading, detect-language) **404** qaytarardi.
+**Tuzatish:** `"/api/v1/story"` → `"/api/v1/smartkids"`
+
+### BUG-26: /detect-language endpoint backend da yo'q (CRITICAL)
+**Fayl:** `MainPlatform/backend/app/smartkids/story_router.py`
+**Muammo:** Frontend `StoryReader.jsx` `/detect-language` endpoint chaqiradi TTS til aniqlash uchun, lekin backend da bunday endpoint mavjud emas edi. TTS til aniqlash funksiyasi ishlamasdi.
+**Tuzatish:** `story_router.py` ga yangi `/detect-language` endpoint qo'shildi:
+- `langdetect` kutubxonasi orqali til aniqlash
+- Frontend kutgan `{code, voice, name}` formatda javob qaytarish (masalan: `{code: "uz-UZ", voice: "uz-UZ-MadinaNeural", name: "O'zbek"}`)
+- 5 til qo'llab-quvvatlanadi: uz, ru, en, tr, kk
+- Xatolik bo'lsa default uz-UZ qaytaradi
+
+---
+
+## 📊 Yakuniy Statistika
+
+| Ko'rsatkich | Qiymat |
+|---|---|
+| **Jami topilgan buglar** | **26** |
+| **Critical (crash/404)** | 14 |
+| **Medium** | 9 |
+| **Low** | 3 |
+| **Jami tuzatilgan** | **26 / 26 (100%)** |
+
+### Tekshirilgan sohalar:
+- ✅ Frontend sahifalar: HomePage, StudentDashboard, TeacherDashboard, ParentDashboard, OrganizationDashboard, ProfilePage, SmartKidsAI, MathKidsAI, LiveQuizTeacher, LiveQuizStudent, AboutPage, PartnersPage
+- ✅ Frontend komponentlar: StoryReader, SmartReaderTTS, MathSolver, LetterMemoryGame, MathMonsterGame, ErrorBoundary, ToastManager, ProtectedRoute, GuestGuard, LoginModal, RegisterModal
+- ✅ Frontend services: apiService, authService, teacherService, studentService, parentService, adminService, coinService, quizService, notificationService
+- ✅ Backend routers: auth, classrooms, assignments, notifications, lessons, uploads, coins, aiops, feedback, dashboard, admin_panel, platform_content, story_router, image_reader, file_reader, speech_token, math_solver, math_image
+- ✅ Shared models: User, Classroom, Assignment, InAppNotification, Lesson, PlatformContent, StudentCoin, CoinTransaction
+- ✅ Infrastructure: nginx.conf, main.py router registration, App.jsx routing
+- ✅ Context/Hooks: AuthContext, LanguageContext, useUsageTracking
+
 **Yangi yaratilgan fayllar:**
 - `MainPlatform/backend/app/api/v1/coins.py` — Coin API router
 - `MainPlatform/backend/alembic/versions/004_add_coin_tables.py` — Coin DB migration
 
 **O'zgartirilgan fayllar (jami):**
-- Backend: `main.py`, `auth.py`, `assignments.py`, `uploads.py`, `dashboard.py`, `aiops.py`
+- Backend: `main.py`, `auth.py`, `assignments.py`, `uploads.py`, `dashboard.py`, `aiops.py`, `lessons.py`, `story_router.py`
 - Frontend services: `teacherService.js`, `parentService.js`, `quizService.js`
 - Frontend pages: `TeacherDashboard.jsx`, `StudentDashboard.jsx`, `ParentDashboard.jsx`
+- Frontend components: `StoryReader.jsx`
 - Models: `lesson.py`, `platform_content.py`
 - Infra: `docker/nginx/nginx.conf`
 - Docs: `LMS_AUDIT_AND_FIXES.md`
