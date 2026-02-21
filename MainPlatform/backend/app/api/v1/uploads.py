@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request
 from shared.database.database import get_db
 from shared.database.models import User
-from app.core.security import get_current_user
+from app.middleware.auth import get_current_user
 import shutil
 import uuid
 import os
@@ -14,7 +14,7 @@ router = APIRouter()
 TEACHER_PARENT_LIMIT = 10 * 1024 * 1024  # 10 MB
 
 # Store uploads here
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
