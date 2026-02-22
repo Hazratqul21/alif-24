@@ -88,8 +88,18 @@ const adminService = {
     createErtak: (data) => adminApi.post('/direct/stories', data),
     deleteErtak: (id) => adminApi.delete(`/direct/stories/${id}`),
 
-    // Telegram
+    // Telegram (users via admin API)
     getTelegramUsers: (params) => adminApi.get('/telegram/users', { params }),
+
+    // Telegram Broadcast (via telegram router, uses X-Admin-Key)
+    getTelegramStats: () => {
+        const key = localStorage.getItem('adminKey');
+        return axios.get(`${API_URL}/telegram/stats`, { headers: { 'X-Admin-Key': key } });
+    },
+    sendBroadcast: (data) => {
+        const key = localStorage.getItem('adminKey');
+        return axios.post(`${API_URL}/telegram/broadcast`, data, { headers: { 'X-Admin-Key': key } });
+    },
 
     /**
      * Upload an assignment or content file (No size limit).

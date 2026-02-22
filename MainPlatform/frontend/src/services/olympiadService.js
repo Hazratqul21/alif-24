@@ -23,13 +23,8 @@ const olympiadService = {
     listReadingTasks: (olympiadId) => apiService.get(`/olympiads/${olympiadId}/reading-tasks`),
     deleteReadingTask: (olympiadId, taskId) => apiService.delete(`/olympiads/${olympiadId}/reading-tasks/${taskId}`),
 
-    // ==================== STUDENT: Participation ====================
-    register: (olympiadId) => apiService.post(`/olympiads/${olympiadId}/register`),
-    start: (olympiadId) => apiService.post(`/olympiads/${olympiadId}/start`),
-    submitTest: (olympiadId, answers) => apiService.post(`/olympiads/${olympiadId}/submit-test`, { answers }),
-    submitReading: (olympiadId, data) => apiService.post(`/olympiads/${olympiadId}/submit-reading`, data),
-    complete: (olympiadId) => apiService.post(`/olympiads/${olympiadId}/complete`),
-    getMyResult: (olympiadId) => apiService.get(`/olympiads/${olympiadId}/my-result`),
+    // NOTE: Student participation endpoints (register, start, submit, etc.)
+    // are on olimp.alif24.uz (separate platform) to handle high load.
 
     // ==================== Leaderboard ====================
     getLeaderboard: (olympiadId, limit = 50) => apiService.get(`/olympiads/${olympiadId}/leaderboard`, { limit }),
@@ -41,12 +36,7 @@ const olympiadService = {
     gradeReading: (submissionId, data) => apiService.post(`/olympiads/reading-submissions/${submissionId}/grade`, data),
     getOlympiadStats: (olympiadId) => apiService.get(`/olympiads/${olympiadId}/stats`),
 
-    // ==================== Audio Upload ====================
-    uploadAudio: async (file) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        return apiService.post('/olympiads/upload-audio', formData);
-    },
+    // NOTE: Audio upload is on olimp.alif24.uz
 };
 
 export default olympiadService;

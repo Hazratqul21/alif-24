@@ -7,7 +7,7 @@ import coinService from '../services/coinService';
 import { studentService } from '../services/studentService';
 import notificationService from '../services/notificationService';
 import organizationService from '../services/organizationService';
-import olympiadService from '../services/olympiadService';
+// Olympiad student UI is on olimp.alif24.uz (separate platform)
 import {
     BookOpen, Trophy, Clock, Star, Play, CheckCircle, Search, Filter,
     TrendingUp, Award, Target, Calendar, MessageSquare, Users, Bell,
@@ -48,19 +48,6 @@ const StudentDashboard = () => {
     const [selectedTask, setSelectedTask] = useState(null);
     const [submissionContent, setSubmissionContent] = useState('');
     const [mySchool, setMySchool] = useState(undefined); // undefined=not loaded, null=no school
-    const [olympiads, setOlympiads] = useState([]);
-    const [olympiadsLoading, setOlympiadsLoading] = useState(false);
-    const [selectedOlympiad, setSelectedOlympiad] = useState(null);
-    const [olympiadQuestions, setOlympiadQuestions] = useState([]);
-    const [olympiadReadingTasks, setOlympiadReadingTasks] = useState([]);
-    const [olympiadAnswers, setOlympiadAnswers] = useState({});
-    const [olympiadStarted, setOlympiadStarted] = useState(false);
-    const [olympiadSubmitted, setOlympiadSubmitted] = useState(false);
-    const [olympiadResult, setOlympiadResult] = useState(null);
-    const [olympiadTimer, setOlympiadTimer] = useState(0);
-    const [isRecording, setIsRecording] = useState(false);
-    const [mediaRecorder, setMediaRecorder] = useState(null);
-    const [audioChunks, setAudioChunks] = useState([]);
 
     const fetchLMSData = async () => {
         try {
@@ -666,8 +653,7 @@ const StudentDashboard = () => {
 
             {/* Notification Toast */}
             {notification && (
-                <div className={`fixed top-20 right-4 z-[9999] px-4 py-3 rounded-xl text-sm font-medium shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                    }`}>
+                <div className={`fixed top-20 right-4 z-[9999] px-4 py-3 rounded-xl text-sm font-medium shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
                     {notification.message}
                 </div>
             )}
@@ -680,16 +666,14 @@ const StudentDashboard = () => {
                             <div>
                                 <h3 className="text-2xl font-bold text-gray-800">{selectedTask.title}</h3>
                                 <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
-                                    <Calendar size={14} /> {selectedTask.deadline} • {selectedTask.xp} ball
+                                    <Calendar size={14} /> {selectedTask.deadline} &bull; {selectedTask.xp} ball
                                 </p>
                             </div>
                             <button onClick={() => setSelectedTask(null)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full"><X size={20} /></button>
                         </div>
-
                         <div className="p-6 flex-1 text-gray-700 whitespace-pre-wrap">
                             {selectedTask.assignment?.content || "Vazifa matni mavjud emas."}
                         </div>
-
                         {selectedTask.status === 'completed' && selectedTask.submission && (
                             <div className="p-6 bg-gray-50 border-t border-gray-100">
                                 <h4 className="font-bold text-gray-800 mb-2">Sizning javobingiz</h4>
@@ -704,7 +688,6 @@ const StudentDashboard = () => {
                                 )}
                             </div>
                         )}
-
                         {selectedTask.status === 'pending' && (
                             <div className="p-6 bg-gray-50 border-t border-gray-100">
                                 <h4 className="font-bold text-gray-800 mb-2">Javobingizni kiriting</h4>
@@ -752,6 +735,48 @@ const StudentDashboard = () => {
                             </button>
                         </form>
                     </div>
+                </div>
+            )}
+
+            <div className="bg-[#f0f2f5] min-h-screen pt-4 pb-20 md:pb-4">
+                <div className="container mx-auto px-4">
+                    {/* Mobile bottom nav */}
+                    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 flex justify-around items-center">
+                        {['dashboard', 'classes', 'tasks', 'olympiad', 'achievements'].map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-[64px] h-[56px] transition-all ${activeTab === tab ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                {tab === 'dashboard' && <Star size={22} />}
+                                {tab === 'classes' && <SchoolIcon size={22} />}
+                                {tab === 'tasks' && <CheckCircle size={22} />}
+                                {tab === 'olympiad' && <Trophy size={22} />}
+                                {tab === 'achievements' && <Award size={22} />}
+                                <span className="text-[10px] mt-1 font-medium">{tab === 'olympiad' ? 'Olimpiada' : t.tabs[tab]}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Desktop tabs */}
+                    <div className="hidden md:flex gap-2 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 w-fit">
+                        {['dashboard', 'classes', 'tasks', 'library', 'olympiad', 'school', 'achievements'].map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-6 py-2.5 rounded-xl font-medium transition-all min-h-[44px] flex items-center justify-center ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-50'}`}
+                            >
+                                {tab === 'olympiad' ? 'Olimpiada' : tab === 'school' ? 'Maktabim' : t.tabs[tab]}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Tab content */}
+                    {activeTab === 'dashboard' && renderDashboard()}
+                    {activeTab === 'classes' && renderClasses()}
+                    {activeTab === 'library' && renderLibrary()}
+
+                    {activeTab === 'tasks' && (
                         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm">
                             <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                                 <h2 className="text-lg md:text-xl font-bold">Vazifalarim</h2>
@@ -764,15 +789,12 @@ const StudentDashboard = () => {
                                     ))}
                                 </div>
                             </div>
-
                             <div className="space-y-3">
-                                {displayTasks.filter(t => taskFilter === 'all' || t.status === taskFilter).map(task => (
+                                {displayTasks.filter(tk => taskFilter === 'all' || tk.status === taskFilter).map(task => (
                                     <div key={task.id} className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 bg-gray-50 border border-gray-100 rounded-xl gap-3">
                                         <div>
                                             <h4 className={`font-bold ${task.status === 'completed' ? 'text-gray-500' : 'text-gray-800'}`}>{task.title}</h4>
-                                            <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                                                <Calendar size={14} /> {task.deadline}
-                                            </p>
+                                            <p className="text-sm text-gray-500 flex items-center gap-2 mt-1"><Calendar size={14} /> {task.deadline}</p>
                                         </div>
                                         <div className="flex items-center gap-3 self-end md:self-auto">
                                             {task.status === 'completed' && task.score !== undefined && task.score !== null && (
@@ -786,52 +808,41 @@ const StudentDashboard = () => {
                                         </div>
                                     </div>
                                 ))}
-                                {displayTasks.filter(t => taskFilter === 'all' || t.status === taskFilter).length === 0 && (
-                                    <div className="text-center py-8 text-gray-500">
-                                        Bu bo'limda vazifalar yo'q.
-                                    </div>
+                                {displayTasks.filter(tk => taskFilter === 'all' || tk.status === taskFilter).length === 0 && (
+                                    <div className="text-center py-8 text-gray-500">Bu bo'limda vazifalar yo'q.</div>
                                 )}
                             </div>
                         </div>
                     )}
+
+                    {activeTab === 'olympiad' && (
+                        <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+                            <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <Trophy size={40} className="text-white" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-gray-800 mb-2">Olimpiadalar</h2>
+                            <p className="text-gray-500 mb-2">Test, o'qish tezligi va aralash olimpiadalar</p>
+                            <p className="text-gray-400 text-sm mb-6">Olimpiadalarda qatnashish uchun maxsus platforma yaratilgan</p>
+                            <a
+                                href="https://olimp.alif24.uz"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl"
+                            >
+                                <Trophy size={20} /> Olimpiadaga o'tish
+                                <ChevronRight size={18} />
+                            </a>
+                            <p className="text-xs text-gray-400 mt-4">olimp.alif24.uz — alohida tezkor platforma</p>
+                        </div>
+                    )}
+
                     {activeTab === 'school' && (
                         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                             <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><School size={24} className="text-indigo-500" /> Maktabim</h2>
-                            {mySchool === undefined ? (
-                                <div className="text-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto" /></div>
-                            ) : mySchool === null ? (
-                                <div className="text-center py-8">
-                                    <School size={48} className="mx-auto mb-3 text-gray-300" />
-                                    <p className="text-gray-500">Hozircha biror maktabga biriktirilmagansiz</p>
-                                </div>
-                            ) : (
-                                <div>
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl">{mySchool.name?.charAt(0)}</div>
-                                        <div>
-                                            <h3 className="text-lg font-bold text-gray-800">{mySchool.name}</h3>
-                                            {mySchool.district && <p className="text-gray-500 text-sm">{mySchool.district}</p>}
-                                        </div>
-                                    </div>
-                                    {mySchool.address && <p className="text-gray-500 text-sm mb-4">{mySchool.address}</p>}
-                                    <div className="grid grid-cols-2 gap-3 mb-4">
-                                        <div className="bg-blue-50 rounded-xl p-4 text-center">
-                                            <div className="text-2xl font-bold text-blue-600">{mySchool.total_teachers || 0}</div>
-                                            <div className="text-xs text-gray-500 mt-1">O'qituvchilar</div>
-                                        </div>
-                                        <div className="bg-green-50 rounded-xl p-4 text-center">
-                                            <div className="text-2xl font-bold text-green-600">{mySchool.total_students || 0}</div>
-                                            <div className="text-xs text-gray-500 mt-1">O'quvchilar</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-wrap gap-3 text-sm text-gray-500">
-                                        {mySchool.phone && <span className="flex items-center gap-1"><Phone size={14} /> {mySchool.phone}</span>}
-                                        {mySchool.website && <a href={mySchool.website} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1"><Globe size={14} /> {mySchool.website}</a>}
-                                    </div>
-                                </div>
-                            )}
+                            {renderSchool()}
                         </div>
                     )}
+
                     {activeTab === 'achievements' && (
                         <div>
                             <div className="flex items-center justify-between mb-6">
