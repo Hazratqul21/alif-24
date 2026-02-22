@@ -432,7 +432,6 @@ async def update_direct_story(
     if data.audio_url is not None:
         story.audio_url = data.audio_url
     
-    story.updated_at = datetime.now(timezone.utc)
     await db.commit()
     
     return {"message": "Ertak yangilandi", "story_id": story_id}
@@ -1278,12 +1277,11 @@ async def update_content_by_key(
     content = result.scalar_one_or_none()
     
     if not content:
-        # Create if not exists
-        content = PlatformContent(key=key, value=str(value))
+        content = PlatformContent(key=key, value=value)
         db.add(content)
         message = "Kontent yaratildi"
     else:
-        content.value = str(value)
+        content.value = value
         content.updated_at = datetime.now(timezone.utc)
         message = "Kontent yangilandi"
     
@@ -1309,12 +1307,8 @@ async def list_platform_content(
     
     if search:
         search_filter = f"%{search}%"
-        search_cond = (
-            (PlatformContent.key.ilike(search_filter)) |
-            (PlatformContent.value.ilike(search_filter))
-        )
-        stmt = stmt.where(search_cond)
-        count_stmt = count_stmt.where(search_cond)
+        stmt = stmt.where(PlatformContent.key.ilike(search_filter))
+        count_stmt = count_stmt.where(PlatformContent.key.ilike(search_filter))
     
     total = (await db.execute(count_stmt)).scalar() or 0
     result = await db.execute(stmt.offset(offset).limit(limit))
@@ -1326,7 +1320,7 @@ async def list_platform_content(
             {
                 "id": item.id,
                 "key": item.key,
-                "value": item.value[:200] + "..." if len(item.value) > 200 else item.value,
+                "value": item.value,
                 "created_at": item.created_at.isoformat() if item.created_at else None,
                 "updated_at": item.updated_at.isoformat() if item.updated_at else None,
             }
@@ -1360,10 +1354,13 @@ async def get_platform_content(
     }
 
 
+class PlatformContentCreate(BaseModel):
+    key: str
+    value: Any
+
 @router.post("/platform-content")
 async def create_platform_content(
-    key: str,
-    value: str,
+    body: PlatformContentCreate,
     admin: Dict = Depends(verify_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1371,23 +1368,25 @@ async def create_platform_content(
     if not has_permission(admin, "content") and not has_permission(admin, "all"):
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
-    # Check if key already exists
-    existing = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
+    existing = await db.execute(select(PlatformContent).where(PlatformContent.key == body.key))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail=f"'{key}' kaliti allaqachon mavjud")
+        raise HTTPException(status_code=400, detail=f"'{body.key}' kaliti allaqachon mavjud")
     
-    content = PlatformContent(key=key, value=value)
+    content = PlatformContent(key=body.key, value=body.value)
     db.add(content)
     await db.commit()
     await db.refresh(content)
     
-    return {"message": "Kontent yaratildi", "key": key}
+    return {"message": "Kontent yaratildi", "key": body.key}
 
+
+class PlatformContentBody(BaseModel):
+    value: Any
 
 @router.put("/platform-content/{key}")
 async def update_platform_content(
     key: str,
-    value: str,
+    body: PlatformContentBody,
     admin: Dict = Depends(verify_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1399,12 +1398,11 @@ async def update_platform_content(
     content = result.scalar_one_or_none()
     
     if not content:
-        # Create if not exists
-        content = PlatformContent(key=key, value=value)
+        content = PlatformContent(key=key, value=body.value)
         db.add(content)
         message = "Kontent yaratildi"
     else:
-        content.value = value
+        content.value = body.value
         content.updated_at = datetime.now(timezone.utc)
         message = "Kontent yangilandi"
     
