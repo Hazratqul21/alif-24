@@ -35,7 +35,8 @@ from shared.database.models import (
     User, LiveQuiz, LiveQuizQuestion,
     LiveQuizParticipant, LiveQuizAnswer,
     AccountStatus, Olympiad, OlympiadParticipant,
-    OlympiadStatus, ParticipationStatus
+    OlympiadStatus, ParticipationStatus,
+    SavedTest, SavedTestStatus,
 )
 from shared.auth import verify_token
 import openai
@@ -359,58 +360,259 @@ async def get_student_results(
     return {"success": True, "data": result}
 
 
-# ============= AI Test Endpoints =============
+# ============= SavedTest Schemas =============
+
+class GenerateTestRequest(BaseModel):
+    subject: str
+    topic: str
+    difficulty: str = "medium"
+    question_count: int = 10
+    language: str = "uz"
+    save: bool = True
+    source_platform: Optional[str] = None
+
+class SaveTestRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+    subject: Optional[str] = None
+    topic: Optional[str] = None
+    difficulty: str = "medium"
+    language: str = "uz"
+    questions: list
+    ai_generated: str = "no"
+    source_platform: Optional[str] = None
+
+class UpdateTestRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    questions: Optional[list] = None
+    status: Optional[str] = None
+
+
+# ============= AI Test Generation =============
 
 @app.post("/api/v1/test/generate")
 async def generate_test(
-    subject: str,
-    topic: str,
-    difficulty: str = "medium",
-    question_count: int = 10,
-    db: AsyncSession = Depends(get_db)
+    data: GenerateTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Generate AI-powered test questions"""
+    """AI orqali test yaratish va DB ga saqlash"""
     if not settings.OPENAI_API_KEY:
-        raise HTTPException(503, "AI service not configured")
-    
+        raise HTTPException(503, "AI xizmati sozlanmagan (OpenAI kalit yo'q)")
+
     client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    
-    prompt = f"""
-    Create a {difficulty} level test for {subject} on topic "{topic}".
-    Generate {question_count} multiple-choice questions.
-    Return ONLY raw JSON in this format:
+
+    lang_map = {"uz": "o'zbek tilida", "ru": "на русском языке", "en": "in English"}
+    lang_text = lang_map.get(data.language, "o'zbek tilida")
+
+    prompt = f"""Mavzu: {data.subject} — {data.topic}
+Qiyinlik: {data.difficulty}
+Savollar soni: {data.question_count}
+Til: {lang_text}
+
+Yuqoridagi mavzu bo'yicha test savollarini yarat. Har bir savolda 4 ta variant bo'lsin.
+Faqat JSON formatda javob ber, boshqa hech narsa yozma:
+{{
+  "title": "Test sarlavhasi",
+  "questions": [
     {{
-        "questions": [
-            {{
-                "text": "Question text here",
-                "options": ["Option A", "Option B", "Option C", "Option D"],
-                "correct_index": 0,
-                "explanation": "Why A is correct"
-            }}
-        ]
+      "question": "Savol matni?",
+      "options": ["A variant", "B variant", "C variant", "D variant"],
+      "correct": 0,
+      "explanation": "Nima uchun shu javob to'g'ri"
     }}
-    """
-    
+  ]
+}}"""
+
     try:
         response = await client.chat.completions.create(
             model=settings.OPENAI_MODEL,
             messages=[
-                {"role": "system", "content": "You are a helpful education AI. Output valid JSON only."},
+                {"role": "system", "content": "Sen ta'lim sohasida mutaxassis AI san. Faqat valid JSON formatda javob ber."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"}
         )
-        
+
         content = response.choices[0].message.content
-        data = json.loads(content)
-        
+        ai_data = json.loads(content)
+        questions = ai_data.get("questions", [])
+        title = ai_data.get("title", f"{data.subject} — {data.topic}")
+
+        saved_test = None
+        if data.save:
+            saved_test = SavedTest(
+                creator_id=current_user.id,
+                title=title,
+                description=f"AI tomonidan yaratilgan: {data.subject} — {data.topic}",
+                subject=data.subject,
+                topic=data.topic,
+                difficulty=data.difficulty,
+                language=data.language,
+                questions=questions,
+                questions_count=len(questions),
+                ai_generated="openai",
+                status=SavedTestStatus.draft.value,
+                source_platform=data.source_platform,
+            )
+            db.add(saved_test)
+            await db.commit()
+            await db.refresh(saved_test)
+
         return {
             "success": True,
-            "data": data
+            "data": {
+                "id": saved_test.id if saved_test else None,
+                "title": title,
+                "questions": questions,
+                "questions_count": len(questions),
+            }
         }
+    except json.JSONDecodeError:
+        raise HTTPException(500, "AI javobini parse qilib bo'lmadi")
     except Exception as e:
         logger.error(f"AI Generation failed: {e}")
-        raise HTTPException(500, "AI generation failed")
+        raise HTTPException(500, f"AI xatolik: {str(e)}")
+
+
+# ============= SavedTest CRUD =============
+
+@app.post("/api/v1/test/save")
+async def save_test(
+    data: SaveTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Testni DB ga saqlash (qo'lda yaratilgan)"""
+    test = SavedTest(
+        creator_id=current_user.id,
+        title=data.title,
+        description=data.description,
+        subject=data.subject,
+        topic=data.topic,
+        difficulty=data.difficulty,
+        language=data.language,
+        questions=data.questions,
+        questions_count=len(data.questions),
+        ai_generated=data.ai_generated,
+        status=SavedTestStatus.draft.value,
+        source_platform=data.source_platform,
+    )
+    db.add(test)
+    await db.commit()
+    await db.refresh(test)
+
+    return {"success": True, "data": {"id": test.id, "title": test.title, "questions_count": test.questions_count}}
+
+
+@app.get("/api/v1/test/my-tests")
+async def get_my_tests(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mening testlarim ro'yxati"""
+    result = await db.execute(
+        select(SavedTest)
+        .where(SavedTest.creator_id == current_user.id)
+        .order_by(SavedTest.created_at.desc())
+    )
+    tests = result.scalars().all()
+
+    return {
+        "success": True,
+        "data": {
+            "tests": [{
+                "id": t.id,
+                "title": t.title,
+                "subject": t.subject,
+                "topic": t.topic,
+                "difficulty": t.difficulty,
+                "language": t.language,
+                "questions_count": t.questions_count,
+                "ai_generated": t.ai_generated,
+                "status": t.status,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            } for t in tests],
+            "total": len(tests),
+        }
+    }
+
+
+@app.get("/api/v1/test/{test_id}")
+async def get_test(
+    test_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test tafsilotlari (savollar bilan)"""
+    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
+    test = result.scalar_one_or_none()
+    if not test:
+        raise HTTPException(404, "Test topilmadi")
+
+    return {
+        "success": True,
+        "data": {
+            "id": test.id,
+            "title": test.title,
+            "description": test.description,
+            "subject": test.subject,
+            "topic": test.topic,
+            "difficulty": test.difficulty,
+            "language": test.language,
+            "questions": test.questions,
+            "questions_count": test.questions_count,
+            "ai_generated": test.ai_generated,
+            "status": test.status,
+            "creator_id": test.creator_id,
+            "created_at": test.created_at.isoformat() if test.created_at else None,
+        }
+    }
+
+
+@app.put("/api/v1/test/{test_id}")
+async def update_test(
+    test_id: str,
+    data: UpdateTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Testni yangilash"""
+    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id, SavedTest.creator_id == current_user.id))
+    test = result.scalar_one_or_none()
+    if not test:
+        raise HTTPException(404, "Test topilmadi yoki sizga tegishli emas")
+
+    if data.title is not None:
+        test.title = data.title
+    if data.description is not None:
+        test.description = data.description
+    if data.questions is not None:
+        test.questions = data.questions
+        test.questions_count = len(data.questions)
+    if data.status is not None:
+        test.status = data.status
+
+    await db.commit()
+    return {"success": True, "message": "Test yangilandi", "id": test_id}
+
+
+@app.delete("/api/v1/test/{test_id}")
+async def delete_test(
+    test_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Testni o'chirish"""
+    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id, SavedTest.creator_id == current_user.id))
+    test = result.scalar_one_or_none()
+    if not test:
+        raise HTTPException(404, "Test topilmadi")
+
+    await db.delete(test)
+    await db.commit()
+    return {"success": True, "message": "Test o'chirildi"}
 
 
 # ============= Olympiad Endpoints =============
