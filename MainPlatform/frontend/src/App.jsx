@@ -25,6 +25,7 @@ import TeachersPage from './pages/admin/TeachersPage';
 import DatabasePage from './pages/admin/DatabasePage';
 import ContentPage from './pages/admin/ContentPage';
 import TelegramPage from './pages/admin/TelegramPage';
+import OlympiadsPage from './pages/admin/OlympiadsPage';
 
 // Harf Components (Letter Learning)
 import Harf from './harf/Harf';
@@ -182,6 +183,7 @@ const AppRoutes = () => {
         <Route path="database" element={<DatabasePage />} />
         <Route path="content" element={<ContentPage />} />
         <Route path="telegram" element={<TelegramPage />} />
+        <Route path="olympiads" element={<OlympiadsPage />} />
       </Route>
 
       {/* Fallback - Redirect to home */}

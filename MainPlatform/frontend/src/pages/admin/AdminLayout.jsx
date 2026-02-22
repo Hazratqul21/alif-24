@@ -1,5 +1,5 @@
 import { Outlet, NavLink, Navigate, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, GraduationCap, Database, Send, BookOpen, LogOut, Shield, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, GraduationCap, Database, Send, BookOpen, LogOut, Shield, Menu, X, Trophy } from 'lucide-react';
 import { useState } from 'react';
 import adminService from '../../services/adminService';
 
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
     { path: '/admin/database', label: 'Database', icon: Database, perm: 'all' },
     { path: '/admin/content', label: 'Kontentlar', icon: BookOpen, perm: 'content' },
     { path: '/admin/telegram', label: 'Telegram', icon: Send, perm: 'telegram' },
+    { path: '/admin/olympiads', label: 'Olimpiadalar', icon: Trophy, perm: null },
 ];
 
 export default function AdminLayout() {
