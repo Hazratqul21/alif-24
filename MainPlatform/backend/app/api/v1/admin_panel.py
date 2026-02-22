@@ -83,6 +83,314 @@ def has_permission(admin: Dict, perm: str) -> bool:
 
 
 # ============================================================================
+# DIRECT CONTENT MANAGEMENT - bypass Lessions API
+# ============================================================================
+
+from shared.database.models.lesson import Lesson
+from shared.database.models.story import Story
+
+@router.get("/direct/lessons")
+async def list_direct_lessons(
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+    subject: Optional[str] = None,
+    language: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """List lessons directly from database (bypass Lessions API)"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    stmt = select(Lesson).order_by(Lesson.created_at.desc())
+    count_stmt = select(func.count(Lesson.id))
+    
+    if subject:
+        stmt = stmt.where(Lesson.subject == subject)
+        count_stmt = count_stmt.where(Lesson.subject == subject)
+    
+    if language:
+        stmt = stmt.where(Lesson.language == language)
+        count_stmt = count_stmt.where(Lesson.language == language)
+    
+    total = (await db.execute(count_stmt)).scalar() or 0
+    result = await db.execute(stmt.offset(offset).limit(limit))
+    lessons = result.scalars().all()
+    
+    return {
+        "total": total,
+        "lessons": [
+            {
+                "id": l.id,
+                "title": l.title,
+                "subject": l.subject,
+                "description": l.description,
+                "grade_level": l.grade_level,
+                "language": l.language,
+                "video_url": l.video_url,
+                "created_at": l.created_at.isoformat() if l.created_at else None,
+                "updated_at": l.updated_at.isoformat() if l.updated_at else None,
+            }
+            for l in lessons
+        ]
+    }
+
+
+@router.get("/direct/lessons/{lesson_id}")
+async def get_direct_lesson(
+    lesson_id: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get lesson details directly"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
+    lesson = result.scalar_one_or_none()
+    
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+    
+    return {
+        "id": lesson.id,
+        "title": lesson.title,
+        "subject": lesson.subject,
+        "description": lesson.description,
+        "content": lesson.content,
+        "grade_level": lesson.grade_level,
+        "language": lesson.language,
+        "video_url": lesson.video_url,
+        "created_at": lesson.created_at.isoformat() if lesson.created_at else None,
+        "updated_at": lesson.updated_at.isoformat() if lesson.updated_at else None,
+    }
+
+
+@router.post("/direct/lessons")
+async def create_direct_lesson(
+    data: LessonCreateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create lesson directly in database"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    lesson = Lesson(
+        title=data.title,
+        subject=data.subject,
+        description=data.description,
+        content=data.content,
+        grade_level=data.grade_level,
+        language=data.language,
+        video_url=data.video_url,
+    )
+    
+    db.add(lesson)
+    await db.commit()
+    await db.refresh(lesson)
+    
+    return {
+        "message": "Dars muvaffaqiyatli yaratildi",
+        "lesson_id": lesson.id,
+        "title": lesson.title,
+    }
+
+
+@router.put("/direct/lessons/{lesson_id}")
+async def update_direct_lesson(
+    lesson_id: str,
+    data: LessonUpdateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update lesson directly"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
+    lesson = result.scalar_one_or_none()
+    
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+    
+    if data.title is not None:
+        lesson.title = data.title
+    if data.subject is not None:
+        lesson.subject = data.subject
+    if data.description is not None:
+        lesson.description = data.description
+    if data.content is not None:
+        lesson.content = data.content
+    if data.grade_level is not None:
+        lesson.grade_level = data.grade_level
+    if data.language is not None:
+        lesson.language = data.language
+    if data.video_url is not None:
+        lesson.video_url = data.video_url
+    
+    lesson.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    
+    return {"message": "Dars yangilandi", "lesson_id": lesson_id}
+
+
+@router.delete("/direct/lessons/{lesson_id}")
+async def delete_direct_lesson(
+    lesson_id: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete lesson directly"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
+    lesson = result.scalar_one_or_none()
+    
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+    
+    await db.delete(lesson)
+    await db.commit()
+    
+    return {"message": "Dars o'chirildi", "lesson_id": lesson_id}
+
+
+# ============================================================================
+# DIRECT STORIES (ERTAKLAR) MANAGEMENT
+# ============================================================================
+
+@router.get("/direct/stories")
+async def list_direct_stories(
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+    language: Optional[str] = None,
+    age_group: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """List stories directly from database"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    stmt = select(Story).order_by(Story.created_at.desc())
+    count_stmt = select(func.count(Story.id))
+    
+    if language:
+        stmt = stmt.where(Story.language == language)
+        count_stmt = count_stmt.where(Story.language == language)
+    
+    if age_group:
+        stmt = stmt.where(Story.age_group == age_group)
+        count_stmt = count_stmt.where(Story.age_group == age_group)
+    
+    total = (await db.execute(count_stmt)).scalar() or 0
+    result = await db.execute(stmt.offset(offset).limit(limit))
+    stories = result.scalars().all()
+    
+    return {
+        "total": total,
+        "stories": [
+            {
+                "id": s.id,
+                "title": s.title,
+                "language": s.language,
+                "age_group": s.age_group,
+                "audio_url": s.audio_url,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+            }
+            for s in stories
+        ]
+    }
+
+
+@router.post("/direct/stories")
+async def create_direct_story(
+    data: StoryCreateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create story directly"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    story = Story(
+        title=data.title,
+        content=data.content,
+        language=data.language,
+        age_group=data.age_group,
+        audio_url=data.audio_url,
+    )
+    
+    db.add(story)
+    await db.commit()
+    await db.refresh(story)
+    
+    return {
+        "message": "Ertak muvaffaqiyatli yaratildi",
+        "story_id": story.id,
+        "title": story.title,
+    }
+
+
+@router.put("/direct/stories/{story_id}")
+async def update_direct_story(
+    story_id: str,
+    data: StoryUpdateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update story directly"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(Story).where(Story.id == story_id))
+    story = result.scalar_one_or_none()
+    
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+    
+    if data.title is not None:
+        story.title = data.title
+    if data.content is not None:
+        story.content = data.content
+    if data.language is not None:
+        story.language = data.language
+    if data.age_group is not None:
+        story.age_group = data.age_group
+    if data.audio_url is not None:
+        story.audio_url = data.audio_url
+    
+    story.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    
+    return {"message": "Ertak yangilandi", "story_id": story_id}
+
+
+@router.delete("/direct/stories/{story_id}")
+async def delete_direct_story(
+    story_id: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete story directly"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(Story).where(Story.id == story_id))
+    story = result.scalar_one_or_none()
+    
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+    
+    await db.delete(story)
+    await db.commit()
+    
+    return {"message": "Ertak o'chirildi", "story_id": story_id}
+
+
+# ============================================================================
 # SCHEMAS
 # ============================================================================
 
@@ -110,6 +418,38 @@ class TeacherApprovalRequest(BaseModel):
     teacher_id: str
     status: str = Field(..., pattern="^(approved|rejected|pending)$")
     comment: Optional[str] = None
+
+class LessonCreateRequest(BaseModel):
+    title: str
+    subject: Optional[str] = None
+    description: Optional[str] = None
+    content: Optional[str] = None
+    grade_level: Optional[int] = None
+    language: str = "uz"
+    video_url: Optional[str] = None
+    
+class LessonUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    subject: Optional[str] = None
+    description: Optional[str] = None
+    content: Optional[str] = None
+    grade_level: Optional[int] = None
+    language: Optional[str] = None
+    video_url: Optional[str] = None
+
+class StoryCreateRequest(BaseModel):
+    title: str
+    content: str
+    language: str = "uz"
+    age_group: Optional[str] = None
+    audio_url: Optional[str] = None
+    
+class StoryUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    language: Optional[str] = None
+    age_group: Optional[str] = None
+    audio_url: Optional[str] = None
 
 class StatsResponse(BaseModel):
     total_users: int
@@ -878,3 +1218,228 @@ async def admin_health():
         "roles": list(ADMIN_KEYS.keys()),
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+
+# ============================================================================
+# PLATFORM CONTENT MANAGEMENT - for admins to manage static content
+# ============================================================================
+
+from shared.database.models.platform_content import PlatformContent
+
+@router.get("/platform-content")
+async def list_platform_content(
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+    search: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """List all platform content (key-value pairs)"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    stmt = select(PlatformContent).order_by(PlatformContent.key)
+    count_stmt = select(func.count(PlatformContent.id))
+    
+    if search:
+        search_filter = f"%{search}%"
+        search_cond = (
+            (PlatformContent.key.ilike(search_filter)) |
+            (PlatformContent.value.ilike(search_filter))
+        )
+        stmt = stmt.where(search_cond)
+        count_stmt = count_stmt.where(search_cond)
+    
+    total = (await db.execute(count_stmt)).scalar() or 0
+    result = await db.execute(stmt.offset(offset).limit(limit))
+    items = result.scalars().all()
+    
+    return {
+        "total": total,
+        "items": [
+            {
+                "id": item.id,
+                "key": item.key,
+                "value": item.value[:200] + "..." if len(item.value) > 200 else item.value,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+                "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+            }
+            for item in items
+        ]
+    }
+
+
+@router.get("/platform-content/{key}")
+async def get_platform_content(
+    key: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get specific platform content by key"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
+    item = result.scalar_one_or_none()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Kontent topilmadi")
+    
+    return {
+        "id": item.id,
+        "key": item.key,
+        "value": item.value,
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+    }
+
+
+@router.post("/platform-content")
+async def create_platform_content(
+    key: str,
+    value: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create new platform content key-value pair"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    # Check if key already exists
+    existing = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"'{key}' kaliti allaqachon mavjud")
+    
+    content = PlatformContent(key=key, value=value)
+    db.add(content)
+    await db.commit()
+    await db.refresh(content)
+    
+    return {"message": "Kontent yaratildi", "key": key}
+
+
+@router.put("/platform-content/{key}")
+async def update_platform_content(
+    key: str,
+    value: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update platform content value"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
+    content = result.scalar_one_or_none()
+    
+    if not content:
+        # Create if not exists
+        content = PlatformContent(key=key, value=value)
+        db.add(content)
+        message = "Kontent yaratildi"
+    else:
+        content.value = value
+        content.updated_at = datetime.now(timezone.utc)
+        message = "Kontent yangilandi"
+    
+    await db.commit()
+    
+    return {"message": message, "key": key}
+
+
+@router.delete("/platform-content/{key}")
+async def delete_platform_content(
+    key: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete platform content"""
+    if not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Faqat super admin o'chira oladi")
+    
+    result = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
+    content = result.scalar_one_or_none()
+    
+    if not content:
+        raise HTTPException(status_code=404, detail="Kontent topilmadi")
+    
+    await db.delete(content)
+    await db.commit()
+    
+    return {"message": "Kontent o'chirildi", "key": key}
+
+
+# ============================================================================
+# UNIVERSAL CRUD - Super admin can edit any table directly
+# ============================================================================
+
+@router.post("/universal/{table_name}")
+async def universal_create(
+    table_name: str,
+    data: Dict[str, Any],
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Universal create endpoint for super admin"""
+    if not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Faqat super admin")
+    
+    try:
+        # Build INSERT statement dynamically
+        columns = list(data.keys())
+        values = list(data.values())
+        
+        col_names = ', '.join([f'"{c}"' for c in columns])
+        placeholders = ', '.join([f':val_{i}' for i in range(len(values))])
+        
+        params = {f"val_{i}": v for i, v in enumerate(values)}
+        
+        result = await db.execute(
+            text(f'INSERT INTO "{table_name}" ({col_names}) VALUES ({placeholders}) RETURNING id'),
+            params
+        )
+        new_id = result.scalar()
+        await db.commit()
+        
+        return {"message": "Yaratildi", "table": table_name, "id": new_id}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Xato: {str(e)}")
+
+
+# ============================================================================
+# ADMIN STATS & ANALYTICS
+# ============================================================================
+
+@router.get("/stats/daily")
+async def get_daily_stats(
+    days: int = Query(7, ge=1, le=30),
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get daily registration and activity stats"""
+    if not has_permission(admin, "all") and not has_permission(admin, "view"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    from datetime import timedelta
+    
+    stats = []
+    for i in range(days):
+        date = datetime.now(timezone.utc) - timedelta(days=i)
+        date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        # New users on this date
+        new_users = await db.scalar(
+            select(func.count(User.id)).where(
+                User.created_at >= date_start,
+                User.created_at <= date_end
+            )
+        ) or 0
+        
+        stats.append({
+            "date": date_start.strftime("%Y-%m-%d"),
+            "new_users": new_users,
+        })
+    
+    return {"stats": list(reversed(stats))}
