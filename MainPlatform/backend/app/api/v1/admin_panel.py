@@ -52,7 +52,7 @@ LESSIONS_API = os.getenv("LESSIONS_API_URL", "http://localhost:8006/api/v1")
 
 class AdminAuthError(HTTPException):
     def __init__(self):
-        super().__init__(status_code=403, detail="Admin authentication failed")
+        super().__init__(status_code=401, detail="Admin authentication failed")
 
 
 async def verify_admin(
