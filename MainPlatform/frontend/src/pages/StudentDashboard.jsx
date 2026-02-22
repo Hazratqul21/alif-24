@@ -7,6 +7,7 @@ import coinService from '../services/coinService';
 import { studentService } from '../services/studentService';
 import notificationService from '../services/notificationService';
 import organizationService from '../services/organizationService';
+import olympiadService from '../services/olympiadService';
 import {
     BookOpen, Trophy, Clock, Star, Play, CheckCircle, Search, Filter,
     TrendingUp, Award, Target, Calendar, MessageSquare, Users, Bell,
@@ -14,7 +15,7 @@ import {
     Video, Phone, Mail, MapPin, GraduationCap, FileText, BarChart3,
     ChevronRight, Plus, X, Eye, Lock, Globe, Palette, Moon, Sun,
     Image, Flag, Gift, Zap, Shield, HelpCircle, MessageCircle,
-    Home, Book, ClipboardList, Medal, School, Activity, TrendingDown, Bot, Coins, Flame, Languages, Laptop,
+    Home, Book, ClipboardList, Medal, School, Activity, TrendingDown, Bot, Coins, Flame, Languages, Laptop, Mic,
     School as SchoolIcon, UserPlus, LogIn
 } from 'lucide-react';
 
@@ -47,6 +48,19 @@ const StudentDashboard = () => {
     const [selectedTask, setSelectedTask] = useState(null);
     const [submissionContent, setSubmissionContent] = useState('');
     const [mySchool, setMySchool] = useState(undefined); // undefined=not loaded, null=no school
+    const [olympiads, setOlympiads] = useState([]);
+    const [olympiadsLoading, setOlympiadsLoading] = useState(false);
+    const [selectedOlympiad, setSelectedOlympiad] = useState(null);
+    const [olympiadQuestions, setOlympiadQuestions] = useState([]);
+    const [olympiadReadingTasks, setOlympiadReadingTasks] = useState([]);
+    const [olympiadAnswers, setOlympiadAnswers] = useState({});
+    const [olympiadStarted, setOlympiadStarted] = useState(false);
+    const [olympiadSubmitted, setOlympiadSubmitted] = useState(false);
+    const [olympiadResult, setOlympiadResult] = useState(null);
+    const [olympiadTimer, setOlympiadTimer] = useState(0);
+    const [isRecording, setIsRecording] = useState(false);
+    const [mediaRecorder, setMediaRecorder] = useState(null);
+    const [audioChunks, setAudioChunks] = useState([]);
 
     const fetchLMSData = async () => {
         try {
@@ -738,44 +752,6 @@ const StudentDashboard = () => {
                             </button>
                         </form>
                     </div>
-                </div>
-            )}
-
-            <div className="bg-[#f0f2f5] min-h-screen pt-4 pb-20 md:pb-4">
-                <div className="container mx-auto px-4">
-                    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 flex justify-around items-center">
-                        {['dashboard', 'classes', 'tasks', 'school', 'achievements'].map(tab => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-[64px] h-[56px] transition-all ${activeTab === tab ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
-                            >
-                                {tab === 'dashboard' && <Star size={22} />}
-                                {tab === 'classes' && <SchoolIcon size={22} />}
-                                {tab === 'tasks' && <CheckCircle size={22} />}
-                                {tab === 'school' && <School size={22} />}
-                                {tab === 'achievements' && <Trophy size={22} />}
-                                <span className="text-[10px] mt-1 font-medium">{tab === 'school' ? 'Maktabim' : t.tabs[tab]}</span>
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="hidden md:flex gap-2 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 w-fit">
-                        {['dashboard', 'classes', 'tasks', 'library', 'school', 'achievements'].map(tab => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`px-6 py-2.5 rounded-xl font-medium transition-all min-h-[44px] flex items-center justify-center ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-50'}`}
-                            >
-                                {tab === 'school' ? 'Maktabim' : t.tabs[tab]}
-                            </button>
-                        ))}
-                    </div>
-
-                    {activeTab === 'dashboard' && renderDashboard()}
-                    {activeTab === 'classes' && renderClasses()}
-                    {activeTab === 'library' && renderLibrary()}
-                    {activeTab === 'tasks' && (
                         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm">
                             <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                                 <h2 className="text-lg md:text-xl font-bold">Vazifalarim</h2>
