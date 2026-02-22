@@ -886,6 +886,23 @@ const StudentDashboard = () => {
                                 <ChevronRight size={18} />
                             </a>
                             <p className="text-xs text-gray-400 mt-4">olimp.alif24.uz — alohida tezkor platforma</p>
+
+                            <div className="mt-8 pt-6 border-t border-gray-100">
+                                <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                    <BookOpen size={32} className="text-white" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-800 mb-1">O'qish Musobaqasi</h3>
+                                <p className="text-gray-500 text-sm mb-4">Haftalik hikoyalar o'qish, savollar va reyting</p>
+                                <a
+                                    href="https://olim.alif24.uz/reading"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl"
+                                >
+                                    <BookOpen size={20} /> Musobaqaga o'tish
+                                    <ChevronRight size={18} />
+                                </a>
+                            </div>
                         </div>
                     )}
 

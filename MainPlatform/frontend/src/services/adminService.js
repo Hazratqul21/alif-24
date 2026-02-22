@@ -103,6 +103,24 @@ const adminService = {
         return axios.post(`${API_URL}/telegram/broadcast`, data, { headers: { 'X-Admin-Key': key } });
     },
 
+    // Reading Competition
+    getCompetitions: (params) => adminApi.get('/reading/competitions', { params }),
+    getCompetition: (id) => adminApi.get(`/reading/competitions/${id}`),
+    createCompetition: (data) => adminApi.post('/reading/competitions', data),
+    updateCompetition: (id, data) => adminApi.put(`/reading/competitions/${id}`, data),
+    deleteCompetition: (id) => adminApi.delete(`/reading/competitions/${id}`),
+    getCompetitionTasks: (compId) => adminApi.get(`/reading/competitions/${compId}/tasks`),
+    getCompetitionTask: (compId, taskId) => adminApi.get(`/reading/competitions/${compId}/tasks/${taskId}`),
+    createTask: (compId, data) => adminApi.post(`/reading/competitions/${compId}/tasks`, data),
+    updateTask: (compId, taskId, data) => adminApi.put(`/reading/competitions/${compId}/tasks/${taskId}`, data),
+    deleteTask: (compId, taskId) => adminApi.delete(`/reading/competitions/${compId}/tasks/${taskId}`),
+    getCompetitionTest: (compId) => adminApi.get(`/reading/competitions/${compId}/test`),
+    createOrUpdateTest: (compId, data) => adminApi.post(`/reading/competitions/${compId}/test`, data),
+    deleteCompetitionTest: (compId) => adminApi.delete(`/reading/competitions/${compId}/test`),
+    getCompetitionResults: (compId, params) => adminApi.get(`/reading/competitions/${compId}/results`, { params }),
+    getCompetitionSessions: (compId, params) => adminApi.get(`/reading/competitions/${compId}/sessions`, { params }),
+    getCompetitionStats: (compId) => adminApi.get(`/reading/competitions/${compId}/stats`),
+
     /**
      * Upload an assignment or content file (No size limit).
      * @param {File} file - The file to upload.

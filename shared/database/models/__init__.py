@@ -128,6 +128,19 @@ from shared.database.models.lesson import Lesson
 from shared.database.models.story import Story
 from shared.database.models.platform_content import PlatformContent
 
+# Reading Competition System
+from shared.database.models.reading_competition import (
+    ReadingCompetition,
+    ReadingTask,
+    CompetitionTest,
+    ReadingSession,
+    CompetitionResult,
+    CompetitionStatus,
+    TaskDay,
+    SessionStatus,
+    ResultGroup,
+)
+
 __all__ = [
     # User Models
     "User",
@@ -239,4 +252,15 @@ __all__ = [
 
     # Platform Content
     "PlatformContent",
+
+    # Reading Competition Models
+    "ReadingCompetition",
+    "ReadingTask",
+    "CompetitionTest",
+    "ReadingSession",
+    "CompetitionResult",
+    "CompetitionStatus",
+    "TaskDay",
+    "SessionStatus",
+    "ResultGroup",
 ]
