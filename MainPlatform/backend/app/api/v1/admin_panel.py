@@ -128,6 +128,7 @@ async def list_direct_lessons(
                 "grade_level": l.grade_level,
                 "language": l.language,
                 "video_url": l.video_url,
+                "attachments": l.attachments,
                 "created_at": l.created_at.isoformat() if l.created_at else None,
                 "updated_at": l.updated_at.isoformat() if l.updated_at else None,
             }
@@ -161,6 +162,7 @@ async def get_direct_lesson(
         "grade_level": lesson.grade_level,
         "language": lesson.language,
         "video_url": lesson.video_url,
+        "attachments": lesson.attachments,
         "created_at": lesson.created_at.isoformat() if lesson.created_at else None,
         "updated_at": lesson.updated_at.isoformat() if lesson.updated_at else None,
     }
@@ -184,6 +186,7 @@ async def create_direct_lesson(
         grade_level=data.grade_level,
         language=data.language,
         video_url=data.video_url,
+        attachments=data.attachments,
     )
     
     db.add(lesson)
@@ -228,6 +231,8 @@ async def update_direct_lesson(
         lesson.language = data.language
     if data.video_url is not None:
         lesson.video_url = data.video_url
+    if data.attachments is not None:
+        lesson.attachments = data.attachments
     
     lesson.updated_at = datetime.now(timezone.utc)
     await db.commit()
@@ -424,18 +429,20 @@ class LessonCreateRequest(BaseModel):
     subject: Optional[str] = None
     description: Optional[str] = None
     content: Optional[str] = None
-    grade_level: Optional[int] = None
+    grade_level: Optional[str] = None
     language: str = "uz"
     video_url: Optional[str] = None
+    attachments: Optional[Any] = None
     
 class LessonUpdateRequest(BaseModel):
     title: Optional[str] = None
     subject: Optional[str] = None
     description: Optional[str] = None
     content: Optional[str] = None
-    grade_level: Optional[int] = None
+    grade_level: Optional[str] = None
     language: Optional[str] = None
     video_url: Optional[str] = None
+    attachments: Optional[Any] = None
 
 class StoryCreateRequest(BaseModel):
     title: str
