@@ -42,11 +42,11 @@ const HomePage = () => {
   const games = [
     { id: 1, title: t.game_read, rating: 74, image: '/ertak.jpg', category: 'alifbe', type: 'lessons' },
     { id: 2, title: t.game_homework, rating: 67, image: '/uygavaz.jpg', category: 'math', type: 'lessons'},
-    { id: 3, title: 'Soʻzlovchi alifbe', rating: 76, image: '/alifbe.jpg', category: 'harflar', type: 'lessons' },
-     { id: 4, title: 'Talking letter', rating: 87, image: '/texno.jpg', category: 'letters', type: 'lessons' },
-    { id: 5, title: 'Говорящая буква', rating: 66, image: '/bukv.jpg', category: 'harflar', type: 'lessons'},
-    { id: 6, title: 'Xotira oʻyini', rating: 74, image: '/xotira.jpg', category: 'letters', type: 'games' },
-    { id: 7, title: t.game_calc, rating: 78, image: '/matem.jpg', category: 'math', type: 'games' },
+    { id: 3, title: t.game_uz_alphabet, rating: 76, image: '/alifbe.jpg', category: 'harflar', type: 'lessons' },
+    { id: 4, title: t.game_en_alphabet, rating: 87, image: '/texno.jpg', category: 'letters', type: 'lessons' },
+    { id: 5, title: t.game_ru_alphabet, rating: 66, image: '/bukv.jpg', category: 'harflar', type: 'lessons'},
+    { id: 6, title: t.game_memory_game, rating: 74, image: '/xotira.jpg', category: 'letters', type: 'games' },
+    { id: 7, title: t.game_math_monster, rating: 78, image: '/matem.jpg', category: 'math', type: 'games' },
    
      
     /*
@@ -390,7 +390,7 @@ const HomePage = () => {
             {filteredItems.length === 0 && (
               <div className="text-center py-16 text-white/60">
                 <div className="text-8xl mb-5 opacity-50 animate-bounce">🔍</div>
-                <p className="text-xl font-semibold">Hech narsa topilmadi</p>
+                <p className="text-xl font-semibold">{t.nothing_found}</p>
               </div>
             )}
           </div>

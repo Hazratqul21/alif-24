@@ -233,6 +233,35 @@ const StudentDashboard = () => {
                     it: 'IT'
                 }
             }
+        },
+        en: {
+            title: 'My Dashboard',
+            welcome: 'Hello',
+            tabs: {
+                dashboard: 'Home',
+                classes: 'My Classes',
+                profile: 'Profile',
+                academic: 'Academic',
+                tasks: 'Tasks',
+                grades: 'Grades',
+                messages: 'Messages',
+                library: 'Library',
+                achievements: 'Achievements',
+                events: 'Events',
+                help: 'Help'
+            },
+            stats: {
+                points: 'My Points',
+                streak: 'Streak'
+            },
+            library: {
+                filters: {
+                    all: 'All',
+                    science: 'Science',
+                    lang: 'Languages',
+                    it: 'IT'
+                }
+            }
         }
     };
 

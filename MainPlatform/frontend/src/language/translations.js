@@ -75,6 +75,12 @@ export const translations = {
     game_calc: "Hisobla",
     game_write: "Yoz",
     game_listen: "Tingla",
+    game_uz_alphabet: "Soʻzlovchi alifbe",
+    game_en_alphabet: "Ingliz alifbesi",
+    game_ru_alphabet: "Rus alifbesi",
+    game_memory_game: "Xotira oʻyini",
+    game_math_monster: "Matematika oʻyini",
+    nothing_found: "Hech narsa topilmadi",
 
     // Reading platform (ertak)
     reading_errorUpload: "Fayl yuklashda xato",
@@ -309,6 +315,12 @@ export const translations = {
     game_calc: "Посчитай",
     game_write: "Пиши",
     game_listen: "Слушай",
+    game_uz_alphabet: "Говорящий алфавит",
+    game_en_alphabet: "Английский алфавит",
+    game_ru_alphabet: "Русский алфавит",
+    game_memory_game: "Игра на память",
+    game_math_monster: "Математическая игра",
+    nothing_found: "Ничего не найдено",
 
     // Reading platform (ertak)
     reading_errorUpload: "Ошибка при загрузке файла.",
@@ -543,6 +555,12 @@ export const translations = {
     game_calc: "Calculate",
     game_write: "Write",
     game_listen: "Listen",
+    game_uz_alphabet: "Uzbek Alphabet",
+    game_en_alphabet: "English Alphabet",
+    game_ru_alphabet: "Russian Alphabet",
+    game_memory_game: "Memory Game",
+    game_math_monster: "Math Game",
+    nothing_found: "Nothing found",
 
     // Reading platform (ertak)
     reading_errorUpload: "Error uploading file.",

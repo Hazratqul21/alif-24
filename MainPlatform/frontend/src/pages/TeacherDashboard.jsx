@@ -15,7 +15,7 @@ import {
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(false);
@@ -54,13 +54,20 @@ const TeacherDashboard = () => {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiPromptText, setAiPromptText] = useState('');
 
+  const tabLabels = {
+    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', settings: 'Sozlamalar' },
+    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', settings: 'Настройки' },
+    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', settings: 'Settings' },
+  };
+  const tl = tabLabels[language] || tabLabels.uz;
+
   const tabs = [
-    { id: 'dashboard', label: 'Bosh sahifa', icon: BarChart3 },
-    { id: 'classes', label: 'Sinflarim', icon: GraduationCap },
-    { id: 'lessons', label: 'Darslar', icon: BookOpen },
-    { id: 'assignments', label: 'Vazifalar', icon: ClipboardList },
-    { id: 'livequiz', label: 'Live Quiz', icon: Zap },
-    { id: 'settings', label: 'Sozlamalar', icon: Settings },
+    { id: 'dashboard', label: tl.dashboard, icon: BarChart3 },
+    { id: 'classes', label: tl.classes, icon: GraduationCap },
+    { id: 'lessons', label: tl.lessons, icon: BookOpen },
+    { id: 'assignments', label: tl.assignments, icon: ClipboardList },
+    { id: 'livequiz', label: tl.livequiz, icon: Zap },
+    { id: 'settings', label: tl.settings, icon: Settings },
   ];
 
   const showNotif = (type, message) => {

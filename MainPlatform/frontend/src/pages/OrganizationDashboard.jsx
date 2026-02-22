@@ -12,24 +12,30 @@ import {
 
 const OrganizationDashboard = () => {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  const ol = {
+    uz: { dashboard: 'Bosh sahifa', teachers: "O'qituvchilar", students: "O'quvchilar", analytics: 'Tahlil', content: 'Kontent', settings: 'Sozlamalar', lessons: 'Darslar', activity: 'Faollik', quickActions: 'Tezkor harakatlar' },
+    ru: { dashboard: 'Главная', teachers: 'Учителя', students: 'Ученики', analytics: 'Аналитика', content: 'Контент', settings: 'Настройки', lessons: 'Уроки', activity: 'Активность', quickActions: 'Быстрые действия' },
+    en: { dashboard: 'Home', teachers: 'Teachers', students: 'Students', analytics: 'Analytics', content: 'Content', settings: 'Settings', lessons: 'Lessons', activity: 'Activity', quickActions: 'Quick Actions' },
+  }[language] || { dashboard: 'Bosh sahifa', teachers: "O'qituvchilar", students: "O'quvchilar", analytics: 'Tahlil', content: 'Kontent', settings: 'Sozlamalar', lessons: 'Darslar', activity: 'Faollik', quickActions: 'Tezkor harakatlar' };
+
   const tabs = [
-    { id: 'dashboard', label: 'Bosh sahifa', icon: BarChart3 },
-    { id: 'teachers', label: "O'qituvchilar", icon: Users },
-    { id: 'students', label: "O'quvchilar", icon: BookOpen },
-    { id: 'analytics', label: 'Tahlil', icon: PieChart },
-    { id: 'content', label: 'Kontent', icon: FileText },
-    { id: 'settings', label: 'Sozlamalar', icon: Settings },
+    { id: 'dashboard', label: ol.dashboard, icon: BarChart3 },
+    { id: 'teachers', label: ol.teachers, icon: Users },
+    { id: 'students', label: ol.students, icon: BookOpen },
+    { id: 'analytics', label: ol.analytics, icon: PieChart },
+    { id: 'content', label: ol.content, icon: FileText },
+    { id: 'settings', label: ol.settings, icon: Settings },
   ];
 
   const stats = [
-    { icon: Users, value: '156', label: "O'qituvchilar", color: 'from-blue-500 to-blue-600' },
-    { icon: BookOpen, value: '1,240', label: "O'quvchilar", color: 'from-green-500 to-green-600' },
-    { icon: FileText, value: '89', label: 'Darslar', color: 'from-purple-500 to-purple-600' },
-    { icon: TrendingUp, value: '94%', label: 'Faollik', color: 'from-amber-500 to-amber-600' },
+    { icon: Users, value: '156', label: ol.teachers, color: 'from-blue-500 to-blue-600' },
+    { icon: BookOpen, value: '1,240', label: ol.students, color: 'from-green-500 to-green-600' },
+    { icon: FileText, value: '89', label: ol.lessons, color: 'from-purple-500 to-purple-600' },
+    { icon: TrendingUp, value: '94%', label: ol.activity, color: 'from-amber-500 to-amber-600' },
   ];
 
   const pendingTeachers = [

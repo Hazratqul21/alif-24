@@ -196,6 +196,36 @@ const ParentDashboard = () => {
                 history: 'История платежей',
                 pay: 'Пополнить счет'
             }
+        },
+        en: {
+            title: 'Parent Dashboard',
+            welcome: 'Welcome',
+            tabs: {
+                dashboard: 'My Children',
+                payments: 'Payments',
+                notifications: 'Notifications',
+                settings: 'Settings'
+            },
+            children: {
+                add: 'Add Child',
+                viewReport: 'Full Report',
+                noChildren: 'No children added yet'
+            },
+            addModal: {
+                title: 'New Child Account',
+                firstName: 'First Name',
+                lastName: 'Last Name',
+                relationship: 'Who are you?',
+                submit: 'Create',
+                success: 'Account created!',
+                credentialsNote: 'Save these credentials. Your child will need them to log in:',
+                close: 'Close'
+            },
+            payments: {
+                balance: 'Current Balance',
+                history: 'Payment History',
+                pay: 'Top Up'
+            }
         }
     };
 
