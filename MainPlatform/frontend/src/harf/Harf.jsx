@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Star } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Star, ArrowLeft } from 'lucide-react';
 import "./Harf.css";
 import HarfModal from "./HarfModal";
 import Navbar from '../components/Common/Navbar';
@@ -191,7 +192,8 @@ const items = [
  
 ];
 
-export default function Harf({ onBack }) {
+export default function Harf() {
+  const navigate = useNavigate();
   const [selectedCard, setSelectedCard] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -290,6 +292,15 @@ export default function Harf({ onBack }) {
         ))}
       </div>
         <Navbar />
+        <div className="max-w-5xl mx-auto px-4 pt-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-white/60 hover:text-white mb-2 transition-colors bg-transparent border-none cursor-pointer text-sm"
+          >
+            <ArrowLeft size={18} />
+            <span>Ortga</span>
+          </button>
+        </div>
         <div className="harf-container">
     
         

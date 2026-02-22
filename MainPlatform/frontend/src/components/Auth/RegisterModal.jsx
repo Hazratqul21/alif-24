@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { authService } from '../../services/authService';
-import { Eye, EyeOff, Mail, Phone, User, Lock, Shield, GraduationCap, Users, BookOpen, Building, ArrowLeft, ArrowRight, Send, Calendar, MapPin, Briefcase, School, ChevronRight, Check } from 'lucide-react';
+import { Eye, EyeOff, Mail, Phone, User, Lock, Shield, GraduationCap, Users, BookOpen, Building, ArrowLeft, ArrowRight, Send, Calendar, MapPin, Briefcase, ChevronRight, Check } from 'lucide-react';
 
 const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
   const navigate = useNavigate();
@@ -26,7 +26,6 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
     // Step 2 fields
     date_of_birth: '',
     gender: '',
-    grade: '',
     school_name: '',
     specialty: '',
     experience_years: '',
@@ -66,11 +65,6 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
       icon: <Building className="w-5 h-5" />,
       description: "Maktab yoki o'quv markazi uchun"
     }
-  ];
-
-  const grades = [
-    '1-sinf', '2-sinf', '3-sinf', '4-sinf', '5-sinf',
-    '6-sinf', '7-sinf', '8-sinf', '9-sinf', '10-sinf', '11-sinf'
   ];
 
   const specialties = [
@@ -173,7 +167,6 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
     if (!submitData.phone || submitData.phone.trim() === '') delete submitData.phone;
     if (!submitData.date_of_birth) delete submitData.date_of_birth;
     if (!submitData.gender) delete submitData.gender;
-    if (!submitData.grade) delete submitData.grade;
     if (!submitData.school_name || !submitData.school_name.trim()) delete submitData.school_name;
     if (!submitData.specialty) delete submitData.specialty;
     if (!submitData.experience_years) delete submitData.experience_years;
@@ -546,20 +539,10 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
       {/* Student-specific fields */}
       {formData.role === 'student' && (
         <>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              <School className="w-3.5 h-3.5 inline mr-1" />
-              Sinf
-            </label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {grades.map(g => (
-                <label key={g} className={`flex items-center justify-center py-2 border rounded-lg cursor-pointer transition-all text-xs font-medium ${formData.grade === g ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                  }`}>
-                  <input type="radio" name="grade" value={g} checked={formData.grade === g} onChange={handleChange} className="sr-only" />
-                  {g}
-                </label>
-              ))}
-            </div>
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <p className="text-sm text-blue-700">
+              Ro'yxatdan o'tganingizdan keyin, o'qituvchi sizni sinfga taklif qiladi yoki siz kod orqali sinfga qo'shilasiz.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -791,7 +774,7 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
       <div className="bg-white rounded-2xl max-w-md w-full max-h-[92vh] overflow-y-auto shadow-2xl relative">
         <div className="p-6">
           {/* Header */}
