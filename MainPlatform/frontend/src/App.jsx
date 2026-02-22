@@ -28,14 +28,20 @@ import TelegramPage from './pages/admin/TelegramPage';
 import OlympiadsPage from './pages/admin/OlympiadsPage';
 import ReadingCompetitionPage from './pages/admin/ReadingCompetitionPage';
 
-// Harf Components (Letter Learning)
-import Harf from './harf/Harf';
-import Harfr from './rharf/Harfr';
-import Eharf from './eharf/Eharf';
-
-// Games
-import LetterMemoryGame from './lessiongames/LetterMemoryGame';
-import MathMonsterGame from './mathgames/MathMonsterGame';
+// Sub-platform redirect helper (Harf, Games, etc. now live on their own subdomains)
+const PlatformRedirect = ({ baseUrl, path = '' }) => {
+  const token = localStorage.getItem('accessToken');
+  const refresh = localStorage.getItem('refreshToken');
+  let url = `${baseUrl}${path}`;
+  if (token) {
+    const params = new URLSearchParams();
+    params.set('token', token);
+    if (refresh) params.set('refresh', refresh);
+    url += `?${params.toString()}`;
+  }
+  window.location.href = url;
+  return null;
+};
 
 // Components
 import DashboardLayout from './components/Dashboard/DashboardLayout';
@@ -160,14 +166,14 @@ const AppRoutes = () => {
         }
       />
 
-      {/* Harf - Letter Learning */}
-      <Route path="/harf" element={<Harf />} />
-      <Route path="/rharf" element={<Harfr />} />
-      <Route path="/eharf" element={<Eharf />} />
+      {/* Harf - Redirect to harf.alif24.uz */}
+      <Route path="/harf" element={<PlatformRedirect baseUrl="https://harf.alif24.uz" />} />
+      <Route path="/rharf" element={<PlatformRedirect baseUrl="https://harf.alif24.uz" path="/ru" />} />
+      <Route path="/eharf" element={<PlatformRedirect baseUrl="https://harf.alif24.uz" path="/en" />} />
 
-      {/* Games */}
-      <Route path="/games/letter-memory" element={<LetterMemoryGame />} />
-      <Route path="/games/math-monster" element={<MathMonsterGame />} />
+      {/* Games - Redirect to games.alif24.uz */}
+      <Route path="/games/letter-memory" element={<PlatformRedirect baseUrl="https://games.alif24.uz" path="/letter-memory" />} />
+      <Route path="/games/math-monster" element={<PlatformRedirect baseUrl="https://games.alif24.uz" path="/math-monster" />} />
 
       {/* Hidden Admin Entry Routes */}
       <Route path="/hazratqul" element={<AdminLogin defaultRole="hazratqul" />} />
