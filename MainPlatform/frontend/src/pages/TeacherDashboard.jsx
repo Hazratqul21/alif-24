@@ -607,6 +607,20 @@ const TeacherDashboard = () => {
                   {l.grade_level && <span>{l.grade_level}</span>}
                 </div>
                 {l.content && <p className="text-white/60 text-sm line-clamp-2 mb-3">{l.content}</p>}
+                {l.video_url && (
+                  <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm mb-2">
+                    <Play size={14} /> Video
+                  </a>
+                )}
+                {l.attachments && l.attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {l.attachments.map((att, i) => (
+                      <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white px-3 py-1.5 rounded-lg text-xs transition-colors">
+                        📎 {att.name || `Fayl ${i + 1}`}
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2 mt-2 pt-3 border-t border-white/10">
                 <button onClick={() => { if (confirm("O'chirishni xohlaysizmi?")) { teacherService.deleteLesson(l.id).then(() => { showNotif('success', "O'chirildi"); fetchLessons(); }) } }} className="text-white/30 hover:text-red-400 p-1 bg-transparent border-none cursor-pointer transition">
@@ -745,12 +759,8 @@ const TeacherDashboard = () => {
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb]" />
           <input type="text" placeholder="Fan (masalan: Matematika)" value={newClass.subject} onChange={e => setNewClass({ ...newClass, subject: e.target.value })}
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb]" />
-          <select value={newClass.grade_level} onChange={e => setNewClass({ ...newClass, grade_level: e.target.value })}
-            className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#4b30fb] appearance-none">
-            <option value="" className="bg-gray-800 text-white">Sinf darajasi</option>
-            {['1-sinf', '2-sinf', '3-sinf', '4-sinf', '5-sinf', '6-sinf', '7-sinf', '8-sinf', '9-sinf', '10-sinf', '11-sinf'].map(g =>
-              <option key={g} value={g} className="bg-gray-800 text-white">{g}</option>)}
-          </select>
+          <input type="text" placeholder="Sinf darajasi (masalan: 5-sinf, 9-A)" value={newClass.grade_level} onChange={e => setNewClass({ ...newClass, grade_level: e.target.value })}
+            className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb]" />
           <textarea placeholder="Tavsif (ixtiyoriy)" value={newClass.description} onChange={e => setNewClass({ ...newClass, description: e.target.value })}
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb] h-20 resize-none" />
           <button type="submit" disabled={loading} className="w-full bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white py-3 rounded-xl border-none cursor-pointer font-bold disabled:opacity-50">

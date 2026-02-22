@@ -24,7 +24,7 @@ export default function AdminLogin({ defaultRole = null }) {
         try {
             setLoading(true);
             setError('');
-            const { data } = await adminService.login(selectedRole, password);
+            const { data } = await adminService.login(selectedRole, password.trim());
 
             localStorage.setItem('adminRole', data.role);
             localStorage.setItem('adminKey', data.key);

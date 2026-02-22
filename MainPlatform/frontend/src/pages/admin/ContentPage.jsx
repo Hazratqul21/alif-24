@@ -13,7 +13,7 @@ export default function ContentPage() {
     const [platformContent, setPlatformContent] = useState({});
     const [rawJsonText, setRawJsonText] = useState('{}');
 
-    const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', difficulty: 'medium', duration_minutes: 30, language: 'uz' });
+    const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', difficulty: 'medium', duration_minutes: 30, language: 'uz', video_url: '' });
     const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
     const [uploadFile, setUploadFile] = useState(null);
 
@@ -169,13 +169,19 @@ export default function ContentPage() {
                                 <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0">
                                     <BookOpen className="w-5 h-5 text-blue-400" />
                                 </div>
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                     <h3 className="text-white font-medium truncate">{l.title}</h3>
                                     <div className="flex items-center gap-2 text-xs text-gray-500">
                                         <span>{l.subject}</span>
                                         {l.grade_level && <span>• {l.grade_level}</span>}
-                                        <span>• {l.difficulty}</span>
-                                        <span>• {l.duration_minutes} min</span>
+                                        {l.difficulty && <span>• {l.difficulty}</span>}
+                                        {l.duration_minutes && <span>• {l.duration_minutes} min</span>}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        {l.video_url && <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs">🎬 Video</a>}
+                                        {l.attachments && l.attachments.length > 0 && l.attachments.map((att, i) => (
+                                            <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-xs">📎 {att.name || `Fayl ${i+1}`}</a>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
@@ -271,16 +277,18 @@ export default function ContentPage() {
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
-                            <Input label="Sinf" value={lessonForm.grade_level} onChange={(v) => setLessonForm({ ...lessonForm, grade_level: v })} placeholder="5, 6, 7..." />
+                            <Input label="Sinf" value={lessonForm.grade_level} onChange={(v) => setLessonForm({ ...lessonForm, grade_level: v })} placeholder="5-sinf, 9-A, 11-B..." />
                             <Select label="Daraja" value={lessonForm.difficulty} options={['easy', 'medium', 'hard']} onChange={(v) => setLessonForm({ ...lessonForm, difficulty: v })} />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <Input label="Davomiyligi (min)" value={lessonForm.duration_minutes} onChange={(v) => setLessonForm({ ...lessonForm, duration_minutes: parseInt(v) || 30 })} type="number" />
                             <Select label="Til" value={lessonForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setLessonForm({ ...lessonForm, language: v })} />
                         </div>
+                        <Input label="Video URL (ixtiyoriy)" value={lessonForm.video_url} onChange={(v) => setLessonForm({ ...lessonForm, video_url: v })} placeholder="YouTube yoki Vimeo havola" />
                         <div>
                             <label className="text-gray-400 text-xs mb-1 block">Fayl / Material yuklash (Ixtiyoriy)</label>
                             <input type="file" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                            {uploadFile && <p className="text-gray-500 text-xs mt-1">{uploadFile.name} ({(uploadFile.size / 1024).toFixed(1)} KB)</p>}
                         </div>
                     </div>
                     {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
