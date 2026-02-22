@@ -336,8 +336,8 @@ const Navbar = () => {
         )}
       </header>
 
-      {/* Mobile Bottom Navbar */}
-      {isMobile && (
+      {/* Mobile Bottom Navbar — faqat HomePage da ko'rsatiladi, dashboard sahifalarida emas (ular o'z nav ini ishlatadi) */}
+      {isMobile && !location.pathname.includes('dashboard') && (
         <nav
           className="fixed bottom-0 left-0 right-0 bg-[#0f0f1a]/95 backdrop-blur-lg flex justify-around pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10 z-[1000] shadow-[0_-4px_20px_rgba(0,0,0,0.3)]"
         >
