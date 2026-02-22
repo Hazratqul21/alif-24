@@ -17,6 +17,13 @@ from shared.database.id_generator import generate_8_digit_id
 # ENUMS
 # ============================================================
 
+class OlympiadType(str, enum.Enum):
+    """Olympiad type"""
+    test = "test"             # Faqat test savollari
+    reading = "reading"       # Faqat o'qish tezligi
+    mixed = "mixed"           # Test + O'qish tezligi
+
+
 class OlympiadStatus(str, enum.Enum):
     """Olympiad status"""
     draft = "draft"           # Yaratilmoqda
@@ -62,9 +69,13 @@ class Olympiad(Base):
     description = Column(Text, nullable=True)
     subject = Column(SQLEnum(OlympiadSubject), default=OlympiadSubject.general)
     
+    # Tur
+    type = Column(SQLEnum(OlympiadType), default=OlympiadType.test)
+    
     # Yosh chegarasi
     min_age = Column(Integer, default=4)
     max_age = Column(Integer, default=7)
+    grade_level = Column(String(20), nullable=True)  # "1-sinf", "2-sinf", etc.
     
     # Vaqt
     registration_start = Column(DateTime(timezone=True), nullable=False)
@@ -90,6 +101,7 @@ class Olympiad(Base):
     creator = relationship("User", backref="created_olympiads", foreign_keys=[created_by])
     questions = relationship("OlympiadQuestion", back_populates="olympiad", cascade="all, delete-orphan")
     participants = relationship("OlympiadParticipant", back_populates="olympiad", cascade="all, delete-orphan")
+    reading_tasks = relationship("OlympiadReadingTask", back_populates="olympiad", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Olympiad {self.title} ({self.status.value})>"
@@ -198,7 +210,97 @@ class OlympiadAnswer(Base):
         return f"<OlympiadAnswer correct={self.is_correct}>"
 
 
+# ============================================================
+# OLYMPIAD READING TASK
+# ============================================================
+
+class OlympiadReadingTask(Base):
+    """
+    O'qish tezligi vazifasi — Admin matn yuklaydi,
+    o'quvchi o'qiydi, ovozi yoziladi, admin baholaydi.
+    """
+    __tablename__ = "olympiad_reading_tasks"
+    
+    id = Column(String(8), primary_key=True, default=generate_8_digit_id)
+    olympiad_id = Column(String(8), ForeignKey("olympiads.id"), nullable=False)
+    
+    # Matn
+    title = Column(String(300), nullable=False)  # "Hikoya: Kichkintoy va Quyosh"
+    text_content = Column(Text, nullable=False)   # O'qiladigan matn
+    word_count = Column(Integer, default=0)        # So'zlar soni (avtomatik)
+    difficulty = Column(String(20), default="medium")  # easy, medium, hard
+    order = Column(Integer, default=0)
+    
+    # Tushunish savollari (o'qib bo'lgandan keyin)
+    comprehension_questions = Column(JSON, nullable=True)
+    # Format: [{"question": "...", "options": ["A","B","C","D"], "correct": 0}]
+    
+    # Vaqt chegarasi
+    time_limit_seconds = Column(Integer, default=300)  # 5 daqiqa default
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    olympiad = relationship("Olympiad", back_populates="reading_tasks")
+    submissions = relationship("OlympiadReadingSubmission", back_populates="reading_task", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<OlympiadReadingTask {self.title} ({self.word_count} words)>"
+
+
+# ============================================================
+# OLYMPIAD READING SUBMISSION
+# ============================================================
+
+class OlympiadReadingSubmission(Base):
+    """
+    O'quvchining o'qish natijasi:
+    - Audio yozuv URL
+    - O'qish tezligi (WPM)
+    - Tushunish savollari natijalari
+    - Admin bahosi
+    """
+    __tablename__ = "olympiad_reading_submissions"
+    
+    id = Column(String(8), primary_key=True, default=generate_8_digit_id)
+    participant_id = Column(String(8), ForeignKey("olympiad_participants.id"), nullable=False)
+    reading_task_id = Column(String(8), ForeignKey("olympiad_reading_tasks.id"), nullable=False)
+    
+    # O'qish natijasi
+    audio_url = Column(String(500), nullable=True)   # Yozilgan audio fayl URL
+    reading_duration_seconds = Column(Integer, default=0)  # O'qishga sarflangan vaqt
+    words_per_minute = Column(Float, default=0.0)    # So'z/daqiqa (WPM)
+    
+    # Tushunish savollari natijalari
+    comprehension_answers = Column(JSON, nullable=True)
+    comprehension_score = Column(Integer, default=0)  # To'g'ri javoblar soni
+    comprehension_total = Column(Integer, default=0)  # Jami savollar
+    
+    # Admin baholash
+    admin_pronunciation_score = Column(Integer, nullable=True)   # Talaffuz (0-10)
+    admin_fluency_score = Column(Integer, nullable=True)         # Ravonlik (0-10)
+    admin_accuracy_score = Column(Integer, nullable=True)        # Aniqlik (0-10)
+    admin_total_score = Column(Integer, nullable=True)           # Umumiy (0-30)
+    admin_notes = Column(Text, nullable=True)                    # Admin izohi
+    graded_by = Column(String(8), ForeignKey("users.id"), nullable=True)
+    graded_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Hisoblangan umumiy ball (test + o'qish + admin)
+    total_points = Column(Integer, default=0)
+    
+    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    participant = relationship("OlympiadParticipant", backref="reading_submissions")
+    reading_task = relationship("OlympiadReadingTask", back_populates="submissions")
+    grader = relationship("User", foreign_keys=[graded_by])
+    
+    def __repr__(self):
+        return f"<OlympiadReadingSubmission wpm={self.words_per_minute}>"
+
+
 __all__ = [
+    "OlympiadType",
     "OlympiadStatus",
     "OlympiadSubject",
     "ParticipationStatus",
@@ -206,4 +308,6 @@ __all__ = [
     "OlympiadQuestion",
     "OlympiadParticipant",
     "OlympiadAnswer",
+    "OlympiadReadingTask",
+    "OlympiadReadingSubmission",
 ]

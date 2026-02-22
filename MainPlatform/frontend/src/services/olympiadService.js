@@ -1,72 +1,52 @@
+/**
+ * Olympiad Service
+ * Olimpiada tizimi uchun barcha API chaqiruvlari
+ * Backend: /api/v1/olympiads/...
+ */
 import apiService from './apiService';
 
-class OlympiadService {
-  // Public
-  async getUpcoming() {
-    const res = await apiService.get('/olympiad/list');
-    return res.data || res;
-  }
+const olympiadService = {
+    // ==================== ADMIN: Olympiad CRUD ====================
+    createOlympiad: (data) => apiService.post('/olympiads', data),
+    listOlympiads: (params = {}) => apiService.get('/olympiads', params),
+    getOlympiad: (id) => apiService.get(`/olympiads/${id}`),
+    updateOlympiad: (id, data) => apiService.put(`/olympiads/${id}`, data),
+    deleteOlympiad: (id) => apiService.delete(`/olympiads/${id}`),
 
-  // Student
-  async register(olympiadId) {
-    const res = await apiService.post(`/olympiad/${olympiadId}/register`);
-    return res.data || res;
-  }
+    // ==================== ADMIN: Questions ====================
+    addQuestion: (olympiadId, data) => apiService.post(`/olympiads/${olympiadId}/questions`, data),
+    listQuestions: (olympiadId) => apiService.get(`/olympiads/${olympiadId}/questions`),
+    deleteQuestion: (olympiadId, questionId) => apiService.delete(`/olympiads/${olympiadId}/questions/${questionId}`),
 
-  async begin(olympiadId) {
-    const res = await apiService.post(`/olympiad/${olympiadId}/begin`);
-    return res.data || res;
-  }
+    // ==================== ADMIN: Reading Tasks ====================
+    addReadingTask: (olympiadId, data) => apiService.post(`/olympiads/${olympiadId}/reading-tasks`, data),
+    listReadingTasks: (olympiadId) => apiService.get(`/olympiads/${olympiadId}/reading-tasks`),
+    deleteReadingTask: (olympiadId, taskId) => apiService.delete(`/olympiads/${olympiadId}/reading-tasks/${taskId}`),
 
-  async submitAnswer(olympiadId, questionId, selectedAnswer) {
-    const res = await apiService.post(`/olympiad/${olympiadId}/answer`, {
-      question_id: questionId,
-      selected_answer: selectedAnswer
-    });
-    return res.data || res;
-  }
+    // ==================== STUDENT: Participation ====================
+    register: (olympiadId) => apiService.post(`/olympiads/${olympiadId}/register`),
+    start: (olympiadId) => apiService.post(`/olympiads/${olympiadId}/start`),
+    submitTest: (olympiadId, answers) => apiService.post(`/olympiads/${olympiadId}/submit-test`, { answers }),
+    submitReading: (olympiadId, data) => apiService.post(`/olympiads/${olympiadId}/submit-reading`, data),
+    complete: (olympiadId) => apiService.post(`/olympiads/${olympiadId}/complete`),
+    getMyResult: (olympiadId) => apiService.get(`/olympiads/${olympiadId}/my-result`),
 
-  async complete(olympiadId) {
-    const res = await apiService.post(`/olympiad/${olympiadId}/complete`);
-    return res.data || res;
-  }
+    // ==================== Leaderboard ====================
+    getLeaderboard: (olympiadId, limit = 50) => apiService.get(`/olympiads/${olympiadId}/leaderboard`, { limit }),
 
-  async getResults(olympiadId) {
-    const res = await apiService.get(`/olympiad/${olympiadId}/results`);
-    return res.data || res;
-  }
+    // ==================== ADMIN: Monitoring & Grading ====================
+    getParticipants: (olympiadId, params = {}) => apiService.get(`/olympiads/${olympiadId}/participants`, params),
+    getReadingSubmissions: (olympiadId, ungradedOnly = false) =>
+        apiService.get(`/olympiads/${olympiadId}/reading-submissions`, { ungraded_only: ungradedOnly }),
+    gradeReading: (submissionId, data) => apiService.post(`/olympiads/reading-submissions/${submissionId}/grade`, data),
+    getOlympiadStats: (olympiadId) => apiService.get(`/olympiads/${olympiadId}/stats`),
 
-  async getMyHistory() {
-    const res = await apiService.get('/olympiad/my-history');
-    return res.data || res;
-  }
+    // ==================== Audio Upload ====================
+    uploadAudio: async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return apiService.post('/olympiads/upload-audio', formData);
+    },
+};
 
-  // Moderator
-  async create(data) {
-    const res = await apiService.post('/olympiad/create', data);
-    return res.data || res;
-  }
-
-  async addQuestions(olympiadId, questions) {
-    const res = await apiService.post(`/olympiad/${olympiadId}/questions`, { questions });
-    return res.data || res;
-  }
-
-  async publish(olympiadId) {
-    const res = await apiService.post(`/olympiad/${olympiadId}/publish`);
-    return res.data || res;
-  }
-
-  async start(olympiadId) {
-    const res = await apiService.post(`/olympiad/${olympiadId}/start`);
-    return res.data || res;
-  }
-
-  async finish(olympiadId) {
-    const res = await apiService.post(`/olympiad/${olympiadId}/finish`);
-    return res.data || res;
-  }
-}
-
-export const olympiadService = new OlympiadService();
 export default olympiadService;

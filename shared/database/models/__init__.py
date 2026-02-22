@@ -51,6 +51,7 @@ from shared.database.models.live_quiz import (
 
 # Olympiad System
 from shared.database.models.olympiad import (
+    OlympiadType,
     OlympiadStatus,
     OlympiadSubject,
     ParticipationStatus,
@@ -58,6 +59,8 @@ from shared.database.models.olympiad import (
     OlympiadQuestion,
     OlympiadParticipant,
     OlympiadAnswer,
+    OlympiadReadingTask,
+    OlympiadReadingSubmission,
 )
 
 # Game System
@@ -169,6 +172,7 @@ __all__ = [
     "LiveQuizAnswer",
     
     # Olympiad Models
+    "OlympiadType",
     "OlympiadStatus",
     "OlympiadSubject",
     "ParticipationStatus",
@@ -176,6 +180,8 @@ __all__ = [
     "OlympiadQuestion",
     "OlympiadParticipant",
     "OlympiadAnswer",
+    "OlympiadReadingTask",
+    "OlympiadReadingSubmission",
     
     # Game Models
     "GameType",
