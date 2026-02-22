@@ -73,10 +73,17 @@ export default function UsersPage() {
         }
     };
 
+    const canDelete = adminService.hasPermission('all');
+
     const handleDelete = async (id) => {
-        if (!confirm("Rostdan o'chirmoqchimisiz?")) return;
+        if (!canDelete) {
+            alert("Foydalanuvchini o'chirish faqat super admin uchun!");
+            return;
+        }
+        if (!confirm("Rostdan o'chirmoqchimisiz? Telegram ham uziladi.")) return;
         try {
-            await adminService.deleteUser(id);
+            const { data } = await adminService.deleteUser(id);
+            alert(data.message || "Foydalanuvchi o'chirildi");
             loadUsers();
         } catch (err) {
             alert(err.response?.data?.detail || 'Xatolik');
@@ -179,7 +186,7 @@ export default function UsersPage() {
                                         <div className="flex items-center justify-end gap-1">
                                             <button onClick={() => viewDetail(u.id)} className="p-1.5 text-gray-500 hover:text-blue-400 transition-colors"><Eye className="w-4 h-4" /></button>
                                             <button onClick={() => setEditModal({ ...u })} className="p-1.5 text-gray-500 hover:text-emerald-400 transition-colors"><Pencil className="w-4 h-4" /></button>
-                                            <button onClick={() => handleDelete(u.id)} className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                            {canDelete && <button onClick={() => handleDelete(u.id)} className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>}
                                         </div>
                                     </td>
                                 </tr>

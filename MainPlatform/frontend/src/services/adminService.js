@@ -28,14 +28,16 @@ adminApi.interceptors.request.use((config) => {
     return config;
 });
 
-// Handle auth errors
+// Handle auth errors - only logout on 401 (invalid credentials)
+// 403 = permission denied (don't logout, just show error)
 adminApi.interceptors.response.use(
     (res) => res,
     (err) => {
-        if (err.response?.status === 403) {
+        if (err.response?.status === 401) {
             localStorage.removeItem('adminRole');
             localStorage.removeItem('adminKey');
-            window.location.href = '/admin';
+            localStorage.removeItem('adminPermissions');
+            window.location.href = '/admin/login';
         }
         return Promise.reject(err);
     }
