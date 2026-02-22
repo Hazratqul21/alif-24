@@ -124,7 +124,6 @@ async def list_direct_lessons(
                 "id": l.id,
                 "title": l.title,
                 "subject": l.subject,
-                "description": l.description,
                 "grade_level": l.grade_level,
                 "language": l.language,
                 "video_url": l.video_url,
@@ -157,7 +156,6 @@ async def get_direct_lesson(
         "id": lesson.id,
         "title": lesson.title,
         "subject": lesson.subject,
-        "description": lesson.description,
         "content": lesson.content,
         "grade_level": lesson.grade_level,
         "language": lesson.language,
@@ -181,7 +179,6 @@ async def create_direct_lesson(
     lesson = Lesson(
         title=data.title,
         subject=data.subject,
-        description=data.description,
         content=data.content,
         grade_level=data.grade_level,
         language=data.language,
@@ -221,8 +218,6 @@ async def update_direct_lesson(
         lesson.title = data.title
     if data.subject is not None:
         lesson.subject = data.subject
-    if data.description is not None:
-        lesson.description = data.description
     if data.content is not None:
         lesson.content = data.content
     if data.grade_level is not None:
@@ -427,7 +422,6 @@ class TeacherApprovalRequest(BaseModel):
 class LessonCreateRequest(BaseModel):
     title: str
     subject: Optional[str] = None
-    description: Optional[str] = None
     content: Optional[str] = None
     grade_level: Optional[str] = None
     language: str = "uz"
@@ -437,7 +431,6 @@ class LessonCreateRequest(BaseModel):
 class LessonUpdateRequest(BaseModel):
     title: Optional[str] = None
     subject: Optional[str] = None
-    description: Optional[str] = None
     content: Optional[str] = None
     grade_level: Optional[str] = None
     language: Optional[str] = None
