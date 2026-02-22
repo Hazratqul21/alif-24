@@ -606,34 +606,123 @@ async def get_leaderboard(
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ):
-    """Leaderboard — 4 guruh bo'yicha (login shart emas)"""
-    stmt = (
+    """
+    Leaderboard — 4 guruh bo'yicha (login shart emas)
+    
+    Guruhlar:
+    1. fast_reader — matnni 90+% to'liq va TEZ o'qiydiganlar (eng tez → sekin)
+    2. accurate_reader — matnni 90+% to'liq o'qib, savollarga TO'LIQ to'g'ri javob berganlar (to'liqlik bo'yicha)
+    3. test_master — shanba testini eng yaxshi ishlaganlar (test bali bo'yicha)
+    4. champion (default) — hammasidan eng ko'p umumiy bal olganlar
+    """
+    base_stmt = (
         select(CompetitionResult, User)
         .join(User, CompetitionResult.student_id == User.id)
         .where(CompetitionResult.competition_id == comp_id)
     )
 
     if group == "fast_reader":
-        stmt = stmt.order_by(CompetitionResult.total_reading_score.desc())
+        # 90%+ o'qigan, eng tez o'qigan tartibda
+        # total_reading_score da speed ham hisobga olingan, lekin aniqroq qilish uchun
+        # reading sessionlardan avg score_time ni ishlatamiz
+        stmt = (
+            base_stmt
+            .where(CompetitionResult.total_reading_score >= 75)  # reading score 75+ (90% completion * scoring = ~75+)
+            .order_by(CompetitionResult.total_reading_score.desc())
+        )
     elif group == "accurate_reader":
-        stmt = stmt.order_by(CompetitionResult.total_reading_score.desc())
+        # 90%+ o'qigan + savollarga to'g'ri javob berganlar
+        stmt = (
+            base_stmt
+            .where(CompetitionResult.total_reading_score >= 75)
+            .order_by(CompetitionResult.total_reading_score.desc())
+        )
     elif group == "test_master":
-        stmt = stmt.order_by(CompetitionResult.test_score.desc())
+        # Test natijasi bo'yicha saralash
+        stmt = (
+            base_stmt
+            .where(CompetitionResult.test_score > 0)
+            .order_by(CompetitionResult.test_score.desc(), CompetitionResult.total_score.desc())
+        )
     else:
-        stmt = stmt.order_by(CompetitionResult.total_score.desc())
+        # Umumiy eng ko'p bal
+        stmt = base_stmt.order_by(CompetitionResult.total_score.desc())
 
     result = await db.execute(stmt.limit(limit))
     rows = result.all()
 
+    # Guruhga qarab qo'shimcha ma'lumot va aniq saralash
     items = []
-    for i, (cr, user) in enumerate(rows, 1):
-        items.append({
-            "rank": i,
-            "student_name": f"{user.first_name} {user.last_name}",
-            "total_reading_score": cr.total_reading_score,
-            "test_score": cr.test_score,
-            "total_score": cr.total_score,
-            "group": cr.group.value if cr.group else None,
-        })
+    if group == "fast_reader":
+        # Sessionlardan tezlik ma'lumotini olish
+        for i, (cr, user) in enumerate(rows, 1):
+            # O'rtacha reading time ni hisoblash
+            sessions_res = await db.execute(
+                select(ReadingSession).where(
+                    ReadingSession.student_id == cr.student_id,
+                    ReadingSession.competition_id == comp_id,
+                    ReadingSession.status == SessionStatus.completed,
+                    ReadingSession.completion_percentage >= 90,
+                )
+            )
+            sessions = sessions_res.scalars().all()
+            avg_time = sum(s.reading_time_seconds or 0 for s in sessions) / max(len(sessions), 1)
+            avg_completion = sum(s.completion_percentage or 0 for s in sessions) / max(len(sessions), 1)
+            total_words = sum(s.words_read or 0 for s in sessions)
+
+            items.append({
+                "rank": i,
+                "student_name": f"{user.first_name} {user.last_name}",
+                "avg_completion": round(avg_completion, 1),
+                "avg_reading_time": round(avg_time, 1),
+                "total_words_read": total_words,
+                "total_reading_score": cr.total_reading_score,
+                "total_score": cr.total_score,
+                "group": "fast_reader",
+            })
+        # Eng tez o'qiganlari birinchi
+        items.sort(key=lambda x: x["avg_reading_time"] if x["avg_reading_time"] > 0 else 9999)
+        for i, item in enumerate(items, 1):
+            item["rank"] = i
+
+    elif group == "accurate_reader":
+        for i, (cr, user) in enumerate(rows, 1):
+            sessions_res = await db.execute(
+                select(ReadingSession).where(
+                    ReadingSession.student_id == cr.student_id,
+                    ReadingSession.competition_id == comp_id,
+                    ReadingSession.status == SessionStatus.completed,
+                )
+            )
+            sessions = sessions_res.scalars().all()
+            avg_completion = sum(s.completion_percentage or 0 for s in sessions) / max(len(sessions), 1)
+            total_correct = sum(s.questions_correct or 0 for s in sessions)
+            total_questions = sum(s.questions_total or 0 for s in sessions)
+
+            items.append({
+                "rank": i,
+                "student_name": f"{user.first_name} {user.last_name}",
+                "avg_completion": round(avg_completion, 1),
+                "questions_correct": total_correct,
+                "questions_total": total_questions,
+                "total_reading_score": cr.total_reading_score,
+                "total_score": cr.total_score,
+                "group": "accurate_reader",
+            })
+        # Savollarga to'g'ri javob berganlari + to'liq o'qiganlari birinchi
+        items.sort(key=lambda x: (-x["questions_correct"], -x["avg_completion"]))
+        for i, item in enumerate(items, 1):
+            item["rank"] = i
+
+    else:
+        for i, (cr, user) in enumerate(rows, 1):
+            items.append({
+                "rank": i,
+                "student_name": f"{user.first_name} {user.last_name}",
+                "total_reading_score": cr.total_reading_score,
+                "test_score": cr.test_score,
+                "total_score": cr.total_score,
+                "group": cr.group.value if cr.group else group or "champion",
+            })
 
     return {"success": True, "leaderboard": items, "total": len(items)}

@@ -20,6 +20,7 @@ export default function ReadingHome() {
     const [results, setResults] = useState(null);
     const [leaderboard, setLeaderboard] = useState([]);
     const [activeTab, setActiveTab] = useState('tasks'); // tasks | results | leaderboard
+    const [leaderboardGroup, setLeaderboardGroup] = useState('champion'); // fast_reader | accurate_reader | test_master | champion
 
     const hasToken = !!localStorage.getItem('accessToken');
 
@@ -68,10 +69,10 @@ export default function ReadingHome() {
         } catch { }
     };
 
-    const loadLeaderboard = async () => {
+    const loadLeaderboard = async (group) => {
         if (!selectedComp) return;
         try {
-            const data = await readingService.getLeaderboard(selectedComp.id);
+            const data = await readingService.getLeaderboard(selectedComp.id, { group: group || leaderboardGroup });
             setLeaderboard(data.leaderboard || []);
         } catch { }
     };
@@ -285,6 +286,26 @@ export default function ReadingHome() {
                         {/* Leaderboard */}
                         {activeTab === 'leaderboard' && (
                             <div>
+                                {/* 4 guruh tanlash */}
+                                <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                                    {[
+                                        { key: 'champion', label: 'Umumiy reyting', icon: '🏆', desc: 'Eng ko\'p bal' },
+                                        { key: 'fast_reader', label: 'Tez o\'quvchilar', icon: '⚡', desc: '90%+ to\'liq, tez' },
+                                        { key: 'accurate_reader', label: 'Aniq o\'quvchilar', icon: '🎯', desc: '90%+ to\'liq, to\'g\'ri javob' },
+                                        { key: 'test_master', label: 'Test ustasi', icon: '📝', desc: 'Test natijasi' },
+                                    ].map(g => (
+                                        <button key={g.key}
+                                            onClick={() => { setLeaderboardGroup(g.key); loadLeaderboard(g.key); }}
+                                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm whitespace-nowrap transition-all flex-shrink-0 ${leaderboardGroup === g.key
+                                                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                                                : 'bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-800'
+                                            }`}>
+                                            <span>{g.icon}</span>
+                                            <span className="font-medium">{g.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
                                 {leaderboard.length > 0 ? (
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-sm">
@@ -292,9 +313,24 @@ export default function ReadingHome() {
                                                 <tr className="text-gray-500 border-b border-gray-800">
                                                     <th className="text-left py-3 px-3">#</th>
                                                     <th className="text-left py-3 px-3">Ism</th>
-                                                    <th className="text-center py-3 px-3">O'qish</th>
-                                                    <th className="text-center py-3 px-3">Test</th>
-                                                    <th className="text-center py-3 px-3">Jami</th>
+                                                    {leaderboardGroup === 'fast_reader' && <>
+                                                        <th className="text-center py-3 px-3">To'liqlik</th>
+                                                        <th className="text-center py-3 px-3">Vaqt (sek)</th>
+                                                        <th className="text-center py-3 px-3">So'zlar</th>
+                                                    </>}
+                                                    {leaderboardGroup === 'accurate_reader' && <>
+                                                        <th className="text-center py-3 px-3">To'liqlik</th>
+                                                        <th className="text-center py-3 px-3">To'g'ri javoblar</th>
+                                                    </>}
+                                                    {leaderboardGroup === 'test_master' && <>
+                                                        <th className="text-center py-3 px-3">Test</th>
+                                                        <th className="text-center py-3 px-3">Jami</th>
+                                                    </>}
+                                                    {leaderboardGroup === 'champion' && <>
+                                                        <th className="text-center py-3 px-3">O'qish</th>
+                                                        <th className="text-center py-3 px-3">Test</th>
+                                                        <th className="text-center py-3 px-3">Jami</th>
+                                                    </>}
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -304,9 +340,24 @@ export default function ReadingHome() {
                                                             {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : <span className="text-gray-500">{r.rank}</span>}
                                                         </td>
                                                         <td className="py-3 px-3 text-white font-medium">{r.student_name}</td>
-                                                        <td className="py-3 px-3 text-center text-emerald-400">{r.total_reading_score?.toFixed(0)}</td>
-                                                        <td className="py-3 px-3 text-center text-blue-400">{r.test_score?.toFixed(0)}</td>
-                                                        <td className="py-3 px-3 text-center text-amber-400 font-bold">{r.total_score?.toFixed(0)}</td>
+                                                        {leaderboardGroup === 'fast_reader' && <>
+                                                            <td className="py-3 px-3 text-center text-emerald-400">{r.avg_completion?.toFixed(0)}%</td>
+                                                            <td className="py-3 px-3 text-center text-blue-400">{r.avg_reading_time?.toFixed(1)}s</td>
+                                                            <td className="py-3 px-3 text-center text-gray-400">{r.total_words_read}</td>
+                                                        </>}
+                                                        {leaderboardGroup === 'accurate_reader' && <>
+                                                            <td className="py-3 px-3 text-center text-emerald-400">{r.avg_completion?.toFixed(0)}%</td>
+                                                            <td className="py-3 px-3 text-center text-blue-400">{r.questions_correct}/{r.questions_total}</td>
+                                                        </>}
+                                                        {leaderboardGroup === 'test_master' && <>
+                                                            <td className="py-3 px-3 text-center text-blue-400">{r.test_score?.toFixed(0)}</td>
+                                                            <td className="py-3 px-3 text-center text-amber-400 font-bold">{r.total_score?.toFixed(0)}</td>
+                                                        </>}
+                                                        {leaderboardGroup === 'champion' && <>
+                                                            <td className="py-3 px-3 text-center text-emerald-400">{r.total_reading_score?.toFixed(0)}</td>
+                                                            <td className="py-3 px-3 text-center text-blue-400">{r.test_score?.toFixed(0)}</td>
+                                                            <td className="py-3 px-3 text-center text-amber-400 font-bold">{r.total_score?.toFixed(0)}</td>
+                                                        </>}
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -315,7 +366,7 @@ export default function ReadingHome() {
                                 ) : (
                                     <div className="text-center py-12 text-gray-500">
                                         <div className="text-4xl mb-2">🏆</div>
-                                        Natijalar hali e'lon qilinmagan
+                                        Bu guruhda natijalar hali yo'q
                                     </div>
                                 )}
                             </div>
