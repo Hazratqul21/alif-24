@@ -13,7 +13,7 @@ export default function ContentPage() {
     const [platformContent, setPlatformContent] = useState({});
     const [rawJsonText, setRawJsonText] = useState('{}');
 
-    const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', difficulty: 'medium', duration_minutes: 30, language: 'uz', video_url: '' });
+    const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
     const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
     const [uploadFile, setUploadFile] = useState(null);
 
@@ -60,7 +60,7 @@ export default function ContentPage() {
 
             await adminService.createLesson(payload);
             setCreateModal(null);
-            setLessonForm({ title: '', subject: '', content: '', grade_level: '', difficulty: 'medium', duration_minutes: 30, language: 'uz', video_url: '' });
+            setLessonForm({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
             setUploadFile(null);
             loadContent();
         } catch (err) {
@@ -174,8 +174,6 @@ export default function ContentPage() {
                                     <div className="flex items-center gap-2 text-xs text-gray-500">
                                         <span>{l.subject}</span>
                                         {l.grade_level && <span>• {l.grade_level}</span>}
-                                        {l.difficulty && <span>• {l.difficulty}</span>}
-                                        {l.duration_minutes && <span>• {l.duration_minutes} min</span>}
                                     </div>
                                     <div className="flex items-center gap-2 mt-1">
                                         {l.video_url && <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs">🎬 Video</a>}
@@ -278,10 +276,6 @@ export default function ContentPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <Input label="Sinf" value={lessonForm.grade_level} onChange={(v) => setLessonForm({ ...lessonForm, grade_level: v })} placeholder="5-sinf, 9-A, 11-B..." />
-                            <Select label="Daraja" value={lessonForm.difficulty} options={['easy', 'medium', 'hard']} onChange={(v) => setLessonForm({ ...lessonForm, difficulty: v })} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <Input label="Davomiyligi (min)" value={lessonForm.duration_minutes} onChange={(v) => setLessonForm({ ...lessonForm, duration_minutes: parseInt(v) || 30 })} type="number" />
                             <Select label="Til" value={lessonForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setLessonForm({ ...lessonForm, language: v })} />
                         </div>
                         <Input label="Video URL (ixtiyoriy)" value={lessonForm.video_url} onChange={(v) => setLessonForm({ ...lessonForm, video_url: v })} placeholder="YouTube yoki Vimeo havola" />

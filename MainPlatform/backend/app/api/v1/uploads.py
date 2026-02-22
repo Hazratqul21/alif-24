@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request, Header
 from shared.database import get_db
 from shared.database.models import User
 from app.middleware.auth import get_current_user
@@ -7,6 +7,22 @@ import uuid
 import os
 import secrets
 from pathlib import Path
+from typing import Dict, Any
+
+ADMIN_KEYS = {
+    "hazratqul": "alif24_rahbariyat26!",
+    "nurali": "alif24_rahbariyat26!",
+    "pedagog": "alif24_rahbariyat26!",
+}
+
+async def verify_admin_upload(
+    x_admin_role: str = Header(..., alias="X-Admin-Role"),
+    x_admin_key: str = Header(..., alias="X-Admin-Key"),
+) -> Dict[str, Any]:
+    role = x_admin_role.lower()
+    if role not in ADMIN_KEYS or x_admin_key != ADMIN_KEYS.get(role):
+        raise HTTPException(status_code=403, detail="Admin authentication failed")
+    return {"role": role}
 
 router = APIRouter()
 
@@ -62,6 +78,37 @@ async def upload_assignment_file(
     
     file_url = f"/api/uploads/{safe_filename}"
     
+    return {
+        "success": True,
+        "url": file_url,
+        "filename": file.filename,
+        "saved_as": safe_filename,
+        "size": total_size
+    }
+
+
+@router.post("/admin-file")
+async def upload_admin_file(
+    request: Request,
+    file: UploadFile = File(...),
+    admin: Dict = Depends(verify_admin_upload),
+):
+    """
+    Upload a file from admin panel (no size limit).
+    Uses X-Admin-Role / X-Admin-Key auth.
+    """
+    ext = os.path.splitext(file.filename)[1] if file.filename else ""
+    safe_filename = f"{uuid.uuid4().hex}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+
+    total_size = 0
+    with open(file_path, "wb") as f:
+        while chunk := await file.read(1024 * 1024):
+            total_size += len(chunk)
+            f.write(chunk)
+
+    file_url = f"/api/uploads/{safe_filename}"
+
     return {
         "success": True,
         "url": file_url,
