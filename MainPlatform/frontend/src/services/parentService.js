@@ -15,12 +15,31 @@ class ParentService {
     }
 
     /**
-     * Create a new child account
-     * @param {Object} childData - { first_name, last_name, date_of_birth, gender, grade }
-     * @returns {Promise<Object>} Created child account with credentials
+     * Search for a student by ID, email, phone or username
+     * @param {string} query - ID, email, phone or username
+     * @returns {Promise<Object>} Found student data
      */
-    async createChild(childData) {
-        const response = await apiService.post('/auth/children', childData);
+    async searchChild(query) {
+        const response = await apiService.post('/auth/children/search', { query });
+        return response.data;
+    }
+
+    /**
+     * Send parent invite to a student
+     * @param {string} studentId - Student user ID
+     * @returns {Promise<Object>} Result message
+     */
+    async inviteChild(studentId) {
+        const response = await apiService.post('/auth/children/invite', { student_id: studentId });
+        return response;
+    }
+
+    /**
+     * Get pending parent invites
+     * @returns {Promise<Array>} List of pending invites
+     */
+    async getPendingInvites() {
+        const response = await apiService.get('/auth/children/pending');
         return response.data;
     }
 

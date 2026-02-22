@@ -19,6 +19,7 @@ class InAppNotifType(str, enum.Enum):
     system = "system"                        # Tizim xabari
     achievement = "achievement"              # Yutuq
     parent_task = "parent_task"              # Ota-onadan vazifa
+    parent_invite = "parent_invite"          # Ota-ona farzand sifatida taklif
 
 
 class InAppNotification(Base):
