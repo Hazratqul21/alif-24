@@ -1,12 +1,13 @@
 import logging
 from typing import Optional, List, Any
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func, or_
 from pydantic import BaseModel, Field
 
 from shared.database import get_db
-from shared.database.models import User, UserRole, TeacherProfile, Lesson
+from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, Lesson
+from shared.database.models.classroom import Classroom, ClassroomStudent, ClassroomStudentStatus
 from app.middleware.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ class LessonCreate(BaseModel):
     subject: Optional[str] = None
     grade_level: Optional[str] = None
     content: Optional[str] = None
+    language: Optional[str] = "uz"
     video_url: Optional[str] = None
     attachments: Optional[Any] = None
 
@@ -25,6 +27,7 @@ class LessonUpdate(BaseModel):
     subject: Optional[str] = None
     grade_level: Optional[str] = None
     content: Optional[str] = None
+    language: Optional[str] = None
     video_url: Optional[str] = None
     attachments: Optional[Any] = None
 
@@ -39,18 +42,123 @@ async def get_teacher_profile_local(user: User, db: AsyncSession) -> TeacherProf
         await db.flush()
     return profile
 
-def lesson_dict(l: Lesson) -> dict:
-    return {
+def lesson_dict(l: Lesson, teacher_name: str = None) -> dict:
+    d = {
         "id": l.id,
         "title": l.title,
         "subject": l.subject,
         "grade_level": l.grade_level,
         "content": l.content,
+        "language": getattr(l, 'language', 'uz'),
         "video_url": l.video_url,
         "attachments": l.attachments,
         "created_at": l.created_at.isoformat() if l.created_at else None,
         "updated_at": l.updated_at.isoformat() if l.updated_at else None,
     }
+    if teacher_name:
+        d["teacher_name"] = teacher_name
+    return d
+
+
+# ============================================================================
+# STUDENT-FACING: View lessons
+# ============================================================================
+
+@router.get("/lessons/for-me")
+async def get_lessons_for_student(
+    subject: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get lessons for current student — from their classroom teachers and organization"""
+    # Get teacher IDs from student's classrooms
+    teacher_ids_q = (
+        select(Classroom.teacher_id)
+        .join(ClassroomStudent, ClassroomStudent.classroom_id == Classroom.id)
+        .where(
+            ClassroomStudent.student_user_id == current_user.id,
+            ClassroomStudent.status == ClassroomStudentStatus.active,
+        )
+    )
+
+    base = select(Lesson).where(Lesson.teacher_id.in_(teacher_ids_q))
+
+    if subject:
+        base = base.where(Lesson.subject == subject)
+
+    total = await db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    result = await db.execute(base.order_by(desc(Lesson.created_at)).offset(offset).limit(limit))
+    lessons = result.scalars().all()
+
+    return {
+        "success": True,
+        "data": [lesson_dict(l) for l in lessons],
+        "total": total,
+    }
+
+
+@router.get("/lessons/{lesson_id}")
+async def get_lesson_by_id(
+    lesson_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a single lesson by ID (any authenticated user)"""
+    res = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
+    lesson = res.scalar_one_or_none()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+
+    teacher_name = None
+    if lesson.teacher_id:
+        tp_res = await db.execute(
+            select(User.first_name, User.last_name)
+            .join(TeacherProfile, TeacherProfile.user_id == User.id)
+            .where(TeacherProfile.id == lesson.teacher_id)
+        )
+        row = tp_res.first()
+        if row:
+            teacher_name = f"{row[0]} {row[1]}"
+
+    return {"success": True, "data": lesson_dict(lesson, teacher_name)}
+
+
+@router.get("/lessons")
+async def list_all_lessons(
+    subject: Optional[str] = None,
+    grade_level: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all lessons (public browse)"""
+    base = select(Lesson)
+
+    if subject:
+        base = base.where(Lesson.subject == subject)
+    if grade_level:
+        base = base.where(Lesson.grade_level == grade_level)
+    if search:
+        base = base.where(Lesson.title.ilike(f"%{search}%"))
+
+    total = await db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    result = await db.execute(base.order_by(desc(Lesson.created_at)).offset(offset).limit(limit))
+    lessons = result.scalars().all()
+
+    return {
+        "success": True,
+        "data": [lesson_dict(l) for l in lessons],
+        "total": total,
+    }
+
+
+# ============================================================================
+# TEACHER: CRUD
+# ============================================================================
 
 @router.post("/teachers/lessons")
 async def create_lesson(
@@ -68,6 +176,8 @@ async def create_lesson(
         video_url=data.video_url,
         attachments=data.attachments
     )
+    if hasattr(Lesson, 'language') and data.language:
+        lesson.language = data.language
     db.add(lesson)
     await db.commit()
     await db.refresh(lesson)
