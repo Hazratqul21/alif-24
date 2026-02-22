@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, Calendar, Users, ChevronRight, Search, Filter } from 'lucide-react';
+import { Trophy, Calendar, Users, ChevronRight, Search, Filter, BookOpen } from 'lucide-react';
 import apiService from '../services/apiService';
 
 const statusColors = {
@@ -95,6 +95,22 @@ export default function OlimpHome() {
                     O'z bilimingizni sinab ko'ring va eng yaxshilar qatoriga qo'shiling
                 </motion.p>
             </section>
+
+            {/* Reading Competition Card */}
+            <div className="max-w-6xl mx-auto px-4 mb-8">
+                <Link to="/reading" className="block bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl p-6 hover:from-emerald-500/20 hover:to-teal-500/20 transition-all group">
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shrink-0">
+                            <BookOpen className="w-7 h-7 text-white" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-lg font-bold text-white">O'qish Musobaqasi</h3>
+                            <p className="text-emerald-400/70 text-sm">Haftalik hikoyalar o'qish, savollar va reyting</p>
+                        </div>
+                        <ChevronRight className="w-6 h-6 text-emerald-400 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                </Link>
+            </div>
 
             {/* Filters & Search */}
             <div className="max-w-6xl mx-auto px-4 mb-8">
