@@ -50,7 +50,8 @@ const TeacherDashboard = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [assignmentFile, setAssignmentFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [newLesson, setNewLesson] = useState({ title: '', subject: '', grade_level: '', content: '', video_url: '' });
+  const [newLesson, setNewLesson] = useState({ title: '', subject: '', grade_level: '', content: '', video_url: '', attachments: null });
+  const [lessonFile, setLessonFile] = useState(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiPromptText, setAiPromptText] = useState('');
 
@@ -185,10 +186,19 @@ const TeacherDashboard = () => {
     e.preventDefault();
     if (!newLesson.title.trim()) return showNotif('error', 'Dars nomini kiriting');
     try {
-      await teacherService.createLesson(newLesson);
+      const payload = { ...newLesson };
+      if (lessonFile) {
+        const upRes = await teacherService.uploadAssignmentFile(lessonFile);
+        const fileData = upRes.data || upRes;
+        if (fileData?.url) {
+          payload.attachments = [{ name: lessonFile.name, url: fileData.url, size: fileData.size || lessonFile.size }];
+        }
+      }
+      await teacherService.createLesson(payload);
       showNotif('success', 'Dars yaratildi!');
       setShowCreateLesson(false);
-      setNewLesson({ title: '', subject: '', grade_level: '', content: '', video_url: '' });
+      setNewLesson({ title: '', subject: '', grade_level: '', content: '', video_url: '', attachments: null });
+      setLessonFile(null);
       fetchLessons();
     } catch (e) { showNotif('error', e.message || 'Xatolik'); }
   };
@@ -898,14 +908,16 @@ const TeacherDashboard = () => {
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb]" />
           <input type="text" placeholder="Fan (masalan: Fizika)" value={newLesson.subject} onChange={e => setNewLesson({ ...newLesson, subject: e.target.value })}
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb]" />
-          <select value={newLesson.grade_level} onChange={e => setNewLesson({ ...newLesson, grade_level: e.target.value })}
-            className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#4b30fb] appearance-none">
-            <option value="" className="bg-gray-800 text-white">Sinf darajasi</option>
-            {['1-sinf', '2-sinf', '3-sinf', '4-sinf', '5-sinf', '6-sinf', '7-sinf', '8-sinf', '9-sinf', '10-sinf', '11-sinf'].map(g =>
-              <option key={g} value={g} className="bg-gray-800 text-white">{g}</option>)}
-          </select>
-          <input type="url" placeholder="Video URL (YouTube/Vimeo)" value={newLesson.video_url} onChange={e => setNewLesson({ ...newLesson, video_url: e.target.value })}
+          <input type="text" placeholder="Sinf darajasi (masalan: 5-sinf, 9-A)" value={newLesson.grade_level} onChange={e => setNewLesson({ ...newLesson, grade_level: e.target.value })}
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb]" />
+          <input type="text" placeholder="Video URL - ixtiyoriy (YouTube/Vimeo)" value={newLesson.video_url} onChange={e => setNewLesson({ ...newLesson, video_url: e.target.value })}
+            className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb]" />
+          <div>
+            <label className="text-white/60 text-sm mb-1 block">Fayl yuklash (rasm, PDF, hujjat - ixtiyoriy)</label>
+            <input type="file" onChange={e => setLessonFile(e.target.files[0] || null)}
+              className="w-full text-sm text-white/60 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#4b30fb] file:text-white hover:file:bg-[#3d24d9] file:cursor-pointer" />
+            {lessonFile && <p className="text-white/40 text-xs mt-1">{lessonFile.name} ({(lessonFile.size / 1024).toFixed(1)} KB)</p>}
+          </div>
           <textarea placeholder="Dars matni / Konspekt" value={newLesson.content} onChange={e => setNewLesson({ ...newLesson, content: e.target.value })}
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb] h-32 resize-none" />
           <button type="submit" className="w-full bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white py-3 rounded-xl border-none cursor-pointer font-bold hover:scale-[1.02] transition-transform">

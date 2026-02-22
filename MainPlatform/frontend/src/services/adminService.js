@@ -80,13 +80,13 @@ const adminService = {
     // Content
     getPublicContent: () => axios.get(`${API_URL}/public/content`),
     updatePlatformContent: (key, data) => adminApi.put(`/content/${key}`, data),
-    getLessons: (params) => adminApi.get('/content/lessons', { params }),
-    createLesson: (data) => adminApi.post('/content/lessons', data),
-    updateLesson: (id, data) => adminApi.put(`/content/lessons/${id}`, data),
-    deleteLesson: (id) => adminApi.delete(`/content/lessons/${id}`),
-    getErtaklar: (params) => adminApi.get('/content/ertaklar', { params }),
-    createErtak: (data) => adminApi.post('/content/ertaklar', data),
-    deleteErtak: (id) => adminApi.delete(`/content/ertaklar/${id}`),
+    getLessons: (params) => adminApi.get('/direct/lessons', { params }),
+    createLesson: (data) => adminApi.post('/direct/lessons', data),
+    updateLesson: (id, data) => adminApi.put(`/direct/lessons/${id}`, data),
+    deleteLesson: (id) => adminApi.delete(`/direct/lessons/${id}`),
+    getErtaklar: (params) => adminApi.get('/direct/stories', { params }),
+    createErtak: (data) => adminApi.post('/direct/stories', data),
+    deleteErtak: (id) => adminApi.delete(`/direct/stories/${id}`),
 
     // Telegram
     getTelegramUsers: (params) => adminApi.get('/telegram/users', { params }),

@@ -1226,6 +1226,58 @@ async def admin_health():
 
 from shared.database.models.platform_content import PlatformContent
 
+@router.get("/content/{key}")
+async def get_content_by_key(
+    key: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get content value by key (for frontend compatibility)"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
+    content = result.scalar_one_or_none()
+    
+    if not content:
+        raise HTTPException(status_code=404, detail="Kontent topilmadi")
+    
+    return {"success": True, "data": {"key": content.key, "value": content.value}}
+
+
+@router.put("/content/{key}")
+async def update_content_by_key(
+    key: str,
+    data: Dict[str, Any],
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update content value by key (frontend sends { value: ... })"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    value = data.get("value")
+    if value is None:
+        raise HTTPException(status_code=400, detail="'value' maydoni kerak")
+    
+    result = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
+    content = result.scalar_one_or_none()
+    
+    if not content:
+        # Create if not exists
+        content = PlatformContent(key=key, value=str(value))
+        db.add(content)
+        message = "Kontent yaratildi"
+    else:
+        content.value = str(value)
+        content.updated_at = datetime.now(timezone.utc)
+        message = "Kontent yangilandi"
+    
+    await db.commit()
+    
+    return {"success": True, "message": message, "key": key}
+
+
 @router.get("/platform-content")
 async def list_platform_content(
     admin: Dict = Depends(verify_admin),
