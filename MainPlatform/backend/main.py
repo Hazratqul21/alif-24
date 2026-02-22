@@ -124,6 +124,7 @@ async def add_security_headers(request, call_next):
 # Include Routers
 from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback, telegram
 from app.api.v1 import classrooms, assignments, notifications, lessons, platform_content, aiops, uploads, coins, organizations, olympiads
+from app.api.v1 import reading_competition
 from app.smartkids import story_router, image_reader_router, file_reader_router, speech_token_router
 from app.mathkids import math_solver_router, math_image_router
 
@@ -168,6 +169,8 @@ app.include_router(coins.router, prefix=f"{settings.API_PREFIX}/coins", tags=["c
 app.include_router(organizations.router, prefix=f"{settings.API_PREFIX}/organization", tags=["organization"])
 # Olympiads
 app.include_router(olympiads.router, prefix=f"{settings.API_PREFIX}/olympiads", tags=["olympiads"])
+# Reading Competition
+app.include_router(reading_competition.router, prefix=f"{settings.API_PREFIX}/admin/reading", tags=["reading-competition"])
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)

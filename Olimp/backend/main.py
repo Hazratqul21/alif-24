@@ -35,6 +35,7 @@ from app.core.logging import logger
 
 # Olimp router
 from app.olimp import router as olimp_router
+from app.reading import router as reading_router
 
 
 @asynccontextmanager
@@ -107,6 +108,13 @@ app.include_router(
     olimp_router.router,
     prefix="/api/v1/olympiad",
     tags=["Olympiad"]
+)
+
+# Include Reading Competition router
+app.include_router(
+    reading_router.router,
+    prefix="/api/v1/reading",
+    tags=["Reading Competition"]
 )
 
 

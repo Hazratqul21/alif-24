@@ -3,10 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 // Pages
 import OlimpHome from './pages/OlimpHome';
 import OlympiadDetail from './pages/OlympiadDetail';
+import ReadingHome from './pages/ReadingHome';
+import ReadingPlay from './pages/ReadingPlay';
 
 /**
  * Olimp Platform App Component
- * Olympiad management and competitions
+ * Olympiad management and competitions + Reading Competition
  * olimp.alif24.uz
  */
 const App = () => {
@@ -18,6 +20,11 @@ const App = () => {
 
         {/* Olympiad Detail */}
         <Route path="/olympiad/:id" element={<OlympiadDetail />} />
+
+        {/* Reading Competition */}
+        <Route path="/reading" element={<ReadingHome />} />
+        <Route path="/reading/:compId" element={<ReadingHome />} />
+        <Route path="/reading/:compId/:taskId" element={<ReadingPlay />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
