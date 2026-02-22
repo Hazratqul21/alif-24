@@ -9,6 +9,7 @@ class Lesson(Base):
 
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
     teacher_id = Column(String(8), ForeignKey("teacher_profiles.id"), nullable=True)
+    organization_id = Column(String(8), ForeignKey("organization_profiles.id"), nullable=True)
     title = Column(String(300), nullable=False)
     subject = Column(String(100), nullable=True)
     grade_level = Column(String(20), nullable=True)

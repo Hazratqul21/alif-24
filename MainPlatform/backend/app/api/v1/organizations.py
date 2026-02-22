@@ -126,10 +126,13 @@ async def get_org_stats(
         )
     ) or 0
     
-    # Count lessons (via org teachers)
+    # Count lessons (via org teachers + org-created)
     lesson_count = await db.scalar(
         select(func.count(Lesson.id)).where(
-            Lesson.teacher_id.in_(teacher_ids_q)
+            or_(
+                Lesson.teacher_id.in_(teacher_ids_q),
+                Lesson.organization_id == org.id
+            )
         )
     ) or 0
     
@@ -751,7 +754,12 @@ async def list_org_lessons(
         TeacherProfile.organization_id == org.id
     )
     
-    base = select(Lesson).where(Lesson.teacher_id.in_(teacher_ids_q))
+    base = select(Lesson).where(
+        or_(
+            Lesson.teacher_id.in_(teacher_ids_q),
+            Lesson.organization_id == org.id
+        )
+    )
     
     if search:
         base = base.where(Lesson.title.ilike(f"%{search}%"))
@@ -798,6 +806,7 @@ async def create_org_lesson(
         grade_level=data.grade_level,
         video_url=data.video_url,
         attachments=data.attachments,
+        organization_id=org.id,
     )
     # Set language if model supports it
     if hasattr(Lesson, 'language'):
@@ -821,13 +830,24 @@ async def delete_org_lesson(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a lesson"""
-    await get_org_profile(current_user, db)
+    org = await get_org_profile(current_user, db)
     
-    result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
+    teacher_ids_q = select(TeacherProfile.id).where(
+        TeacherProfile.organization_id == org.id
+    )
+    result = await db.execute(
+        select(Lesson).where(
+            Lesson.id == lesson_id,
+            or_(
+                Lesson.teacher_id.in_(teacher_ids_q),
+                Lesson.organization_id == org.id
+            )
+        )
+    )
     lesson = result.scalar_one_or_none()
     
     if not lesson:
-        raise HTTPException(status_code=404, detail="Dars topilmadi")
+        raise HTTPException(status_code=404, detail="Dars topilmadi yoki sizga tegishli emas")
     
     await db.delete(lesson)
     await db.commit()
