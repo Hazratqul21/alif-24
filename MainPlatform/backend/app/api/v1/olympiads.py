@@ -14,10 +14,11 @@ import logging
 from typing import Optional, List
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, and_, desc, asc
 from pydantic import BaseModel, Field
+from typing import Dict, Any
 
 from shared.database import get_db
 from shared.database.models import (
@@ -27,22 +28,29 @@ from shared.database.models import (
     Olympiad, OlympiadQuestion, OlympiadParticipant, OlympiadAnswer,
     OlympiadReadingTask, OlympiadReadingSubmission,
 )
-from app.middleware.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 # ============================================================================
-# HELPERS
+# ADMIN AUTH (same as admin_panel.py)
 # ============================================================================
 
-ADMIN_ROLES = {UserRole.moderator}
+ADMIN_KEYS = {
+    "hazratqul": "alif24_rahbariyat26!",
+    "nurali": "alif24_rahbariyat26!",
+    "pedagog": "alif24_rahbariyat26!",
+}
 
-
-def require_admin(user: User):
-    if user.role not in ADMIN_ROLES:
-        raise HTTPException(status_code=403, detail="Faqat adminlar uchun")
+async def verify_admin_olympiad(
+    x_admin_role: str = Header(..., alias="X-Admin-Role"),
+    x_admin_key: str = Header(..., alias="X-Admin-Key"),
+) -> Dict[str, Any]:
+    role = x_admin_role.lower()
+    if role not in ADMIN_KEYS or x_admin_key != ADMIN_KEYS.get(role):
+        raise HTTPException(status_code=403, detail="Admin authentication failed")
+    return {"role": role}
 
 
 def olympiad_to_dict(o: Olympiad, participant_count: int = 0) -> dict:
@@ -176,12 +184,10 @@ class GradeReading(BaseModel):
 @router.post("")
 async def create_olympiad(
     data: OlympiadCreate,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new olympiad (admin only)"""
-    require_admin(current_user)
-
     olympiad = Olympiad(
         title=data.title,
         description=data.description,
@@ -199,7 +205,7 @@ async def create_olympiad(
         questions_count=data.questions_count,
         results_public=data.results_public,
         status=OlympiadStatus.draft,
-        created_by=current_user.id,
+        created_by=admin["role"],
     )
     db.add(olympiad)
     await db.commit()
@@ -216,17 +222,11 @@ async def list_olympiads(
     search: Optional[str] = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
-    """List olympiads (all authenticated users can see)"""
+    """List olympiads (admin only)"""
     base = select(Olympiad)
-
-    # Students only see upcoming/active/finished
-    if current_user.role not in ADMIN_ROLES:
-        base = base.where(Olympiad.status.in_([
-            OlympiadStatus.upcoming, OlympiadStatus.active, OlympiadStatus.finished
-        ]))
 
     if status:
         base = base.where(Olympiad.status == OlympiadStatus(status))
@@ -255,10 +255,10 @@ async def list_olympiads(
 @router.get("/{olympiad_id}")
 async def get_olympiad(
     olympiad_id: str,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get olympiad details"""
+    """Get olympiad details (admin only)"""
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     o = res.scalar_one_or_none()
     if not o:
@@ -269,19 +269,6 @@ async def get_olympiad(
     ) or 0
 
     data = olympiad_to_dict(o, pc)
-
-    # Check if student is registered
-    if current_user.role == UserRole.student:
-        sp = await db.scalar(select(StudentProfile.id).where(StudentProfile.user_id == current_user.id))
-        if sp:
-            reg = await db.scalar(
-                select(OlympiadParticipant.id).where(
-                    OlympiadParticipant.olympiad_id == o.id,
-                    OlympiadParticipant.student_id == sp
-                )
-            )
-            data["is_registered"] = reg is not None
-
     return {"success": True, "olympiad": data}
 
 
@@ -289,11 +276,10 @@ async def get_olympiad(
 async def update_olympiad(
     olympiad_id: str,
     data: OlympiadUpdate,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """Update olympiad (admin only)"""
-    require_admin(current_user)
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     o = res.scalar_one_or_none()
@@ -317,11 +303,10 @@ async def update_olympiad(
 @router.delete("/{olympiad_id}")
 async def delete_olympiad(
     olympiad_id: str,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete olympiad (admin only)"""
-    require_admin(current_user)
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     o = res.scalar_one_or_none()
@@ -341,11 +326,10 @@ async def delete_olympiad(
 async def add_question(
     olympiad_id: str,
     data: QuestionCreate,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """Add test question to olympiad (admin only)"""
-    require_admin(current_user)
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     o = res.scalar_one_or_none()
@@ -378,11 +362,11 @@ async def add_question(
 @router.get("/{olympiad_id}/questions")
 async def list_questions(
     olympiad_id: str,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
-    """List questions (admin sees answers, students don't)"""
-    hide_answer = current_user.role not in ADMIN_ROLES
+    """List questions (admin only)"""
+    hide_answer = False
 
     result = await db.execute(
         select(OlympiadQuestion)
@@ -402,11 +386,10 @@ async def list_questions(
 async def delete_question(
     olympiad_id: str,
     question_id: str,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete question (admin only)"""
-    require_admin(current_user)
 
     res = await db.execute(
         select(OlympiadQuestion).where(
@@ -431,11 +414,10 @@ async def delete_question(
 async def add_reading_task(
     olympiad_id: str,
     data: ReadingTaskCreate,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """Add reading task to olympiad (admin only)"""
-    require_admin(current_user)
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     o = res.scalar_one_or_none()
@@ -471,11 +453,11 @@ async def add_reading_task(
 @router.get("/{olympiad_id}/reading-tasks")
 async def list_reading_tasks(
     olympiad_id: str,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
-    """List reading tasks"""
-    hide_answers = current_user.role not in ADMIN_ROLES
+    """List reading tasks (admin only)"""
+    hide_answers = False
 
     result = await db.execute(
         select(OlympiadReadingTask)
@@ -495,11 +477,10 @@ async def list_reading_tasks(
 async def delete_reading_task(
     olympiad_id: str,
     task_id: str,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete reading task (admin only)"""
-    require_admin(current_user)
 
     res = await db.execute(
         select(OlympiadReadingTask).where(
@@ -529,10 +510,10 @@ async def delete_reading_task(
 async def get_leaderboard(
     olympiad_id: str,
     limit: int = Query(50, ge=1, le=200),
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get olympiad leaderboard"""
+    """Get olympiad leaderboard (admin only)"""
     res = await db.execute(
         select(OlympiadParticipant, StudentProfile, User)
         .join(StudentProfile, OlympiadParticipant.student_id == StudentProfile.id)
@@ -591,11 +572,10 @@ async def get_leaderboard(
 async def list_participants(
     olympiad_id: str,
     status: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """List all participants (admin only)"""
-    require_admin(current_user)
 
     base = (
         select(OlympiadParticipant, StudentProfile, User)
@@ -644,11 +624,10 @@ async def list_participants(
 async def list_reading_submissions(
     olympiad_id: str,
     ungraded_only: bool = False,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """List reading submissions for grading (admin only)"""
-    require_admin(current_user)
 
     base = (
         select(OlympiadReadingSubmission, OlympiadParticipant, StudentProfile, User, OlympiadReadingTask)
@@ -695,11 +674,10 @@ async def list_reading_submissions(
 async def grade_reading_submission(
     submission_id: str,
     data: GradeReading,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """Grade a reading submission (admin only)"""
-    require_admin(current_user)
 
     res = await db.execute(
         select(OlympiadReadingSubmission).where(OlympiadReadingSubmission.id == submission_id)
@@ -713,7 +691,7 @@ async def grade_reading_submission(
     sub.admin_accuracy_score = data.accuracy_score
     sub.admin_total_score = data.pronunciation_score + data.fluency_score + data.accuracy_score
     sub.admin_notes = data.notes
-    sub.graded_by = current_user.id
+    sub.graded_by = admin["role"]
     sub.graded_at = datetime.now(timezone.utc)
 
     await db.commit()
@@ -732,11 +710,10 @@ async def grade_reading_submission(
 @router.get("/{olympiad_id}/stats")
 async def get_olympiad_stats(
     olympiad_id: str,
-    current_user: User = Depends(get_current_user),
+    admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
     """Get olympiad statistics (admin only)"""
-    require_admin(current_user)
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     o = res.scalar_one_or_none()
