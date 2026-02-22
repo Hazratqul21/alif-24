@@ -906,7 +906,7 @@ const StudentDashboard = () => {
                                     onClick={() => {
                                         const token = localStorage.getItem('accessToken');
                                         const refresh = localStorage.getItem('refreshToken');
-                                        let url = 'https://olim.alif24.uz/reading';
+                                        let url = 'https://olimp.alif24.uz/reading';
                                         if (token) {
                                             const params = new URLSearchParams();
                                             params.set('token', token);
