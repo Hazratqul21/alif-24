@@ -91,7 +91,7 @@ class Olympiad(Base):
     results_public = Column(Boolean, default=True)  # Natijalar ochiq
     
     # Tashkilotchi (moderator)
-    created_by = Column(String(8), ForeignKey("users.id"), nullable=False)
+    created_by = Column(String(8), ForeignKey("users.id"), nullable=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

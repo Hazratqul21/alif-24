@@ -520,11 +520,37 @@ async def submit_assignment(
             "assignment", assignment_id, current_user.id,
         )
 
+    # Vazifa bajarish uchun +50 coin (avtomatik)
+    coins_earned = 0
+    try:
+        from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
+        sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == current_user.id))
+        sp = sp_res.scalar_one_or_none()
+        if sp:
+            sc_res = await db.execute(select(StudentCoin).where(StudentCoin.student_id == sp.id))
+            coin = sc_res.scalar_one_or_none()
+            if not coin:
+                coin = StudentCoin(student_id=sp.id, current_balance=0, total_earned=0, total_spent=0, total_withdrawn=0)
+                db.add(coin)
+                await db.flush()
+            coin.add_coins(50)
+            db.add(CoinTransaction(
+                student_coin_id=coin.id,
+                type=TransactionType.assignment_complete,
+                amount=50,
+                description=f"Vazifa bajarildi: {assignment.title if assignment else 'Vazifa'}",
+                reference_id=assignment_id,
+                reference_type="assignment",
+            ))
+            coins_earned = 50
+    except Exception as e:
+        logger.warning(f"Coin reward failed for {current_user.id}: {e}")
+
     await db.commit()
     return {
         "success": True,
-        "message": "Vazifa topshirildi" + (" (kech)" if is_late else ""),
-        "data": {"submission": submission_dict(submission)},
+        "message": "Vazifa topshirildi" + (" (kech)" if is_late else "") + (f" (+{coins_earned} coin)" if coins_earned else ""),
+        "data": {"submission": submission_dict(submission), "coins_earned": coins_earned},
     }
 
 

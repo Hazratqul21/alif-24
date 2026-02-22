@@ -747,12 +747,24 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # Telegram linkni ham tozalash
+    tg_res = await db.execute(select(TelegramUser).where(TelegramUser.user_id == user_id))
+    tg_user = tg_res.scalar_one_or_none()
+    telegram_unlinked = False
+    if tg_user:
+        tg_user.user_id = None
+        telegram_unlinked = True
+
     user.status = AccountStatus.deleted
     user.deleted_at = datetime.now(timezone.utc)
     user.updated_at = datetime.now(timezone.utc)
     await db.commit()
     
-    return {"message": "Foydalanuvchi o'chirildi", "user_id": user_id}
+    return {
+        "message": "Foydalanuvchi o'chirildi" + (" (Telegram ham uzildi)" if telegram_unlinked else ""),
+        "user_id": user_id,
+        "telegram_unlinked": telegram_unlinked,
+    }
 
 
 # ============================================================================

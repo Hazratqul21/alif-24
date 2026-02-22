@@ -205,7 +205,7 @@ async def create_olympiad(
         questions_count=data.questions_count,
         results_public=data.results_public,
         status=OlympiadStatus.draft,
-        created_by=admin["role"],
+        created_by=None,
     )
     db.add(olympiad)
     await db.commit()
