@@ -1,42 +1,63 @@
 /**
- * Olympiad Service
+ * Olympiad Service (Admin-only)
  * Olimpiada tizimi uchun barcha API chaqiruvlari
  * Backend: /api/v1/olympiads/...
+ * Auth: X-Admin-Role / X-Admin-Key headers
  */
-import apiService from './apiService';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
+const getAdminHeaders = () => ({
+    'X-Admin-Role': localStorage.getItem('adminRole') || '',
+    'X-Admin-Key': localStorage.getItem('adminKey') || '',
+});
+
+const api = axios.create({ baseURL: `${API_URL}/olympiads` });
+
+api.interceptors.request.use((config) => {
+    config.headers = { ...config.headers, ...getAdminHeaders() };
+    return config;
+});
+
+api.interceptors.response.use(
+    (res) => res.data,
+    (err) => {
+        const msg = err.response?.data?.detail || err.message || 'Xatolik';
+        return Promise.reject(new Error(msg));
+    }
+);
 
 const olympiadService = {
     // ==================== ADMIN: Olympiad CRUD ====================
-    createOlympiad: (data) => apiService.post('/olympiads', data),
-    listOlympiads: (params = {}) => apiService.get('/olympiads', params),
-    getOlympiad: (id) => apiService.get(`/olympiads/${id}`),
-    updateOlympiad: (id, data) => apiService.put(`/olympiads/${id}`, data),
-    deleteOlympiad: (id) => apiService.delete(`/olympiads/${id}`),
+    createOlympiad: (data) => api.post('', data),
+    listOlympiads: (params = {}) => api.get('', { params }),
+    getOlympiad: (id) => api.get(`/${id}`),
+    updateOlympiad: (id, data) => api.put(`/${id}`, data),
+    deleteOlympiad: (id) => api.delete(`/${id}`),
 
     // ==================== ADMIN: Questions ====================
-    addQuestion: (olympiadId, data) => apiService.post(`/olympiads/${olympiadId}/questions`, data),
-    listQuestions: (olympiadId) => apiService.get(`/olympiads/${olympiadId}/questions`),
-    deleteQuestion: (olympiadId, questionId) => apiService.delete(`/olympiads/${olympiadId}/questions/${questionId}`),
+    addQuestion: (olympiadId, data) => api.post(`/${olympiadId}/questions`, data),
+    listQuestions: (olympiadId) => api.get(`/${olympiadId}/questions`),
+    deleteQuestion: (olympiadId, questionId) => api.delete(`/${olympiadId}/questions/${questionId}`),
 
     // ==================== ADMIN: Reading Tasks ====================
-    addReadingTask: (olympiadId, data) => apiService.post(`/olympiads/${olympiadId}/reading-tasks`, data),
-    listReadingTasks: (olympiadId) => apiService.get(`/olympiads/${olympiadId}/reading-tasks`),
-    deleteReadingTask: (olympiadId, taskId) => apiService.delete(`/olympiads/${olympiadId}/reading-tasks/${taskId}`),
+    addReadingTask: (olympiadId, data) => api.post(`/${olympiadId}/reading-tasks`, data),
+    listReadingTasks: (olympiadId) => api.get(`/${olympiadId}/reading-tasks`),
+    deleteReadingTask: (olympiadId, taskId) => api.delete(`/${olympiadId}/reading-tasks/${taskId}`),
 
     // NOTE: Student participation endpoints (register, start, submit, etc.)
     // are on olimp.alif24.uz (separate platform) to handle high load.
 
     // ==================== Leaderboard ====================
-    getLeaderboard: (olympiadId, limit = 50) => apiService.get(`/olympiads/${olympiadId}/leaderboard`, { limit }),
+    getLeaderboard: (olympiadId, limit = 50) => api.get(`/${olympiadId}/leaderboard`, { params: { limit } }),
 
     // ==================== ADMIN: Monitoring & Grading ====================
-    getParticipants: (olympiadId, params = {}) => apiService.get(`/olympiads/${olympiadId}/participants`, params),
+    getParticipants: (olympiadId, params = {}) => api.get(`/${olympiadId}/participants`, { params }),
     getReadingSubmissions: (olympiadId, ungradedOnly = false) =>
-        apiService.get(`/olympiads/${olympiadId}/reading-submissions`, { ungraded_only: ungradedOnly }),
-    gradeReading: (submissionId, data) => apiService.post(`/olympiads/reading-submissions/${submissionId}/grade`, data),
-    getOlympiadStats: (olympiadId) => apiService.get(`/olympiads/${olympiadId}/stats`),
-
-    // NOTE: Audio upload is on olimp.alif24.uz
+        api.get(`/${olympiadId}/reading-submissions`, { params: { ungraded_only: ungradedOnly } }),
+    gradeReading: (submissionId, data) => api.post(`/reading-submissions/${submissionId}/grade`, data),
+    getOlympiadStats: (olympiadId) => api.get(`/${olympiadId}/stats`),
 };
 
 export default olympiadService;
