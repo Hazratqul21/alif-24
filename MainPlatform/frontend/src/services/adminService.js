@@ -109,11 +109,14 @@ const adminService = {
     uploadFile: async (file) => {
         const formData = new FormData();
         formData.append('file', file);
-        return adminApi.post('/upload/assignment-file', formData, {
+        const key = localStorage.getItem('adminKey');
+        const role = localStorage.getItem('adminRole');
+        return axios.post(`${API_URL}/upload/admin-file`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
+                'X-Admin-Role': role,
+                'X-Admin-Key': key,
             },
-            baseURL: API_URL // Force use main API url rather than /admin route 
         });
     }
 };
