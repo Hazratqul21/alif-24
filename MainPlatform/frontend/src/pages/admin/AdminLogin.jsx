@@ -4,9 +4,9 @@ import { Shield, Eye, EyeOff } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 const roles = [
-    { id: 'hazratqul', label: 'Hazratqul', desc: 'Super Admin', icon: '👑', color: 'from-amber-500 to-orange-600' },
-    { id: 'nurali', label: 'Nurali', desc: 'Super Admin', icon: '⚡', color: 'from-blue-500 to-indigo-600' },
-    { id: 'pedagog', label: 'Pedagog', desc: 'Kontent boshqaruvchi', icon: '📚', color: 'from-green-500 to-emerald-600' },
+    { id: 'hazratqul', label: 'Hazratqul', desc: 'Super Admin', color: 'from-amber-500 to-orange-600' },
+    { id: 'nurali', label: 'Nurali', desc: 'Super Admin', color: 'from-blue-500 to-indigo-600' },
+    { id: 'pedagog', label: 'Pedagog', desc: 'Kontent boshqaruvchi', color: 'from-green-500 to-emerald-600' },
 ];
 
 export default function AdminLogin({ defaultRole = null }) {
@@ -65,13 +65,12 @@ export default function AdminLogin({ defaultRole = null }) {
                                 type="button"
                                 onClick={() => { setSelectedRole(r.id); setError(''); }}
                                 className={`p-4 rounded-2xl border-2 transition-all text-center ${selectedRole === r.id
-                                        ? `border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10`
-                                        : 'border-gray-800 bg-gray-900/50 hover:border-gray-700'
+                                    ? `border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10`
+                                    : 'border-gray-800 bg-gray-900/50 hover:border-gray-700'
                                     }`}
                             >
-                                <div className="text-2xl mb-1">{r.icon}</div>
                                 <div className="text-white text-sm font-medium">{r.label}</div>
-                                <div className="text-gray-500 text-xs">{r.desc}</div>
+                                <div className="text-gray-500 text-xs mt-1">{r.desc}</div>
                             </button>
                         ))}
                     </div>
