@@ -98,7 +98,7 @@ export default function ReadingHome() {
                         <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center text-xl">📖</div>
                         <div>
                             <h1 className="text-white font-bold text-lg">O'qish Musobaqasi</h1>
-                            <p className="text-gray-500 text-xs">Alif24 · olim.alif24.uz</p>
+                            <p className="text-gray-500 text-xs">Alif24 · olimp.alif24.uz</p>
                         </div>
                     </div>
                     {!hasToken && (
