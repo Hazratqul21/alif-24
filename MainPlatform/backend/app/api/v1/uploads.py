@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request
-from shared.database.database import get_db
+from shared.database import get_db
 from shared.database.models import User
 from app.middleware.auth import get_current_user
 import shutil

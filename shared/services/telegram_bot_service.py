@@ -110,7 +110,8 @@ class TelegramBotService:
         self.bot_token = bot_token or "8379431489:AAH2xUGuEy0_FZV8vnN8_vyIII13VqDPryU"
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}"
         self.openai_api_key = "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"
-        self.openai_model = "gpt-4"
+        self.openai_model = "gpt-4o-mini"
+        self.openai_fallback_model = "gpt-3.5-turbo"
         # Chat tarixi (xotirada, oxirgi 10 ta xabar)
         self._chat_history: Dict[str, List[Dict]] = {}
     
@@ -376,11 +377,40 @@ Tabriklaymiz! 🎉
                         self._chat_history[history_key] = history
                         return ai_reply
                     else:
-                        logger.warning(f"OpenAI API error {response.status_code}: {response.text[:200]} — Azure OpenAI ga o'tilmoqda")
+                        logger.warning(f"OpenAI API error {response.status_code}: {response.text[:200]} — fallback modelga o'tilmoqda")
             except httpx.TimeoutException:
-                logger.warning("OpenAI timeout")
+                logger.warning("OpenAI timeout — fallback modelga o'tilmoqda")
             except Exception as e:
                 logger.warning(f"OpenAI error: {e}")
+        
+        # Fallback model bilan qayta urinish
+        if self.openai_api_key and self.openai_fallback_model:
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {self.openai_api_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": self.openai_fallback_model,
+                            "messages": messages,
+                            "max_tokens": 800,
+                            "temperature": 0.7,
+                        },
+                        timeout=30.0
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        ai_reply = data["choices"][0]["message"]["content"]
+                        history.append({"role": "assistant", "content": ai_reply})
+                        self._chat_history[history_key] = history
+                        return ai_reply
+                    else:
+                        logger.error(f"Fallback model error {response.status_code}: {response.text[:200]}")
+            except Exception as e:
+                logger.error(f"Fallback model error: {e}")
         
         return "⚠️ AI xizmati hozirda mavjud emas. Iltimos, keyinroq urinib ko'ring."
     
