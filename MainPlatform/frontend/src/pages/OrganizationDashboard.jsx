@@ -346,6 +346,20 @@ const OrganizationDashboard = () => {
                 <button onClick={() => setActiveTab('classrooms')} className="flex items-center gap-3 bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
                   <Building size={20} /><span className="font-medium text-sm">Sinflar</span>
                 </button>
+                <button onClick={() => {
+                  const token = localStorage.getItem('accessToken');
+                  const refresh = localStorage.getItem('refreshToken');
+                  let url = 'https://crm.alif24.uz';
+                  if (token) {
+                    const params = new URLSearchParams();
+                    params.set('token', token);
+                    if (refresh) params.set('refresh', refresh);
+                    url += `?${params.toString()}`;
+                  }
+                  window.location.href = url;
+                }} className="flex items-center gap-3 bg-gradient-to-br from-pink-500 to-rose-600 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
+                  <PieChart size={20} /><span className="font-medium text-sm">CRM Panel</span>
+                </button>
               </div>
             </div>
           </>

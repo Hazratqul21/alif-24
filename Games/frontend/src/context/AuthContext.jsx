@@ -15,6 +15,19 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Check for existing session on mount
     const initAuth = async () => {
+      // Accept token from URL (cross-subdomain redirect from MainPlatform)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get('token');
+      const urlRefresh = urlParams.get('refresh');
+      if (urlToken) {
+        localStorage.setItem('accessToken', urlToken);
+        if (urlRefresh) localStorage.setItem('refreshToken', urlRefresh);
+        const url = new URL(window.location);
+        url.searchParams.delete('token');
+        url.searchParams.delete('refresh');
+        window.history.replaceState({}, '', url);
+      }
+
       const token = localStorage.getItem('accessToken');
       if (token) {
         try {

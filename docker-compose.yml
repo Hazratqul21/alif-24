@@ -5,9 +5,9 @@ services:
     container_name: alif24-postgres
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: alif24_secure_password
-      POSTGRES_DB: alif24
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -39,23 +39,23 @@ services:
     container_name: main-backend
     restart: always
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - OPENAI_API_KEY=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
-      - AZURE_OPENAI_KEY=Ekghfq1yMBAeGkHM6kKpsfPrWP77Ab7x0NaQaS81I9I7zGDfbt8lJQQJ99BLACfhMk5XJ3w3AAABACOGUD56
-      - AZURE_OPENAI_ENDPOINT=https://deplo.cognitiveservices.azure.com/
-      - AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-chat
-      - AZURE_OPENAI_API_VERSION=2025-01-01-preview
-      - AZURE_SPEECH_KEY=54V9TJPS3HtXlzdnmUY0sgRv6NtugLsgFcf2s3yZlwS0Ogint3u6JQQJ99BLACYeBjFXJ3w3AAAYACOGlQP9
-      - AZURE_SPEECH_REGION=eastus
-      - AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=alifbe24;AccountKey=kNOPukOWmPce4VbxB7FSXL4SgVMml4zXkMTPdouqFhRLJwvp0Cp3rNpxFb3pkA766hfa00BBHSjR+AStteDO3Q==;EndpointSuffix=core.windows.net
-      - AZURE_CONTAINER_NAME=audiostories
-      - TELEGRAM_BOT_TOKEN=8379431489:AAH2xUGuEy0_FZV8vnN8_vyIII13VqDPryU
-      - TELEGRAM_CHAT_ID=234413715
-      - ADMIN_SECRET_KEY=alif24_rahbariyat26!
-      - REDIS_URL=redis://redis:6379
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AZURE_OPENAI_KEY=${AZURE_OPENAI_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
+      - AZURE_CONTAINER_NAME=${AZURE_CONTAINER_NAME}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - ADMIN_SECRET_KEY=${ADMIN_SECRET_KEY}
+      - REDIS_URL=${REDIS_URL}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "8000:8000"
     depends_on:
@@ -83,12 +83,12 @@ services:
     container_name: harf-backend
     restart: always
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - AZURE_SPEECH_KEY=54V9TJPS3HtXlzdnmUY0sgRv6NtugLsgFcf2s3yZlwS0Ogint3u6JQQJ99BLACYeBjFXJ3w3AAAYACOGlQP9
-      - AZURE_SPEECH_REGION=eastus
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "8001:8001"
     depends_on:
@@ -115,11 +115,11 @@ services:
     container_name: testai-backend
     restart: always
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - OPENAI_API_KEY=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
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "8002:8002"
     depends_on:
@@ -146,11 +146,11 @@ services:
     container_name: crm-backend
     restart: always
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - TELEGRAM_BOT_TOKEN=8379431489:AAH2xUGuEy0_FZV8vnN8_vyIII13VqDPryU
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "8003:8003"
     depends_on:
@@ -177,10 +177,10 @@ services:
     container_name: games-backend
     restart: always
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "8004:8004"
     depends_on:
@@ -207,10 +207,10 @@ services:
     container_name: olimp-backend
     restart: always
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "8005:8005"
     depends_on:
@@ -237,10 +237,10 @@ services:
     container_name: lessions-backend
     restart: always
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "8006:8006"
     depends_on:
@@ -296,8 +296,8 @@ services:
     container_name: alif24-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@alif24.uz
-      PGADMIN_DEFAULT_PASSWORD: alif24_admin_2026
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
       PGADMIN_CONFIG_SCRIPT_NAME: "'/pgadmin'"
     ports:
       - "5050:80"

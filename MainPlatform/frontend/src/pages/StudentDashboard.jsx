@@ -876,15 +876,24 @@ const StudentDashboard = () => {
                             <h2 className="text-2xl font-bold text-gray-800 mb-2">Olimpiadalar</h2>
                             <p className="text-gray-500 mb-2">Test, o'qish tezligi va aralash olimpiadalar</p>
                             <p className="text-gray-400 text-sm mb-6">Olimpiadalarda qatnashish uchun maxsus platforma yaratilgan</p>
-                            <a
-                                href="https://olimp.alif24.uz"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl"
+                            <button
+                                onClick={() => {
+                                    const token = localStorage.getItem('accessToken');
+                                    const refresh = localStorage.getItem('refreshToken');
+                                    let url = 'https://olimp.alif24.uz';
+                                    if (token) {
+                                        const params = new URLSearchParams();
+                                        params.set('token', token);
+                                        if (refresh) params.set('refresh', refresh);
+                                        url += `?${params.toString()}`;
+                                    }
+                                    window.location.href = url;
+                                }}
+                                className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl border-none cursor-pointer"
                             >
                                 <Trophy size={20} /> Olimpiadaga o'tish
                                 <ChevronRight size={18} />
-                            </a>
+                            </button>
                             <p className="text-xs text-gray-400 mt-4">olimp.alif24.uz — alohida tezkor platforma</p>
 
                             <div className="mt-8 pt-6 border-t border-gray-100">
@@ -893,15 +902,24 @@ const StudentDashboard = () => {
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-800 mb-1">O'qish Musobaqasi</h3>
                                 <p className="text-gray-500 text-sm mb-4">Haftalik hikoyalar o'qish, savollar va reyting</p>
-                                <a
-                                    href="https://olim.alif24.uz/reading"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl"
+                                <button
+                                    onClick={() => {
+                                        const token = localStorage.getItem('accessToken');
+                                        const refresh = localStorage.getItem('refreshToken');
+                                        let url = 'https://olim.alif24.uz/reading';
+                                        if (token) {
+                                            const params = new URLSearchParams();
+                                            params.set('token', token);
+                                            if (refresh) params.set('refresh', refresh);
+                                            url += `?${params.toString()}`;
+                                        }
+                                        window.location.href = url;
+                                    }}
+                                    className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl border-none cursor-pointer"
                                 >
                                     <BookOpen size={20} /> Musobaqaga o'tish
                                     <ChevronRight size={18} />
-                                </a>
+                                </button>
                             </div>
                         </div>
                     )}

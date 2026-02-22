@@ -81,25 +81,21 @@ const HomePage = () => {
     return matchesMainFilter && matchesCategoryFilter;
   });
 
+  // Redirect to sub-platform with auth token
+  const redirectToPlatform = (baseUrl, path = '') => {
+    const token = localStorage.getItem('accessToken');
+    const refresh = localStorage.getItem('refreshToken');
+    let url = `${baseUrl}${path}`;
+    if (token) {
+      const params = new URLSearchParams();
+      params.set('token', token);
+      if (refresh) params.set('refresh', refresh);
+      url += `?${params.toString()}`;
+    }
+    window.location.href = url;
+  };
+
   const handleGameClick = (game) => {
-    // Direct routes for selected tiles - check these first
-    if (game.id === 1) return navigate('/smartkids');  // Ertak o'qish
-    if (game.id === 2) return navigate('/mathkids');   // Matematika
-    if (game.id === 3) return navigate('/harf');       // O'zbek alifbesi
-    if (game.id === 4) return navigate('/eharf');      // Ingliz alifbesi
-    if (game.id === 5) return navigate('/rharf');      // Rus alifbesi
-    if (game.id === 6) return navigate('/games/letter-memory'); // Xotira o'yini
-    if (game.id === 7) return navigate('/games/math-monster');  // Matematika o'yini
-   
-    
-  // if (game.id === 7) return navigate('/ertak');
-
-    // TEST UCHUN VAQTINCHALIK
-  /*  if (game.id === 14) return navigate('/admin');
-    if (game.id === 15) return navigate('/teacher-dashboard');
-    if (game.id === 16) return navigate('/student-dashboard');
-    if (game.id === 17) return navigate('/parent-dashboard');*/
-
     // Check if user is authenticated and game is premium
     if (!isAuthenticated && game.premium) {
       setAuthTrigger('restricted_content');
@@ -108,14 +104,24 @@ const HomePage = () => {
 
     // Track usage for unauthenticated users
     if (!isAuthenticated) {
-      const stats = trackAction(USAGE_ACTIONS.COURSE_VIEW);
+      trackAction(USAGE_ACTIONS.COURSE_VIEW);
       if (shouldShowRegistrationPrompt()) {
         setAuthTrigger('usage_limit');
         return;
       }
     }
 
-    navigate(game.type === 'lessons' ? '/smartkids' : '/games/letter-memory');
+    // Redirect to sub-platforms
+    if (game.id === 1) return redirectToPlatform('https://lessions.alif24.uz', '/ertaklar');  // Ertak o'qish
+    if (game.id === 2) return navigate('/mathkids');   // Matematika (MainPlatform ichida)
+    if (game.id === 3) return redirectToPlatform('https://harf.alif24.uz');        // O'zbek alifbesi
+    if (game.id === 4) return redirectToPlatform('https://harf.alif24.uz', '/en'); // Ingliz alifbesi
+    if (game.id === 5) return redirectToPlatform('https://harf.alif24.uz', '/ru'); // Rus alifbesi
+    if (game.id === 6) return redirectToPlatform('https://games.alif24.uz', '/letter-memory'); // Xotira o'yini
+    if (game.id === 7) return redirectToPlatform('https://games.alif24.uz', '/math-monster');  // Matematika o'yini
+
+    // Fallback
+    redirectToPlatform(game.type === 'lessons' ? 'https://lessions.alif24.uz' : 'https://games.alif24.uz');
   };
 
   const handleCategoryClick = (categoryId) => {
