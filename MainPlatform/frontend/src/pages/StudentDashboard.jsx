@@ -794,19 +794,21 @@ const StudentDashboard = () => {
             <div className="bg-[#f0f2f5] min-h-screen pt-4 pb-20 md:pb-4">
                 <div className="container mx-auto px-4">
                     {/* Mobile bottom nav */}
-                    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 flex justify-around items-center">
-                        {['dashboard', 'classes', 'tasks', 'olympiad', 'achievements'].map(tab => (
+                    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 flex overflow-x-auto no-scrollbar">
+                        {['dashboard', 'classes', 'tasks', 'library', 'olympiad', 'school', 'achievements'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-[64px] h-[56px] transition-all ${activeTab === tab ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+                                className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-[56px] h-[56px] transition-all flex-shrink-0 ${activeTab === tab ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
                             >
-                                {tab === 'dashboard' && <Star size={22} />}
-                                {tab === 'classes' && <SchoolIcon size={22} />}
-                                {tab === 'tasks' && <CheckCircle size={22} />}
-                                {tab === 'olympiad' && <Trophy size={22} />}
-                                {tab === 'achievements' && <Award size={22} />}
-                                <span className="text-[10px] mt-1 font-medium">{tab === 'olympiad' ? 'Olimpiada' : t.tabs[tab]}</span>
+                                {tab === 'dashboard' && <Star size={20} />}
+                                {tab === 'classes' && <SchoolIcon size={20} />}
+                                {tab === 'tasks' && <CheckCircle size={20} />}
+                                {tab === 'library' && <Book size={20} />}
+                                {tab === 'olympiad' && <Trophy size={20} />}
+                                {tab === 'school' && <School size={20} />}
+                                {tab === 'achievements' && <Award size={20} />}
+                                <span className="text-[10px] mt-1 font-medium">{tab === 'olympiad' ? 'Olimpiada' : tab === 'school' ? 'Maktab' : t.tabs[tab]}</span>
                             </button>
                         ))}
                     </div>
