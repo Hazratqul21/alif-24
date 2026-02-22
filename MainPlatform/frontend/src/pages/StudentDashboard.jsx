@@ -725,7 +725,22 @@ const StudentDashboard = () => {
                             <button onClick={() => setSelectedTask(null)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full"><X size={20} /></button>
                         </div>
                         <div className="p-6 flex-1 text-gray-700 whitespace-pre-wrap">
-                            {selectedTask.assignment?.content || "Vazifa matni mavjud emas."}
+                            {selectedTask.assignment?.content || selectedTask.description || "Vazifa matni mavjud emas."}
+                            {/* Biriktirilgan fayllar */}
+                            {selectedTask.assignment?.attachments?.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                    <h4 className="text-sm font-bold text-gray-600 mb-2 flex items-center gap-1"> Biriktirilgan fayllar</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedTask.assignment.attachments.map((att, i) => (
+                                            <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors">
+                                                 {att.name || `Fayl ${i + 1}`}
+                                                {att.size && <span className="text-xs text-indigo-400">({(att.size / 1024).toFixed(0)} KB)</span>}
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         {selectedTask.status === 'completed' && selectedTask.submission && (
                             <div className="p-6 bg-gray-50 border-t border-gray-100">

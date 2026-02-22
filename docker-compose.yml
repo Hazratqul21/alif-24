@@ -56,6 +56,8 @@ services:
       - ADMIN_SECRET_KEY=alif24_rahbariyat26!
       - REDIS_URL=redis://redis:6379
       - CORS_ORIGINS=
+    volumes:
+      - /data/uploads:/app/uploads
     ports:
       - "8000:8000"
     depends_on:

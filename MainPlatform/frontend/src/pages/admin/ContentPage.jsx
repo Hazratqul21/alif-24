@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Plus, Trash2, X, Book, Globe } from 'lucide-react';
+import { BookOpen, Plus, Trash2, X, Book, Globe, Pencil } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 export default function ContentPage() {
@@ -16,6 +16,8 @@ export default function ContentPage() {
     const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
     const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
     const [uploadFile, setUploadFile] = useState(null);
+    const [editLesson, setEditLesson] = useState(null); // lesson object to edit
+    const [editForm, setEditForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
 
     useEffect(() => { loadContent(); }, []);
 
@@ -90,6 +92,44 @@ export default function ContentPage() {
             await adminService.createErtak(payload);
             setCreateModal(null);
             setErtakForm({ title: '', content: '', language: 'uz', age_group: '6-8' });
+            setUploadFile(null);
+            loadContent();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Xatolik');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleEditLesson = (lesson) => {
+        setEditLesson(lesson);
+        setEditForm({
+            title: lesson.title || '',
+            subject: lesson.subject || '',
+            content: lesson.content || '',
+            grade_level: lesson.grade_level || '',
+            language: lesson.language || 'uz',
+            video_url: lesson.video_url || '',
+        });
+    };
+
+    const handleUpdateLesson = async () => {
+        if (!editLesson) return;
+        try {
+            setSaving(true);
+            setError('');
+            const payload = { ...editForm };
+            if (uploadFile) {
+                const upRes = await adminService.uploadFile(uploadFile);
+                if (upRes.data?.url) {
+                    payload.attachments = [
+                        ...(editLesson.attachments || []),
+                        { name: uploadFile.name, url: upRes.data.url, size: upRes.data.size || uploadFile.size }
+                    ];
+                }
+            }
+            await adminService.updateLesson(editLesson.id, payload);
+            setEditLesson(null);
             setUploadFile(null);
             loadContent();
         } catch (err) {
@@ -183,7 +223,10 @@ export default function ContentPage() {
                                     </div>
                                 </div>
                             </div>
-                            <button onClick={() => handleDeleteLesson(l.id)} className="p-2 text-gray-500 hover:text-red-400 shrink-0"><Trash2 className="w-4 h-4" /></button>
+                            <div className="flex items-center gap-1 shrink-0">
+                                <button onClick={() => handleEditLesson(l)} className="p-2 text-gray-500 hover:text-blue-400"><Pencil className="w-4 h-4" /></button>
+                                <button onClick={() => handleDeleteLesson(l.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -290,6 +333,51 @@ export default function ContentPage() {
                         <button onClick={() => setCreateModal(null)} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
                         <button onClick={handleCreateLesson} disabled={saving || !lessonForm.title || !lessonForm.subject || !lessonForm.content} className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
                             {saving ? 'Yaratilmoqda...' : 'Yaratish'}
+                        </button>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Edit Lesson Modal */}
+            {editLesson && (
+                <Modal title={`Darsni tahrirlash: ${editLesson.title}`} onClose={() => { setEditLesson(null); setUploadFile(null); }}>
+                    <div className="space-y-3">
+                        <Input label="Nomi *" value={editForm.title} onChange={(v) => setEditForm({ ...editForm, title: v })} />
+                        <Input label="Fan" value={editForm.subject} onChange={(v) => setEditForm({ ...editForm, subject: v })} placeholder="Matematika, Ingliz tili..." />
+                        <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Mazmuni</label>
+                            <textarea
+                                value={editForm.content}
+                                onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                                rows={6}
+                                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 resize-none"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Input label="Sinf" value={editForm.grade_level} onChange={(v) => setEditForm({ ...editForm, grade_level: v })} />
+                            <Select label="Til" value={editForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setEditForm({ ...editForm, language: v })} />
+                        </div>
+                        <Input label="Video URL" value={editForm.video_url} onChange={(v) => setEditForm({ ...editForm, video_url: v })} />
+                        {editLesson.attachments?.length > 0 && (
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Mavjud fayllar</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {editLesson.attachments.map((att, i) => (
+                                        <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded">📎 {att.name}</a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Yangi fayl qo'shish (Ixtiyoriy)</label>
+                            <input type="file" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                        </div>
+                    </div>
+                    {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button onClick={() => { setEditLesson(null); setUploadFile(null); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                        <button onClick={handleUpdateLesson} disabled={saving || !editForm.title} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
                         </button>
                     </div>
                 </Modal>
