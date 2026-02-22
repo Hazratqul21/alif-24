@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import parentService from '../services/parentService';
+import organizationService from '../services/organizationService';
 import Navbar from '../components/Common/Navbar';
-import { Users, CreditCard, Bell, Settings, PieChart, Calendar, TrendingUp, Plus, X, Eye, EyeOff, Key, UserCheck, ArrowDown, ArrowUp, School, BookOpen, ClipboardList, Zap } from 'lucide-react';
+import { Users, CreditCard, Bell, Settings, PieChart, Calendar, TrendingUp, Plus, X, Eye, EyeOff, Key, UserCheck, ArrowDown, ArrowUp, School, BookOpen, ClipboardList, Zap, Phone, Globe } from 'lucide-react';
 
 const ParentDashboard = () => {
     const { language } = useLanguage();
@@ -36,6 +37,9 @@ const ParentDashboard = () => {
     // Notifications state
     const [notifications, setNotifications] = useState([]);
 
+    // School state
+    const [mySchool, setMySchool] = useState(undefined);
+
     // Settings state
     const [parentSettings, setParentSettings] = useState(() => {
         const saved = localStorage.getItem('parent_settings');
@@ -55,6 +59,14 @@ const ParentDashboard = () => {
             fetchAllChildrenAssignments();
         }
     }, [children]);
+
+    useEffect(() => {
+        if (activeTab === 'school' && mySchool === undefined) {
+            organizationService.getMySchool().then(res => {
+                setMySchool(res.school || res.data?.school || null);
+            }).catch(() => setMySchool(null));
+        }
+    }, [activeTab, mySchool]);
 
     const fetchChildren = async () => {
         try {
@@ -144,6 +156,7 @@ const ParentDashboard = () => {
                 dashboard: 'Farzandlarim',
                 payments: 'To\'lovlar',
                 notifications: 'Xabarnomalar',
+                school: 'Maktab',
                 settings: 'Sozlamalar'
             },
             children: {
@@ -174,6 +187,7 @@ const ParentDashboard = () => {
                 dashboard: 'Мои Дети',
                 payments: 'Платежи',
                 notifications: 'Уведомления',
+                school: 'Школа',
                 settings: 'Настройки'
             },
             children: {
@@ -204,6 +218,7 @@ const ParentDashboard = () => {
                 dashboard: 'My Children',
                 payments: 'Payments',
                 notifications: 'Notifications',
+                school: 'School',
                 settings: 'Settings'
             },
             children: {
@@ -434,6 +449,9 @@ const ParentDashboard = () => {
                         <button onClick={() => setActiveTab('notifications')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'notifications' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
                             <Bell size={20} /> {t.tabs.notifications}
                         </button>
+                        <button onClick={() => setActiveTab('school')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'school' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                            <School size={20} /> {t.tabs.school}
+                        </button>
                         <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'settings' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
                             <Settings size={20} /> {t.tabs.settings}
                         </button>
@@ -446,6 +464,7 @@ const ParentDashboard = () => {
                         { key: 'dashboard', icon: <Users size={18} />, label: t.tabs.dashboard },
                         { key: 'payments', icon: <CreditCard size={18} />, label: t.tabs.payments },
                         { key: 'notifications', icon: <Bell size={18} />, label: t.tabs.notifications },
+                        { key: 'school', icon: <School size={18} />, label: t.tabs.school },
                         { key: 'settings', icon: <Settings size={18} />, label: t.tabs.settings }
                     ].map(tab => (
                         <button key={tab.key} onClick={() => setActiveTab(tab.key)}
@@ -459,6 +478,45 @@ const ParentDashboard = () => {
                 <main className="flex-1 p-4 md:p-10 overflow-x-hidden">
                     {activeTab === 'dashboard' && renderDashboard()}
                     {activeTab === 'payments' && renderPayments()}
+
+                    {activeTab === 'school' && (
+                        <div className="max-w-3xl">
+                            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><School size={24} className="text-purple-500" /> Farzand maktabi</h2>
+                            {mySchool === undefined ? (
+                                <div className="text-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto" /></div>
+                            ) : mySchool === null ? (
+                                <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+                                    <School size={48} className="mx-auto mb-3 text-gray-300" />
+                                    <p className="text-gray-500">Farzandingiz hozircha biror maktabga biriktirilmagan</p>
+                                </div>
+                            ) : (
+                                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl">{mySchool.name?.charAt(0)}</div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-800">{mySchool.name}</h3>
+                                            {mySchool.district && <p className="text-gray-500 text-sm">{mySchool.district}</p>}
+                                        </div>
+                                    </div>
+                                    {mySchool.address && <p className="text-gray-500 text-sm mb-4">{mySchool.address}</p>}
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                        <div className="bg-blue-50 rounded-xl p-4 text-center">
+                                            <div className="text-2xl font-bold text-blue-600">{mySchool.total_teachers || 0}</div>
+                                            <div className="text-xs text-gray-500 mt-1">O'qituvchilar</div>
+                                        </div>
+                                        <div className="bg-green-50 rounded-xl p-4 text-center">
+                                            <div className="text-2xl font-bold text-green-600">{mySchool.total_students || 0}</div>
+                                            <div className="text-xs text-gray-500 mt-1">O'quvchilar</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-3 text-sm text-gray-500">
+                                        {mySchool.phone && <span className="flex items-center gap-1"><Phone size={14} /> {mySchool.phone}</span>}
+                                        {mySchool.website && <a href={mySchool.website} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 flex items-center gap-1"><Globe size={14} /> {mySchool.website}</a>}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {activeTab === 'notifications' && (
                         <div className="max-w-3xl">

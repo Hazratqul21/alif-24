@@ -6,6 +6,7 @@ import Navbar from '../components/Common/Navbar';
 import coinService from '../services/coinService';
 import { studentService } from '../services/studentService';
 import notificationService from '../services/notificationService';
+import organizationService from '../services/organizationService';
 import {
     BookOpen, Trophy, Clock, Star, Play, CheckCircle, Search, Filter,
     TrendingUp, Award, Target, Calendar, MessageSquare, Users, Bell,
@@ -45,6 +46,7 @@ const StudentDashboard = () => {
     const [taskFilter, setTaskFilter] = useState('all');
     const [selectedTask, setSelectedTask] = useState(null);
     const [submissionContent, setSubmissionContent] = useState('');
+    const [mySchool, setMySchool] = useState(undefined); // undefined=not loaded, null=no school
 
     const fetchLMSData = async () => {
         try {
@@ -97,6 +99,14 @@ const StudentDashboard = () => {
 
         return () => clearInterval(notifInterval);
     }, []);
+
+    useEffect(() => {
+        if (activeTab === 'school' && mySchool === undefined) {
+            organizationService.getMySchool().then(res => {
+                setMySchool(res.school || res.data?.school || null);
+            }).catch(() => setMySchool(null));
+        }
+    }, [activeTab, mySchool]);
 
     // Timer logic
     useEffect(() => {
@@ -190,7 +200,8 @@ const StudentDashboard = () => {
                 library: 'Kutubxona',
                 achievements: 'Yutuqlar',
                 events: 'Tadbirlar',
-                help: 'Yordam'
+                help: 'Yordam',
+                school: 'Maktabim'
             },
             stats: {
                 points: 'Ballarim',
@@ -219,7 +230,8 @@ const StudentDashboard = () => {
                 library: 'Библиотека',
                 achievements: 'Достижения',
                 events: 'События',
-                help: 'Помощь'
+                help: 'Помощь',
+                school: 'Моя школа'
             },
             stats: {
                 points: 'Баллы',
@@ -248,7 +260,8 @@ const StudentDashboard = () => {
                 library: 'Library',
                 achievements: 'Achievements',
                 events: 'Events',
-                help: 'Help'
+                help: 'Help',
+                school: 'My School'
             },
             stats: {
                 points: 'My Points',
@@ -595,6 +608,44 @@ const StudentDashboard = () => {
         </div>
     );
 
+    const renderSchool = () => (
+        <div className="space-y-6">
+            {mySchool === undefined ? (
+                <div className="text-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto" /></div>
+            ) : mySchool === null ? (
+                <div className="text-center py-8">
+                    <SchoolIcon size={48} className="mx-auto mb-3 text-gray-300" />
+                    <p className="text-gray-500">Hozircha biror maktabga biriktirilmagansiz</p>
+                </div>
+            ) : (
+                <div>
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl">{mySchool.name?.charAt(0)}</div>
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-800">{mySchool.name}</h3>
+                            {mySchool.district && <p className="text-gray-500 text-sm">{mySchool.district}</p>}
+                        </div>
+                    </div>
+                    {mySchool.address && <p className="text-gray-500 text-sm mb-4">{mySchool.address}</p>}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-blue-50 rounded-xl p-4 text-center">
+                            <div className="text-2xl font-bold text-blue-600">{mySchool.total_teachers || 0}</div>
+                            <div className="text-xs text-gray-500 mt-1">O'qituvchilar</div>
+                        </div>
+                        <div className="bg-green-50 rounded-xl p-4 text-center">
+                            <div className="text-2xl font-bold text-green-600">{mySchool.total_students || 0}</div>
+                            <div className="text-xs text-gray-500 mt-1">O'quvchilar</div>
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-sm text-gray-500">
+                        {mySchool.phone && <span className="flex items-center gap-1"><Phone size={14} /> {mySchool.phone}</span>}
+                        {mySchool.website && <a href={mySchool.website} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1"><Globe size={14} /> {mySchool.website}</a>}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <>
             <Navbar />
@@ -693,7 +744,7 @@ const StudentDashboard = () => {
             <div className="bg-[#f0f2f5] min-h-screen pt-4 pb-20 md:pb-4">
                 <div className="container mx-auto px-4">
                     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 flex justify-around items-center">
-                        {['dashboard', 'classes', 'tasks', 'library', 'achievements'].map(tab => (
+                        {['dashboard', 'classes', 'tasks', 'school', 'achievements'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -702,21 +753,21 @@ const StudentDashboard = () => {
                                 {tab === 'dashboard' && <Star size={22} />}
                                 {tab === 'classes' && <SchoolIcon size={22} />}
                                 {tab === 'tasks' && <CheckCircle size={22} />}
-                                {tab === 'library' && <BookOpen size={22} />}
+                                {tab === 'school' && <School size={22} />}
                                 {tab === 'achievements' && <Trophy size={22} />}
-                                <span className="text-[10px] mt-1 font-medium">{t.tabs[tab]}</span>
+                                <span className="text-[10px] mt-1 font-medium">{tab === 'school' ? 'Maktabim' : t.tabs[tab]}</span>
                             </button>
                         ))}
                     </div>
 
                     <div className="hidden md:flex gap-2 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 w-fit">
-                        {['dashboard', 'classes', 'tasks', 'library', 'achievements'].map(tab => (
+                        {['dashboard', 'classes', 'tasks', 'library', 'school', 'achievements'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`px-6 py-2.5 rounded-xl font-medium transition-all min-h-[44px] flex items-center justify-center ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-50'}`}
                             >
-                                {t.tabs[tab]}
+                                {tab === 'school' ? 'Maktabim' : t.tabs[tab]}
                             </button>
                         ))}
                     </div>
@@ -765,6 +816,44 @@ const StudentDashboard = () => {
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    )}
+                    {activeTab === 'school' && (
+                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><School size={24} className="text-indigo-500" /> Maktabim</h2>
+                            {mySchool === undefined ? (
+                                <div className="text-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto" /></div>
+                            ) : mySchool === null ? (
+                                <div className="text-center py-8">
+                                    <School size={48} className="mx-auto mb-3 text-gray-300" />
+                                    <p className="text-gray-500">Hozircha biror maktabga biriktirilmagansiz</p>
+                                </div>
+                            ) : (
+                                <div>
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl">{mySchool.name?.charAt(0)}</div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-800">{mySchool.name}</h3>
+                                            {mySchool.district && <p className="text-gray-500 text-sm">{mySchool.district}</p>}
+                                        </div>
+                                    </div>
+                                    {mySchool.address && <p className="text-gray-500 text-sm mb-4">{mySchool.address}</p>}
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                        <div className="bg-blue-50 rounded-xl p-4 text-center">
+                                            <div className="text-2xl font-bold text-blue-600">{mySchool.total_teachers || 0}</div>
+                                            <div className="text-xs text-gray-500 mt-1">O'qituvchilar</div>
+                                        </div>
+                                        <div className="bg-green-50 rounded-xl p-4 text-center">
+                                            <div className="text-2xl font-bold text-green-600">{mySchool.total_students || 0}</div>
+                                            <div className="text-xs text-gray-500 mt-1">O'quvchilar</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-3 text-sm text-gray-500">
+                                        {mySchool.phone && <span className="flex items-center gap-1"><Phone size={14} /> {mySchool.phone}</span>}
+                                        {mySchool.website && <a href={mySchool.website} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1"><Globe size={14} /> {mySchool.website}</a>}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                     {activeTab === 'achievements' && (

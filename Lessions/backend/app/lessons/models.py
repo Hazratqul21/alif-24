@@ -24,6 +24,7 @@ class LessonStatus(str, enum.Enum):
 
 class Lesson(Base):
     __tablename__ = "lessons"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
     subject_id = Column(String(8), ForeignKey("subjects.id", use_alter=True, name="fk_lesson_subject"), nullable=True)
@@ -64,6 +65,7 @@ class LessonProgress(Base):
 
 class Ertak(Base):
     __tablename__ = "ertaklar"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
     title = Column(String(200), nullable=False)

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Common/Navbar';
 import { teacherService } from '../services/teacherService';
 import notificationService from '../services/notificationService';
+import organizationService from '../services/organizationService';
 import {
   BookOpen, Users, Award, BarChart3, Plus, Clock, CheckCircle,
   FileText, Settings, Bell, Search, Filter, ChevronRight,
@@ -55,10 +56,12 @@ const TeacherDashboard = () => {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiPromptText, setAiPromptText] = useState('');
 
+  const [mySchool, setMySchool] = useState(null);
+
   const tabLabels = {
-    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', settings: 'Sozlamalar' },
-    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', settings: 'Настройки' },
-    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', settings: 'Settings' },
+    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', school: 'Maktabim', settings: 'Sozlamalar' },
+    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', school: 'Моя школа', settings: 'Настройки' },
+    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', school: 'My School', settings: 'Settings' },
   };
   const tl = tabLabels[language] || tabLabels.uz;
 
@@ -68,6 +71,7 @@ const TeacherDashboard = () => {
     { id: 'lessons', label: tl.lessons, icon: BookOpen },
     { id: 'assignments', label: tl.assignments, icon: ClipboardList },
     { id: 'livequiz', label: tl.livequiz, icon: Zap },
+    { id: 'school', label: tl.school, icon: Award },
     { id: 'settings', label: tl.settings, icon: Settings },
   ];
 
@@ -126,6 +130,14 @@ const TeacherDashboard = () => {
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
   }, [fetchClassrooms, fetchAssignments, fetchLessons, fetchUnread]);
+
+  useEffect(() => {
+    if (activeTab === 'school' && !mySchool) {
+      organizationService.getMySchool().then(res => {
+        setMySchool(res.school || res.data?.school || null);
+      }).catch(() => {});
+    }
+  }, [activeTab, mySchool]);
 
   const fetchClassroomDetail = async (id) => {
     try {
@@ -657,6 +669,47 @@ const TeacherDashboard = () => {
     </div>
   );
 
+  const renderMySchool = () => {
+    if (!mySchool) return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-white">{tl.school}</h3>
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+          <Award className="w-12 h-12 text-white/20 mx-auto mb-3" />
+          <p className="text-white/60">Hozircha biror tashkilotga biriktirilmagansiz</p>
+        </div>
+      </div>
+    );
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-white">{tl.school}</h3>
+        <div className="bg-gradient-to-br from-[#4b30fb]/10 to-[#764ba2]/10 border border-[#4b30fb]/20 rounded-2xl p-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-2xl flex items-center justify-center text-white font-bold text-xl">{mySchool.name?.charAt(0)}</div>
+            <div>
+              <h4 className="text-white font-bold text-xl">{mySchool.name}</h4>
+              {mySchool.district && <p className="text-white/50 text-sm">{mySchool.district}</p>}
+            </div>
+          </div>
+          {mySchool.address && <div className="text-white/60 text-sm mb-3">{mySchool.address}</div>}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="bg-white/5 rounded-xl p-3 text-center">
+              <div className="text-white font-bold text-lg">{mySchool.total_teachers || 0}</div>
+              <div className="text-white/40 text-xs">O'qituvchilar</div>
+            </div>
+            <div className="bg-white/5 rounded-xl p-3 text-center">
+              <div className="text-white font-bold text-lg">{mySchool.total_students || 0}</div>
+              <div className="text-white/40 text-xs">O'quvchilar</div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm text-white/50">
+            {mySchool.phone && <span>Tel: {mySchool.phone}</span>}
+            {mySchool.website && <a href={mySchool.website} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">{mySchool.website}</a>}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderSettings = () => (
     <div className="space-y-4">
       <h3 className="text-lg font-bold text-white">Sozlamalar</h3>
@@ -679,6 +732,7 @@ const TeacherDashboard = () => {
       case 'lessons': return renderLessons();
       case 'assignments': return renderAssignments();
       case 'livequiz': return renderLiveQuiz();
+      case 'school': return renderMySchool();
       case 'settings': return renderSettings();
       default: return renderDashboard();
     }

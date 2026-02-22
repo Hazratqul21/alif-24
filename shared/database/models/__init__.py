@@ -122,6 +122,7 @@ from shared.database.models.in_app_notification import (
 )
 
 from shared.database.models.lesson import Lesson
+from shared.database.models.story import Story
 from shared.database.models.platform_content import PlatformContent
 
 __all__ = [
@@ -226,6 +227,9 @@ __all__ = [
 
     # Lesson Models
     "Lesson",
+
+    # Story Models
+    "Story",
 
     # Platform Content
     "PlatformContent",
