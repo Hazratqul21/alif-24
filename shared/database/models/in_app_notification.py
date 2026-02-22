@@ -48,7 +48,7 @@ class InAppNotification(Base):
     read_at = Column(DateTime(timezone=True), nullable=True)
 
     # Kim yubordi (agar mavjud)
-    sender_id = Column(String(8), ForeignKey("users.id"), nullable=True)
+    sender_id = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
