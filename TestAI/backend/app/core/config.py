@@ -22,8 +22,8 @@ class Settings:
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # OpenAI
-    OPENAI_API_KEY: str = "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"
-    OPENAI_MODEL: str = "gpt-4"
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = "gpt-4o-mini"
 
     # Quiz Settings
     MAX_PARTICIPANTS_PER_QUIZ: int = 40

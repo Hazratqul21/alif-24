@@ -128,6 +128,9 @@ from shared.database.models.lesson import Lesson
 from shared.database.models.story import Story
 from shared.database.models.platform_content import PlatformContent
 
+# Saved Test System
+from shared.database.models.saved_test import SavedTest, SavedTestStatus
+
 # Reading Competition System
 from shared.database.models.reading_competition import (
     ReadingCompetition,
@@ -252,6 +255,10 @@ __all__ = [
 
     # Platform Content
     "PlatformContent",
+
+    # Saved Test Models
+    "SavedTest",
+    "SavedTestStatus",
 
     # Reading Competition Models
     "ReadingCompetition",
