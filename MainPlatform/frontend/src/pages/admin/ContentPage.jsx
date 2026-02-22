@@ -60,7 +60,7 @@ export default function ContentPage() {
 
             await adminService.createLesson(payload);
             setCreateModal(null);
-            setLessonForm({ title: '', subject: '', content: '', grade_level: '', difficulty: 'medium', duration_minutes: 30, language: 'uz' });
+            setLessonForm({ title: '', subject: '', content: '', grade_level: '', difficulty: 'medium', duration_minutes: 30, language: 'uz', video_url: '' });
             setUploadFile(null);
             loadContent();
         } catch (err) {

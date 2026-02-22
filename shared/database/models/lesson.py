@@ -8,11 +8,12 @@ class Lesson(Base):
     __tablename__ = "lessons"
 
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    teacher_id = Column(String(8), ForeignKey("teacher_profiles.id"), nullable=False)
+    teacher_id = Column(String(8), ForeignKey("teacher_profiles.id"), nullable=True)
     title = Column(String(300), nullable=False)
     subject = Column(String(100), nullable=True)
     grade_level = Column(String(20), nullable=True)
     content = Column(Text, nullable=True)
+    language = Column(String(10), nullable=True, default="uz")
     video_url = Column(String(500), nullable=True)
     attachments = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
