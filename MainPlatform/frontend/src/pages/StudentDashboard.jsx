@@ -48,13 +48,14 @@ const StudentDashboard = () => {
     const [selectedTask, setSelectedTask] = useState(null);
     const [submissionContent, setSubmissionContent] = useState('');
     const [mySchool, setMySchool] = useState(undefined); // undefined=not loaded, null=no school
+    const [parentInvites, setParentInvites] = useState([]);
 
     const fetchLMSData = async () => {
         try {
             const [classesRes, invitesRes, assignsRes] = await Promise.all([
                 studentService.getMyClassrooms(),
                 studentService.getInvitations(),
-                studentService.getAssignments()
+                studentService.getAssignments(),
             ]);
             setClassrooms(classesRes.data?.classes || []);
             setInvitations(invitesRes.data?.invitations || []);
@@ -62,6 +63,12 @@ const StudentDashboard = () => {
         } catch (err) {
             console.error("Error fetching LMS data:", err);
         }
+        // Fetch parent invites separately (won't break if endpoint missing)
+        try {
+            const res = await notificationService.getNotifications();
+            const notifs = res.data?.notifications || res.data || [];
+            setParentInvites(notifs.filter(n => n.type === 'parent_invite' && !n.is_read));
+        } catch (e) { /* ignore */ }
     };
 
     useEffect(() => {
@@ -167,6 +174,21 @@ const StudentDashboard = () => {
         try {
             await studentService.respondInvitation(invitationId, action);
             showNotif('success', action === 'accept' ? "Taklif qabul qilindi!" : "Taklif rad etildi");
+            await fetchLMSData();
+        } catch (err) {
+            showNotif('error', err.message || "Xatolik yuz berdi");
+        }
+    };
+
+    const handleRespondParentInvite = async (notifId, action) => {
+        try {
+            if (action === 'accept') {
+                await studentService.acceptParentInvite(notifId);
+                showNotif('success', "Ota-ona taklifi qabul qilindi!");
+            } else {
+                await studentService.declineParentInvite(notifId);
+                showNotif('success', "Ota-ona taklifi rad etildi");
+            }
             await fetchLMSData();
         } catch (err) {
             showNotif('error', err.message || "Xatolik yuz berdi");
@@ -508,6 +530,35 @@ const StudentDashboard = () => {
                                         Qabul qilish
                                     </button>
                                     <button onClick={() => handleRespondInvitation(inv.invitation_id, 'decline')}
+                                        className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                                        Rad etish
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Parent Invites */}
+            {parentInvites.length > 0 && (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-2xl p-6">
+                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Shield size={20} className="text-purple-500" /> Ota-ona taklifi ({parentInvites.length})
+                    </h3>
+                    <div className="space-y-3">
+                        {parentInvites.map(inv => (
+                            <div key={inv.id} className="bg-white p-4 rounded-xl shadow-sm flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-bold text-gray-800">{inv.title}</h4>
+                                    <p className="text-sm text-gray-500">{inv.message}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => handleRespondParentInvite(inv.id, 'accept')}
+                                        className="px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors">
+                                        Qabul qilish
+                                    </button>
+                                    <button onClick={() => handleRespondParentInvite(inv.id, 'decline')}
                                         className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-300 transition-colors">
                                         Rad etish
                                     </button>

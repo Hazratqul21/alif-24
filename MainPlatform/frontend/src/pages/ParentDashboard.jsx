@@ -16,8 +16,12 @@ const ParentDashboard = () => {
     const [showReportModal, setShowReportModal] = useState(false);
     const [selectedChildStats, setSelectedChildStats] = useState(null);
 
-    const [newChild, setNewChild] = useState({ first_name: '', last_name: '', date_of_birth: '', gender: '', grade: '' });
-    const [createdChild, setCreatedChild] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResult, setSearchResult] = useState(null);
+    const [searchError, setSearchError] = useState('');
+    const [searching, setSearching] = useState(false);
+    const [inviteSent, setInviteSent] = useState(false);
+    const [pendingInvites, setPendingInvites] = useState([]);
 
     // Teacher info state
     const [childTeachers, setChildTeachers] = useState({});
@@ -52,6 +56,7 @@ const ParentDashboard = () => {
 
     useEffect(() => {
         fetchChildren();
+        fetchPendingInvites();
     }, []);
 
     useEffect(() => {
@@ -136,15 +141,37 @@ const ParentDashboard = () => {
         }
     };
 
-    const handleAddChild = async (e) => {
-        e.preventDefault();
+    const fetchPendingInvites = async () => {
         try {
-            const result = await parentService.createChild(newChild);
-            setCreatedChild(result);
-            fetchChildren();
-            setNewChild({ first_name: '', last_name: '', date_of_birth: '', gender: '', grade: '' });
+            const data = await parentService.getPendingInvites();
+            setPendingInvites(data || []);
+        } catch (e) { console.error(e); }
+    };
+
+    const handleSearchChild = async (e) => {
+        e.preventDefault();
+        if (!searchQuery.trim()) return;
+        try {
+            setSearching(true);
+            setSearchError('');
+            setSearchResult(null);
+            const result = await parentService.searchChild(searchQuery.trim());
+            setSearchResult(result);
         } catch (error) {
-            alert(error.message || "Xatolik yuz berdi");
+            setSearchError(error.message || "O'quvchi topilmadi");
+        } finally {
+            setSearching(false);
+        }
+    };
+
+    const handleInviteChild = async () => {
+        if (!searchResult?.id) return;
+        try {
+            await parentService.inviteChild(searchResult.id);
+            setInviteSent(true);
+            fetchPendingInvites();
+        } catch (error) {
+            setSearchError(error.message || "Taklif yuborishda xatolik");
         }
     };
 
@@ -643,109 +670,97 @@ const ParentDashboard = () => {
                 </main>
             </div>
 
-            {/* Add Child Modal */}
+            {/* Add Child Modal — Search + Invite */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                            <h3 className="text-xl font-bold text-gray-800">{t.addModal.title}</h3>
-                            <button onClick={() => { setShowAddModal(false); setCreatedChild(null); }} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                            <h3 className="text-xl font-bold text-gray-800">Farzand qo'shish</h3>
+                            <button onClick={() => { setShowAddModal(false); setSearchQuery(''); setSearchResult(null); setSearchError(''); setInviteSent(false); }} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                                 <X size={20} className="text-gray-500" />
                             </button>
                         </div>
 
                         <div className="p-6">
-                            {!createdChild ? (
-                                <form onSubmit={handleAddChild} className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">{t.addModal.firstName}</label>
-                                            <input
-                                                type="text" required
-                                                value={newChild.first_name}
-                                                onChange={(e) => setNewChild({ ...newChild, first_name: e.target.value })}
-                                                className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">{t.addModal.lastName}</label>
-                                            <input
-                                                type="text"
-                                                value={newChild.last_name}
-                                                onChange={(e) => setNewChild({ ...newChild, last_name: e.target.value })}
-                                                className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Tug'ilgan sana</label>
-                                            <input
-                                                type="date"
-                                                value={newChild.date_of_birth}
-                                                onChange={(e) => setNewChild({ ...newChild, date_of_birth: e.target.value })}
-                                                max={new Date().toISOString().split('T')[0]}
-                                                className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Jins</label>
-                                            <div className="flex gap-2">
-                                                <label className={`flex-1 flex items-center justify-center py-3 rounded-xl cursor-pointer transition-all text-sm font-medium ${newChild.gender === 'male' ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                                                    }`}>
-                                                    <input type="radio" name="child_gender" value="male" checked={newChild.gender === 'male'} onChange={(e) => setNewChild({ ...newChild, gender: e.target.value })} className="sr-only" />
-                                                    Erkak
-                                                </label>
-                                                <label className={`flex-1 flex items-center justify-center py-3 rounded-xl cursor-pointer transition-all text-sm font-medium ${newChild.gender === 'female' ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-400' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                                                    }`}>
-                                                    <input type="radio" name="child_gender" value="female" checked={newChild.gender === 'female'} onChange={(e) => setNewChild({ ...newChild, gender: e.target.value })} className="sr-only" />
-                                                    Ayol
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Sinf</label>
-                                        <div className="grid grid-cols-4 gap-1.5">
-                                            {['1-sinf', '2-sinf', '3-sinf', '4-sinf', '5-sinf', '6-sinf', '7-sinf', '8-sinf', '9-sinf', '10-sinf', '11-sinf'].map(g => (
-                                                <label key={g} className={`flex items-center justify-center py-2 rounded-lg cursor-pointer transition-all text-xs font-medium ${newChild.grade === g ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                                                    }`}>
-                                                    <input type="radio" name="child_grade" value={g} checked={newChild.grade === g} onChange={(e) => setNewChild({ ...newChild, grade: e.target.value })} className="sr-only" />
-                                                    {g}
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <button type="submit" className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95">
-                                        {t.addModal.submit}
-                                    </button>
-                                </form>
-                            ) : (
+                            {inviteSent ? (
                                 <div className="text-center">
                                     <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <UserCheck size={32} />
                                     </div>
-                                    <h4 className="text-xl font-bold text-gray-900 mb-2">{t.addModal.success}</h4>
-                                    <p className="text-gray-500 text-sm mb-6">{t.addModal.credentialsNote}</p>
-
-                                    <div className="bg-blue-50 rounded-2xl p-6 text-left space-y-3 mb-6">
-                                        <div>
-                                            <label className="text-xs font-bold text-blue-400 uppercase tracking-widest">Username</label>
-                                            <div className="text-lg font-mono font-bold text-blue-700">{createdChild.username || createdChild.credentials?.username}</div>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-blue-400 uppercase tracking-widest">PIN Kod</label>
-                                            <div className="text-lg font-mono font-bold text-blue-700">{createdChild.pin || createdChild.credentials?.pin}</div>
-                                        </div>
-                                    </div>
-
+                                    <h4 className="text-xl font-bold text-gray-900 mb-2">Taklif yuborildi!</h4>
+                                    <p className="text-gray-500 text-sm mb-6">
+                                        Farzandingiz saytga kirganda taklifni ko'radi va qabul qilishi mumkin. Qabul qilgandan so'ng u sizning kabinetingizda ko'rinadi.
+                                    </p>
                                     <button
-                                        onClick={() => { setShowAddModal(false); setCreatedChild(null); }}
+                                        onClick={() => { setShowAddModal(false); setSearchQuery(''); setSearchResult(null); setSearchError(''); setInviteSent(false); }}
                                         className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl hover:bg-black transition"
                                     >
-                                        {t.addModal.close}
+                                        Yopish
                                     </button>
                                 </div>
+                            ) : (
+                                <>
+                                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
+                                        <p className="text-sm text-blue-700">
+                                            Farzandingiz allaqachon ro'yxatdan o'tgan bo'lishi kerak. Uni <b>ID raqami</b>, <b>email</b>, <b>telefon raqami</b> yoki <b>username</b> orqali qidiring.
+                                        </p>
+                                    </div>
+
+                                    <form onSubmit={handleSearchChild} className="flex gap-2 mb-4">
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="ID, email, telefon yoki username..."
+                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                        />
+                                        <button type="submit" disabled={searching || !searchQuery.trim()}
+                                            className="px-5 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 transition text-sm whitespace-nowrap">
+                                            {searching ? '...' : 'Qidirish'}
+                                        </button>
+                                    </form>
+
+                                    {searchError && (
+                                        <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl p-3 mb-4 text-sm">{searchError}</div>
+                                    )}
+
+                                    {searchResult && (
+                                        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 mb-4">
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center text-xl font-bold text-blue-600">
+                                                    {searchResult.first_name?.[0] || '?'}
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-lg font-bold text-gray-800">{searchResult.first_name} {searchResult.last_name}</h4>
+                                                    {searchResult.username && <p className="text-gray-500 text-sm font-mono">@{searchResult.username}</p>}
+                                                    <p className="text-gray-400 text-xs">ID: {searchResult.id}</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={handleInviteChild}
+                                                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 transition-all active:scale-95"
+                                            >
+                                                Taklif yuborish
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {pendingInvites.length > 0 && (
+                                        <div className="mt-4 pt-4 border-t border-gray-100">
+                                            <h4 className="text-sm font-semibold text-gray-600 mb-2">Kutilayotgan takliflar:</h4>
+                                            <div className="space-y-2">
+                                                {pendingInvites.map(inv => (
+                                                    <div key={inv.invite_id} className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-xl p-3">
+                                                        <div>
+                                                            <span className="font-medium text-gray-800 text-sm">{inv.first_name} {inv.last_name}</span>
+                                                            <span className="text-xs text-amber-600 ml-2">kutilmoqda...</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>

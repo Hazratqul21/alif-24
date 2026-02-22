@@ -136,6 +136,16 @@ class StudentService {
   async submitAssignment(assignmentId, data) {
     return apiService.post(`/students/assignments/${assignmentId}/submit`, data);
   }
+
+  // ============ Parent Invites ============
+
+  async acceptParentInvite(notifId) {
+    return apiService.post(`/auth/parent-invites/${notifId}/accept`);
+  }
+
+  async declineParentInvite(notifId) {
+    return apiService.post(`/auth/parent-invites/${notifId}/decline`);
+  }
 }
 
 export const studentService = new StudentService();

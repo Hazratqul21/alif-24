@@ -191,73 +191,164 @@ async def update_profile(
 
 
 # ============================================================
-# PARENT → BOLA BOSHQARISH
+# PARENT → BOLA BOSHQARISH (Search + Invite tizimi)
+# Ota-ona bolani ID / email / telefon orqali qidiradi,
+# taklif yuboradi, bola qabul qiladi — xuddi sinfga qo'shilish kabi.
 # ============================================================
 
-class AddChildRequest(BaseModel):
-    first_name: str
-    last_name: Optional[str] = ""
-    date_of_birth: Optional[str] = None  # "YYYY-MM-DD"
-    gender: Optional[str] = None  # "male" | "female"
-    grade: Optional[str] = None
+from shared.database.models.in_app_notification import InAppNotification, InAppNotifType
 
-@router.post("/children")
-async def add_child(
-    data: AddChildRequest,
+class ChildSearchRequest(BaseModel):
+    query: str  # ID, email yoki telefon raqam
+
+class ChildInviteRequest(BaseModel):
+    student_id: str  # Topilgan o'quvchining user ID si
+
+
+@router.post("/children/search")
+async def search_child(
+    data: ChildSearchRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Ota-ona o'z bolasini qo'shish (username + PIN yaratiladi)"""
-    from shared.database.models import UserRole, StudentProfile, Gender
-    from datetime import date as date_type
+    """Bolani ID, email yoki telefon raqami orqali qidirish"""
+    from shared.database.models import UserRole
+    from sqlalchemy import select, or_
 
     if current_user.role != UserRole.parent:
-        raise HTTPException(status_code=403, detail="Faqat ota-ona bola qo'sha oladi")
+        raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun")
 
-    # Username va PIN yaratish
-    username = User.generate_username(data.first_name)
-    pin = User.generate_pin(4)
+    q = data.query.strip()
+    if not q:
+        raise HTTPException(status_code=400, detail="Qidiruv so'zini kiriting")
 
-    child = User(
-        first_name=data.first_name,
-        last_name=data.last_name or current_user.last_name,
-        username=username,
-        role=UserRole.student,
-        parent_id=current_user.id,
+    result = await db.execute(
+        select(User).where(
+            User.role == UserRole.student,
+            or_(
+                User.id == q,
+                User.email == q,
+                User.phone == q,
+                User.username == q,
+            )
+        )
     )
-    child.set_pin(pin)
+    student = result.scalar_one_or_none()
 
-    # Qo'shimcha maydonlar
-    if data.date_of_birth:
-        try:
-            child.date_of_birth = date_type.fromisoformat(data.date_of_birth)
-        except (ValueError, TypeError):
-            pass
-    if data.gender:
-        try:
-            child.gender = Gender(data.gender)
-        except (ValueError, KeyError):
-            pass
+    if not student:
+        raise HTTPException(status_code=404, detail="O'quvchi topilmadi. ID, email yoki telefon raqamini tekshiring.")
 
-    db.add(child)
-    await db.flush()
+    if student.parent_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Bu farzand allaqachon sizga biriktirilgan")
 
-    # Student profile yaratish
-    student = StudentProfile(user_id=child.id)
-    if data.grade:
-        student.grade = data.grade
-    db.add(student)
+    if student.parent_id:
+        raise HTTPException(status_code=400, detail="Bu o'quvchining ota-onasi allaqachon mavjud")
+
+    return {
+        "success": True,
+        "data": {
+            "id": student.id,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "avatar": student.avatar,
+            "username": student.username,
+        }
+    }
+
+
+@router.post("/children/invite")
+async def invite_child(
+    data: ChildInviteRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """O'quvchiga ota-ona sifatida taklif yuborish"""
+    from shared.database.models import UserRole
+    from sqlalchemy import select, and_
+
+    if current_user.role != UserRole.parent:
+        raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun")
+
+    # O'quvchini tekshirish
+    result = await db.execute(
+        select(User).where(User.id == data.student_id, User.role == UserRole.student)
+    )
+    student = result.scalar_one_or_none()
+    if not student:
+        raise HTTPException(status_code=404, detail="O'quvchi topilmadi")
+
+    if student.parent_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Bu farzand allaqachon sizga biriktirilgan")
+
+    if student.parent_id:
+        raise HTTPException(status_code=400, detail="Bu o'quvchining ota-onasi allaqachon mavjud")
+
+    # Avvalgi kutilayotgan taklif bormi tekshirish
+    existing = await db.execute(
+        select(InAppNotification).where(
+            InAppNotification.user_id == student.id,
+            InAppNotification.sender_id == current_user.id,
+            InAppNotification.notif_type == InAppNotifType.parent_invite,
+            InAppNotification.is_read == False,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Taklif allaqachon yuborilgan. Farzandingiz javob berishini kuting.")
+
+    # Notification yaratish — bolaga habar boradi
+    notif = InAppNotification(
+        user_id=student.id,
+        sender_id=current_user.id,
+        title="Ota-ona taklifi",
+        message=f"{current_user.first_name} {current_user.last_name} sizni farzandi sifatida qo'shmoqchi. Qabul qilasizmi?",
+        notif_type=InAppNotifType.parent_invite,
+        reference_type="parent_invite",
+        reference_id=current_user.id,
+    )
+    db.add(notif)
     await db.commit()
 
     return {
         "success": True,
-        "message": "Bola muvaffaqiyatli qo'shildi",
-        "data": {
-            "child": child.to_dict(),
-            "username": username,
-            "pin": pin,  # Faqat yaratilganda bir marta ko'rsatiladi
-        }
+        "message": f"Taklif {student.first_name} ga yuborildi. U saytdan qabul qilishi kerak.",
     }
+
+
+@router.get("/children/pending")
+async def list_pending_invites(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Ota-onaning kutilayotgan taklif ro'yxati"""
+    from shared.database.models import UserRole
+    from sqlalchemy import select
+
+    if current_user.role != UserRole.parent:
+        raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun")
+
+    result = await db.execute(
+        select(InAppNotification).where(
+            InAppNotification.sender_id == current_user.id,
+            InAppNotification.notif_type == InAppNotifType.parent_invite,
+            InAppNotification.is_read == False,
+        )
+    )
+    invites = result.scalars().all()
+
+    pending = []
+    for inv in invites:
+        stu = await db.execute(select(User).where(User.id == inv.user_id))
+        stu = stu.scalar_one_or_none()
+        if stu:
+            pending.append({
+                "invite_id": inv.id,
+                "student_id": stu.id,
+                "first_name": stu.first_name,
+                "last_name": stu.last_name,
+                "created_at": inv.created_at.isoformat() if inv.created_at else None,
+            })
+
+    return {"success": True, "data": pending}
 
 
 @router.get("/children")
@@ -265,7 +356,7 @@ async def list_children(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Ota-onaning bolalari ro'yxati"""
+    """Ota-onaning biriktirilgan bolalari ro'yxati"""
     from sqlalchemy import select
     from shared.database.models import UserRole
 
@@ -356,4 +447,117 @@ async def regenerate_child_pin(
             "new_pin": new_pin,
         },
         "message": "PIN muvaffaqiyatli yangilandi"
+    }
+
+
+# ============================================================
+# O'QUVCHI: Ota-ona taklifini qabul / rad etish
+# ============================================================
+
+@router.post("/parent-invites/{notif_id}/accept")
+async def accept_parent_invite(
+    notif_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """O'quvchi ota-ona taklifini qabul qiladi"""
+    from sqlalchemy import select
+
+    notif = await db.execute(
+        select(InAppNotification).where(
+            InAppNotification.id == notif_id,
+            InAppNotification.user_id == current_user.id,
+            InAppNotification.notif_type == InAppNotifType.parent_invite,
+        )
+    )
+    notif = notif.scalar_one_or_none()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Taklif topilmadi")
+
+    if notif.is_read:
+        raise HTTPException(status_code=400, detail="Bu taklifga allaqachon javob berilgan")
+
+    if current_user.parent_id:
+        raise HTTPException(status_code=400, detail="Sizning ota-onangiz allaqachon mavjud")
+
+    parent_id = notif.sender_id
+
+    # Parent mavjudligini tekshirish
+    parent = await db.execute(select(User).where(User.id == parent_id))
+    parent = parent.scalar_one_or_none()
+    if not parent:
+        raise HTTPException(status_code=404, detail="Ota-ona topilmadi")
+
+    # Bolani ota-onaga biriktirish
+    current_user.parent_id = parent_id
+
+    # Taklifni yopish
+    notif.is_read = True
+    from datetime import datetime, timezone
+    notif.read_at = datetime.now(timezone.utc)
+
+    # Ota-onaga habar yuborish
+    confirm_notif = InAppNotification(
+        user_id=parent_id,
+        sender_id=current_user.id,
+        title="Farzand qo'shildi!",
+        message=f"{current_user.first_name} {current_user.last_name} sizning taklifingizni qabul qildi.",
+        notif_type=InAppNotifType.system,
+        reference_type="parent_accept",
+        reference_id=current_user.id,
+    )
+    db.add(confirm_notif)
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Siz {parent.first_name} {parent.last_name} ga farzand sifatida birikdingiz."
+    }
+
+
+@router.post("/parent-invites/{notif_id}/decline")
+async def decline_parent_invite(
+    notif_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """O'quvchi ota-ona taklifini rad etadi"""
+    from sqlalchemy import select
+
+    notif = await db.execute(
+        select(InAppNotification).where(
+            InAppNotification.id == notif_id,
+            InAppNotification.user_id == current_user.id,
+            InAppNotification.notif_type == InAppNotifType.parent_invite,
+        )
+    )
+    notif = notif.scalar_one_or_none()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Taklif topilmadi")
+
+    if notif.is_read:
+        raise HTTPException(status_code=400, detail="Bu taklifga allaqachon javob berilgan")
+
+    # Taklifni yopish
+    notif.is_read = True
+    from datetime import datetime, timezone
+    notif.read_at = datetime.now(timezone.utc)
+
+    # Ota-onaga habar
+    parent_id = notif.sender_id
+    decline_notif = InAppNotification(
+        user_id=parent_id,
+        sender_id=current_user.id,
+        title="Taklif rad etildi",
+        message=f"{current_user.first_name} {current_user.last_name} taklifingizni rad etdi.",
+        notif_type=InAppNotifType.system,
+        reference_type="parent_decline",
+        reference_id=current_user.id,
+    )
+    db.add(decline_notif)
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Taklif rad etildi."
     }
