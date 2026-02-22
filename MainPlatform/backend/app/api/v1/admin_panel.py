@@ -83,6 +83,76 @@ def has_permission(admin: Dict, perm: str) -> bool:
 
 
 # ============================================================================
+# SCHEMAS (must be defined before endpoints that use them)
+# ============================================================================
+
+class AdminLoginRequest(BaseModel):
+    role: str = Field(..., pattern="^(hazratqul|nurali|pedagog)$")
+    password: str
+
+class UserCreateRequest(BaseModel):
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    first_name: str
+    last_name: str
+    role: str = Field(default="student", pattern="^(student|teacher|parent|moderator|organization)$")
+    password: Optional[str] = None
+
+class UserUpdateRequest(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    status: Optional[str] = None
+    role: Optional[str] = None
+
+class TeacherApprovalRequest(BaseModel):
+    teacher_id: str
+    status: str = Field(..., pattern="^(approved|rejected|pending)$")
+    comment: Optional[str] = None
+
+class LessonCreateRequest(BaseModel):
+    title: str
+    subject: Optional[str] = None
+    content: Optional[str] = None
+    grade_level: Optional[str] = None
+    language: str = "uz"
+    video_url: Optional[str] = None
+    attachments: Optional[Any] = None
+
+class LessonUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    subject: Optional[str] = None
+    content: Optional[str] = None
+    grade_level: Optional[str] = None
+    language: Optional[str] = None
+    video_url: Optional[str] = None
+    attachments: Optional[Any] = None
+
+class StoryCreateRequest(BaseModel):
+    title: str
+    content: str
+    language: str = "uz"
+    age_group: Optional[str] = None
+    audio_url: Optional[str] = None
+
+class StoryUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    language: Optional[str] = None
+    age_group: Optional[str] = None
+    audio_url: Optional[str] = None
+
+class StatsResponse(BaseModel):
+    total_users: int
+    total_students: int
+    total_teachers: int
+    total_parents: int
+    active_users: int
+    coins_in_circulation: int
+
+
+# ============================================================================
 # DIRECT CONTENT MANAGEMENT - bypass Lessions API
 # ============================================================================
 
@@ -390,74 +460,6 @@ async def delete_direct_story(
     return {"message": "Ertak o'chirildi", "story_id": story_id}
 
 
-# ============================================================================
-# SCHEMAS
-# ============================================================================
-
-class AdminLoginRequest(BaseModel):
-    role: str = Field(..., pattern="^(hazratqul|nurali|pedagog)$")
-    password: str
-
-class UserCreateRequest(BaseModel):
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    first_name: str
-    last_name: str
-    role: str = Field(default="student", pattern="^(student|teacher|parent|moderator|organization)$")
-    password: Optional[str] = None
-
-class UserUpdateRequest(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    status: Optional[str] = None
-    role: Optional[str] = None
-
-class TeacherApprovalRequest(BaseModel):
-    teacher_id: str
-    status: str = Field(..., pattern="^(approved|rejected|pending)$")
-    comment: Optional[str] = None
-
-class LessonCreateRequest(BaseModel):
-    title: str
-    subject: Optional[str] = None
-    content: Optional[str] = None
-    grade_level: Optional[str] = None
-    language: str = "uz"
-    video_url: Optional[str] = None
-    attachments: Optional[Any] = None
-    
-class LessonUpdateRequest(BaseModel):
-    title: Optional[str] = None
-    subject: Optional[str] = None
-    content: Optional[str] = None
-    grade_level: Optional[str] = None
-    language: Optional[str] = None
-    video_url: Optional[str] = None
-    attachments: Optional[Any] = None
-
-class StoryCreateRequest(BaseModel):
-    title: str
-    content: str
-    language: str = "uz"
-    age_group: Optional[str] = None
-    audio_url: Optional[str] = None
-    
-class StoryUpdateRequest(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
-    language: Optional[str] = None
-    age_group: Optional[str] = None
-    audio_url: Optional[str] = None
-
-class StatsResponse(BaseModel):
-    total_users: int
-    total_students: int
-    total_teachers: int
-    total_parents: int
-    active_users: int
-    coins_in_circulation: int
 
 
 # ============================================================================
