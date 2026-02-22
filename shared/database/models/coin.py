@@ -26,6 +26,7 @@ class TransactionType(str, enum.Enum):
     daily_bonus = "daily_bonus"                      # Kunlik bonus +5
     withdrawal = "withdrawal"                        # Yechib olish (minus)
     prize_redemption = "prize_redemption"            # Yutiq sotib olish (minus)
+    assignment_complete = "assignment_complete"        # Vazifa bajarish +50
     admin_adjustment = "admin_adjustment"            # Admin tomonidan o'zgartirish
 
 

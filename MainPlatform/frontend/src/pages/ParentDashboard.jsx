@@ -386,19 +386,23 @@ const ParentDashboard = () => {
                                     <BookOpen size={16} /> Vazifalar ({childAssignments[child.id].length})
                                 </h4>
                                 <div className="space-y-2">
-                                    {childAssignments[child.id].slice(0, 3).map(a => (
-                                        <div key={a.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg text-sm">
-                                            <span className="font-medium text-gray-800 truncate">{a.title}</span>
-                                            <span className={`text-xs px-2 py-1 rounded-full ${a.submission_status === 'submitted' ? 'bg-green-100 text-green-700' :
-                                                a.submission_status === 'graded' ? 'bg-blue-100 text-blue-700' :
-                                                    'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                {a.submission_status === 'submitted' ? 'Bajarildi' :
-                                                    a.submission_status === 'graded' ? 'Baholandi' :
-                                                        'Kutilmoqda'}
-                                            </span>
-                                        </div>
-                                    ))}
+                                    {childAssignments[child.id].slice(0, 3).map(a => {
+                                        const st = a.status || 'pending';
+                                        const assign = a.assignment || a;
+                                        return (
+                                            <div key={a.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg text-sm">
+                                                <span className="font-medium text-gray-800 truncate">{assign.title || a.title}</span>
+                                                <span className={`text-xs px-2 py-1 rounded-full ${st === 'submitted' ? 'bg-green-100 text-green-700' :
+                                                    st === 'graded' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-yellow-100 text-yellow-700'
+                                                    }`}>
+                                                    {st === 'submitted' ? 'Bajarildi' :
+                                                        st === 'graded' ? 'Baholandi' :
+                                                            'Kutilmoqda'}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -423,29 +427,17 @@ const ParentDashboard = () => {
             <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-2xl p-5 md:p-8 text-white mb-6 md:mb-8 shadow-lg shadow-indigo-200">
                 <p className="opacity-80 mb-2 font-medium text-sm md:text-base">{t.payments.balance}</p>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
-                    <h2 className="text-2xl md:text-4xl font-bold">145,000 UZS</h2>
-                    <button className="bg-white text-indigo-600 px-4 md:px-6 py-2 md:py-2.5 rounded-xl font-bold shadow-sm hover:scale-105 transition-transform flex items-center gap-2 text-sm md:text-base">
-                        <CreditCard size={18} /> {t.payments.pay}
-                    </button>
+                    <h2 className="text-2xl md:text-4xl font-bold">0 UZS</h2>
+                    <span className="bg-white/20 text-white px-4 py-2 rounded-xl text-sm font-medium backdrop-blur-sm">
+                        Tez kunda ishga tushadi
+                    </span>
                 </div>
             </div>
 
-            <h3 className="font-bold text-xl text-gray-800 mb-4">{t.payments.history}</h3>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                {transactions.map(tx => (
-                    <div key={tx.id} className="p-4 border-b border-gray-100 last:border-0 flex justify-between items-center hover:bg-gray-50 cursor-default">
-                        <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.amount.startsWith('+') ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                {tx.amount.startsWith('+') ? <ArrowDown size={20} /> : <ArrowUp size={20} />}
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-gray-800">{tx.desc}</h4>
-                                <p className="text-xs text-gray-500">{tx.date}</p>
-                            </div>
-                        </div>
-                        <span className={`font-bold ${tx.amount.startsWith('+') ? 'text-green-600' : 'text-gray-900'}`}>{tx.amount}</span>
-                    </div>
-                ))}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+                <CreditCard size={48} className="mx-auto mb-3 text-gray-300" />
+                <h3 className="font-bold text-lg text-gray-700 mb-2">To'lov tizimi tayyorlanmoqda</h3>
+                <p className="text-gray-500 text-sm">Obuna va to'lov imkoniyatlari tez orada ishga tushadi. Hozircha platforma bepul!</p>
             </div>
         </div>
     );

@@ -491,6 +491,13 @@ async def accept_parent_invite(
     # Bolani ota-onaga biriktirish
     current_user.parent_id = parent_id
 
+    # StudentProfile.parent_user_id ham yangilash
+    from shared.database.models import StudentProfile
+    sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == current_user.id))
+    sp = sp_res.scalar_one_or_none()
+    if sp:
+        sp.parent_user_id = parent_id
+
     # Taklifni yopish
     notif.is_read = True
     from datetime import datetime, timezone

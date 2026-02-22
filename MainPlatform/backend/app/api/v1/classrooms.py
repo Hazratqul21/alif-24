@@ -723,14 +723,10 @@ async def get_child_teachers(
     if current_user.role != UserRole.parent:
         raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun")
 
-    # Verify this is parent's child
-    from shared.database.models import StudentProfile
-    sp_res = await db.execute(select(StudentProfile).where(
-        StudentProfile.user_id == child_id,
-        StudentProfile.parent_user_id == current_user.id,
-    ))
-    profile = sp_res.scalar_one_or_none()
-    if not profile:
+    # Verify this is parent's child (check User.parent_id OR StudentProfile.parent_user_id)
+    child_res = await db.execute(select(User).where(User.id == child_id, User.parent_id == current_user.id))
+    child = child_res.scalar_one_or_none()
+    if not child:
         raise HTTPException(status_code=404, detail="Bola topilmadi yoki sizning bolangiz emas")
 
     # Get child's classrooms

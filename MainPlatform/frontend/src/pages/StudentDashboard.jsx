@@ -198,7 +198,7 @@ const StudentDashboard = () => {
     const handleSubmitAssignment = async () => {
         if (!selectedTask || !submissionContent.trim()) return;
         try {
-            await studentService.submitAssignment(selectedTask.id, { content: submissionContent });
+            await studentService.submitAssignment(selectedTask.assignment_id || selectedTask.id, { content: submissionContent });
             showNotif('success', "Vazifa topshirildi!");
             setSubmissionContent('');
             setSelectedTask(null);
@@ -321,18 +321,20 @@ const StudentDashboard = () => {
 
     // Use assignments from LMS API if available, else fallback
     const displayTasks = assignments.length > 0 ? assignments.map(a => {
-        // Backend returns either Assignment direct, or AssignmentSubmission wrapped
+        // Backend returns AssignmentSubmission fields + "assignment" nested object
         const assign = a.assignment || a;
+        const subStatus = a.status || 'pending'; // backend returns "status" not "submission_status"
         return {
-            id: a.id || assign.id, // submission id or assignment id
+            id: a.id || assign.id,
             assignment_id: assign.id,
             title: assign.title,
             deadline: assign.due_date ? new Date(assign.due_date).toLocaleDateString('uz') : 'Muddatsiz',
             xp: assign.max_score || 50,
-            status: a.submission_status === 'submitted' ? 'completed' : 'pending',
+            status: (subStatus === 'submitted' || subStatus === 'graded') ? 'completed' : 'pending',
             assignment: assign,
-            submission: a.submission_status ? a : null,
-            score: a.score
+            submission: a.status ? a : null,
+            score: a.score,
+            teacher_name: a.teacher_name,
         };
     }) : (dashboardData?.tasks || []);
 
