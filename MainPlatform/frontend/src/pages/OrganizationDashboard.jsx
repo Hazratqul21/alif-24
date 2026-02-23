@@ -7,7 +7,7 @@ import organizationService from '../services/organizationService';
 import {
   BarChart3, Users, BookOpen, Settings, Search, Plus, TrendingUp,
   Building, LogOut, FileText, UserPlus, PieChart, Trash2, X, Check,
-  Eye, ChevronRight, GraduationCap, Play
+  Eye, ChevronRight, GraduationCap, Play, Paperclip
 } from 'lucide-react';
 
 const OrganizationDashboard = () => {
@@ -560,7 +560,7 @@ const OrganizationDashboard = () => {
                 <div className="flex items-center gap-2 mt-1">
                   {l.video_url && <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1"><Play size={12} /> Video</a>}
                   {l.attachments && l.attachments.length > 0 && l.attachments.map((att, i) => (
-                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-xs">📎 {att.name || `Fayl`}</a>
+                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-xs flex items-center gap-1"><Paperclip size={12} /> {att.name || `Fayl`}</a>
                   ))}
                 </div>
               </div>

@@ -4,6 +4,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Lock, Gift } from 'lucide-react';
 import guestSessionService from '../../services/guestSessionService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -87,7 +88,7 @@ const GuestGuard = ({ children, contentType, contentId }) => {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
           <div className="text-center mb-6">
-            <div className="text-6xl mb-4">🔒</div>
+            <div className="mb-4 flex justify-center"><Lock size={56} className="text-gray-400" /></div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Kirish Taqiqlangan</h2>
             <p className="text-gray-600">
               Ushbu kontentga kirish uchun ro'yxatdan o'ting yoki tizimga kiring.
@@ -113,7 +114,7 @@ const GuestGuard = ({ children, contentType, contentId }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
             <div className="text-center mb-6">
-              <div className="text-5xl mb-4">🎉</div>
+              <div className="mb-4 flex justify-center"><Gift size={48} className="text-indigo-500" /></div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">
                 Birinchi kontentni ko'rdingiz!
               </h2>

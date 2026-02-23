@@ -420,14 +420,14 @@ const StudentDashboard = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                     <button onClick={() => navigate('/livequiz')} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
-                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">🎯</div>
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center"><Target size={24} /></div>
                         <div className="text-left">
                             <h3 className="font-bold text-lg">Live Quiz</h3>
                             <p className="text-white/80 text-xs">Kod bilan qo'shiling</p>
                         </div>
                     </button>
                     <button onClick={() => navigate('/dashboard')} className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
-                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">🏆</div>
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center"><Trophy size={24} /></div>
                         <div className="text-left">
                             <h3 className="font-bold text-lg">Olimpiada</h3>
                             <p className="text-white/80 text-xs">Bilimingizni sinang</p>
@@ -437,7 +437,7 @@ const StudentDashboard = () => {
 
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <BookOpen size={20} className="text-blue-500" /> 📖 Kitob O'qish Tahlillari
+                        <BookOpen size={20} className="text-blue-500" /> Kitob O'qish Tahlillari
                     </h3>
                     {loadingAnalyses ? (
                         <div className="text-center py-8">

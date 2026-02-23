@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, RotateCcw, Coins } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Coins, Clock, Target, CheckCircle, Trophy, HelpCircle } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import coinService from '../services/coinService';
 import './LetterMemoryGame.css';
 
 // React + Vite + CSS versiyasi (framer-motion/react-query/base44 yo'q)
 const getDifficultyLevels = (t) => ({
-  easy: { pairs: 6, name: t('memory_easy'), emoji: '😊' },
-  medium: { pairs: 8, name: t('memory_medium'), emoji: '🤔' },
-  hard: { pairs: 15, name: t('memory_hard'), emoji: '🔥' },
+  easy: { pairs: 6, name: t('memory_easy'), emoji: '' },
+  medium: { pairs: 8, name: t('memory_medium'), emoji: '' },
+  hard: { pairs: 15, name: t('memory_hard'), emoji: '' },
 });
 
 const UZBEK_SET = [
@@ -151,9 +151,9 @@ export default function MemoryGame() {
         </div>
 
         <div className="lmg-stats">
-          <div className="lmg-stat"><span>⏱️</span><b>{formatTime(elapsedTime)}</b></div>
-          <div className="lmg-stat"><span>🎯</span><b>{moves}</b></div>
-          <div className="lmg-stat"><span>✅</span><b>{matched.length / 2}</b></div>
+          <div className="lmg-stat"><span><Clock size={16} /></span><b>{formatTime(elapsedTime)}</b></div>
+          <div className="lmg-stat"><span><Target size={16} /></span><b>{moves}</b></div>
+          <div className="lmg-stat"><span><CheckCircle size={16} /></span><b>{matched.length / 2}</b></div>
         </div>
 
         <div className={`lmg-grid-cards ${difficulty === 'hard' ? 'cols-5' : 'cols-4'} ${difficulty === 'medium' ? 'mdm' : ''}`}>
@@ -165,7 +165,7 @@ export default function MemoryGame() {
               disabled={isMatched(card.id) || isChecking}
             >
               <span className={`lmg-card-content ${card.type === 'letter' ? 'text-letter' : 'text-emoji'}`}>
-                {isFlipped(card.id) ? card.content : '❓'}
+                {isFlipped(card.id) ? card.content : '?'}
               </span>
             </button>
           ))}
@@ -176,14 +176,14 @@ export default function MemoryGame() {
         </div>
 
         <div className="lmg-hint">
-          <p>💡 {t('memory_hint')}</p>
-          {bestScore !== null && <p className="lmg-best">🏆 {t('memory_best_score')}: {bestScore} {t('memory_attempts')}</p>}
+          <p>{t('memory_hint')}</p>
+          {bestScore !== null && <p className="lmg-best"><Trophy size={14} className="inline" /> {t('memory_best_score')}: {bestScore} {t('memory_attempts')}</p>}
         </div>
 
         {showWin && (
           <div style={{position:'fixed',inset:0,zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.5)',backdropFilter:'blur(4px)'}}>
             <div style={{background:'white',borderRadius:'24px',padding:'32px',maxWidth:'360px',width:'90%',textAlign:'center',boxShadow:'0 25px 50px rgba(0,0,0,0.25)'}}>
-              <div style={{fontSize:'4rem',marginBottom:'12px'}}>🎉</div>
+              <div style={{marginBottom:'12px'}}><Trophy size={56} style={{color:'#F59E0B',margin:'0 auto'}} /></div>
               <h2 style={{fontSize:'1.5rem',fontWeight:'bold',color:'#1F2937',marginBottom:'8px'}}>Tabriklaymiz!</h2>
               <p style={{color:'#6B7280',marginBottom:'16px'}}>Barcha juftliklarni topdingiz! {moves} ta urinish</p>
               {earnedCoins > 0 && (

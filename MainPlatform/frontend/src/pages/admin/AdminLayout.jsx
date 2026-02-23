@@ -1,5 +1,5 @@
 import { Outlet, NavLink, Navigate, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, GraduationCap, Database, Send, BookOpen, LogOut, Shield, Menu, X, Trophy, Mic } from 'lucide-react';
+import { LayoutDashboard, Users, GraduationCap, Database, Send, BookOpen, LogOut, Shield, Menu, X, Trophy, Mic, Crown, Zap } from 'lucide-react';
 import { useState } from 'react';
 import adminService from '../../services/adminService';
 
@@ -34,9 +34,9 @@ export default function AdminLayout() {
     };
 
     const roleLabels = {
-        hazratqul: { label: 'Hazratqul', icon: '👑', color: 'text-amber-400' },
-        nurali: { label: 'Nurali', icon: '⚡', color: 'text-blue-400' },
-        pedagog: { label: 'Pedagog', icon: '📚', color: 'text-green-400' },
+        hazratqul: { label: 'Hazratqul', Icon: Crown, color: 'text-amber-400' },
+        nurali: { label: 'Nurali', Icon: Zap, color: 'text-blue-400' },
+        pedagog: { label: 'Pedagog', Icon: BookOpen, color: 'text-green-400' },
     };
 
     const currentRole = roleLabels[role] || roleLabels.hazratqul;
@@ -86,7 +86,7 @@ export default function AdminLayout() {
                 {/* User info */}
                 <div className="p-4 border-t border-gray-800">
                     <div className="flex items-center gap-3 mb-3">
-                        <span className="text-xl">{currentRole.icon}</span>
+                        <currentRole.Icon size={20} className={currentRole.color} />
                         <div>
                             <p className={`text-sm font-bold ${currentRole.color}`}>{currentRole.label}</p>
                             <p className="text-gray-500 text-xs capitalize">{role}</p>
@@ -115,7 +115,7 @@ export default function AdminLayout() {
                     <div className="flex-1" />
                     <div className="flex items-center gap-2">
                         <span className={`text-sm font-medium ${currentRole.color}`}>
-                            {currentRole.icon} {currentRole.label}
+                            <currentRole.Icon size={16} className="inline" /> {currentRole.label}
                         </span>
                     </div>
                 </header>
