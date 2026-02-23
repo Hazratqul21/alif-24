@@ -1,7 +1,7 @@
 #!/bin/bash
 # ================================================================
 #  ALIF24 PLATFORM — Professional Monitoring & Diagnostika Tool
-#  Version: 2.0
+#  Version: 2.1
 #  Ishlatish:
 #    bash diagnose.sh              — To'liq diagnostika
 #    bash diagnose.sh status       — Faqat containerlar holati
@@ -202,6 +202,20 @@ cmd_errors() {
         done
     fi
 
+    # OOM Killer tekshiruvi (Maxfiy xatoliklar)
+    echo ""
+    header "OOM KILLER (Out of Memory) XATOLARI"
+    local oom_errs=$(dmesg -T 2>/dev/null | grep -iE "oom-killer|out of memory" | tail -n 5)
+    if [ -n "$oom_errs" ]; then
+        found=$((found + 1))
+        echo -e "  ${RED}━━━ DIQQAT: RAM YETISHMOVCHILIGI (OOM) ━━━${NC}"
+        echo "$oom_errs" | while IFS= read -r line; do
+            echo -e "  ${YELLOW}$line${NC}"
+        done
+        warn "Qandaydir process xotira kattaligidan o'ldirilgan. 'dmesg' ni tekshiring."
+        echo ""
+    fi
+
     if [ $found -eq 0 ]; then
         echo ""
         ok "Hech qanday xatolik topilmadi!"
@@ -227,6 +241,7 @@ cmd_requests() {
         [ "$status" -ge 400 ] 2>/dev/null && color=$YELLOW
         [ "$status" -ge 500 ] 2>/dev/null && color=$RED
         [ "$status" = "404" ] && color=$RED
+        [ "$status" = "429" ] && color=$RED # Too Many Requests
 
         printf "  ${DIM}%-15s${NC} %-6s ${color}%s${NC} %s\n" "$ip" "$method" "$status" "$path"
     done
@@ -299,6 +314,16 @@ cmd_db() {
         info "  Jami: $(echo $total | xargs) | Active: $(echo $active | xargs) | Idle: $(echo $idle | xargs)"
     done
 
+    # Idle in Transaction so'rovlarini alohida tekshirish uzoq kutib turganlarini
+    local idle_tx=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT count(*) 
+        FROM pg_stat_activity 
+        WHERE state = 'idle in transaction' AND (now() - state_change) > interval '1 minute';
+    " 2>/dev/null | xargs)
+    if [ "$idle_tx" != "0" ] && [ -n "$idle_tx" ]; then
+        fail "DIQQAT: Bazada $idle_tx ta 'idle in transaction' ulanishi 1 daqiqadan beri qotib qolgan!"
+    fi
+
     # Slow queries
     echo ""
     echo -e "  ${BOLD}Sekin so'rovlar (5s+):${NC}"
@@ -321,6 +346,16 @@ cmd_db() {
     docker exec alif24-redis redis-cli ping &>/dev/null && ok "Redis — PONG" || fail "Redis — UNREACHABLE"
     local redis_info=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "used_memory_human" | cut -d: -f2 | tr -d '\r')
     [ -n "$redis_info" ] && info "  Xotira: $redis_info"
+    
+    local redis_frag=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "mem_fragmentation_ratio" | cut -d: -f2 | tr -d '\r')
+    if [ -n "$redis_frag" ]; then
+        if (( $(echo "$redis_frag > 1.5" | bc -l 2>/dev/null || echo 0) )); then
+            fail "  Fragmentatsiya: $redis_frag (XAVFLI: redisni restart qiling)"
+        else
+            info "  Fragmentatsiya: $redis_frag"
+        fi
+    fi
+
     local redis_keys=$(docker exec alif24-redis redis-cli dbsize 2>/dev/null | awk '{print $2}')
     [ -n "$redis_keys" ] && info "  Kalitlar soni: $redis_keys"
 }
@@ -369,6 +404,16 @@ cmd_perf() {
             warn "Disk: $pct ishlatilgan"
         else
             ok "Disk: $pct ishlatilgan"
+        fi
+    done
+
+    echo ""
+    echo -e "  ${BOLD}Inodes (Mayda Fayllar Limitlari):${NC}"
+    df -i / | tail -1 | while read fs inodes iused ifree ipct mount; do
+        info "  $fs — Jami Inodes: $inodes | Ishlatilgan: $iused ($ipct)"
+        local ipct_num=$(echo $ipct | tr -d '%')
+        if [ "$ipct_num" -gt 85 ] 2>/dev/null; then
+            fail "Inodes: $ipct ishlatilgan — 500 ERROR KELIB CHIQISHI MUMKIN!"
         fi
     done
 
@@ -472,6 +517,16 @@ cmd_full() {
 
     cmd_status
     cmd_health
+
+    # SSL Sertifikat tekshiruvi
+    header "SSL SERTIFIKAT HOLATI"
+    local ssl_info=$(curl -skIv https://alif24.uz 2>&1 | grep "expire date")
+    if [ -n "$ssl_info" ]; then
+        ok "SSL: $ssl_info"
+    else
+        warn "SSL tekshirib bo'lmadi yoki mavjud emas"
+    fi
+
     cmd_errors 30
     cmd_perf
 
