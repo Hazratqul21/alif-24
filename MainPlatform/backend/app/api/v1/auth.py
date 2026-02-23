@@ -151,13 +151,49 @@ async def refresh_token(request: Request, response: Response, data: RefreshToken
 @router.get("/me")
 async def get_me(
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get current authenticated user profile.
     Used by AuthSync across all subdomains to verify active session.
+    Includes active subscription info if available.
     """
+    from sqlalchemy import select
+    from shared.database.models import UserSubscription, SubscriptionPlanConfig, SubscriptionStatus
+
+    # Obuna ma'lumotini olish
+    subscription_data = None
+    try:
+        sub_result = await db.execute(
+            select(UserSubscription).where(
+                UserSubscription.user_id == current_user.id,
+                UserSubscription.status == SubscriptionStatus.active.value,
+            ).order_by(UserSubscription.expires_at.desc())
+        )
+        active_sub = sub_result.scalars().first()
+
+        if active_sub:
+            plan_result = await db.execute(
+                select(SubscriptionPlanConfig).where(
+                    SubscriptionPlanConfig.id == active_sub.plan_config_id
+                )
+            )
+            plan = plan_result.scalar_one_or_none()
+
+            subscription_data = {
+                "plan_name": plan.name if plan else None,
+                "plan_slug": plan.slug if plan else None,
+                "status": active_sub.status,
+                "expires_at": active_sub.expires_at.isoformat() if active_sub.expires_at else None,
+                "features": plan.features if plan else None,
+                "max_children": plan.max_children if plan else 1,
+            }
+    except Exception:
+        pass  # Subscription jadval hali yaratilmagan bo'lishi mumkin
+
     return {
         "success": True,
-        "data": current_user.to_dict()
+        "data": current_user.to_dict(),
+        "subscription": subscription_data,
     }
 
 @router.post("/logout")

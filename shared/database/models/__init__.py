@@ -144,6 +144,13 @@ from shared.database.models.reading_competition import (
     ResultGroup,
 )
 
+# Subscription System
+from shared.database.models.subscription import (
+    SubscriptionStatus,
+    SubscriptionPlanConfig,
+    UserSubscription,
+)
+
 __all__ = [
     # User Models
     "User",
@@ -270,4 +277,9 @@ __all__ = [
     "TaskDay",
     "SessionStatus",
     "ResultGroup",
+
+    # Subscription Models
+    "SubscriptionStatus",
+    "SubscriptionPlanConfig",
+    "UserSubscription",
 ]

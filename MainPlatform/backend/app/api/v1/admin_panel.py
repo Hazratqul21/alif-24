@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, text, select
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os
 import logging
 import httpx
@@ -24,7 +24,8 @@ from shared.database.models import (
     User, UserRole, AccountStatus, TeacherStatus,
     StudentProfile, TeacherProfile, ParentProfile,
     ModeratorProfile, OrganizationProfile,
-    StudentCoin, CoinTransaction, TelegramUser
+    StudentCoin, CoinTransaction, TelegramUser,
+    SubscriptionPlanConfig, UserSubscription, SubscriptionStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -1507,3 +1508,366 @@ async def get_daily_stats(
         })
     
     return {"stats": list(reversed(stats))}
+
+
+# ============================================================================
+# SUBSCRIPTION PLAN CONFIG MANAGEMENT (Admin-configurable)
+# ============================================================================
+
+class PlanConfigCreateRequest(BaseModel):
+    name: str
+    slug: str
+    description: Optional[str] = None
+    price: int = 0
+    duration_days: int = 30
+    max_children: int = 1
+    features: Optional[Dict[str, Any]] = None
+    is_active: bool = True
+    sort_order: int = 0
+
+class PlanConfigUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[int] = None
+    duration_days: Optional[int] = None
+    max_children: Optional[int] = None
+    features: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+@router.get("/subscription-plans")
+async def list_subscription_plans(
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Barcha obuna planlarini ko'rish"""
+    result = await db.execute(
+        select(SubscriptionPlanConfig).order_by(SubscriptionPlanConfig.sort_order)
+    )
+    plans = result.scalars().all()
+    return {"plans": [p.to_dict() for p in plans]}
+
+
+@router.post("/subscription-plans")
+async def create_subscription_plan(
+    data: PlanConfigCreateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Yangi obuna plan yaratish"""
+    if not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Faqat super admin")
+
+    # Slug tekshirish
+    existing = await db.execute(
+        select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.slug == data.slug)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"'{data.slug}' slug allaqachon mavjud")
+
+    plan = SubscriptionPlanConfig(
+        name=data.name,
+        slug=data.slug,
+        description=data.description,
+        price=data.price,
+        duration_days=data.duration_days,
+        max_children=data.max_children,
+        features=data.features,
+        is_active=data.is_active,
+        sort_order=data.sort_order,
+    )
+    db.add(plan)
+    await db.commit()
+    await db.refresh(plan)
+
+    return {"message": "Plan yaratildi", "plan": plan.to_dict()}
+
+
+@router.put("/subscription-plans/{plan_id}")
+async def update_subscription_plan(
+    plan_id: str,
+    data: PlanConfigUpdateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Plan sozlamalarini o'zgartirish (narx, nom, imkoniyatlar)"""
+    if not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Faqat super admin")
+
+    result = await db.execute(
+        select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == plan_id)
+    )
+    plan = result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan topilmadi")
+
+    if data.name is not None:
+        plan.name = data.name
+    if data.description is not None:
+        plan.description = data.description
+    if data.price is not None:
+        plan.price = data.price
+    if data.duration_days is not None:
+        plan.duration_days = data.duration_days
+    if data.max_children is not None:
+        plan.max_children = data.max_children
+    if data.features is not None:
+        plan.features = data.features
+    if data.is_active is not None:
+        plan.is_active = data.is_active
+    if data.sort_order is not None:
+        plan.sort_order = data.sort_order
+
+    await db.commit()
+    await db.refresh(plan)
+
+    return {"message": "Plan yangilandi", "plan": plan.to_dict()}
+
+
+@router.delete("/subscription-plans/{plan_id}")
+async def delete_subscription_plan(
+    plan_id: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Obuna planni o'chirish"""
+    if not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Faqat super admin")
+
+    result = await db.execute(
+        select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == plan_id)
+    )
+    plan = result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan topilmadi")
+
+    # Faol obunalar bor-yo'qligini tekshirish
+    active_subs = await db.scalar(
+        select(func.count(UserSubscription.id)).where(
+            UserSubscription.plan_config_id == plan_id,
+            UserSubscription.status == SubscriptionStatus.active.value,
+        )
+    ) or 0
+
+    if active_subs > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Bu planga {active_subs} ta faol obuna bor. Avval ularni bekor qiling."
+        )
+
+    await db.delete(plan)
+    await db.commit()
+
+    return {"message": "Plan o'chirildi", "plan_id": plan_id}
+
+
+# ============================================================================
+# USER SUBSCRIPTION MANAGEMENT
+# ============================================================================
+
+class UserSubscriptionRequest(BaseModel):
+    plan_config_id: str
+    amount_paid: int = 0
+    notes: Optional[str] = None
+
+
+@router.get("/subscriptions")
+async def list_subscriptions(
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Barcha foydalanuvchi obunalarini ko'rish"""
+    stmt = (
+        select(UserSubscription)
+        .order_by(UserSubscription.created_at.desc())
+    )
+    count_stmt = select(func.count(UserSubscription.id))
+
+    if status:
+        stmt = stmt.where(UserSubscription.status == status)
+        count_stmt = count_stmt.where(UserSubscription.status == status)
+
+    total = (await db.execute(count_stmt)).scalar() or 0
+    result = await db.execute(stmt.offset(offset).limit(limit))
+    subs = result.scalars().all()
+
+    # Foydalanuvchi ma'lumotlarini olish
+    items = []
+    for sub in subs:
+        user_res = await db.execute(select(User).where(User.id == sub.user_id))
+        user = user_res.scalar_one_or_none()
+
+        plan_res = await db.execute(
+            select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == sub.plan_config_id)
+        )
+        plan = plan_res.scalar_one_or_none()
+
+        items.append({
+            "id": sub.id,
+            "user_id": sub.user_id,
+            "user_name": f"{user.first_name} {user.last_name}" if user else None,
+            "user_phone": user.phone if user else None,
+            "user_role": user.role.value if user and user.role else None,
+            "plan_name": plan.name if plan else None,
+            "plan_slug": plan.slug if plan else None,
+            "plan_price": plan.price if plan else None,
+            "status": sub.status,
+            "started_at": sub.started_at.isoformat() if sub.started_at else None,
+            "expires_at": sub.expires_at.isoformat() if sub.expires_at else None,
+            "amount_paid": sub.amount_paid,
+            "created_by": sub.created_by,
+            "notes": sub.notes,
+            "created_at": sub.created_at.isoformat() if sub.created_at else None,
+        })
+
+    return {"total": total, "subscriptions": items}
+
+
+@router.get("/subscriptions/stats")
+async def subscription_stats(
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Obuna statistikasi"""
+    # Planlar bo'yicha faol obunalar
+    plans = (await db.execute(
+        select(SubscriptionPlanConfig).order_by(SubscriptionPlanConfig.sort_order)
+    )).scalars().all()
+
+    plan_stats = []
+    total_active = 0
+    total_revenue = 0
+
+    for plan in plans:
+        count = await db.scalar(
+            select(func.count(UserSubscription.id)).where(
+                UserSubscription.plan_config_id == plan.id,
+                UserSubscription.status == SubscriptionStatus.active.value,
+            )
+        ) or 0
+
+        revenue = await db.scalar(
+            select(func.sum(UserSubscription.amount_paid)).where(
+                UserSubscription.plan_config_id == plan.id,
+            )
+        ) or 0
+
+        plan_stats.append({
+            "plan_id": plan.id,
+            "plan_name": plan.name,
+            "plan_slug": plan.slug,
+            "plan_price": plan.price,
+            "active_count": count,
+            "total_revenue": int(revenue),
+        })
+
+        total_active += count
+        total_revenue += int(revenue)
+
+    # Obunasiz foydalanuvchilar soni
+    total_users = await db.scalar(select(func.count(User.id))) or 0
+    free_users = total_users - total_active
+
+    return {
+        "total_users": total_users,
+        "total_active_subscriptions": total_active,
+        "free_users": free_users,
+        "total_revenue": total_revenue,
+        "plans": plan_stats,
+    }
+
+
+@router.post("/subscriptions/{user_id}")
+async def assign_subscription(
+    user_id: str,
+    data: UserSubscriptionRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Foydalanuvchiga obuna berish"""
+    if not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Faqat super admin")
+
+    # User tekshirish
+    user_res = await db.execute(select(User).where(User.id == user_id))
+    user = user_res.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+
+    # Plan tekshirish
+    plan_res = await db.execute(
+        select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == data.plan_config_id)
+    )
+    plan = plan_res.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan topilmadi")
+
+    if not plan.is_active:
+        raise HTTPException(status_code=400, detail="Bu plan faol emas")
+
+    # Eski faol obunani expire qilish
+    old_subs = await db.execute(
+        select(UserSubscription).where(
+            UserSubscription.user_id == user_id,
+            UserSubscription.status == SubscriptionStatus.active.value,
+        )
+    )
+    for old in old_subs.scalars().all():
+        old.status = SubscriptionStatus.expired.value
+
+    # Yangi obuna yaratish
+    now = datetime.now(timezone.utc)
+    subscription = UserSubscription(
+        user_id=user_id,
+        plan_config_id=plan.id,
+        status=SubscriptionStatus.active.value,
+        started_at=now,
+        expires_at=now + timedelta(days=plan.duration_days),
+        amount_paid=data.amount_paid,
+        created_by=admin["role"],
+        notes=data.notes,
+    )
+    db.add(subscription)
+    await db.commit()
+    await db.refresh(subscription)
+
+    return {
+        "message": f"{user.first_name} {user.last_name} ga '{plan.name}' obuna berildi",
+        "subscription_id": subscription.id,
+        "expires_at": subscription.expires_at.isoformat(),
+    }
+
+
+@router.delete("/subscriptions/{user_id}")
+async def cancel_subscription(
+    user_id: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Foydalanuvchi obunasini bekor qilish"""
+    if not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Faqat super admin")
+
+    result = await db.execute(
+        select(UserSubscription).where(
+            UserSubscription.user_id == user_id,
+            UserSubscription.status == SubscriptionStatus.active.value,
+        )
+    )
+    subs = result.scalars().all()
+
+    if not subs:
+        raise HTTPException(status_code=404, detail="Faol obuna topilmadi")
+
+    for sub in subs:
+        sub.status = SubscriptionStatus.cancelled.value
+        sub.updated_at = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    return {"message": "Obuna bekor qilindi", "user_id": user_id, "cancelled_count": len(subs)}

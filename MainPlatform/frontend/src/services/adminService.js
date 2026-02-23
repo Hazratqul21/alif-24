@@ -138,7 +138,21 @@ const adminService = {
                 'X-Admin-Key': key,
             },
         });
-    }
+    },
+
+    // ============ SUBSCRIPTION MANAGEMENT ============
+
+    // Plan Config CRUD
+    getSubscriptionPlans: () => request('GET', '/subscription-plans'),
+    createSubscriptionPlan: (data) => request('POST', '/subscription-plans', data),
+    updateSubscriptionPlan: (planId, data) => request('PUT', `/subscription-plans/${planId}`, data),
+    deleteSubscriptionPlan: (planId) => request('DELETE', `/subscription-plans/${planId}`),
+
+    // User Subscriptions
+    getSubscriptions: (params) => request('GET', '/subscriptions', null, params),
+    getSubscriptionStats: () => request('GET', '/subscriptions/stats'),
+    assignSubscription: (userId, data) => request('POST', `/subscriptions/${userId}`, data),
+    cancelSubscription: (userId) => request('DELETE', `/subscriptions/${userId}`),
 };
 
 export default adminService;
