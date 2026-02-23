@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: alif24_secure_password
       POSTGRES_DB: alif24
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - /data/postgres:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -27,7 +27,7 @@ services:
     container_name: alif24-redis
     restart: always
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks:
       - alif24-network
 
@@ -301,8 +301,11 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@alif24.uz
       PGADMIN_DEFAULT_PASSWORD: alif24_admin_2026
       PGADMIN_CONFIG_SCRIPT_NAME: "'/pgadmin'"
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
+    volumes:
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
     depends_on:
       - postgres
     networks:
