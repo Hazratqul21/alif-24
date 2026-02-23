@@ -320,15 +320,19 @@ const TeacherDashboard = () => {
       });
       if (res.success && res.data) {
         const questions = res.data;
-        let formatted = "AI Test natijasi:\n\n";
-        questions.forEach((q, i) => {
-          formatted += `${i + 1}. ${q.question}\n`;
-          formatted += `A) ${q.options.a}\nB) ${q.options.b}\nC) ${q.options.c}\nD) ${q.options.d}\n`;
-          formatted += `To'g'ri javob: ${q.correct_answer?.toUpperCase()}\n\n`;
+        const testContent = JSON.stringify({
+          questions: questions,
+          time_limit_minutes: Math.max(5, questions.length * 2),
+          generated_by: 'ai'
         });
-        setNewAssignment(prev => ({ ...prev, description: (prev.description ? prev.description + "\n\n" : "") + formatted }));
+        setNewAssignment(prev => ({
+          ...prev,
+          content: testContent,
+          description: `AI Test — ${questions.length} ta savol, ${Math.max(5, questions.length * 2)} daqiqa`,
+          assignment_type: 'test',
+        }));
         setAiPromptText('');
-        showNotif('success', 'Test muvaffaqiyatli yaratildi!');
+        showNotif('success', `Test yaratildi! ${questions.length} ta savol.`);
       }
     } catch (err) {
       showNotif('error', err.message || "Test yaratishda xatolik yuz berdi");

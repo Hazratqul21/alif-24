@@ -555,6 +555,141 @@ async def submit_assignment(
 
 
 # ============================================================
+# STUDENT: TEST AUTO-GRADE
+# ============================================================
+
+class TestSubmission(BaseModel):
+    answers: dict  # {"0": "b", "1": "a", ...} — savol indeksi: tanlangan javob
+
+@router.post("/students/assignments/{assignment_id}/submit-test")
+async def submit_test_assignment(
+    assignment_id: str,
+    data: TestSubmission,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test tipli vazifani topshirish — avtomatik baholash"""
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
+
+    # Submission mavjudmi?
+    res = await db.execute(
+        select(AssignmentSubmission).where(
+            AssignmentSubmission.assignment_id == assignment_id,
+            AssignmentSubmission.student_user_id == current_user.id,
+        )
+    )
+    submission = res.scalar_one_or_none()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Vazifa topilmadi yoki sizga berilmagan")
+    if submission.status == SubmissionStatus.graded:
+        raise HTTPException(status_code=400, detail="Test allaqachon baholangan")
+
+    # Assignment va content olish
+    a_res = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
+    assignment = a_res.scalar_one_or_none()
+    if not assignment or assignment.assignment_type != AssignmentType.test:
+        raise HTTPException(status_code=400, detail="Bu vazifa test emas")
+
+    # Content JSON parse
+    import json
+    try:
+        test_data = json.loads(assignment.content)
+        questions = test_data.get("questions", [])
+    except (json.JSONDecodeError, TypeError):
+        raise HTTPException(status_code=400, detail="Test ma'lumotlari noto'g'ri formatda")
+
+    if not questions:
+        raise HTTPException(status_code=400, detail="Test savollari topilmadi")
+
+    # Baholash
+    correct_count = 0
+    total = len(questions)
+    results = []
+    for i, q in enumerate(questions):
+        student_answer = data.answers.get(str(i), "")
+        correct_answer = q.get("correct_answer", "")
+        is_correct = student_answer.lower().strip() == correct_answer.lower().strip()
+        if is_correct:
+            correct_count += 1
+        results.append({
+            "question": q.get("question", ""),
+            "student_answer": student_answer,
+            "correct_answer": correct_answer,
+            "is_correct": is_correct,
+        })
+
+    # Score hisoblash (max_score asosida)
+    score = round((correct_count / max(total, 1)) * (assignment.max_score or 100), 1)
+
+    # Submission yangilash
+    submission.content = json.dumps({
+        "answers": data.answers,
+        "results": results,
+        "correct_count": correct_count,
+        "total": total,
+        "score": score,
+    })
+    submission.score = score
+    submission.status = SubmissionStatus.graded
+    submission.submitted_at = datetime.now(timezone.utc)
+    submission.graded_at = datetime.now(timezone.utc)
+    submission.feedback = f"Avtomatik baholandi: {correct_count}/{total} to'g'ri ({score}/{assignment.max_score or 100} ball)"
+
+    # Notification o'qituvchiga
+    student_name = f"{current_user.first_name} {current_user.last_name}".strip()
+    await create_notification(
+        db, assignment.created_by,
+        f"Test topshirildi: {assignment.title}",
+        f"{student_name} testni topshirdi. Natija: {correct_count}/{total} ({score} ball)",
+        InAppNotifType.submission_received,
+        "assignment", assignment_id, current_user.id,
+    )
+
+    # Coin mukofot
+    coins_earned = 0
+    try:
+        from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
+        sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == current_user.id))
+        sp = sp_res.scalar_one_or_none()
+        if sp:
+            sc_res = await db.execute(select(StudentCoin).where(StudentCoin.student_id == sp.id))
+            coin = sc_res.scalar_one_or_none()
+            if not coin:
+                coin = StudentCoin(student_id=sp.id, current_balance=0, total_earned=0, total_spent=0, total_withdrawn=0)
+                db.add(coin)
+                await db.flush()
+            bonus = 50 + (correct_count * 10)  # har bir to'g'ri javob +10 coin
+            coin.add_coins(bonus)
+            db.add(CoinTransaction(
+                student_coin_id=coin.id,
+                type=TransactionType.assignment_complete,
+                amount=bonus,
+                description=f"Test bajarildi: {assignment.title} ({correct_count}/{total})",
+                reference_id=assignment_id,
+                reference_type="assignment",
+            ))
+            coins_earned = bonus
+    except Exception as e:
+        logger.warning(f"Coin reward failed for {current_user.id}: {e}")
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Test topshirildi! Natija: {correct_count}/{total}",
+        "data": {
+            "score": score,
+            "max_score": assignment.max_score or 100,
+            "correct_count": correct_count,
+            "total": total,
+            "results": results,
+            "coins_earned": coins_earned,
+        }
+    }
+
+
+# ============================================================
 # PARENT: CHILD ASSIGNMENTS & ASSIGN TASK
 # ============================================================
 

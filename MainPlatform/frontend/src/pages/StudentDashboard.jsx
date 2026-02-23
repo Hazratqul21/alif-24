@@ -50,6 +50,15 @@ const StudentDashboard = () => {
     const [mySchool, setMySchool] = useState(undefined); // undefined=not loaded, null=no school
     const [parentInvites, setParentInvites] = useState([]);
 
+    // Interactive Test states
+    const [testQuestions, setTestQuestions] = useState([]);
+    const [testAnswers, setTestAnswers] = useState({});
+    const [testCurrentQ, setTestCurrentQ] = useState(0);
+    const [testTimeLeft, setTestTimeLeft] = useState(0);
+    const [testStarted, setTestStarted] = useState(false);
+    const [testSubmitting, setTestSubmitting] = useState(false);
+    const [testResult, setTestResult] = useState(null);
+
     const fetchLMSData = async () => {
         try {
             const [classesRes, invitesRes, assignsRes] = await Promise.all([
@@ -202,9 +211,54 @@ const StudentDashboard = () => {
             showNotif('success', "Vazifa topshirildi!");
             setSubmissionContent('');
             setSelectedTask(null);
-            await fetchLMSData(); // Refresh assignments list
+            await fetchLMSData();
         } catch (err) {
             showNotif('error', err.message || "Vazifa topshirishda xatolik");
+        }
+    };
+
+    const openTestTask = (task) => {
+        setSelectedTask(task);
+        setTestResult(null);
+        setTestAnswers({});
+        setTestCurrentQ(0);
+        setTestStarted(false);
+        setTestSubmitting(false);
+        try {
+            const content = task.assignment?.content || task.content;
+            if (content) {
+                const parsed = JSON.parse(content);
+                setTestQuestions(parsed.questions || []);
+                setTestTimeLeft((parsed.time_limit_minutes || 10) * 60);
+            } else {
+                setTestQuestions([]);
+            }
+        } catch {
+            setTestQuestions([]);
+        }
+    };
+
+    const startTest = () => {
+        setTestStarted(true);
+        setTestCurrentQ(0);
+        setTestAnswers({});
+        setTestResult(null);
+    };
+
+    const handleSubmitTest = async () => {
+        if (testSubmitting) return;
+        setTestSubmitting(true);
+        try {
+            const assignmentId = selectedTask.assignment_id || selectedTask.id;
+            const res = await studentService.submitTest(assignmentId, testAnswers);
+            setTestResult(res.data || res);
+            setTestStarted(false);
+            showNotif('success', `Test topshirildi! ${res.data?.correct_count || 0}/${res.data?.total || 0}`);
+            await fetchLMSData();
+        } catch (err) {
+            showNotif('error', err.message || "Test topshirishda xatolik");
+        } finally {
+            setTestSubmitting(false);
         }
     };
 
@@ -331,6 +385,8 @@ const StudentDashboard = () => {
             deadline: assign.due_date ? new Date(assign.due_date).toLocaleDateString('uz') : 'Muddatsiz',
             xp: assign.max_score || 50,
             status: (subStatus === 'submitted' || subStatus === 'graded') ? 'completed' : 'pending',
+            assignment_type: assign.assignment_type || 'homework',
+            content: assign.content,
             assignment: assign,
             submission: a.status ? a : null,
             score: a.score,
@@ -706,43 +762,191 @@ const StudentDashboard = () => {
 
             {/* Notification Toast */}
             {notification && (
-                <div className={`fixed top-20 right-4 z-[9999] px-4 py-3 rounded-xl text-sm font-medium shadow-lg ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                <div className={`fixed top-4 right-4 z-[10000] px-5 py-3 rounded-xl shadow-lg text-white font-medium ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
                     {notification.message}
                 </div>
             )}
 
-            {/* Task Detail Modal */}
+            {/* Task Detail Modal — unified for test and regular */}
             {selectedTask && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]" onClick={() => setSelectedTask(null)}>
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[9999]" onClick={() => { if (!testStarted) { setSelectedTask(null); setTestQuestions([]); setTestResult(null); } }}>
                     <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-start sticky top-0 bg-white z-10">
+                        {/* Header */}
+                        <div className="p-5 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
                             <div>
-                                <h3 className="text-2xl font-bold text-gray-800">{selectedTask.title}</h3>
-                                <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
-                                    <Calendar size={14} /> {selectedTask.deadline} &bull; {selectedTask.xp} ball
+                                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                    <FileText size={20} className="text-indigo-500" /> {selectedTask.title}
+                                </h3>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    {testQuestions.length > 0 ? `${testQuestions.length} ta savol | ` : ''}{selectedTask.xp} ball
                                 </p>
                             </div>
-                            <button onClick={() => setSelectedTask(null)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full"><X size={20} /></button>
+                            <div className="flex items-center gap-3">
+                                {testStarted && !testResult && (
+                                    <div className={`px-3 py-1.5 rounded-full font-bold text-sm flex items-center gap-1 ${testTimeLeft < 60 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-indigo-100 text-indigo-600'}`}>
+                                        <Clock size={14} /> {formatTime(testTimeLeft)}
+                                    </div>
+                                )}
+                                {!testStarted && (
+                                    <button onClick={() => { setSelectedTask(null); setTestQuestions([]); setTestResult(null); }} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full">
+                                        <X size={18} />
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                        <div className="p-6 flex-1 text-gray-700 whitespace-pre-wrap">
-                            {selectedTask.assignment?.content || selectedTask.description || "Vazifa matni mavjud emas."}
-                            {/* Biriktirilgan fayllar */}
-                            {selectedTask.assignment?.attachments?.length > 0 && (
-                                <div className="mt-4 pt-4 border-t border-gray-100">
-                                    <h4 className="text-sm font-bold text-gray-600 mb-2 flex items-center gap-1"> Biriktirilgan fayllar</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedTask.assignment.attachments.map((att, i) => (
-                                            <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors">
-                                                 {att.name || `Fayl ${i + 1}`}
-                                                {att.size && <span className="text-xs text-indigo-400">({(att.size / 1024).toFixed(0)} KB)</span>}
-                                            </a>
+
+                        {/* TEST: Not started — Intro */}
+                        {testQuestions.length > 0 && !testStarted && !testResult && selectedTask.status === 'pending' && (
+                            <div className="p-8 text-center">
+                                <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <FileText size={36} className="text-indigo-500" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-800 mb-2">Testga tayyormisiz?</h3>
+                                <p className="text-gray-500 mb-1">{testQuestions.length} ta savol</p>
+                                <p className="text-gray-500 mb-6">Vaqt: {formatTime(testTimeLeft)}</p>
+                                <button onClick={startTest} className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all hover:scale-105 text-lg">
+                                    Testni boshlash
+                                </button>
+                            </div>
+                        )}
+
+                        {/* TEST: Already completed */}
+                        {testQuestions.length > 0 && selectedTask.status === 'completed' && !testResult && (
+                            <div className="p-8 text-center">
+                                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <CheckCircle size={36} className="text-green-500" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-800 mb-2">Test topshirilgan</h3>
+                                {selectedTask.score != null && <p className="text-3xl font-bold text-indigo-600">{selectedTask.score} / {selectedTask.xp} ball</p>}
+                                {selectedTask.submission?.feedback && <p className="text-gray-500 mt-2">{selectedTask.submission.feedback}</p>}
+                            </div>
+                        )}
+
+                        {/* TEST: Active quiz */}
+                        {testStarted && !testResult && testQuestions.length > 0 && (() => {
+                            const q = testQuestions[testCurrentQ];
+                            if (!q) return null;
+                            const opts = q.options;
+                            const optKeys = typeof opts === 'object' && !Array.isArray(opts) ? Object.keys(opts) : [];
+                            return (
+                                <div className="p-6">
+                                    <div className="flex items-center gap-2 mb-4 flex-wrap">
+                                        {testQuestions.map((_, i) => (
+                                            <button key={i} onClick={() => setTestCurrentQ(i)}
+                                                className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${i === testCurrentQ ? 'bg-indigo-600 text-white scale-110' : testAnswers[String(i)] ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-400'}`}>
+                                                {i + 1}
+                                            </button>
                                         ))}
                                     </div>
+                                    <div className="bg-gray-50 rounded-xl p-5 mb-4">
+                                        <p className="text-sm text-indigo-500 font-bold mb-2">Savol {testCurrentQ + 1}/{testQuestions.length}</p>
+                                        <h4 className="text-lg font-bold text-gray-800">{q.question}</h4>
+                                    </div>
+                                    <div className="space-y-3 mb-6">
+                                        {optKeys.length > 0 ? optKeys.map(key => (
+                                            <button key={key} onClick={() => setTestAnswers(prev => ({ ...prev, [String(testCurrentQ)]: key }))}
+                                                className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${testAnswers[String(testCurrentQ)] === key ? 'border-indigo-500 bg-indigo-50 shadow-md' : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'}`}>
+                                                <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${testAnswers[String(testCurrentQ)] === key ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                                    {key.toUpperCase()}
+                                                </span>
+                                                <span className="font-medium text-gray-700">{opts[key]}</span>
+                                            </button>
+                                        )) : (Array.isArray(opts) ? opts : []).map((opt, j) => {
+                                            const key = String.fromCharCode(97 + j);
+                                            return (
+                                                <button key={j} onClick={() => setTestAnswers(prev => ({ ...prev, [String(testCurrentQ)]: key }))}
+                                                    className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${testAnswers[String(testCurrentQ)] === key ? 'border-indigo-500 bg-indigo-50 shadow-md' : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'}`}>
+                                                    <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${testAnswers[String(testCurrentQ)] === key ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                                        {key.toUpperCase()}
+                                                    </span>
+                                                    <span className="font-medium text-gray-700">{opt}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <button onClick={() => setTestCurrentQ(Math.max(0, testCurrentQ - 1))} disabled={testCurrentQ === 0}
+                                            className="px-4 py-2 text-gray-500 hover:text-gray-700 disabled:opacity-30 font-medium">
+                                            Oldingi
+                                        </button>
+                                        {testCurrentQ < testQuestions.length - 1 ? (
+                                            <button onClick={() => setTestCurrentQ(testCurrentQ + 1)}
+                                                className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700">
+                                                Keyingi
+                                            </button>
+                                        ) : (
+                                            <button onClick={handleSubmitTest} disabled={testSubmitting}
+                                                className="px-6 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
+                                                {testSubmitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={16} />}
+                                                Testni topshirish
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                        {selectedTask.status === 'completed' && selectedTask.submission && (
+                            );
+                        })()}
+
+                        {/* TEST: Result */}
+                        {testResult && (
+                            <div className="p-6">
+                                <div className="text-center mb-6">
+                                    <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${(testResult.correct_count / testResult.total) >= 0.7 ? 'bg-green-100' : 'bg-orange-100'}`}>
+                                        {(testResult.correct_count / testResult.total) >= 0.7 ? <Trophy size={40} className="text-green-500" /> : <Target size={40} className="text-orange-500" />}
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-gray-800">
+                                        {(testResult.correct_count / testResult.total) >= 0.7 ? 'Ajoyib!' : 'Yomon emas!'}
+                                    </h3>
+                                    <p className="text-4xl font-bold text-indigo-600 my-2">{testResult.score} / {testResult.max_score}</p>
+                                    <p className="text-gray-500">To'g'ri javoblar: {testResult.correct_count} / {testResult.total}</p>
+                                    {testResult.coins_earned > 0 && <p className="text-yellow-600 font-bold mt-1">+{testResult.coins_earned} coin!</p>}
+                                </div>
+                                <div className="space-y-3 mb-6">
+                                    {(testResult.results || []).map((r, i) => (
+                                        <div key={i} className={`p-3 rounded-xl border-2 ${r.is_correct ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                                            <div className="flex items-start gap-2">
+                                                {r.is_correct ? <CheckCircle size={18} className="text-green-500 mt-0.5 shrink-0" /> : <X size={18} className="text-red-500 mt-0.5 shrink-0" />}
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-800">{i + 1}. {r.question}</p>
+                                                    {!r.is_correct && (
+                                                        <p className="text-xs mt-1">
+                                                            <span className="text-red-500">Sizning javob: {r.student_answer?.toUpperCase()}</span>
+                                                            {' | '}
+                                                            <span className="text-green-600">To'g'ri: {r.correct_answer?.toUpperCase()}</span>
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button onClick={() => { setSelectedTask(null); setTestQuestions([]); setTestResult(null); }}
+                                    className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700">
+                                    Yopish
+                                </button>
+                            </div>
+                        )}
+
+                        {/* REGULAR: Task content (non-test) */}
+                        {testQuestions.length === 0 && (
+                            <div className="p-6 flex-1 text-gray-700 whitespace-pre-wrap">
+                                {selectedTask.description || "Vazifa matni mavjud emas."}
+                                {selectedTask.assignment?.attachments?.length > 0 && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100">
+                                        <h4 className="text-sm font-bold text-gray-600 mb-2 flex items-center gap-1">Biriktirilgan fayllar</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedTask.assignment.attachments.map((att, i) => (
+                                                <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors">
+                                                    {att.name || `Fayl ${i + 1}`}
+                                                    {att.size && <span className="text-xs text-indigo-400">({(att.size / 1024).toFixed(0)} KB)</span>}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {testQuestions.length === 0 && selectedTask.status === 'completed' && selectedTask.submission && (
                             <div className="p-6 bg-gray-50 border-t border-gray-100">
                                 <h4 className="font-bold text-gray-800 mb-2">Sizning javobingiz</h4>
                                 <div className="p-4 bg-white border border-gray-200 rounded-xl whitespace-pre-wrap">
@@ -756,7 +960,7 @@ const StudentDashboard = () => {
                                 )}
                             </div>
                         )}
-                        {selectedTask.status === 'pending' && (
+                        {testQuestions.length === 0 && selectedTask.status === 'pending' && (
                             <div className="p-6 bg-gray-50 border-t border-gray-100">
                                 <h4 className="font-bold text-gray-800 mb-2">Javobingizni kiriting</h4>
                                 <textarea
@@ -766,11 +970,8 @@ const StudentDashboard = () => {
                                     placeholder="Ustoz, vazifani bajardim..."
                                 />
                                 <div className="mt-4 flex justify-end">
-                                    <button
-                                        onClick={handleSubmitAssignment}
-                                        disabled={!submissionContent.trim()}
-                                        className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                    >
+                                    <button onClick={handleSubmitAssignment} disabled={!submissionContent.trim()}
+                                        className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                                         <Send size={18} /> Topshirish
                                     </button>
                                 </div>
@@ -932,9 +1133,9 @@ const StudentDashboard = () => {
                                                 <span className="font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full text-xs md:text-sm">{task.score} / {task.xp} ball</span>
                                             )}
                                             {task.status === 'pending' ? (
-                                                <button onClick={() => setSelectedTask(task)} className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg font-medium hover:bg-blue-200 transition-colors">Bajarish</button>
+                                                <button onClick={() => openTestTask(task)} className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg font-medium hover:bg-blue-200 transition-colors">Bajarish</button>
                                             ) : (
-                                                <button onClick={() => setSelectedTask(task)} className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-300 transition-colors">Ko'rish</button>
+                                                <button onClick={() => openTestTask(task)} className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-300 transition-colors">Ko'rish</button>
                                             )}
                                         </div>
                                     </div>
