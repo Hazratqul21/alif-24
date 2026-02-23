@@ -9,7 +9,7 @@ from shared.database.models import User, TeacherProfile, StudentProfile, Account
 from shared.auth import verify_token
 from . import schemas, services
 
-router = APIRouter(prefix="/crm", tags=["CRM"])
+router = APIRouter(tags=["CRM"])
 security = HTTPBearer(auto_error=False)
 
 
