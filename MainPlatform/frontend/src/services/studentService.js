@@ -137,6 +137,10 @@ class StudentService {
     return apiService.post(`/students/assignments/${assignmentId}/submit`, data);
   }
 
+  async submitTest(assignmentId, answers) {
+    return apiService.post(`/students/assignments/${assignmentId}/submit-test`, { answers });
+  }
+
   // ============ Parent Invites ============
 
   async acceptParentInvite(notifId) {
