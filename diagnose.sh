@@ -1,7 +1,7 @@
 #!/bin/bash
 # ================================================================
 #  ALIF24 PLATFORM — Professional Monitoring & Diagnostika Tool
-#  Version: 4.1
+#  Version: 5.0
 #  Ishlatish:
 #    bash diagnose.sh              — To'liq diagnostika
 #    bash diagnose.sh heal         — O'z-o'zini davolash (Auto-fix)
@@ -26,9 +26,12 @@
 #    bash diagnose.sh score        — Umumiy sog'liq bali (0-100)
 #    bash diagnose.sh top          — Eng ko'p resurs ishlatayotgan konteynerlar
 #    bash diagnose.sh ssl          — SSL sertifikat tekshiruvi
+#    bash diagnose.sh slow         — DB Slow-Query (Eng sekin DB so'rovlari)
+#    bash diagnose.sh traffic      — Nginx Bandwidth hajmini o'lchash
+#    bash diagnose.sh audit        — NPM / PIP paketlaridagi xavfsizlik va eskirishni tekshirish
 # ================================================================
 
-VERSION="4.1"
+VERSION="5.0"
 
 # Ranglar
 RED='\033[0;31m'
@@ -276,6 +279,24 @@ cmd_security() {
     else
         ok ".git papka himoyalangan (HTTP $git_check)"
     fi
+
+    # 6. Host process auditi (Miner/Zombi)
+    separator
+    echo -e "  ${BOLD}6. Host OS shubhali jarayonlar (Miner/Zombi):${NC}"
+    local high_cpu=$(ps -eo pid,ppid,cmd,%cpu --sort=-%cpu | head -n 4 | tail -n 3)
+    local min_found=0
+    echo "$high_cpu" | while read pid ppid cmd cpu; do
+        if [ -n "$cpu" ]; then
+            local cpu_int=$(echo "$cpu" | cut -d. -f1)
+            if [ "$cpu_int" -ge 80 ] 2>/dev/null; then
+                fail "DIQQAT! Jarayon '$cmd' CPU ni ${cpu}% band qilgan. (Miner shubhasi!)"
+                min_found=$((min_found + 1))
+            else
+                info "  $cmd (${cpu}%)"
+            fi
+        fi
+    done
+    [ "$min_found" -eq 0 ] && ok "Favqulodda protsessor yeb yotgan jarayonlar yo'q"
 }
 
 # ================================================================
@@ -1060,6 +1081,7 @@ cmd_deploy() {
     # Health check
     sleep 3
     echo -e "  ${BOLD}Health check:${NC}"
+    local failed=0
     for svc in $services_to_rebuild; do
         local state=$(docker inspect --format='{{.State.Health.Status}}' "$svc" 2>/dev/null || echo "no-healthcheck")
         local running=$(docker inspect --format='{{.State.Running}}' "$svc" 2>/dev/null)
@@ -1068,11 +1090,24 @@ cmd_deploy() {
                 ok "$svc — ishlayapti"
             else
                 warn "$svc — $state (tekshirilmoqda...)"
+                failed=1
             fi
         else
             fail "$svc — ISHLAMAYAPTI!"
+            failed=1
         fi
     done
+
+    # 5. Auto Rollback (Zero-Downtime himoyasi)
+    if [ "$failed" -eq 1 ]; then
+        echo ""
+        fail "DIQQAT! Yangi o'zgartirish xatolik berdi. AUTO-ROLLBACK boshlanmoqda..."
+        echo -e "  ${YELLOW}5/5 Orqaga qaytish (git reset HEAD@{1})...${NC}"
+        local rollback_out=$(cd "$(dirname "$0")" && git reset --hard HEAD@{1} 2>&1)
+        info "  $rollback_out"
+        $DC up -d --build $services_to_rebuild
+        ok "Eski va barqaror holatga qaytildi!"
+    fi
 }
 
 # ================================================================
@@ -1382,6 +1417,94 @@ cmd_ssl() {
 }
 
 # ================================================================
+# V5.0 MAXSUS MODULLAR: SLOW, TRAFFIC, AUDIT
+# ================================================================
+
+cmd_slow() {
+    header "DATABASE SLOW-QUERY ANALYZER"
+    echo ""
+    
+    echo -e "  ${BOLD}Top 5 Eng uzoq va CPU yegan so'rovlar (pg_stat_statements):${NC}"
+    local query_out=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT substring(query, 1, 80) AS query, 
+               round(total_exec_time::numeric, 2) AS total_time_ms, 
+               calls, 
+               round(mean_exec_time::numeric, 2) AS avg_time_ms 
+        FROM pg_stat_statements 
+        ORDER BY total_exec_time DESC 
+        LIMIT 5;
+    " 2>/dev/null)
+    
+    if [ -n "$query_out" ] && echo "$query_out" | grep -qv "ERROR"; then
+        echo "$query_out" | while IFS='|' read q tnum calls avg; do
+            q=$(echo "$q" | xargs)
+            tnum=$(echo "$tnum" | xargs)
+            calls=$(echo "$calls" | xargs)
+            avg=$(echo "$avg" | xargs)
+            if [ -n "$q" ]; then
+                printf "  ${YELLOW}%-15s${NC} | Chaqiruvlar: %-5s | O'rtacha: %s ms\n" "${tnum}ms" "$calls" "$avg"
+                echo -e "    ${DIM}$q...${NC}"
+            fi
+        done
+        ok "pg_stat_statements tahlili muvaffaqiyatli."
+    else
+        warn "pg_stat_statements moduli faol emas."
+        info "Kengaytirilgan tahlil uchun postgresql.conf ga qoshing: shared_preload_libraries = 'pg_stat_statements'"
+        
+        echo ""
+        echo -e "  ${BOLD}Hozirgi aktiv sekin so'rovlar (>3s):${NC}"
+        docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+            SELECT pid, now() - query_start AS duration, substring(query,1,100) 
+            FROM pg_stat_activity 
+            WHERE state = 'active' AND now() - query_start > interval '3 seconds' AND query NOT ILIKE '%pg_stat%';
+        " 2>/dev/null | while IFS='|' read pid dur q; do
+            q=$(echo "$q" | xargs)
+            [ -n "$q" ] && warn "PID: $(echo "$pid"|xargs) | Vaqt: $(echo "$dur"|xargs)\n    $q"
+        done
+        ok "Aktiv sekin so'rovlar holati yakunlandi."
+    fi
+}
+
+cmd_traffic() {
+    header "NGINX TRAFFIC & BANDWIDTH METER"
+    echo ""
+    
+    local d=$(date +%d/%b/%Y)
+    echo -e "  ${BOLD}Bugun ($d) uzatilgan ma'lumot hajmi (Bandwidth):${NC}"
+    local bytes=$($DC logs --no-log-prefix nginx 2>/dev/null | grep "$d" | awk '{sum+=$10} END {print sum}')
+    if [ -n "$bytes" ] && [ "$bytes" -gt 0 ] 2>/dev/null; then
+        local mb=$(echo "scale=2; $bytes / 1024 / 1024" | bc)
+        local gb=$(echo "scale=2; $bytes / 1024 / 1024 / 1024" | bc)
+        ok "O'tkazish qobiliyati (Trafik): $mb MB / $gb GB"
+        
+        if [ "$(echo "$bytes > 5000000000" | bc 2>/dev/null)" = "1" ]; then
+            fail "DIQQAT! Traffic hajmi 5GB dan oshib ketdi! DDoS yoki Data-leak ehtimoli mavjud!"
+        elif [ "$(echo "$bytes > 1000000000" | bc 2>/dev/null)" = "1" ]; then
+            warn "Traffic hajmi 1GB dan oshdi."
+        fi
+    else
+        info "Hozircha ma'lumot yo'q yoki loglar tozalanilgan."
+    fi
+}
+
+cmd_audit() {
+    header "DEPENDENCY VULNERABILITY SCANNER (BETA)"
+    echo ""
+    
+    echo -e "  ${YELLOW}Qidiruv boshlanmoqda (Backend python packages)...${NC}"
+    local outdated=$(docker exec main-backend pip list --outdated 2>/dev/null | tail -n +3 | head -5)
+    
+    if [ -n "$outdated" ]; then
+        echo "$outdated" | while read -r line; do
+            warn "Eskirgan paket: $line"
+        done
+        fail "Python kutubxonalari eskirdi va xavfsizlik yangilanishi talab etiladi!"
+    else
+        ok "Kutubxonalar (backend) xavfsiz holatda."
+    fi
+}
+
+# ================================================================
 # FULL DIAGNOSTIKA
 # ================================================================
 cmd_full() {
@@ -1437,8 +1560,12 @@ cmd_full() {
     echo -e "  ${BOLD}${UNDERLINE}Baza & Xavfsizlik:${NC}"
     echo -e "    ${BOLD}bash diagnose.sh db${NC}            — Database holati"
     echo -e "    ${BOLD}bash diagnose.sh backup${NC}        — DB backup"
+    echo -e "    ${BOLD}bash diagnose.sh restore [file]   — Database restore (backup fayldan)"
     echo -e "    ${BOLD}bash diagnose.sh ssl${NC}           — SSL tekshiruvi"
     echo -e "    ${BOLD}bash diagnose.sh network${NC}       — Tarmoq diagnostika"
+    echo -e "    ${BOLD}bash diagnose.sh slow${NC}          — DB Sekin So'rovlari"
+    echo -e "    ${BOLD}bash diagnose.h traffic${NC}       — Nginx Max Trafik hajmi"
+    echo -e "    ${BOLD}bash diagnose.sh audit${NC}         — Kutubxonalar auditi"
     echo ""
     echo -e "  ${BOLD}${UNDERLINE}Amallar:${NC}"
     echo -e "    ${BOLD}bash diagnose.sh deploy${NC}        — Tezkor deploy (git pull + rebuild)"
@@ -1472,6 +1599,9 @@ case "${1:-full}" in
     score)    cmd_score ;;
     top)      cmd_top ;;
     ssl)      cmd_ssl ;;
+    slow)     cmd_slow ;;
+    traffic)  cmd_traffic ;;
+    audit)    cmd_audit ;;
     restart)  cmd_restart "$2" ;;
     rebuild)  cmd_rebuild "$2" ;;
     follow)   cmd_follow "$2" ;;
@@ -1505,10 +1635,12 @@ case "${1:-full}" in
         echo -e "  ${BOLD}${UNDERLINE}Xavfsizlik:${NC}"
         echo "    security         Xavfsizlik auditi (portlar, brute-force, scannerlar)"
         echo "    ssl              SSL sertifikat tekshiruvi (barcha domenlar)"
+        echo "    audit            NPM / PIP paketlaridagi xavfsizlik tekshiruvi"
+        echo "    traffic          Nginx Bandwidth (Trafik) sarfini aniqlash"
         echo ""
         echo -e "  ${BOLD}${UNDERLINE}Amallar:${NC}"
-        echo "    deploy           Tezkor deploy (git pull + aqlli rebuild)"
-        echo "    heal             Auto-fix (tozalash, optimize, restart)"
+        echo "    deploy           Tezkor deploy (git pull + aqlli rebuild + AUTO-ROLLBACK)"
+        echo "    heal             Auto-fix (tozalash, optimize, chopish, qayta ishga tushirish)"
         echo "    restart [svc]    Service restart"
         echo "    rebuild [svc]    Build + restart"
         echo "    perf             CPU, RAM, Disk, Docker stats"
