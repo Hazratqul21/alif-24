@@ -13,31 +13,13 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Check for existing session on mount
+    // Check for existing session on mount using HttpOnly cookie
     const initAuth = async () => {
-      // Accept token from URL (cross-subdomain redirect from MainPlatform)
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlToken = urlParams.get('token');
-      const urlRefresh = urlParams.get('refresh');
-      if (urlToken) {
-        localStorage.setItem('accessToken', urlToken);
-        if (urlRefresh) localStorage.setItem('refreshToken', urlRefresh);
-        const url = new URL(window.location);
-        url.searchParams.delete('token');
-        url.searchParams.delete('refresh');
-        window.history.replaceState({}, '', url);
-      }
-
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        try {
-          const profile = await authService.getProfile();
-          setUser(profile);
-        } catch {
-          // Token invalid, clear storage
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-        }
+      try {
+        const profile = await authService.getProfile();
+        setUser(profile);
+      } catch {
+        setUser(null);
       }
       setLoading(false);
     };
@@ -53,12 +35,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const data = await authService.login(email, password);
-      // Backend returns snake_case tokens
-      const accessToken = data.access_token || data.accessToken;
-      const refreshToken = data.refresh_token || data.refreshToken;
-
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      // Backend sets HttpOnly cookies automatically
       setUser(data.user);
       return data;
     } catch (err) {
@@ -75,12 +52,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const data = await authService.register(userData);
-      // Backend returns snake_case tokens
-      const accessToken = data.access_token || data.accessToken;
-      const refreshToken = data.refresh_token || data.refreshToken;
-
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      // Backend sets HttpOnly cookies automatically
       setUser(data.user);
       return data;
     } catch (err) {
@@ -98,8 +70,6 @@ export const AuthProvider = ({ children }) => {
     } catch {
       // Continue with logout even if API call fails
     }
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
     setUser(null);
   };
 

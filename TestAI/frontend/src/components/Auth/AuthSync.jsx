@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiService } from '../services/apiService'; // Make sure this path fits
+import { apiService } from '../../services/apiService';
 
 /**
  * AuthSync Component

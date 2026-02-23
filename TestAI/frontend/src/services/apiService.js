@@ -81,32 +81,20 @@ class ApiService {
    * @returns {Promise<boolean>} Success status
    */
   async refreshToken() {
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) return false;
-
     try {
       const response = await fetch(`${this.baseUrl}/auth/refresh`, {
         method: "POST", credentials: "include",
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken })
+        body: JSON.stringify({})
       });
 
       if (response.ok) {
-        const data = await response.json();
-        // Backend returns snake_case tokens in data.data
-        const newAccessToken = data.data.access_token || data.data.accessToken;
-        const newRefreshToken = data.data.refresh_token || data.data.refreshToken;
-
-        localStorage.setItem('accessToken', newAccessToken);
-        if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
         return true;
       }
     } catch {
       // Refresh failed
     }
 
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
     return false;
   }
 

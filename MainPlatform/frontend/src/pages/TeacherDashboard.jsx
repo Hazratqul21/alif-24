@@ -423,16 +423,7 @@ const TeacherDashboard = () => {
             <Users size={20} /><span className="font-medium">Sinflarim</span>
           </button>
           <button onClick={() => {
-            const token = localStorage.getItem('accessToken');
-            const refresh = localStorage.getItem('refreshToken');
-            let url = 'https://testai.alif24.uz/test-creator';
-            if (token) {
-              const params = new URLSearchParams();
-              params.set('token', token);
-              if (refresh) params.set('refresh', refresh);
-              url += `?${params.toString()}`;
-            }
-            window.location.href = url;
+            window.location.href = 'https://testai.alif24.uz/test-creator';
           }}
             className="flex items-center gap-3 bg-gradient-to-br from-purple-500 to-pink-500 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
             <FileText size={20} /><span className="font-medium">TestAI</span>
