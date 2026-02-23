@@ -240,3 +240,48 @@ async def delete_lesson(
     await db.delete(lesson)
     await db.commit()
     return {"success": True, "message": "Dars o'chirildi"}
+
+
+# ============================================================================
+# PUBLIC: Stories (Ertaklar) — for students
+# ============================================================================
+
+from shared.database.models.story import Story
+
+@router.get("/public/stories")
+async def list_public_stories(
+    language: Optional[str] = None,
+    age_group: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all stories for students"""
+    stmt = select(Story)
+    if language:
+        stmt = stmt.where(Story.language == language)
+    if age_group:
+        stmt = stmt.where(Story.age_group == age_group)
+
+    total = await db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    result = await db.execute(stmt.order_by(desc(Story.created_at)).offset(offset).limit(limit))
+    stories = result.scalars().all()
+
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": s.id,
+                "title": s.title,
+                "content": s.content,
+                "language": s.language,
+                "age_group": s.age_group,
+                "has_audio": s.has_audio,
+                "audio_url": s.audio_url,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+            }
+            for s in stories
+        ],
+        "total": total,
+    }

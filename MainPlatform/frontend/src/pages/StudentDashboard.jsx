@@ -49,6 +49,11 @@ const StudentDashboard = () => {
     const [submissionContent, setSubmissionContent] = useState('');
     const [mySchool, setMySchool] = useState(undefined); // undefined=not loaded, null=no school
     const [parentInvites, setParentInvites] = useState([]);
+    const [realLessons, setRealLessons] = useState([]);
+    const [realStories, setRealStories] = useState([]);
+    const [contentLoading, setContentLoading] = useState(false);
+    const [selectedLesson, setSelectedLesson] = useState(null);
+    const [selectedStory, setSelectedStory] = useState(null);
 
     // Interactive Test states
     const [testQuestions, setTestQuestions] = useState([]);
@@ -122,6 +127,22 @@ const StudentDashboard = () => {
             organizationService.getMySchool().then(res => {
                 setMySchool(res.school || res.data?.school || null);
             }).catch(() => setMySchool(null));
+        }
+        if (activeTab === 'library' && realLessons.length === 0 && realStories.length === 0 && !contentLoading) {
+            setContentLoading(true);
+            Promise.allSettled([
+                studentService.getLessons(),
+                studentService.getErtaklar(),
+            ]).then(([lessRes, storRes]) => {
+                if (lessRes.status === 'fulfilled') {
+                    const ld = lessRes.value.data || lessRes.value;
+                    setRealLessons(Array.isArray(ld) ? ld : []);
+                }
+                if (storRes.status === 'fulfilled') {
+                    const sd = storRes.value.data || storRes.value;
+                    setRealStories(Array.isArray(sd) ? sd : []);
+                }
+            }).finally(() => setContentLoading(false));
         }
     }, [activeTab, mySchool]);
 
@@ -399,15 +420,6 @@ const StudentDashboard = () => {
         { id: 2, name: 'Ingliz tili', teacher: 'Sardor Alimov', avgGrade: 4.5, color: '#EC4899' }
     ];
 
-    const books = [
-        { id: 1, title: 'Matematika 7-sinf', category: 'science', cover: <BookOpen size={48} className="text-blue-500" />, pages: 180, description: 'Algebra va geometriya asoslari, tenglamalar, funksiyalar.' },
-        { id: 2, title: 'English Grammar', category: 'lang', cover: <Languages size={48} className="text-pink-500" />, pages: 120, description: 'Ingliz tili grammatikasi — tenses, articles, prepositions.' },
-        { id: 3, title: 'Python for Kids', category: 'it', cover: <Laptop size={48} className="text-purple-500" />, pages: 200, description: 'Dasturlash asoslari — o\'zgaruvchilar, sikllar, funksiyalar.' },
-        { id: 4, title: 'Ona tili 7-sinf', category: 'lang', cover: <Book size={48} className="text-emerald-500" />, pages: 160, description: 'O\'zbek tili grammatikasi va adabiyot.' },
-        { id: 5, title: 'Tabiatshunoslik', category: 'science', cover: <Globe size={48} className="text-teal-500" />, pages: 150, description: 'Tabiat hodisalari, o\'simliklar va hayvonot olami.' },
-        { id: 6, title: 'Informatika', category: 'it', cover: <Laptop size={48} className="text-indigo-500" />, pages: 140, description: 'Kompyuter savodxonligi va dasturiy ta\'minot.' }
-    ];
-
     const achievements = dashboardData?.achievements || [
         { id: 1, title: 'Birinchi qadam', desc: 'Birinchi darsni yakunladingiz', icon: <Flag size={32} className="text-blue-500" />, earned: true },
         { id: 2, title: 'Kitobxon', desc: '5 ta kitob o\'qidingiz', icon: <BookOpen size={32} className="text-emerald-500" />, earned: (dashboardData?.reading_stats?.total_sessions || 0) >= 5 },
@@ -418,8 +430,6 @@ const StudentDashboard = () => {
         { id: 7, title: 'Do\'stona', desc: 'Xabar yubordingiz', icon: <MessageCircle size={32} className="text-pink-500" />, earned: false },
         { id: 8, title: 'Champion', desc: 'Sinf birinchisi bo\'ldingiz', icon: <Trophy size={32} className="text-yellow-600" />, earned: false }
     ];
-
-    const filteredBooks = libraryFilter === 'all' ? books : books.filter(b => b.category === libraryFilter);
 
     const renderDashboard = () => (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -673,45 +683,116 @@ const StudentDashboard = () => {
     const renderLibrary = () => (
         <div className="space-y-6">
             <div className="flex gap-2 flex-wrap">
-                {Object.entries(t.library.filters).map(([key, label]) => (
-                    <button key={key} onClick={() => setLibraryFilter(key)}
-                        className={`px-4 py-2 rounded-full font-medium text-sm transition-all ${libraryFilter === key ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
-                        {label}
+                {[
+                    { key: 'lessons', label: 'Darslar', icon: <BookOpen size={16} />, count: realLessons.length },
+                    { key: 'stories', label: 'Ertaklar', icon: <Book size={16} />, count: realStories.length },
+                ].map(item => (
+                    <button key={item.key} onClick={() => setLibraryFilter(item.key)}
+                        className={`px-4 py-2.5 rounded-full font-medium text-sm transition-all flex items-center gap-2 ${libraryFilter === item.key || (libraryFilter === 'all' && item.key === 'lessons') ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+                        {item.icon} {item.label} <span className="text-xs opacity-70">({item.count})</span>
                     </button>
                 ))}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredBooks.map(book => (
-                    <div key={book.id} onClick={() => setSelectedBook(book)}
-                        className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group">
-                        <div className="aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex items-center justify-center mb-3 group-hover:from-indigo-50 group-hover:to-purple-50 transition-all">
-                            {book.cover}
+            {contentLoading ? (
+                <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" /></div>
+            ) : libraryFilter === 'stories' ? (
+                <div>
+                    {realStories.length === 0 ? (
+                        <div className="bg-white rounded-2xl p-12 text-center border border-gray-100">
+                            <Book size={48} className="mx-auto mb-3 text-gray-300" />
+                            <p className="text-gray-500">Hozircha ertaklar yo'q</p>
                         </div>
-                        <h3 className="font-bold text-gray-800 text-sm line-clamp-2">{book.title}</h3>
-                        <p className="text-xs text-gray-400 mt-1">{book.pages} sahifa</p>
-                    </div>
-                ))}
-            </div>
-
-            {selectedBook && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedBook(null)}>
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {realStories.map(story => (
+                                <div key={story.id} onClick={() => setSelectedStory(story)} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center mb-3 group-hover:from-purple-200 group-hover:to-pink-200 transition-all">
+                                        <Book size={24} className="text-purple-600" />
+                                    </div>
+                                    <h3 className="font-bold text-gray-800 mb-1">{story.title}</h3>
+                                    <p className="text-gray-500 text-sm line-clamp-2 mb-2">{story.content?.substring(0, 120)}...</p>
+                                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                                        <span className="bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{story.age_group || '6-8'} yosh</span>
+                                        <span className="bg-gray-50 text-gray-600 px-2 py-0.5 rounded-full">{story.language === 'uz' ? "O'zbek" : story.language === 'ru' ? 'Rus' : 'English'}</span>
+                                        {story.has_audio && <span className="flex items-center gap-1"><Mic size={12} /> Audio</span>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div>
+                    {realLessons.length === 0 ? (
+                        <div className="bg-white rounded-2xl p-12 text-center border border-gray-100">
+                            <BookOpen size={48} className="mx-auto mb-3 text-gray-300" />
+                            <p className="text-gray-500">Hozircha darslar yo'q</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {realLessons.map(lesson => (
+                                <div key={lesson.id} onClick={() => setSelectedLesson(lesson)} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center shrink-0 group-hover:from-blue-200 group-hover:to-indigo-200 transition-all">
+                                            <BookOpen size={24} className="text-blue-600" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-bold text-gray-800 mb-1">{lesson.title}</h3>
+                                            <p className="text-gray-500 text-sm line-clamp-2 mb-2">{lesson.content?.substring(0, 100)}</p>
+                                            <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                                                {lesson.subject && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{lesson.subject}</span>}
+                                                {lesson.grade_level && <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded-full">{lesson.grade_level}</span>}
+                                                {lesson.video_url && <span className="flex items-center gap-1 text-indigo-500"><Video size={12} /> Video</span>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+            {selectedLesson && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedLesson(null)}>
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-start mb-4">
-                            <h3 className="text-xl font-bold text-gray-800">{selectedBook.title}</h3>
-                            <button onClick={() => setSelectedBook(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                            <h3 className="text-xl font-bold text-gray-800">{selectedLesson.title}</h3>
+                            <button onClick={() => setSelectedLesson(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
                         </div>
-                        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-8 flex items-center justify-center mb-4">
-                            {selectedBook.cover}
+                        <div className="flex items-center gap-3 mb-4 text-sm">
+                            {selectedLesson.subject && <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full">{selectedLesson.subject}</span>}
+                            {selectedLesson.grade_level && <span className="bg-green-50 text-green-600 px-3 py-1 rounded-full">{selectedLesson.grade_level}</span>}
                         </div>
-                        <p className="text-gray-600 text-sm mb-4">{selectedBook.description}</p>
-                        <div className="flex gap-4 text-sm text-gray-500 mb-6">
-                            <span className="flex items-center gap-1"><FileText size={14} /> {selectedBook.pages} sahifa</span>
-                            <span className="flex items-center gap-1"><BookOpen size={14} /> {selectedBook.category === 'science' ? 'Fanlar' : selectedBook.category === 'lang' ? 'Tillar' : 'IT'}</span>
+                        <div className="prose prose-sm max-w-none text-gray-700 mb-4 whitespace-pre-wrap">{selectedLesson.content}</div>
+                        {selectedLesson.video_url && (
+                            <a href={selectedLesson.video_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 text-sm mb-4"><Video size={16} /> Video darsni ko'rish</a>
+                        )}
+                        {selectedLesson.attachments?.length > 0 && (
+                            <div className="border-t pt-3 mt-3">
+                                <p className="text-xs text-gray-500 mb-2">Materiallar:</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedLesson.attachments.map((att, i) => (
+                                        <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-200"><Download size={12} /> {att.name || `Fayl ${i + 1}`}</a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+            {selectedStory && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedStory(null)}>
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-xl font-bold text-gray-800">{selectedStory.title}</h3>
+                            <button onClick={() => setSelectedStory(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
                         </div>
-                        <button onClick={() => { setSelectedBook(null); navigate('/smartkids'); }}
-                            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
-                            <Play size={18} /> O'qishni boshlash
-                        </button>
+                        <div className="flex items-center gap-3 mb-4 text-sm">
+                            <span className="bg-purple-50 text-purple-600 px-3 py-1 rounded-full">{selectedStory.age_group || '6-8'} yosh</span>
+                            <span className="bg-gray-50 text-gray-600 px-3 py-1 rounded-full">{selectedStory.language === 'uz' ? "O'zbek" : selectedStory.language === 'ru' ? 'Rus' : 'English'}</span>
+                        </div>
+                        {selectedStory.audio_url && <audio controls className="w-full mb-4 rounded-xl" src={selectedStory.audio_url} />}
+                        <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">{selectedStory.content}</div>
                     </div>
                 </div>
             )}

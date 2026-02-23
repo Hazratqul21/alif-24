@@ -31,7 +31,7 @@ export default function OlympiadDetail() {
         try {
             setLoading(true);
             const data = await apiService.get(`/olympiad/${id}`);
-            setOlympiad(data.data || data);
+            setOlympiad(data.data || data.olympiad || data);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -49,7 +49,8 @@ export default function OlympiadDetail() {
 
             // Load questions after registration
             const qData = await apiService.get(`/olympiad/${id}/questions`);
-            setQuestions(qData.data || qData || []);
+            const qs = qData.data?.questions || qData.data || qData.questions || [];
+            setQuestions(Array.isArray(qs) ? qs : []);
         } catch (err) {
             setRegError(err.message);
         } finally {
@@ -70,7 +71,7 @@ export default function OlympiadDetail() {
             }));
             const studentId = localStorage.getItem('userId') || `guest_${Date.now()}`;
             const data = await apiService.post(`/olympiad/${id}/submit?student_id=${studentId}`, answerList);
-            setResult(data.data || data);
+            setResult(data.data || data.result || data);
             setSubmitted(true);
             loadLeaderboard();
         } catch (err) {
@@ -136,8 +137,8 @@ export default function OlympiadDetail() {
                     )}
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <InfoCard icon={<Calendar className="w-4 h-4" />} label="Boshlanish" value={olympiad?.start_date ? new Date(olympiad.start_date).toLocaleDateString('uz') : '—'} />
-                        <InfoCard icon={<Clock className="w-4 h-4" />} label="Tugash" value={olympiad?.end_date ? new Date(olympiad.end_date).toLocaleDateString('uz') : '—'} />
+                        <InfoCard icon={<Calendar className="w-4 h-4" />} label="Boshlanish" value={olympiad?.start_time ? new Date(olympiad.start_time).toLocaleDateString('uz') : '—'} />
+                        <InfoCard icon={<Clock className="w-4 h-4" />} label="Tugash" value={olympiad?.end_time ? new Date(olympiad.end_time).toLocaleDateString('uz') : '—'} />
                         <InfoCard icon={<Users className="w-4 h-4" />} label="Maksimum" value={`${olympiad?.max_participants || '∞'} nafar`} />
                         <InfoCard icon={<Trophy className="w-4 h-4" />} label="Fan" value={olympiad?.subject || '—'} />
                     </div>
@@ -147,10 +148,10 @@ export default function OlympiadDetail() {
                         <div>
                             <button
                                 onClick={handleRegister}
-                                disabled={registering || olympiad?.status !== 'active'}
+                                disabled={registering || !['active', 'upcoming'].includes(olympiad?.status)}
                                 className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-600/30"
                             >
-                                {registering ? 'Yuklanmoqda...' : olympiad?.status === 'active' ? "Ro'yxatdan o'tish va boshlash" : 'Olimpiada faol emas'}
+                                {registering ? 'Yuklanmoqda...' : ['active', 'upcoming'].includes(olympiad?.status) ? "Ro'yxatdan o'tish va boshlash" : 'Olimpiada faol emas'}
                             </button>
                             {regError && <p className="text-red-400 text-sm mt-2 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {regError}</p>}
                         </div>
@@ -226,7 +227,7 @@ export default function OlympiadDetail() {
                         <div className="text-6xl mb-4">🏆</div>
                         <h2 className="text-2xl font-bold text-white mb-2">Natija</h2>
                         <p className="text-4xl font-bold text-indigo-400 mb-2">
-                            {result.score || 0} / {result.total_points || questions.reduce((s, q) => s + (q.points || 10), 0)}
+                            {result.total_score || result.score || 0} / {result.total_points || questions.reduce((s, q) => s + (q.points || 10), 0)}
                         </p>
                         <p className="text-indigo-500 mb-6">
                             To'g'ri javoblar: {result.correct_answers || 0} / {result.total_questions || questions.length}
