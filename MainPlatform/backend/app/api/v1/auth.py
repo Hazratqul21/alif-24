@@ -3,7 +3,7 @@ Auth Router - MainPlatform
 Authentication endpoints using shared modules
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
@@ -108,10 +108,19 @@ async def login(data: LoginRequest, response: Response, db: AsyncSession = Depen
     }
 
 @router.post("/refresh")
-async def refresh_token(data: RefreshTokenRequest, response: Response, db: AsyncSession = Depends(get_db)):
-    """Refresh access token"""
+async def refresh_token(request: Request, response: Response, data: RefreshTokenRequest = None, db: AsyncSession = Depends(get_db)):
+    """Refresh access token - reads from cookie or request body"""
+    # Try body first, then cookie
+    token = None
+    if data and data.refresh_token:
+        token = data.refresh_token
+    if not token:
+        token = request.cookies.get("refresh_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Refresh token not provided")
+    
     service = AuthService(db)
-    result = await service.refresh_token(data.refresh_token)
+    result = await service.refresh_token(token)
     
     # Update Cookies
     domain = ".alif24.uz" if not settings.DEBUG else None

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status, HTTPException
+from fastapi import APIRouter, Depends, Query, Request, status, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,15 +10,20 @@ from shared.auth import verify_token
 from . import schemas, services
 
 router = APIRouter(prefix="/crm", tags=["CRM"])
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get current authenticated user using shared auth"""
-    token = credentials.credentials
+    """Get current authenticated user - cookie or Bearer header"""
+    token = request.cookies.get("access_token")
+    if not token and credentials:
+        token = credentials.credentials
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     
     payload = verify_token(token)
     if not payload:

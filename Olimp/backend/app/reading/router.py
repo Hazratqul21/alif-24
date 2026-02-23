@@ -12,7 +12,7 @@ Endpoints:
 - GET /competitions/{id}/leaderboard — Umumiy natijalar (4 guruh)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
@@ -33,7 +33,7 @@ from shared.database.models.reading_competition import (
 from shared.auth import verify_token
 
 router = APIRouter()
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 # ============================================================
@@ -41,11 +41,18 @@ security = HTTPBearer()
 # ============================================================
 
 async def get_current_student(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """JWT tokendan foydalanuvchini olish"""
-    payload = verify_token(credentials.credentials)
+    """JWT tokendan foydalanuvchini olish - cookie yoki Bearer header"""
+    token = request.cookies.get("access_token")
+    if not token and credentials:
+        token = credentials.credentials
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    payload = verify_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Token noto'g'ri yoki muddati o'tgan")
 
