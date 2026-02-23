@@ -149,6 +149,8 @@ from shared.database.models.subscription import (
     SubscriptionStatus,
     SubscriptionPlanConfig,
     UserSubscription,
+    PromoCode,
+    PromoCodeUsage,
 )
 
 __all__ = [
@@ -282,4 +284,8 @@ __all__ = [
     "SubscriptionStatus",
     "SubscriptionPlanConfig",
     "UserSubscription",
+
+    # PromoCode Models
+    "PromoCode",
+    "PromoCodeUsage",
 ]

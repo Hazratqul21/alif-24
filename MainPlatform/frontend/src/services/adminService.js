@@ -153,6 +153,12 @@ const adminService = {
     getSubscriptionStats: () => request('GET', '/subscriptions/stats'),
     assignSubscription: (userId, data) => request('POST', `/subscriptions/${userId}`, data),
     cancelSubscription: (userId) => request('DELETE', `/subscriptions/${userId}`),
+
+    // ============ PROMO CODE MANAGEMENT ============
+    getPromoCodes: () => request('GET', '/promo-codes'),
+    createPromoCode: (data) => request('POST', '/promo-codes', data),
+    updatePromoCode: (promoId, data) => request('PUT', `/promo-codes/${promoId}`, data),
+    deletePromoCode: (promoId) => request('DELETE', `/promo-codes/${promoId}`),
 };
 
 export default adminService;

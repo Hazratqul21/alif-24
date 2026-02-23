@@ -26,6 +26,7 @@ from shared.database.models import (
     ModeratorProfile, OrganizationProfile,
     StudentCoin, CoinTransaction, TelegramUser,
     SubscriptionPlanConfig, UserSubscription, SubscriptionStatus,
+    PromoCode, PromoCodeUsage,
 )
 
 logger = logging.getLogger(__name__)
@@ -1871,3 +1872,160 @@ async def cancel_subscription(
     await db.commit()
 
     return {"message": "Obuna bekor qilindi", "user_id": user_id, "cancelled_count": len(subs)}
+
+
+# ============================================================================
+# PROMO CODE MANAGEMENT
+# ============================================================================
+
+class PromoCodeCreateRequest(BaseModel):
+    code: str
+    description: Optional[str] = None
+    promo_type: str = Field(default="free_days", pattern="^(discount|free_days|plan)$")
+    discount_percent: int = 0
+    free_days_count: int = 0
+    plan_config_id: Optional[str] = None
+    max_uses: int = 0
+    max_uses_per_user: int = 1
+    is_active: bool = True
+    starts_at: Optional[str] = None
+    expires_at: Optional[str] = None
+
+class PromoCodeUpdateRequest(BaseModel):
+    description: Optional[str] = None
+    discount_percent: Optional[int] = None
+    free_days_count: Optional[int] = None
+    plan_config_id: Optional[str] = None
+    max_uses: Optional[int] = None
+    max_uses_per_user: Optional[int] = None
+    is_active: Optional[bool] = None
+    starts_at: Optional[str] = None
+    expires_at: Optional[str] = None
+
+
+@router.get("/promo-codes")
+async def list_promo_codes(
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Barcha promocodlarni ko'rish"""
+    result = await db.execute(
+        select(PromoCode).order_by(PromoCode.created_at.desc())
+    )
+    codes = result.scalars().all()
+    return {"promo_codes": [c.to_dict() for c in codes]}
+
+
+@router.post("/promo-codes")
+async def create_promo_code(
+    data: PromoCodeCreateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Yangi promocode yaratish"""
+    if not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Faqat super admin")
+
+    # Code tekshirish
+    existing = await db.execute(
+        select(PromoCode).where(PromoCode.code == data.code.upper())
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"'{data.code}' promocode allaqachon mavjud")
+
+    promo = PromoCode(
+        code=data.code.upper(),
+        description=data.description,
+        promo_type=data.promo_type,
+        discount_percent=data.discount_percent,
+        free_days_count=data.free_days_count,
+        plan_config_id=data.plan_config_id,
+        max_uses=data.max_uses,
+        max_uses_per_user=data.max_uses_per_user,
+        is_active=data.is_active,
+    )
+
+    if data.starts_at:
+        try:
+            promo.starts_at = datetime.fromisoformat(data.starts_at.replace('Z', '+00:00'))
+        except Exception:
+            pass
+    if data.expires_at:
+        try:
+            promo.expires_at = datetime.fromisoformat(data.expires_at.replace('Z', '+00:00'))
+        except Exception:
+            pass
+
+    db.add(promo)
+    await db.commit()
+    await db.refresh(promo)
+
+    return {"message": "Promocode yaratildi", "promo_code": promo.to_dict()}
+
+
+@router.put("/promo-codes/{promo_id}")
+async def update_promo_code(
+    promo_id: str,
+    data: PromoCodeUpdateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Promocode tahrirlash"""
+    if not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Faqat super admin")
+
+    result = await db.execute(select(PromoCode).where(PromoCode.id == promo_id))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promocode topilmadi")
+
+    if data.description is not None:
+        promo.description = data.description
+    if data.discount_percent is not None:
+        promo.discount_percent = data.discount_percent
+    if data.free_days_count is not None:
+        promo.free_days_count = data.free_days_count
+    if data.plan_config_id is not None:
+        promo.plan_config_id = data.plan_config_id
+    if data.max_uses is not None:
+        promo.max_uses = data.max_uses
+    if data.max_uses_per_user is not None:
+        promo.max_uses_per_user = data.max_uses_per_user
+    if data.is_active is not None:
+        promo.is_active = data.is_active
+    if data.starts_at is not None:
+        try:
+            promo.starts_at = datetime.fromisoformat(data.starts_at.replace('Z', '+00:00'))
+        except Exception:
+            pass
+    if data.expires_at is not None:
+        try:
+            promo.expires_at = datetime.fromisoformat(data.expires_at.replace('Z', '+00:00'))
+        except Exception:
+            pass
+
+    await db.commit()
+    await db.refresh(promo)
+
+    return {"message": "Promocode yangilandi", "promo_code": promo.to_dict()}
+
+
+@router.delete("/promo-codes/{promo_id}")
+async def delete_promo_code(
+    promo_id: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Promocode o'chirish"""
+    if not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Faqat super admin")
+
+    result = await db.execute(select(PromoCode).where(PromoCode.id == promo_id))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promocode topilmadi")
+
+    await db.delete(promo)
+    await db.commit()
+
+    return {"message": "Promocode o'chirildi", "promo_id": promo_id}

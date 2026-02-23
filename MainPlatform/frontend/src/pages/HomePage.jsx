@@ -184,15 +184,13 @@ const HomePage = () => {
       <div className="flex min-h-[calc(100vh-70px)] relative">
         {/* Sidebar - Neon Design */}
         <aside
-          className={`fixed top-[70px] pb-[120px] left-0 h-[calc(100vh-70px)] bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f1624] shadow-[2px_0_20px_rgba(75,48,251,0.5)] z-[998] overflow-y-auto transition-all duration-300 border-r-2 border-[rgba(75,48,251,0.3)] ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          className={`fixed top-[70px] pb-[120px] left-0 h-[calc(100vh-70px)] bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f1624] shadow-[2px_0_20px_rgba(75,48,251,0.5)] z-[998] overflow-y-auto transition-all duration-300 border-r-2 border-[rgba(75,48,251,0.3)] w-[240px] sm:w-[280px] ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
-          style={{ width: '280px' }}
         >
           <div className={`transition-all duration-300 ${sidebarOpen ? 'p-3' : 'p-2'}`}>
             {/* Toggle Sidebar Button */}
             <button
               className={`w-full bg-gradient-to-br from-[#ff00ff] to-[#00ffff] border-none text-white rounded-xl cursor-pointer flex items-center justify-center transition-all duration-300 shadow-[0_4px_15px_rgba(255,0,255,0.6)] hover:shadow-[0_8px_25px_rgba(0,255,255,0.8)] hover:scale-110 mb-3 ${sidebarOpen ? 'p-3' : 'p-2.5'}`}
-              onClick={toggleSidebar}
             >
               {sidebarOpen ? <X size={24} /> : <Menu size={20} />}
             </button>
@@ -264,7 +262,7 @@ const HomePage = () => {
 
         {/* Main Content Area */}
         <main
-          className={`flex-1 transition-all duration-300 relative z-10 ${sidebarOpen ? 'ml-[280px]' : 'ml-0'
+          className={`flex-1 transition-all duration-300 relative z-10 ${sidebarOpen ? 'ml-[240px] sm:ml-[280px]' : 'ml-0'
             }`}
         >
           <div className="p-5 pb-[100px]">
@@ -320,7 +318,7 @@ const HomePage = () => {
             </div>
 
             {/* Games Grid */}
-            <div className={`grid gap-5 ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}`}>
+            <div className={`grid ${isMobile ? 'grid-cols-2 gap-2.5' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'}`}>
               {filteredItems.map((game, index) => (
                 <div
                   key={game.id}
@@ -355,7 +353,7 @@ const HomePage = () => {
                       </div>
                     </div>
                     <div className="p-3">
-                      <h3 className="text-white font-bold text-sm md:text-base truncate mb-2">{game.title}</h3>
+                      <h3 className="text-white font-bold text-xs sm:text-sm md:text-base truncate mb-2">{game.title}</h3>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
                           <div

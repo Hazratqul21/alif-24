@@ -465,8 +465,8 @@ const StudentDashboard = () => {
                     <div className="relative z-10 animate-bounce">{user.monster}</div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                    <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 sm:gap-4">
                         <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-2xl"><Coins size={24} className="text-yellow-600" /></div>
                         <div>
                             <p className="text-gray-500 text-sm">Coinlar</p>
@@ -497,8 +497,8 @@ const StudentDashboard = () => {
                     </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                    <button onClick={() => navigate('/livequiz')} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <button onClick={() => navigate('/livequiz')} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-4 sm:p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
                         <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center"><Target size={24} /></div>
                         <div className="text-left">
                             <h3 className="font-bold text-lg">Live Quiz</h3>
@@ -524,7 +524,7 @@ const StudentDashboard = () => {
                             <p className="text-gray-500">Yuklanmoqda...</p>
                         </div>
                     ) : readingAnalyses && readingAnalyses.total_sessions > 0 ? (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                             <div className="bg-blue-50 p-4 rounded-xl text-center">
                                 <div className="text-2xl font-bold text-blue-600">{readingAnalyses.total_words || 0}</div>
                                 <div className="text-xs text-gray-600 mt-1">So'zlar</div>
@@ -864,7 +864,7 @@ const StudentDashboard = () => {
             {/* Task Detail Modal — unified for test and regular */}
             {selectedTask && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[9999]" onClick={() => { if (!testStarted) { setSelectedTask(null); setTestQuestions([]); setTestResult(null); } }}>
-                    <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col mx-2 sm:mx-auto" onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className="p-5 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
                             <div>
@@ -1175,17 +1175,17 @@ const StudentDashboard = () => {
                             <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm">
                                 <h2 className="text-lg md:text-xl font-bold mb-4 flex items-center gap-2"><BarChart3 size={22} className="text-indigo-500" /> Baholarim</h2>
                                 {gradedTasks.length > 0 && (
-                                    <div className="grid grid-cols-3 gap-3 mb-6">
-                                        <div className="bg-indigo-50 rounded-xl p-4 text-center">
+                                    <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
+                                        <div className="bg-indigo-50 rounded-xl p-2 sm:p-4 text-center">
                                             <p className="text-2xl font-bold text-indigo-600">{gradedTasks.length}</p>
                                             <p className="text-xs text-gray-500">Baholangan</p>
                                         </div>
-                                        <div className="bg-green-50 rounded-xl p-4 text-center">
-                                            <p className="text-2xl font-bold text-green-600">{avgScore}%</p>
+                                        <div className="bg-green-50 rounded-xl p-2 sm:p-4 text-center">
+                                            <p className="text-xl sm:text-2xl font-bold text-green-600">{avgScore}%</p>
                                             <p className="text-xs text-gray-500">O'rtacha ball</p>
                                         </div>
-                                        <div className="bg-amber-50 rounded-xl p-4 text-center">
-                                            <p className="text-2xl font-bold text-amber-600">{gradedTasks.filter(t => (t.score / (t.xp || 100)) >= 0.8).length}</p>
+                                        <div className="bg-amber-50 rounded-xl p-2 sm:p-4 text-center">
+                                            <p className="text-xl sm:text-2xl font-bold text-amber-600">{gradedTasks.filter(t => (t.score / (t.xp || 100)) >= 0.8).length}</p>
                                             <p className="text-xs text-gray-500">A'lo (80%+)</p>
                                         </div>
                                     </div>
