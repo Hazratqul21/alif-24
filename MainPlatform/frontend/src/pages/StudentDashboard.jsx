@@ -376,7 +376,7 @@ const StudentDashboard = () => {
                             {authUser?.id && <span className="bg-white/15 px-2 py-0.5 rounded-full text-[10px] font-mono opacity-70 cursor-pointer hover:opacity-100" onClick={() => { navigator.clipboard.writeText(authUser.id); setNotification({ type: 'success', text: 'ID nusxalandi!' }); }} title="ID nusxalash">ID: {authUser.id}</span>}
                         </div>
                         <p className="opacity-90 mb-6 flex items-center gap-2">
-                            {user.parent ? <>Ota-onangiz sizni kuzatib bormoqda <Shield size={16} /></> : "Bugungi rejangizda 2 ta yangi vazifa bor."}
+                            {user.parent ? <>Ota-onangiz sizni kuzatib bormoqda <Shield size={16} /></> : (displayTasks.filter(t => t.status === 'pending').length > 0 ? `Sizda ${displayTasks.filter(t => t.status === 'pending').length} ta bajarilmagan vazifa bor.` : "Barcha vazifalar bajarilgan!")}
                         </p>
                         <button onClick={() => setActiveTab('tasks')} className="bg-white text-indigo-600 px-6 py-2 rounded-full font-bold shadow-lg hover:scale-105 transition-transform">
                             Boshlash
@@ -810,7 +810,7 @@ const StudentDashboard = () => {
                 <div className="container mx-auto px-4">
                     {/* Mobile bottom nav */}
                     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 flex overflow-x-auto no-scrollbar">
-                        {['dashboard', 'classes', 'tasks', 'library', 'olympiad', 'school', 'achievements'].map(tab => (
+                        {['dashboard', 'classes', 'tasks', 'grades', 'library', 'olympiad', 'school', 'achievements'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -819,6 +819,7 @@ const StudentDashboard = () => {
                                 {tab === 'dashboard' && <Star size={20} />}
                                 {tab === 'classes' && <SchoolIcon size={20} />}
                                 {tab === 'tasks' && <CheckCircle size={20} />}
+                                {tab === 'grades' && <BarChart3 size={20} />}
                                 {tab === 'library' && <Book size={20} />}
                                 {tab === 'olympiad' && <Trophy size={20} />}
                                 {tab === 'school' && <School size={20} />}
@@ -830,7 +831,7 @@ const StudentDashboard = () => {
 
                     {/* Desktop tabs */}
                     <div className="hidden md:flex gap-2 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 w-fit">
-                        {['dashboard', 'classes', 'tasks', 'library', 'olympiad', 'school', 'achievements'].map(tab => (
+                        {['dashboard', 'classes', 'tasks', 'grades', 'library', 'olympiad', 'school', 'achievements'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -845,6 +846,66 @@ const StudentDashboard = () => {
                     {activeTab === 'dashboard' && renderDashboard()}
                     {activeTab === 'classes' && renderClasses()}
                     {activeTab === 'library' && renderLibrary()}
+
+                    {activeTab === 'grades' && (() => {
+                        const gradedTasks = displayTasks.filter(t => t.status === 'completed' && t.score !== undefined && t.score !== null);
+                        const avgScore = gradedTasks.length > 0 ? Math.round(gradedTasks.reduce((sum, t) => sum + (t.score / (t.xp || 100)) * 100, 0) / gradedTasks.length) : 0;
+                        return (
+                            <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm">
+                                <h2 className="text-lg md:text-xl font-bold mb-4 flex items-center gap-2"><BarChart3 size={22} className="text-indigo-500" /> Baholarim</h2>
+                                {gradedTasks.length > 0 && (
+                                    <div className="grid grid-cols-3 gap-3 mb-6">
+                                        <div className="bg-indigo-50 rounded-xl p-4 text-center">
+                                            <p className="text-2xl font-bold text-indigo-600">{gradedTasks.length}</p>
+                                            <p className="text-xs text-gray-500">Baholangan</p>
+                                        </div>
+                                        <div className="bg-green-50 rounded-xl p-4 text-center">
+                                            <p className="text-2xl font-bold text-green-600">{avgScore}%</p>
+                                            <p className="text-xs text-gray-500">O'rtacha ball</p>
+                                        </div>
+                                        <div className="bg-amber-50 rounded-xl p-4 text-center">
+                                            <p className="text-2xl font-bold text-amber-600">{gradedTasks.filter(t => (t.score / (t.xp || 100)) >= 0.8).length}</p>
+                                            <p className="text-xs text-gray-500">A'lo (80%+)</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="space-y-3">
+                                    {gradedTasks.length === 0 ? (
+                                        <div className="text-center py-12 text-gray-400">
+                                            <BarChart3 size={48} className="mx-auto mb-3 opacity-30" />
+                                            <p className="font-medium">Hali baholar yo'q</p>
+                                            <p className="text-sm mt-1">Vazifalarni bajaring — o'qituvchi baholaydi</p>
+                                        </div>
+                                    ) : gradedTasks.map(task => {
+                                        const pct = Math.round((task.score / (task.xp || 100)) * 100);
+                                        const badgeCls = pct >= 80 ? 'text-green-600 bg-green-100' : pct >= 50 ? 'text-yellow-600 bg-yellow-100' : 'text-red-600 bg-red-100';
+                                        const barCls = pct >= 80 ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+                                        const pctCls = pct >= 80 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-600';
+                                        return (
+                                            <div key={task.id} className="p-4 bg-gray-50 border border-gray-100 rounded-xl">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <h4 className="font-bold text-gray-800">{task.title}</h4>
+                                                    <span className={`font-bold ${badgeCls} px-3 py-1 rounded-full text-sm`}>{task.score} / {task.xp}</span>
+                                                </div>
+                                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                                    <div className={`${barCls} h-2 rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                                                </div>
+                                                <div className="flex items-center justify-between mt-2">
+                                                    <p className="text-xs text-gray-500">{task.deadline}</p>
+                                                    <p className={`text-xs font-bold ${pctCls}`}>{pct}%</p>
+                                                </div>
+                                                {task.submission?.feedback && (
+                                                    <div className="mt-2 p-2 bg-blue-50 rounded-lg text-xs text-blue-700">
+                                                        <span className="font-medium">Izoh:</span> {task.submission.feedback}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {activeTab === 'tasks' && (
                         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm">

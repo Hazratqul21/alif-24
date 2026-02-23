@@ -29,8 +29,14 @@ export default function ContentPage() {
                 adminService.getErtaklar(),
                 adminService.getPublicContent()
             ]);
-            if (lessRes.status === 'fulfilled') setLessons(lessRes.value.data?.lessons || lessRes.value.data || []);
-            if (ertRes.status === 'fulfilled') setErtaklar(ertRes.value.data?.ertaklar || ertRes.value.data || []);
+            if (lessRes.status === 'fulfilled') {
+                const ld = lessRes.value.data?.lessons || lessRes.value.data;
+                setLessons(Array.isArray(ld) ? ld : []);
+            }
+            if (ertRes.status === 'fulfilled') {
+                const ed = ertRes.value.data?.ertaklar || ertRes.value.data;
+                setErtaklar(Array.isArray(ed) ? ed : []);
+            }
             if (pcRes.status === 'fulfilled') {
                 const data = pcRes.value.data?.data || {};
                 setPlatformContent(data);
