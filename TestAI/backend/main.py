@@ -217,6 +217,38 @@ async def open_lobby(
     return {"success": True, "data": result}
 
 
+@app.get("/api/v1/quiz/{quiz_id}/lobby-status")
+async def get_lobby_status(
+    quiz_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get lobby status and participants (teacher only)"""
+    service = LiveQuizService(db)
+    result = await service.get_lobby_status(
+        teacher_user_id=current_user.id,
+        quiz_id=quiz_id
+    )
+    return {"success": True, "data": result}
+
+
+@app.get("/api/v1/quiz/{quiz_id}/question-results/{question_id}")
+async def get_question_results(
+    quiz_id: str,
+    question_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get results for a specific question (teacher only)"""
+    service = LiveQuizService(db)
+    result = await service.get_question_results(
+        teacher_user_id=current_user.id,
+        quiz_id=quiz_id,
+        question_id=question_id
+    )
+    return {"success": True, "data": result}
+
+
 @app.post("/api/v1/quiz/{quiz_id}/start")
 async def start_quiz(
     quiz_id: str,
