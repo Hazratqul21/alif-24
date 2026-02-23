@@ -25,7 +25,7 @@ const LiveQuizTeacher = () => {
 
   // Questions
   const [questions, setQuestions] = useState([
-    { text: '', options: ['', '', '', ''], correct: 0, points: 100 }
+    { text: '', options: ['', '', '', ''], correct: -1, points: 100 }
   ]);
 
   // Lobby
@@ -58,7 +58,7 @@ const LiveQuizTeacher = () => {
 
   // ====== ADD QUESTIONS ======
   const addQuestion = () => {
-    setQuestions([...questions, { text: '', options: ['', '', '', ''], correct: 0, points: 100 }]);
+    setQuestions([...questions, { text: '', options: ['', '', '', ''], correct: -1, points: 100 }]);
   };
 
   const removeQuestion = (idx) => {
@@ -81,6 +81,8 @@ const LiveQuizTeacher = () => {
   const handleSaveQuestions = async () => {
     const invalid = questions.find(q => !q.text.trim() || q.options.some(o => !o.trim()));
     if (invalid) { setError('Barcha savollar va variantlarni to\'ldiring'); return; }
+    const noCorrect = questions.find(q => q.correct < 0);
+    if (noCorrect) { setError('Har bir savolda to\'g\'ri javobni belgilang (yashil tugmani bosing)'); return; }
     setLoading(true); setError('');
     try {
       await quizService.addQuestions(quizId, questions);
