@@ -1,9 +1,10 @@
 #!/bin/bash
 # ================================================================
 #  ALIF24 PLATFORM — Professional Monitoring & Diagnostika Tool
-#  Version: 2.1
+#  Version: 3.0
 #  Ishlatish:
 #    bash diagnose.sh              — To'liq diagnostika
+#    bash diagnose.sh heal         — O'z-o'zini davolash (Auto-fix)
 #    bash diagnose.sh status       — Faqat containerlar holati
 #    bash diagnose.sh health       — Faqat health check
 #    bash diagnose.sh logs [service] [N] — Loglar (default: hammasi, 30 qator)
@@ -107,6 +108,28 @@ cmd_status() {
 
     echo ""
     echo -e "  ${BOLD}Jami: $total | ${GREEN}Running: $running${NC} | ${YELLOW}Unhealthy: $unhealthy${NC} | ${RED}Stopped: $stopped${NC}"
+}
+
+# ================================================================
+# SECURITY — Tarmoq xavfsizligi
+# ================================================================
+cmd_security() {
+    header "XAVFSIZLIK AUDITI (Ochiq Portlar)"
+    echo ""
+    local ports_to_check=("5432" "6379" "5050")
+    local found_vuln=0
+
+    for port in "${ports_to_check[@]}"; do
+        # Docker default ports
+        if docker ps --format '{{.Ports}}' | grep "0.0.0.0:$port->" &>/dev/null; then
+            fail "DIQQAT! Port $port (Potensial Maxfiy xizmat) Butun dunyoga 0.0.0.0 orqali ochiq!"
+            found_vuln=$((found_vuln + 1))
+        fi
+    done
+
+    if [ $found_vuln -eq 0 ]; then
+        ok "Ochiq qolgan (0.0.0.0) maxfiy portlar yo'q. Hamma narsa yopiq!"
+    fi
 }
 
 # ================================================================
@@ -267,6 +290,13 @@ cmd_requests() {
     $DC logs --tail=500 --no-log-prefix nginx 2>/dev/null | awk '{print $1}' | grep -E "^[0-9]" | sort | uniq -c | sort -rn | head -10 | while read count ip; do
         printf "    %-6s %s\n" "$count" "$ip"
     done
+
+    echo ""
+    echo -e "  ${BOLD}SEKIN API SO'ROVLAR (Deep Profiling):${NC}"
+    # Nginx default access logda vaqt bo'lmasligi mumkin shuning uchun HTTP kod va path orqali eng og'ir payloadlarni aniqlaymiz.
+    $DC logs --tail=500 --no-log-prefix nginx 2>/dev/null | grep -E "\" 504 |\" 502" | tail -5 | while IFS= read -r line; do
+        warn "Sekin (Timeout/Bad Gateway) So'rov: ${line:0:100}"
+    done
 }
 
 # ================================================================
@@ -288,17 +318,18 @@ cmd_db() {
 
     # Table counts
     echo ""
-    echo -e "  ${BOLD}Jadvallar va yozuvlar soni:${NC}"
+    echo -e "  ${BOLD}Jadvallar va ularning REAK disk hajmlari:${NC}"
     docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
-        SELECT schemaname||'.'||relname AS table, n_live_tup AS rows
+        SELECT schemaname||'.'||relname AS table, n_live_tup AS rows, pg_size_pretty(pg_total_relation_size(relid)) AS size
         FROM pg_stat_user_tables
         WHERE n_live_tup > 0
-        ORDER BY n_live_tup DESC
-        LIMIT 20;
-    " 2>/dev/null | while IFS='|' read table rows; do
+        ORDER BY pg_total_relation_size(relid) DESC
+        LIMIT 10;
+    " 2>/dev/null | while IFS='|' read table rows size; do
         table=$(echo $table | xargs)
         rows=$(echo $rows | xargs)
-        [ -n "$table" ] && printf "    %-40s %s yozuv\n" "$table" "$rows"
+        size=$(echo $size | xargs)
+        [ -n "$table" ] && printf "    %-35s %-10s %s yozuv\n" "$table" "$size" "$rows"
     done
 
     # Active connections
@@ -434,6 +465,16 @@ cmd_perf() {
     echo ""
     echo -e "  ${BOLD}Docker images hajmi:${NC}"
     docker system df 2>/dev/null | head -5
+    
+    local build_cache=$(docker system df --format "{{.Reclaimable}}" 2>/dev/null | tail -1)
+    if [[ "$build_cache" == *"GB"* ]]; then
+        local cache_num=$(echo $build_cache | grep -o '^[0-9.]*')
+        if (( $(echo "$cache_num > 2" | bc -l 2>/dev/null || echo 0) )); then
+            echo ""
+            fail "DIQQAT: Zombi Docker/Build Cache hajmi juda katta ($build_cache)!"
+            info "Xotirani tozalash uchun 'bash diagnose.sh heal' komandasini ishlating."
+        fi
+    fi
 }
 
 # ================================================================
@@ -506,6 +547,29 @@ cmd_follow() {
 }
 
 # ================================================================
+# 12. HEAL — Auto-fix va tozalash
+# ================================================================
+cmd_heal() {
+    header "AUTO-FIX (O'z-o'zini davolash) BOSHLANDI..."
+    echo ""
+    
+    echo -e "  ${YELLOW}1. Docker keraksiz (exited/dangling) xotirasini tozalash...${NC}"
+    docker system prune -f 
+    ok "Docker Tozalandi!"
+
+    echo -e "  ${YELLOW}2. Bazadagi osilgan (idle) ulanishlarni uzish...${NC}"
+    docker exec alif24-postgres psql -U postgres -d alif24 -c "
+        SELECT pg_terminate_backend(pid) 
+        FROM pg_stat_activity 
+        WHERE state = 'idle in transaction' AND (now() - state_change) > interval '2 minute';
+    " 2>/dev/null
+    ok "Birlamchi osilgan tranzaksiyalar uzib yuborildi."
+
+    echo ""
+    ok "Davolash yakunlandi! Holatni ko'rish uchun 'bash diagnose.sh' ishlating."
+}
+
+# ================================================================
 # FULL DIAGNOSTIKA
 # ================================================================
 cmd_full() {
@@ -516,6 +580,7 @@ cmd_full() {
     echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
 
     cmd_status
+    cmd_security
     cmd_health
 
     # SSL Sertifikat tekshiruvi
@@ -540,6 +605,7 @@ cmd_full() {
     echo -e "  ${BOLD}bash diagnose.sh db${NC}              — Database holati"
     echo -e "  ${BOLD}bash diagnose.sh perf${NC}            — Performance"
     echo -e "  ${BOLD}bash diagnose.sh api /api/v1/auth/me${NC}  — API test"
+    echo -e "  ${BOLD}bash diagnose.sh heal${NC}            — Auto-fix (Tozalash)"
     echo -e "  ${BOLD}bash diagnose.sh follow nginx${NC}    — Real-time log"
     echo -e "  ${BOLD}bash diagnose.sh rebuild olimp-backend${NC} — Qayta build"
     echo ""
@@ -557,6 +623,7 @@ case "${1:-full}" in
     db)       cmd_db ;;
     perf)     cmd_perf ;;
     api)      cmd_api "$2" "$3" ;;
+    heal)     cmd_heal ;;
     restart)  cmd_restart "$2" ;;
     rebuild)  cmd_rebuild "$2" ;;
     follow)   cmd_follow "$2" ;;
@@ -576,6 +643,7 @@ case "${1:-full}" in
         echo "  db          Database holati + statistika"
         echo "  perf        CPU, RAM, Disk, Docker stats"
         echo "  api [path] [port]  API test"
+        echo "  heal        Auto-fix va server xotirasini tozalash"
         echo "  restart [svc]  Service restart"
         echo "  rebuild [svc]  Build + restart"
         echo "  follow [svc]   Real-time log (Ctrl+C)"
