@@ -105,6 +105,20 @@ class StudentService {
     return response.data;
   }
 
+  // ============ Content: Lessons & Stories ============
+
+  async getLessons(params = {}) {
+    return apiService.get('/lessons', params);
+  }
+
+  async getLessonsForMe(params = {}) {
+    return apiService.get('/lessons/for-me', params);
+  }
+
+  async getErtaklar(params = {}) {
+    return apiService.get('/public/stories', params);
+  }
+
   // ============ LMS: Classrooms ============
 
   async getMyClassrooms() {

@@ -6,14 +6,18 @@ import apiService from '../services/apiService';
 
 const statusColors = {
     draft: 'bg-gray-100 text-gray-600',
+    upcoming: 'bg-blue-100 text-blue-700',
     active: 'bg-green-100 text-green-700',
+    finished: 'bg-purple-100 text-purple-700',
     completed: 'bg-blue-100 text-blue-700',
     cancelled: 'bg-red-100 text-red-600',
 };
 
 const statusLabels = {
     draft: 'Tayyorlanmoqda',
+    upcoming: 'Tez kunda',
     active: 'Faol',
+    finished: 'Tugallangan',
     completed: 'Tugallangan',
     cancelled: 'Bekor qilingan',
 };
@@ -41,7 +45,8 @@ export default function OlimpHome() {
             const params = {};
             if (filter !== 'all') params.status = filter;
             const data = await apiService.get('/olympiad', params);
-            setOlympiads(data.data || data || []);
+            const list = data.data?.olympiads || data.data || data.olympiads || [];
+            setOlympiads(Array.isArray(list) ? list : []);
         } catch (err) {
             setError(err.message);
         } finally {
