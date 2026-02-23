@@ -1,7 +1,7 @@
 #!/bin/bash
 # ================================================================
 #  ALIF24 PLATFORM — Professional Monitoring & Diagnostika Tool
-#  Version: 3.0
+#  Version: 4.0
 #  Ishlatish:
 #    bash diagnose.sh              — To'liq diagnostika
 #    bash diagnose.sh heal         — O'z-o'zini davolash (Auto-fix)
@@ -16,7 +16,19 @@
 #    bash diagnose.sh restart [service] — Service qayta ishga tushirish
 #    bash diagnose.sh rebuild [service] — Service qayta build + restart
 #    bash diagnose.sh follow [service]  — Real-time log kuzatish (Ctrl+C to stop)
+#    bash diagnose.sh backup       — Database backup
+#    bash diagnose.sh restore [file] — Database restore
+#    bash diagnose.sh watch [N]    — Auto-refresh monitoring (har N sekundda)
+#    bash diagnose.sh network      — Docker network diagnostika
+#    bash diagnose.sh deploy       — Tezkor deploy (git pull + rebuild)
+#    bash diagnose.sh report       — Diagnostikani faylga saqlash
+#    bash diagnose.sh diff [N]     — Oxirgi git o'zgarishlar
+#    bash diagnose.sh score        — Umumiy sog'liq bali (0-100)
+#    bash diagnose.sh top          — Eng ko'p resurs ishlatayotgan konteynerlar
+#    bash diagnose.sh ssl          — SSL sertifikat tekshiruvi
 # ================================================================
+
+VERSION="4.0"
 
 # Ranglar
 RED='\033[0;31m'
@@ -24,8 +36,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+WHITE='\033[1;37m'
 BOLD='\033[1m'
 DIM='\033[2m'
+UNDERLINE='\033[4m'
+BLINK='\033[5m'
 NC='\033[0m' # No Color
 
 # Compose command
@@ -38,6 +54,13 @@ FRONTENDS=(main-frontend harf-frontend testai-frontend crm-frontend games-fronte
 BACKEND_PORTS=(8000 8001 8002 8003 8004 8005 8006)
 FRONTEND_PORTS=(5173 5174 5175 5176 5177 5178 5179)
 SERVICE_NAMES=("MainPlatform" "Harf" "TestAI" "CRM" "Games" "Olimp" "Lessions")
+DOMAIN="alif24.uz"
+BACKUP_DIR="/root/backups"
+REPORT_DIR="/root/reports"
+
+# Global health score counter
+SCORE_TOTAL=0
+SCORE_PASS=0
 
 # ================================================================
 # UTILITY FUNCTIONS
@@ -50,10 +73,43 @@ header() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
-ok()   { echo -e "  ${GREEN}✅ $1${NC}"; }
-warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
-fail() { echo -e "  ${RED}❌ $1${NC}"; }
+ok()   { echo -e "  ${GREEN}✅ $1${NC}"; SCORE_PASS=$((SCORE_PASS + 1)); SCORE_TOTAL=$((SCORE_TOTAL + 1)); }
+warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; SCORE_TOTAL=$((SCORE_TOTAL + 1)); }
+fail() { echo -e "  ${RED}❌ $1${NC}"; SCORE_TOTAL=$((SCORE_TOTAL + 1)); }
 info() { echo -e "  ${DIM}$1${NC}"; }
+
+# Progress bar [████████░░] 80%
+progress_bar() {
+    local pct=$1 width=30
+    local filled=$((pct * width / 100))
+    local empty=$((width - filled))
+    local color=$GREEN
+    [ "$pct" -gt 75 ] 2>/dev/null && color=$YELLOW
+    [ "$pct" -gt 90 ] 2>/dev/null && color=$RED
+    printf "  ${color}["
+    printf '%0.s█' $(seq 1 $filled 2>/dev/null)
+    printf '%0.s░' $(seq 1 $empty 2>/dev/null)
+    printf "] %d%%${NC}\n" "$pct"
+}
+
+# Vaqtni odam o'qiydigan formatga o'tkazish
+human_duration() {
+    local seconds=$1
+    if [ "$seconds" -ge 86400 ] 2>/dev/null; then
+        echo "$((seconds / 86400))k $((seconds % 86400 / 3600))s"
+    elif [ "$seconds" -ge 3600 ] 2>/dev/null; then
+        echo "$((seconds / 3600))s $((seconds % 3600 / 60))d"
+    elif [ "$seconds" -ge 60 ] 2>/dev/null; then
+        echo "$((seconds / 60))d $((seconds % 60))s"
+    else
+        echo "${seconds}s"
+    fi
+}
+
+# Separator line
+separator() {
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
+}
 
 check_health() {
     local name=$1 port=$2 label=$3
@@ -85,50 +141,140 @@ cmd_status() {
     header "DOCKER CONTAINERS"
     echo ""
 
-    local total=0 running=0 stopped=0 unhealthy=0
+    local total=0 running=0 stopped=0 unhealthy=0 restarting=0
+
+    # Table header
+    printf "  ${BOLD}%-25s %-12s %-8s %s${NC}\n" "KONTEYNER" "HOLAT" "RESTART" "UPTIME"
+    separator
 
     while IFS= read -r line; do
+        [ -z "$line" ] && continue
         total=$((total + 1))
         local name=$(echo "$line" | awk '{print $1}')
         local status=$(echo "$line" | awk '{for(i=1;i<=NF;i++) if($i ~ /Up|Exited|Restarting/) {for(j=i;j<=NF;j++) printf "%s ", $j; break}}')
 
-        if echo "$status" | grep -q "Up"; then
+        # Restart count from docker inspect
+        local restarts=$(docker inspect --format='{{.RestartCount}}' "$name" 2>/dev/null || echo "0")
+        # Container uptime
+        local started=$(docker inspect --format='{{.State.StartedAt}}' "$name" 2>/dev/null)
+        local uptime_str="-"
+        if [ -n "$started" ] && [ "$started" != "0001-01-01T00:00:00Z" ]; then
+            local start_epoch=$(date -d "$started" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%S" "${started%%.*}" +%s 2>/dev/null)
+            if [ -n "$start_epoch" ]; then
+                local now_epoch=$(date +%s)
+                uptime_str=$(human_duration $((now_epoch - start_epoch)))
+            fi
+        fi
+
+        local restart_color=$NC
+        [ "$restarts" -gt 0 ] 2>/dev/null && restart_color=$YELLOW
+        [ "$restarts" -gt 5 ] 2>/dev/null && restart_color=$RED
+
+        if echo "$status" | grep -q "Restarting"; then
+            restarting=$((restarting + 1))
+            printf "  ${RED}%-25s %-12s${NC} ${restart_color}%-8s${NC} %s\n" "$name" "RESTARTING" "$restarts" "$uptime_str"
+        elif echo "$status" | grep -q "Up"; then
             if echo "$status" | grep -q "unhealthy"; then
                 unhealthy=$((unhealthy + 1))
-                warn "$name — $status"
+                printf "  ${YELLOW}%-25s %-12s${NC} ${restart_color}%-8s${NC} %s\n" "$name" "UNHEALTHY" "$restarts" "$uptime_str"
             else
                 running=$((running + 1))
-                ok "$name — $status"
+                printf "  ${GREEN}%-25s %-12s${NC} ${restart_color}%-8s${NC} %s\n" "$name" "RUNNING" "$restarts" "$uptime_str"
             fi
         else
             stopped=$((stopped + 1))
-            fail "$name — $status"
+            printf "  ${RED}%-25s %-12s${NC} ${restart_color}%-8s${NC} %s\n" "$name" "STOPPED" "$restarts" "-"
         fi
     done < <($DC ps -a --format "table {{.Name}}\t{{.Status}}" 2>/dev/null | tail -n +2)
 
     echo ""
-    echo -e "  ${BOLD}Jami: $total | ${GREEN}Running: $running${NC} | ${YELLOW}Unhealthy: $unhealthy${NC} | ${RED}Stopped: $stopped${NC}"
+    echo -e "  ${BOLD}Jami: $total | ${GREEN}Running: $running${NC} | ${YELLOW}Unhealthy: $unhealthy${NC} | ${RED}Stopped: $stopped${NC} | ${RED}Restarting: $restarting${NC}"
+
+    # Warn about high restart counts
+    local high_restarts=$(docker ps -a --format '{{.Names}} {{.Status}}' 2>/dev/null | while read cname cstatus; do
+        local rc=$(docker inspect --format='{{.RestartCount}}' "$cname" 2>/dev/null)
+        [ "$rc" -gt 3 ] 2>/dev/null && echo "$cname($rc)"
+    done)
+    if [ -n "$high_restarts" ]; then
+        echo ""
+        warn "Ko'p restart qilgan konteynerlar: $high_restarts"
+    fi
 }
 
 # ================================================================
 # SECURITY — Tarmoq xavfsizligi
 # ================================================================
 cmd_security() {
-    header "XAVFSIZLIK AUDITI (Ochiq Portlar)"
+    header "XAVFSIZLIK AUDITI"
     echo ""
-    local ports_to_check=("5432" "6379" "5050")
+
+    # 1. Ochiq portlar
+    echo -e "  ${BOLD}1. Ochiq portlar tekshiruvi:${NC}"
+    local ports_to_check=("5432:PostgreSQL" "6379:Redis" "5050:pgAdmin")
     local found_vuln=0
 
-    for port in "${ports_to_check[@]}"; do
-        # Docker default ports
+    for item in "${ports_to_check[@]}"; do
+        local port="${item%%:*}"
+        local svc_name="${item##*:}"
         if docker ps --format '{{.Ports}}' | grep "0.0.0.0:$port->" &>/dev/null; then
-            fail "DIQQAT! Port $port (Potensial Maxfiy xizmat) Butun dunyoga 0.0.0.0 orqali ochiq!"
+            fail "$svc_name (port $port) — 0.0.0.0 ga ochiq! Faqat 127.0.0.1 ga cheklang"
             found_vuln=$((found_vuln + 1))
+        else
+            ok "$svc_name (port $port) — Himoyalangan"
         fi
     done
 
-    if [ $found_vuln -eq 0 ]; then
-        ok "Ochiq qolgan (0.0.0.0) maxfiy portlar yo'q. Hamma narsa yopiq!"
+    # 2. Brute-force urinishlar (oxirgi 1 soat)
+    separator
+    echo -e "  ${BOLD}2. Brute-force urinishlar (Postgres):${NC}"
+    local brute_count=$($DC logs --since=1h postgres 2>/dev/null | grep -c "password authentication failed" || echo 0)
+    if [ "$brute_count" -gt 10 ] 2>/dev/null; then
+        fail "Oxirgi 1 soatda $brute_count marta parol xatosi! Brute-force bo'lishi mumkin"
+    elif [ "$brute_count" -gt 0 ] 2>/dev/null; then
+        warn "Oxirgi 1 soatda $brute_count marta parol xatosi"
+    else
+        ok "Brute-force urinishlar yo'q"
+    fi
+
+    # 3. Nginx bot/scanner so'rovlar
+    separator
+    echo -e "  ${BOLD}3. Bot/Scanner faolligi (oxirgi 1 soat):${NC}"
+    local scanner_count=$($DC logs --since=1h --no-log-prefix nginx 2>/dev/null | grep -ciE "\.env|\.php|\.sql|wp-login|\.git|\.yml|\.bak" || echo 0)
+    if [ "$scanner_count" -gt 50 ] 2>/dev/null; then
+        fail "Yuqori scanner faolligi: $scanner_count so'rov! fail2ban o'rnating"
+    elif [ "$scanner_count" -gt 10 ] 2>/dev/null; then
+        warn "Scanner faolligi: $scanner_count so'rov"
+    else
+        ok "Scanner faolligi past ($scanner_count)"
+    fi
+
+    # 4. Shubhali IP lar (ko'p 4xx/5xx)
+    separator
+    echo -e "  ${BOLD}4. Shubhali IP manzillar (ko'p xatolik):${NC}"
+    $DC logs --since=1h --no-log-prefix nginx 2>/dev/null | grep -E '" [45][0-9]{2} ' | awk '{print $1}' | sort | uniq -c | sort -rn | head -5 | while read count ip; do
+        if [ "$count" -gt 50 ] 2>/dev/null; then
+            fail "  $ip — $count xato so'rov (BLOKLASH TAVSIYA)"
+        elif [ "$count" -gt 20 ] 2>/dev/null; then
+            warn "  $ip — $count xato so'rov"
+        else
+            info "  $ip — $count xato so'rov"
+        fi
+    done
+
+    # 5. .env fayllar tekshiruvi
+    separator
+    echo -e "  ${BOLD}5. Maxfiy fayllar himoyasi:${NC}"
+    local env_check=$(curl -s --max-time 3 -o /dev/null -w "%{http_code}" http://localhost/.env 2>/dev/null)
+    if [ "$env_check" = "200" ]; then
+        fail ".env fayl ochiq! Nginx da bloklang"
+    else
+        ok ".env fayl himoyalangan (HTTP $env_check)"
+    fi
+    local git_check=$(curl -s --max-time 3 -o /dev/null -w "%{http_code}" http://localhost/.git/config 2>/dev/null)
+    if [ "$git_check" = "200" ]; then
+        fail ".git papka ochiq! Nginx da bloklang"
+    else
+        ok ".git papka himoyalangan (HTTP $git_check)"
     fi
 }
 
@@ -552,62 +698,689 @@ cmd_follow() {
 cmd_heal() {
     header "AUTO-FIX (O'z-o'zini davolash) BOSHLANDI..."
     echo ""
+    local steps_done=0
     
-    echo -e "  ${YELLOW}1. Docker keraksiz (exited/dangling) xotirasini tozalash...${NC}"
-    docker system prune -f 
-    ok "Docker Tozalandi!"
+    echo -e "  ${YELLOW}1/6 Docker keraksiz (exited/dangling) konteynerlarni tozalash...${NC}"
+    docker system prune -f 2>/dev/null | tail -1
+    ok "Docker tozalandi!"
+    steps_done=$((steps_done + 1))
 
-    echo -e "  ${YELLOW}2. Bazadagi osilgan (idle) ulanishlarni uzish...${NC}"
-    docker exec alif24-postgres psql -U postgres -d alif24 -c "
-        SELECT pg_terminate_backend(pid) 
-        FROM pg_stat_activity 
-        WHERE state = 'idle in transaction' AND (now() - state_change) > interval '2 minute';
-    " 2>/dev/null
-    ok "Birlamchi osilgan tranzaksiyalar uzib yuborildi."
+    echo -e "  ${YELLOW}2/6 Eski Docker imagelarni tozalash (dangling)...${NC}"
+    local removed=$(docker image prune -f 2>/dev/null | tail -1)
+    ok "Eski imagelar: $removed"
+    steps_done=$((steps_done + 1))
+
+    echo -e "  ${YELLOW}3/6 Bazadagi osilgan (idle in transaction) ulanishlarni uzish...${NC}"
+    local killed=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT count(*) FROM (
+            SELECT pg_terminate_backend(pid)
+            FROM pg_stat_activity
+            WHERE state = 'idle in transaction' AND (now() - state_change) > interval '2 minute'
+        ) x;
+    " 2>/dev/null | xargs)
+    ok "Osilgan tranzaksiyalar uzildi: ${killed:-0} ta"
+    steps_done=$((steps_done + 1))
+
+    echo -e "  ${YELLOW}4/6 Unhealthy konteynerlarni restart qilish...${NC}"
+    local unhealthy_list=$(docker ps --filter "health=unhealthy" --format '{{.Names}}' 2>/dev/null)
+    if [ -n "$unhealthy_list" ]; then
+        for uc in $unhealthy_list; do
+            echo -e "    ${DIM}Restarting: $uc${NC}"
+            docker restart "$uc" &>/dev/null
+        done
+        ok "Unhealthy konteynerlar restart qilindi"
+    else
+        ok "Unhealthy konteynerlar yo'q"
+    fi
+    steps_done=$((steps_done + 1))
+
+    echo -e "  ${YELLOW}5/6 Docker build cache tozalash (30 kundan eski)...${NC}"
+    docker builder prune --filter "until=720h" -f 2>/dev/null | tail -1
+    ok "Eski build cache tozalandi!"
+    steps_done=$((steps_done + 1))
+
+    echo -e "  ${YELLOW}6/6 PostgreSQL VACUUM ANALYZE (bazani optimallashtirish)...${NC}"
+    docker exec alif24-postgres psql -U postgres -d alif24 -c "VACUUM ANALYZE;" 2>/dev/null
+    ok "Baza optimallashtirildi (VACUUM ANALYZE)!"
+    steps_done=$((steps_done + 1))
 
     echo ""
-    ok "Davolash yakunlandi! Holatni ko'rish uchun 'bash diagnose.sh' ishlating."
+    echo -e "  ${GREEN}${BOLD}Davolash yakunlandi! $steps_done/6 qadam bajarildi.${NC}"
+    echo -e "  ${DIM}Holatni ko'rish: bash diagnose.sh score${NC}"
+}
+
+# ================================================================
+# 13. BACKUP — Database backup
+# ================================================================
+cmd_backup() {
+    header "DATABASE BACKUP"
+    mkdir -p "$BACKUP_DIR"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_file="$BACKUP_DIR/alif24_${timestamp}.sql.gz"
+    
+    echo -e "  ${YELLOW}Backup boshlanmoqda...${NC}"
+    echo -e "  ${DIM}Fayl: $backup_file${NC}"
+    
+    local start_time=$(date +%s)
+    docker exec alif24-postgres pg_dump -U postgres -d alif24 --no-owner --no-acl 2>/dev/null | gzip > "$backup_file"
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    if [ -f "$backup_file" ] && [ -s "$backup_file" ]; then
+        local size=$(du -sh "$backup_file" | awk '{print $1}')
+        ok "Backup muvaffaqiyatli! ($size, ${duration}s)"
+        
+        # Eski backuplarni tozalash (7 kundan eski)
+        local old_count=$(find "$BACKUP_DIR" -name "alif24_*.sql.gz" -mtime +7 2>/dev/null | wc -l)
+        if [ "$old_count" -gt 0 ]; then
+            find "$BACKUP_DIR" -name "alif24_*.sql.gz" -mtime +7 -delete 2>/dev/null
+            info "  $old_count ta eski backup o'chirildi (7+ kun)"
+        fi
+        
+        # Mavjud backuplar
+        echo ""
+        echo -e "  ${BOLD}Mavjud backuplar:${NC}"
+        ls -lh "$BACKUP_DIR"/alif24_*.sql.gz 2>/dev/null | awk '{printf "    %-12s %s\n", $5, $NF}'
+    else
+        fail "Backup muvaffaqiyatsiz!"
+        rm -f "$backup_file"
+    fi
+}
+
+# ================================================================
+# 14. RESTORE — Database restore
+# ================================================================
+cmd_restore() {
+    local file="$1"
+    header "DATABASE RESTORE"
+    
+    if [ -z "$file" ]; then
+        echo -e "  ${BOLD}Mavjud backuplar:${NC}"
+        ls -lh "$BACKUP_DIR"/alif24_*.sql.gz 2>/dev/null | awk '{printf "    %s — %s\n", $NF, $5}'
+        echo ""
+        echo -e "  ${YELLOW}Ishlatish: bash diagnose.sh restore /root/backups/alif24_YYYYMMDD_HHMMSS.sql.gz${NC}"
+        return 1
+    fi
+    
+    if [ ! -f "$file" ]; then
+        fail "Fayl topilmadi: $file"
+        return 1
+    fi
+
+    echo -e "  ${RED}${BOLD}DIQQAT: Bu amalni bekor qilib bo'lmaydi!${NC}"
+    echo -e "  ${YELLOW}Fayl: $file${NC}"
+    echo -e "  ${YELLOW}Davom etish uchun 'YES' yozing:${NC}"
+    read -r confirm
+    
+    if [ "$confirm" != "YES" ]; then
+        warn "Bekor qilindi."
+        return 0
+    fi
+    
+    echo -e "  ${YELLOW}Restore boshlanmoqda...${NC}"
+    
+    # Avval backup olish
+    echo -e "  ${DIM}Avval joriy bazani backup qilish...${NC}"
+    local pre_backup="$BACKUP_DIR/alif24_pre_restore_$(date +%Y%m%d_%H%M%S).sql.gz"
+    docker exec alif24-postgres pg_dump -U postgres -d alif24 --no-owner 2>/dev/null | gzip > "$pre_backup"
+    
+    # Restore
+    gunzip -c "$file" | docker exec -i alif24-postgres psql -U postgres -d alif24 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        ok "Restore muvaffaqiyatli!"
+        info "  Oldingi baza: $pre_backup"
+    else
+        fail "Restore muvaffaqiyatsiz! Oldingi backup: $pre_backup"
+    fi
+}
+
+# ================================================================
+# 15. WATCH — Auto-refresh monitoring
+# ================================================================
+cmd_watch() {
+    local interval="${1:-5}"
+    echo -e "${BOLD}${CYAN}ALIF24 LIVE MONITOR — Har ${interval}s yangilanadi (Ctrl+C to stop)${NC}"
+    
+    while true; do
+        clear
+        echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${BOLD}${CYAN}║   ALIF24 LIVE MONITOR  |  $(date '+%H:%M:%S')  |  Har ${interval}s    ║${NC}"
+        echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+        
+        # Containers mini-status
+        echo ""
+        echo -e "  ${BOLD}KONTEYNERLAR:${NC}"
+        docker ps --format '{{.Names}}\t{{.Status}}' 2>/dev/null | while IFS=$'\t' read name status; do
+            if echo "$status" | grep -q "unhealthy"; then
+                printf "  ${YELLOW}%-28s %s${NC}\n" "$name" "$status"
+            elif echo "$status" | grep -q "Up"; then
+                printf "  ${GREEN}%-28s %s${NC}\n" "$name" "$status"
+            else
+                printf "  ${RED}%-28s %s${NC}\n" "$name" "$status"
+            fi
+        done
+        
+        # Resource usage
+        echo ""
+        echo -e "  ${BOLD}RESURSLAR:${NC}"
+        docker stats --no-stream --format "  {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" 2>/dev/null | head -10 | column -t
+        
+        # Quick metrics
+        echo ""
+        local mem_pct=$(free 2>/dev/null | awk '/Mem:/ {printf "%.0f", $3/$2*100}')
+        local disk_pct=$(df / 2>/dev/null | tail -1 | awk '{print $5}' | tr -d '%')
+        local load=$(cat /proc/loadavg 2>/dev/null | awk '{print $1}')
+        echo -e "  ${BOLD}SERVER:${NC} CPU Load: $load | RAM: ${mem_pct}% | Disk: ${disk_pct}%"
+        
+        # Errors in last minute
+        local err_count=$($DC logs --since=1m 2>/dev/null | grep -ciE "error|exception|fatal" || echo 0)
+        if [ "$err_count" -gt 0 ]; then
+            echo -e "  ${RED}XATOLIKLAR (oxirgi 1m): $err_count${NC}"
+        else
+            echo -e "  ${GREEN}XATOLIKLAR: 0${NC}"
+        fi
+        
+        echo ""
+        echo -e "  ${DIM}Ctrl+C — chiqish | Yangilanish: har ${interval}s${NC}"
+        sleep "$interval"
+    done
+}
+
+# ================================================================
+# 16. NETWORK — Docker network diagnostika
+# ================================================================
+cmd_network() {
+    header "DOCKER NETWORK DIAGNOSTIKA"
+    echo ""
+    
+    # Docker networks
+    echo -e "  ${BOLD}Docker tarmoqlar:${NC}"
+    docker network ls --format "table {{.Name}}\t{{.Driver}}\t{{.Scope}}" 2>/dev/null | head -10
+    
+    # Inter-service connectivity
+    echo ""
+    echo -e "  ${BOLD}Konteynerlar orasidagi aloqa:${NC}"
+    
+    # Backend → Postgres
+    local pg_ok=$(docker exec main-backend python3 -c "import socket; s=socket.socket(); s.settimeout(2); s.connect(('postgres',5432)); print('ok'); s.close()" 2>/dev/null)
+    [ "$pg_ok" = "ok" ] && ok "main-backend → postgres:5432" || fail "main-backend → postgres:5432 — ULANMAYDI!"
+    
+    # Backend → Redis
+    local redis_ok=$(docker exec main-backend python3 -c "import socket; s=socket.socket(); s.settimeout(2); s.connect(('redis',6379)); print('ok'); s.close()" 2>/dev/null)
+    [ "$redis_ok" = "ok" ] && ok "main-backend → redis:6379" || fail "main-backend → redis:6379 — ULANMAYDI!"
+    
+    # Nginx → backends
+    separator
+    echo -e "  ${BOLD}Nginx → Backend aloqasi:${NC}"
+    for i in "${!BACKENDS[@]}"; do
+        local svc=${BACKENDS[$i]}
+        local port=${BACKEND_PORTS[$i]}
+        local code=$(docker exec alif24-gateway curl -s --max-time 2 -o /dev/null -w "%{http_code}" "http://${svc}:${port}/health" 2>/dev/null)
+        if [ "$code" = "200" ]; then
+            ok "nginx → $svc:$port (HTTP $code)"
+        elif [ "$code" = "000" ] || [ -z "$code" ]; then
+            fail "nginx → $svc:$port — ULANMAYDI!"
+        else
+            warn "nginx → $svc:$port (HTTP $code)"
+        fi
+    done
+    
+    # DNS resolution
+    separator
+    echo -e "  ${BOLD}DNS aloqasi:${NC}"
+    local dns_ok=$(docker exec main-backend python3 -c "import socket; socket.getaddrinfo('postgres',5432); print('ok')" 2>/dev/null)
+    [ "$dns_ok" = "ok" ] && ok "Docker DNS ishlayapti" || fail "Docker DNS ISHLAMAYAPTI!"
+    
+    # External connectivity
+    local ext_ok=$(docker exec main-backend python3 -c "import urllib.request; urllib.request.urlopen('https://httpbin.org/get',timeout=5); print('ok')" 2>/dev/null)
+    [ "$ext_ok" = "ok" ] && ok "Tashqi internet aloqasi bor" || warn "Tashqi internet aloqasi yo'q yoki sekin"
+}
+
+# ================================================================
+# 17. DEPLOY — Tezkor deploy
+# ================================================================
+cmd_deploy() {
+    header "TEZKOR DEPLOY"
+    echo ""
+    
+    local start_time=$(date +%s)
+    
+    # 1. Git pull
+    echo -e "  ${YELLOW}1/4 Git pull...${NC}"
+    local git_output=$(cd "$(dirname "$0")" && git pull origin main 2>&1)
+    echo -e "  ${DIM}$git_output${NC}"
+    
+    if echo "$git_output" | grep -q "Already up to date"; then
+        ok "Yangilanish yo'q — hamma narsa yangi"
+        return 0
+    fi
+    
+    # 2. O'zgargan servicelarni aniqlash
+    echo -e "  ${YELLOW}2/4 O'zgargan servicelarni aniqlash...${NC}"
+    local changed_files=$(cd "$(dirname "$0")" && git diff --name-only HEAD~1 HEAD 2>/dev/null)
+    local services_to_rebuild=""
+    
+    if echo "$changed_files" | grep -q "MainPlatform/backend"; then
+        services_to_rebuild="$services_to_rebuild main-backend"
+    fi
+    if echo "$changed_files" | grep -q "MainPlatform/frontend"; then
+        services_to_rebuild="$services_to_rebuild main-frontend"
+    fi
+    if echo "$changed_files" | grep -q "Olimp/backend"; then
+        services_to_rebuild="$services_to_rebuild olimp-backend"
+    fi
+    if echo "$changed_files" | grep -q "Olimp/frontend"; then
+        services_to_rebuild="$services_to_rebuild olimp-frontend"
+    fi
+    if echo "$changed_files" | grep -q "Harf/"; then
+        services_to_rebuild="$services_to_rebuild harf-backend harf-frontend"
+    fi
+    if echo "$changed_files" | grep -q "TestAI/"; then
+        services_to_rebuild="$services_to_rebuild testai-backend testai-frontend"
+    fi
+    if echo "$changed_files" | grep -q "CRM/"; then
+        services_to_rebuild="$services_to_rebuild crm-backend crm-frontend"
+    fi
+    if echo "$changed_files" | grep -q "Games/"; then
+        services_to_rebuild="$services_to_rebuild games-backend games-frontend"
+    fi
+    if echo "$changed_files" | grep -q "shared/"; then
+        services_to_rebuild="main-backend olimp-backend harf-backend testai-backend crm-backend games-backend lessions-backend"
+    fi
+    if echo "$changed_files" | grep -q "nginx\|gateway\|docker-compose"; then
+        services_to_rebuild="$services_to_rebuild nginx"
+    fi
+    
+    services_to_rebuild=$(echo "$services_to_rebuild" | xargs -n1 | sort -u | xargs)
+    
+    if [ -z "$services_to_rebuild" ]; then
+        ok "Rebuild kerak bo'lgan service yo'q"
+        return 0
+    fi
+    
+    info "  Rebuild: $services_to_rebuild"
+    
+    # 3. Backup
+    echo -e "  ${YELLOW}3/4 Tezkor backup...${NC}"
+    mkdir -p "$BACKUP_DIR"
+    docker exec alif24-postgres pg_dump -U postgres -d alif24 --no-owner 2>/dev/null | gzip > "$BACKUP_DIR/alif24_pre_deploy_$(date +%Y%m%d_%H%M%S).sql.gz"
+    ok "Backup olindi"
+    
+    # 4. Rebuild
+    echo -e "  ${YELLOW}4/4 Rebuild + restart...${NC}"
+    $DC up -d --build $services_to_rebuild
+    
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    echo ""
+    ok "Deploy yakunlandi! (${duration}s)"
+    echo ""
+    
+    # Health check
+    sleep 3
+    echo -e "  ${BOLD}Health check:${NC}"
+    for svc in $services_to_rebuild; do
+        local state=$(docker inspect --format='{{.State.Health.Status}}' "$svc" 2>/dev/null || echo "no-healthcheck")
+        local running=$(docker inspect --format='{{.State.Running}}' "$svc" 2>/dev/null)
+        if [ "$running" = "true" ]; then
+            if [ "$state" = "healthy" ] || [ "$state" = "no-healthcheck" ]; then
+                ok "$svc — ishlayapti"
+            else
+                warn "$svc — $state (tekshirilmoqda...)"
+            fi
+        else
+            fail "$svc — ISHLAMAYAPTI!"
+        fi
+    done
+}
+
+# ================================================================
+# 18. REPORT — Diagnostikani faylga saqlash
+# ================================================================
+cmd_report() {
+    mkdir -p "$REPORT_DIR"
+    local report_file="$REPORT_DIR/alif24_report_$(date +%Y%m%d_%H%M%S).txt"
+    header "DIAGNOSTIKA HISOBOTI"
+    echo -e "  ${YELLOW}Hisobot yozilmoqda: $report_file${NC}"
+    
+    # Run full diagnostics and capture output (strip colors)
+    cmd_full 2>&1 | sed 's/\x1b\[[0-9;]*m//g' > "$report_file"
+    
+    local size=$(du -sh "$report_file" | awk '{print $1}')
+    ok "Hisobot saqlandi: $report_file ($size)"
+    
+    # Eski hisobotlarni tozalash (30 kundan eski)
+    find "$REPORT_DIR" -name "alif24_report_*.txt" -mtime +30 -delete 2>/dev/null
+    
+    echo ""
+    echo -e "  ${BOLD}Mavjud hisobotlar:${NC}"
+    ls -lh "$REPORT_DIR"/alif24_report_*.txt 2>/dev/null | tail -5 | awk '{printf "    %s — %s\n", $NF, $5}'
+}
+
+# ================================================================
+# 19. DIFF — Git o'zgarishlar
+# ================================================================
+cmd_diff() {
+    local count="${1:-5}"
+    header "OXIRGI GIT O'ZGARISHLAR"
+    echo ""
+    
+    local repo_dir=$(cd "$(dirname "$0")" && pwd)
+    
+    echo -e "  ${BOLD}Oxirgi $count ta commit:${NC}"
+    cd "$repo_dir" && git log --oneline --no-decorate -n "$count" 2>/dev/null | while IFS= read -r line; do
+        local hash=$(echo "$line" | awk '{print $1}')
+        local msg=$(echo "$line" | cut -d' ' -f2-)
+        printf "  ${CYAN}%s${NC} %s\n" "$hash" "$msg"
+    done
+    
+    echo ""
+    echo -e "  ${BOLD}Oxirgi commitdagi o'zgarishlar:${NC}"
+    cd "$repo_dir" && git diff --stat HEAD~1 HEAD 2>/dev/null | while IFS= read -r line; do
+        echo -e "    ${DIM}$line${NC}"
+    done
+    
+    # Uncommitted changes
+    local uncommitted=$(cd "$repo_dir" && git status --short 2>/dev/null)
+    if [ -n "$uncommitted" ]; then
+        echo ""
+        echo -e "  ${BOLD}${YELLOW}Commit qilinmagan o'zgarishlar:${NC}"
+        echo "$uncommitted" | while IFS= read -r line; do
+            echo -e "    ${YELLOW}$line${NC}"
+        done
+    fi
+    
+    # Current branch
+    local branch=$(cd "$repo_dir" && git branch --show-current 2>/dev/null)
+    local remote_diff=$(cd "$repo_dir" && git rev-list --left-right --count origin/$branch...$branch 2>/dev/null)
+    local behind=$(echo "$remote_diff" | awk '{print $1}')
+    local ahead=$(echo "$remote_diff" | awk '{print $2}')
+    echo ""
+    echo -e "  ${BOLD}Branch:${NC} $branch"
+    [ "$behind" -gt 0 ] 2>/dev/null && warn "Remote dan $behind commit orqada (git pull kerak)"
+    [ "$ahead" -gt 0 ] 2>/dev/null && warn "Remote dan $ahead commit oldinda (git push kerak)"
+    [ "$behind" = "0" ] && [ "$ahead" = "0" ] && ok "Remote bilan sinxron"
+}
+
+# ================================================================
+# 20. SCORE — Umumiy sog'liq bali
+# ================================================================
+cmd_score() {
+    # Reset score
+    SCORE_TOTAL=0
+    SCORE_PASS=0
+    
+    header "UMUMIY SOG'LIQ BALI"
+    echo ""
+    
+    echo -e "  ${DIM}Tekshiruvlar boshlanmoqda...${NC}"
+    echo ""
+    
+    # 1. Containers running
+    echo -e "  ${BOLD}Konteynerlar:${NC}"
+    local total_containers=$(docker ps -a --format '{{.Names}}' 2>/dev/null | wc -l)
+    local running_containers=$(docker ps --format '{{.Names}}' 2>/dev/null | wc -l)
+    if [ "$total_containers" -eq "$running_containers" ] && [ "$total_containers" -gt 0 ]; then
+        ok "Barcha $total_containers konteyner ishlayapti"
+    else
+        fail "$running_containers/$total_containers konteyner ishlayapti"
+    fi
+    
+    # Unhealthy check
+    local unhealthy=$(docker ps --filter "health=unhealthy" --format '{{.Names}}' 2>/dev/null | wc -l)
+    [ "$unhealthy" -eq 0 ] && ok "Unhealthy konteyner yo'q" || fail "$unhealthy ta unhealthy konteyner"
+    
+    # 2. Backends health
+    separator
+    echo -e "  ${BOLD}Backend health:${NC}"
+    for i in "${!BACKENDS[@]}"; do
+        local code=$(curl -s --max-time 3 -o /dev/null -w "%{http_code}" http://localhost:${BACKEND_PORTS[$i]}/health 2>/dev/null)
+        [ "$code" = "200" ] && ok "${SERVICE_NAMES[$i]} backend — OK" || fail "${SERVICE_NAMES[$i]} backend — HTTP $code"
+    done
+    
+    # 3. Database
+    separator
+    echo -e "  ${BOLD}Database:${NC}"
+    docker exec alif24-postgres pg_isready -U postgres &>/dev/null && ok "PostgreSQL ishlayapti" || fail "PostgreSQL ISHLAMAYAPTI"
+    docker exec alif24-redis redis-cli ping &>/dev/null && ok "Redis ishlayapti" || fail "Redis ISHLAMAYAPTI"
+    
+    local idle_tx=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT count(*) FROM pg_stat_activity WHERE state = 'idle in transaction' AND (now() - state_change) > interval '1 minute';
+    " 2>/dev/null | xargs)
+    [ "$idle_tx" = "0" ] || [ -z "$idle_tx" ] && ok "Osilgan tranzaksiyalar yo'q" || fail "$idle_tx ta osilgan tranzaksiya"
+    
+    # 4. Resources
+    separator
+    echo -e "  ${BOLD}Server resurslari:${NC}"
+    local mem_pct=$(free 2>/dev/null | awk '/Mem:/ {printf "%.0f", $3/$2*100}')
+    if [ -n "$mem_pct" ]; then
+        [ "$mem_pct" -lt 85 ] 2>/dev/null && ok "RAM: ${mem_pct}% ishlatilgan" || fail "RAM: ${mem_pct}% — YUQORI!"
+    fi
+    
+    local disk_pct=$(df / 2>/dev/null | tail -1 | awk '{print $5}' | tr -d '%')
+    if [ -n "$disk_pct" ]; then
+        [ "$disk_pct" -lt 85 ] 2>/dev/null && ok "Disk: ${disk_pct}% ishlatilgan" || fail "Disk: ${disk_pct}% — YUQORI!"
+    fi
+    
+    # 5. SSL
+    separator
+    echo -e "  ${BOLD}SSL:${NC}"
+    local ssl_expiry=$(curl -skIv "https://$DOMAIN" 2>&1 | grep "expire date" | sed 's/.*expire date: //')
+    if [ -n "$ssl_expiry" ]; then
+        local expiry_epoch=$(date -d "$ssl_expiry" +%s 2>/dev/null)
+        local now_epoch=$(date +%s)
+        if [ -n "$expiry_epoch" ]; then
+            local days_left=$(( (expiry_epoch - now_epoch) / 86400 ))
+            if [ "$days_left" -gt 14 ]; then
+                ok "SSL sertifikat: $days_left kun qoldi"
+            elif [ "$days_left" -gt 0 ]; then
+                warn "SSL sertifikat: $days_left kun qoldi — YANGILANG!"
+            else
+                fail "SSL sertifikat MUDDATI O'TGAN!"
+            fi
+        else
+            ok "SSL sertifikat mavjud: $ssl_expiry"
+        fi
+    else
+        warn "SSL tekshirib bo'lmadi"
+    fi
+    
+    # 6. Errors in last hour
+    separator
+    echo -e "  ${BOLD}Xatoliklar (oxirgi 1 soat):${NC}"
+    local err_count=$($DC logs --since=1h 2>/dev/null | grep -ciE "error|exception|fatal|traceback" || echo 0)
+    if [ "$err_count" -lt 10 ]; then
+        ok "Xatoliklar kam: $err_count"
+    elif [ "$err_count" -lt 50 ]; then
+        warn "Xatoliklar: $err_count"
+    else
+        fail "Xatoliklar ko'p: $err_count"
+    fi
+    
+    # Calculate final score
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    local score=0
+    if [ "$SCORE_TOTAL" -gt 0 ]; then
+        score=$((SCORE_PASS * 100 / SCORE_TOTAL))
+    fi
+    
+    local grade_color=$RED
+    local grade="F"
+    local emoji="💀"
+    if [ "$score" -ge 95 ]; then
+        grade_color=$GREEN; grade="A+"; emoji="🏆"
+    elif [ "$score" -ge 90 ]; then
+        grade_color=$GREEN; grade="A"; emoji="🌟"
+    elif [ "$score" -ge 80 ]; then
+        grade_color=$GREEN; grade="B"; emoji="👍"
+    elif [ "$score" -ge 70 ]; then
+        grade_color=$YELLOW; grade="C"; emoji="⚠️"
+    elif [ "$score" -ge 50 ]; then
+        grade_color=$YELLOW; grade="D"; emoji="😰"
+    fi
+    
+    echo ""
+    echo -e "  ${BOLD}NATIJA: ${grade_color}${score}% — $grade $emoji${NC}"
+    echo -e "  ${DIM}Tekshiruvlar: $SCORE_PASS/$SCORE_TOTAL muvaffaqiyatli${NC}"
+    progress_bar $score
+    
+    if [ "$score" -lt 70 ]; then
+        echo ""
+        echo -e "  ${YELLOW}Tavsiya: bash diagnose.sh heal — muammolarni tuzatish${NC}"
+    fi
+}
+
+# ================================================================
+# 21. TOP — Eng ko'p resurs ishlatayotgan konteynerlar
+# ================================================================
+cmd_top() {
+    header "KONTEYNER RESURS REYTINGI"
+    echo ""
+    
+    echo -e "  ${BOLD}CPU bo'yicha (yuqoridan pastga):${NC}"
+    docker stats --no-stream --format "{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}" 2>/dev/null | \
+        sort -t$'\t' -k2 -rn | head -10 | while IFS=$'\t' read name cpu mem mempct net block; do
+        local cpu_num=$(echo "$cpu" | tr -d '%')
+        local color=$GREEN
+        [ "$(echo "$cpu_num > 50" | bc -l 2>/dev/null || echo 0)" = "1" ] && color=$YELLOW
+        [ "$(echo "$cpu_num > 80" | bc -l 2>/dev/null || echo 0)" = "1" ] && color=$RED
+        printf "  ${color}%-25s CPU: %-8s MEM: %-20s NET: %s${NC}\n" "$name" "$cpu" "$mem" "$net"
+    done
+    
+    echo ""
+    echo -e "  ${BOLD}Memory bo'yicha (yuqoridan pastga):${NC}"
+    docker stats --no-stream --format "{{.Name}}\t{{.MemPerc}}\t{{.MemUsage}}" 2>/dev/null | \
+        sort -t$'\t' -k2 -rn | head -10 | while IFS=$'\t' read name mempct mem; do
+        local mem_num=$(echo "$mempct" | tr -d '%')
+        local color=$GREEN
+        [ "$(echo "$mem_num > 30" | bc -l 2>/dev/null || echo 0)" = "1" ] && color=$YELLOW
+        [ "$(echo "$mem_num > 60" | bc -l 2>/dev/null || echo 0)" = "1" ] && color=$RED
+        printf "  ${color}%-25s MEM: %-8s (%s)${NC}\n" "$name" "$mempct" "$mem"
+    done
+    
+    # Total Docker resource usage
+    echo ""
+    separator
+    local total_mem=$(docker stats --no-stream --format "{{.MemUsage}}" 2>/dev/null | awk -F'/' '{
+        gsub(/[^0-9.]/, "", $1);
+        if($1 ~ /GiB/) sum += $1 * 1024;
+        else sum += $1;
+    } END {printf "%.0f MiB", sum}')
+    echo -e "  ${BOLD}Jami Docker xotira:${NC} $total_mem"
+}
+
+# ================================================================
+# 22. SSL — SSL sertifikat batafsil tekshiruvi
+# ================================================================
+cmd_ssl() {
+    header "SSL SERTIFIKAT TEKSHIRUVI"
+    echo ""
+    
+    local domains=("$DOMAIN" "olimp.$DOMAIN" "harf.$DOMAIN" "testai.$DOMAIN" "crm.$DOMAIN" "games.$DOMAIN")
+    
+    printf "  ${BOLD}%-25s %-12s %-15s %s${NC}\n" "DOMEN" "HOLAT" "MUDDATI" "QOLGAN"
+    separator
+    
+    for domain in "${domains[@]}"; do
+        local ssl_info=$(curl -skIv "https://$domain" 2>&1)
+        local expiry=$(echo "$ssl_info" | grep "expire date" | sed 's/.*expire date: //')
+        local status_code=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "https://$domain" 2>/dev/null)
+        
+        if [ -n "$expiry" ]; then
+            local expiry_epoch=$(date -d "$expiry" +%s 2>/dev/null)
+            local now_epoch=$(date +%s)
+            local days_left=""
+            local color=$GREEN
+            local status_text="OK"
+            
+            if [ -n "$expiry_epoch" ]; then
+                days_left="$((  (expiry_epoch - now_epoch) / 86400 )) kun"
+                [ "$((expiry_epoch - now_epoch))" -lt $((14 * 86400)) ] && color=$YELLOW && status_text="TEZDA!"
+                [ "$((expiry_epoch - now_epoch))" -lt 0 ] && color=$RED && status_text="O'TGAN!"
+            else
+                days_left="noma'lum"
+            fi
+            
+            local short_expiry=$(echo "$expiry" | awk '{print $1, $2, $4}')
+            printf "  ${color}%-25s %-12s %-15s %s${NC}\n" "$domain" "$status_text" "$short_expiry" "$days_left"
+        else
+            if [ "$status_code" = "000" ]; then
+                printf "  ${RED}%-25s %-12s %-15s %s${NC}\n" "$domain" "ULANMADI" "-" "-"
+            else
+                printf "  ${YELLOW}%-25s %-12s %-15s %s${NC}\n" "$domain" "HTTP $status_code" "SSL yo'q" "-"
+            fi
+        fi
+    done
 }
 
 # ================================================================
 # FULL DIAGNOSTIKA
 # ================================================================
 cmd_full() {
+    # Reset score for full run
+    SCORE_TOTAL=0
+    SCORE_PASS=0
+    
     echo ""
     echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BOLD}${CYAN}║        ALIF24 PLATFORM — TO'LIQ DIAGNOSTIKA            ║${NC}"
-    echo -e "${BOLD}${CYAN}║        $(date '+%Y-%m-%d %H:%M:%S %Z')                       ║${NC}"
+    echo -e "${BOLD}${CYAN}║     ALIF24 PLATFORM — TO'LIQ DIAGNOSTIKA v${VERSION}         ║${NC}"
+    echo -e "${BOLD}${CYAN}║     $(date '+%Y-%m-%d %H:%M:%S %Z')                          ║${NC}"
     echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
 
     cmd_status
     cmd_security
     cmd_health
-
-    # SSL Sertifikat tekshiruvi
-    header "SSL SERTIFIKAT HOLATI"
-    local ssl_info=$(curl -skIv https://alif24.uz 2>&1 | grep "expire date")
-    if [ -n "$ssl_info" ]; then
-        ok "SSL: $ssl_info"
-    else
-        warn "SSL tekshirib bo'lmadi yoki mavjud emas"
-    fi
-
+    cmd_ssl
     cmd_errors 30
     cmd_perf
 
-    header "TEZKOR BUYRUQLAR ESLATMA"
+    # Final score
     echo ""
-    echo -e "  ${BOLD}bash diagnose.sh status${NC}          — Container holatlari"
-    echo -e "  ${BOLD}bash diagnose.sh health${NC}          — Health check"
-    echo -e "  ${BOLD}bash diagnose.sh logs main-backend 50${NC}  — Oxirgi 50 log"
-    echo -e "  ${BOLD}bash diagnose.sh errors 100${NC}      — Oxirgi 100 xatolik"
-    echo -e "  ${BOLD}bash diagnose.sh requests 50${NC}     — So'rovlar"
-    echo -e "  ${BOLD}bash diagnose.sh db${NC}              — Database holati"
-    echo -e "  ${BOLD}bash diagnose.sh perf${NC}            — Performance"
-    echo -e "  ${BOLD}bash diagnose.sh api /api/v1/auth/me${NC}  — API test"
-    echo -e "  ${BOLD}bash diagnose.sh heal${NC}            — Auto-fix (Tozalash)"
-    echo -e "  ${BOLD}bash diagnose.sh follow nginx${NC}    — Real-time log"
-    echo -e "  ${BOLD}bash diagnose.sh rebuild olimp-backend${NC} — Qayta build"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    local score=0
+    if [ "$SCORE_TOTAL" -gt 0 ]; then
+        score=$((SCORE_PASS * 100 / SCORE_TOTAL))
+    fi
+    local grade_color=$RED grade="F"
+    [ "$score" -ge 95 ] && grade_color=$GREEN && grade="A+"
+    [ "$score" -ge 90 ] && [ "$score" -lt 95 ] && grade_color=$GREEN && grade="A"
+    [ "$score" -ge 80 ] && [ "$score" -lt 90 ] && grade_color=$GREEN && grade="B"
+    [ "$score" -ge 70 ] && [ "$score" -lt 80 ] && grade_color=$YELLOW && grade="C"
+    [ "$score" -ge 50 ] && [ "$score" -lt 70 ] && grade_color=$YELLOW && grade="D"
+
+    echo -e "  ${BOLD}UMUMIY BAL: ${grade_color}${score}% — $grade${NC}  ${DIM}($SCORE_PASS/$SCORE_TOTAL tekshiruv)${NC}"
+    progress_bar $score
+
+    header "TEZKOR BUYRUQLAR"
+    echo ""
+    echo -e "  ${BOLD}${UNDERLINE}Monitoring:${NC}"
+    echo -e "    ${BOLD}bash diagnose.sh watch${NC}         — Live dashboard (auto-refresh)"
+    echo -e "    ${BOLD}bash diagnose.sh score${NC}         — Sog'liq bali"
+    echo -e "    ${BOLD}bash diagnose.sh top${NC}           — Resurs reytingi"
+    echo -e "    ${BOLD}bash diagnose.sh status${NC}        — Container holatlari"
+    echo -e "    ${BOLD}bash diagnose.sh health${NC}        — Health check"
+    echo ""
+    echo -e "  ${BOLD}${UNDERLINE}Loglar:${NC}"
+    echo -e "    ${BOLD}bash diagnose.sh errors 100${NC}    — Oxirgi 100 xatolik"
+    echo -e "    ${BOLD}bash diagnose.sh requests 50${NC}   — So'rovlar"
+    echo -e "    ${BOLD}bash diagnose.sh logs main-backend 50${NC} — Loglar"
+    echo -e "    ${BOLD}bash diagnose.sh follow nginx${NC}  — Real-time log"
+    echo ""
+    echo -e "  ${BOLD}${UNDERLINE}Baza & Xavfsizlik:${NC}"
+    echo -e "    ${BOLD}bash diagnose.sh db${NC}            — Database holati"
+    echo -e "    ${BOLD}bash diagnose.sh backup${NC}        — DB backup"
+    echo -e "    ${BOLD}bash diagnose.sh ssl${NC}           — SSL tekshiruvi"
+    echo -e "    ${BOLD}bash diagnose.sh network${NC}       — Tarmoq diagnostika"
+    echo ""
+    echo -e "  ${BOLD}${UNDERLINE}Amallar:${NC}"
+    echo -e "    ${BOLD}bash diagnose.sh deploy${NC}        — Tezkor deploy (git pull + rebuild)"
+    echo -e "    ${BOLD}bash diagnose.sh heal${NC}          — Auto-fix (tozalash)"
+    echo -e "    ${BOLD}bash diagnose.sh rebuild olimp-backend${NC} — Qayta build"
+    echo -e "    ${BOLD}bash diagnose.sh report${NC}        — Hisobotni faylga saqlash"
     echo ""
 }
 
@@ -616,6 +1389,7 @@ cmd_full() {
 # ================================================================
 case "${1:-full}" in
     status)   cmd_status ;;
+    security) cmd_security ;;
     health)   cmd_health ;;
     logs)     cmd_logs "$2" "$3" ;;
     errors)   cmd_errors "$2" ;;
@@ -624,30 +1398,63 @@ case "${1:-full}" in
     perf)     cmd_perf ;;
     api)      cmd_api "$2" "$3" ;;
     heal)     cmd_heal ;;
+    backup)   cmd_backup ;;
+    restore)  cmd_restore "$2" ;;
+    watch)    cmd_watch "$2" ;;
+    network)  cmd_network ;;
+    deploy)   cmd_deploy ;;
+    report)   cmd_report ;;
+    diff)     cmd_diff "$2" ;;
+    score)    cmd_score ;;
+    top)      cmd_top ;;
+    ssl)      cmd_ssl ;;
     restart)  cmd_restart "$2" ;;
     rebuild)  cmd_rebuild "$2" ;;
     follow)   cmd_follow "$2" ;;
     full)     cmd_full ;;
     help|--help|-h)
-        echo "Alif24 Diagnostika Tool v2.0"
         echo ""
-        echo "Ishlatish: bash diagnose.sh [command] [args]"
+        echo -e "${BOLD}${CYAN}  ALIF24 Diagnostika Tool v${VERSION}${NC}"
         echo ""
-        echo "Commands:"
-        echo "  (bo'sh)     To'liq diagnostika"
-        echo "  status      Container holatlari"
-        echo "  health      Backend/Frontend health check"
-        echo "  logs [svc] [N]  Loglar (default: all, 30)"
-        echo "  errors [N]  Faqat xatoliklar"
-        echo "  requests [N] Nginx so'rovlar"
-        echo "  db          Database holati + statistika"
-        echo "  perf        CPU, RAM, Disk, Docker stats"
-        echo "  api [path] [port]  API test"
-        echo "  heal        Auto-fix va server xotirasini tozalash"
-        echo "  restart [svc]  Service restart"
-        echo "  rebuild [svc]  Build + restart"
-        echo "  follow [svc]   Real-time log (Ctrl+C)"
-        echo "  help        Shu yordam"
+        echo -e "  ${BOLD}Ishlatish:${NC} bash diagnose.sh [command] [args]"
+        echo ""
+        echo -e "  ${BOLD}${UNDERLINE}Monitoring:${NC}"
+        echo "    (bo'sh)          To'liq diagnostika + baho"
+        echo "    status           Container holatlari + restart count + uptime"
+        echo "    health           Backend/Frontend health check"
+        echo "    score            Umumiy sog'liq bali (0-100, A-F baho)"
+        echo "    top              Konteyner resurs reytingi (CPU/RAM)"
+        echo "    watch [N]        Live dashboard, har N sekundda yangilanadi (default: 5)"
+        echo ""
+        echo -e "  ${BOLD}${UNDERLINE}Loglar & So'rovlar:${NC}"
+        echo "    logs [svc] [N]   Loglar (default: all, 30)"
+        echo "    errors [N]       Faqat xatoliklar"
+        echo "    requests [N]     Nginx so'rovlar"
+        echo "    follow [svc]     Real-time log (Ctrl+C bilan to'xtatish)"
+        echo ""
+        echo -e "  ${BOLD}${UNDERLINE}Baza & Infra:${NC}"
+        echo "    db               Database holati + statistika"
+        echo "    backup           Database backup (/root/backups/)"
+        echo "    restore [file]   Database restore (backup fayldan)"
+        echo "    network          Docker network diagnostika"
+        echo ""
+        echo -e "  ${BOLD}${UNDERLINE}Xavfsizlik:${NC}"
+        echo "    security         Xavfsizlik auditi (portlar, brute-force, scannerlar)"
+        echo "    ssl              SSL sertifikat tekshiruvi (barcha domenlar)"
+        echo ""
+        echo -e "  ${BOLD}${UNDERLINE}Amallar:${NC}"
+        echo "    deploy           Tezkor deploy (git pull + aqlli rebuild)"
+        echo "    heal             Auto-fix (tozalash, optimize, restart)"
+        echo "    restart [svc]    Service restart"
+        echo "    rebuild [svc]    Build + restart"
+        echo "    perf             CPU, RAM, Disk, Docker stats"
+        echo ""
+        echo -e "  ${BOLD}${UNDERLINE}Boshqa:${NC}"
+        echo "    api [path] [port] API endpoint test"
+        echo "    diff [N]          Oxirgi N ta git commit (default: 5)"
+        echo "    report            To'liq diagnostikani faylga saqlash"
+        echo "    help              Shu yordam"
+        echo ""
         ;;
     *)
         echo -e "${RED}Noma'lum buyruq: $1${NC}"
