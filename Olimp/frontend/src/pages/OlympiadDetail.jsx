@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Users, Clock, Trophy, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Clock, Trophy, CheckCircle, AlertCircle, Medal, BarChart3 } from 'lucide-react';
 import apiService from '../services/apiService';
 
 export default function OlympiadDetail() {
@@ -19,6 +19,9 @@ export default function OlympiadDetail() {
     const [answers, setAnswers] = useState({});
     const [submitted, setSubmitted] = useState(false);
     const [result, setResult] = useState(null);
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [showLeaderboard, setShowLeaderboard] = useState(false);
+    const [lbLoading, setLbLoading] = useState(false);
 
     useEffect(() => {
         loadOlympiad();
@@ -69,8 +72,22 @@ export default function OlympiadDetail() {
             const data = await apiService.post(`/olympiad/${id}/submit?student_id=${studentId}`, answerList);
             setResult(data.data || data);
             setSubmitted(true);
+            loadLeaderboard();
         } catch (err) {
             setRegError(err.message);
+        }
+    };
+
+    const loadLeaderboard = async () => {
+        try {
+            setLbLoading(true);
+            const data = await apiService.get(`/olympiad/${id}/leaderboard`);
+            const lb = data.data?.leaderboard || data.leaderboard || [];
+            setLeaderboard(Array.isArray(lb) ? lb : []);
+        } catch (err) {
+            console.error('Leaderboard error:', err);
+        } finally {
+            setLbLoading(false);
         }
     };
 
@@ -214,12 +231,72 @@ export default function OlympiadDetail() {
                         <p className="text-indigo-500 mb-6">
                             To'g'ri javoblar: {result.correct_answers || 0} / {result.total_questions || questions.length}
                         </p>
-                        <Link
-                            to="/"
-                            className="inline-block px-8 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
-                        >
-                            Bosh sahifaga qaytish
-                        </Link>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                            <button
+                                onClick={() => setShowLeaderboard(!showLeaderboard)}
+                                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors font-bold"
+                            >
+                                <BarChart3 className="w-5 h-5" /> {showLeaderboard ? 'Reytingni yashirish' : 'Reytingni ko\'rish'}
+                            </button>
+                            <Link
+                                to="/"
+                                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+                            >
+                                Bosh sahifaga qaytish
+                            </Link>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Leaderboard */}
+                {showLeaderboard && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mt-6"
+                    >
+                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <Trophy className="w-5 h-5 text-amber-400" /> Reyting jadvali
+                        </h3>
+                        {lbLoading ? (
+                            <div className="text-center py-8">
+                                <div className="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto" />
+                            </div>
+                        ) : leaderboard.length === 0 ? (
+                            <p className="text-center py-8 text-indigo-400">Hali natijalar yo'q</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {leaderboard.map((entry) => {
+                                    const isMe = entry.student_id === localStorage.getItem('studentProfileId');
+                                    const medalColor = entry.rank === 1 ? 'text-yellow-400' : entry.rank === 2 ? 'text-gray-300' : entry.rank === 3 ? 'text-amber-600' : 'text-indigo-500';
+                                    return (
+                                        <div
+                                            key={entry.rank}
+                                            className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                                                isMe ? 'bg-indigo-600/20 border border-indigo-500/30' : 'bg-white/5 hover:bg-white/10'
+                                            }`}
+                                        >
+                                            <div className={`w-8 h-8 flex items-center justify-center font-bold text-sm ${medalColor}`}>
+                                                {entry.rank <= 3 ? <Medal className="w-5 h-5" /> : `#${entry.rank}`}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`font-medium truncate ${isMe ? 'text-indigo-300' : 'text-white'}`}>
+                                                    {entry.student_name}{isMe ? ' (Siz)' : ''}
+                                                </p>
+                                                <p className="text-xs text-indigo-500">
+                                                    {entry.correct_answers}/{entry.total_questions} to'g'ri
+                                                    {entry.time_taken_seconds > 0 && ` | ${Math.floor(entry.time_taken_seconds / 60)}:${String(entry.time_taken_seconds % 60).padStart(2, '0')}`}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-lg font-bold text-indigo-400">{entry.score}</p>
+                                                <p className="text-xs text-indigo-600">/{entry.total_points} ball</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </div>

@@ -54,6 +54,7 @@ class TaskCreate(BaseModel):
     day_of_week: str = Field(..., pattern="^(monday|tuesday|wednesday|thursday|friday)$")
     title: str
     image_url: Optional[str] = None
+    video_url: Optional[str] = None
     story_text: str
     questions: Optional[List[Dict[str, Any]]] = None
     time_limit_seconds: Optional[int] = None
@@ -61,6 +62,7 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     image_url: Optional[str] = None
+    video_url: Optional[str] = None
     story_text: Optional[str] = None
     questions: Optional[List[Dict[str, Any]]] = None
     time_limit_seconds: Optional[int] = None
@@ -110,6 +112,7 @@ def _serialize_task(t: ReadingTask) -> dict:
         "day_of_week": t.day_of_week.value if t.day_of_week else None,
         "title": t.title,
         "image_url": t.image_url,
+        "video_url": t.video_url,
         "story_text": t.story_text,
         "total_words": t.total_words,
         "questions": t.questions,
@@ -357,6 +360,7 @@ async def create_task(
         day_of_week=TaskDay(data.day_of_week),
         title=data.title,
         image_url=data.image_url,
+        video_url=data.video_url,
         story_text=data.story_text,
         total_words=_count_words(data.story_text),
         questions=data.questions,
@@ -431,6 +435,8 @@ async def update_task(
         task.title = data.title
     if data.image_url is not None:
         task.image_url = data.image_url
+    if data.video_url is not None:
+        task.video_url = data.video_url
     if data.story_text is not None:
         task.story_text = data.story_text
         task.total_words = _count_words(data.story_text)
