@@ -1,7 +1,7 @@
 #!/bin/bash
 # ================================================================
 #  ALIF24 PLATFORM — Professional Monitoring & Diagnostika Tool
-#  Version: 5.0
+#  Version: 6.0
 #  Ishlatish:
 #    bash diagnose.sh              — To'liq diagnostika
 #    bash diagnose.sh heal         — O'z-o'zini davolash (Auto-fix)
@@ -29,9 +29,11 @@
 #    bash diagnose.sh slow         — DB Slow-Query (Eng sekin DB so'rovlari)
 #    bash diagnose.sh traffic      — Nginx Bandwidth hajmini o'lchash
 #    bash diagnose.sh audit        — NPM / PIP paketlaridagi xavfsizlik va eskirishni tekshirish
+#    bash diagnose.sh storm        — Log Tsunami ushlagichi (Log Rate limit)
+#    bash diagnose.sh upgrade      — Skriptni (diagnose.sh) o'zini eng yangi versiyaga yangilash
 # ================================================================
 
-VERSION="5.0"
+VERSION="6.0"
 
 # Ranglar
 RED='\033[0;31m'
@@ -297,6 +299,26 @@ cmd_security() {
         fi
     done
     [ "$min_found" -eq 0 ] && ok "Favqulodda protsessor yeb yotgan jarayonlar yo'q"
+
+    # 7. Config Drift Sensor (.env fayli o'zgarmaganligini tekshirish)
+    separator
+    echo -e "  ${BOLD}7. Configuration Drift Sensor (.env yaxlitligi):${NC}"
+    local env_path="$(cd "$(dirname "$0")" && pwd)/.env"
+    if [ -f "$env_path" ]; then
+        local current_hash=$(md5sum "$env_path" | awk '{print $1}' 2>/dev/null)
+        local stored_hash_file="/tmp/alif24_env_hash"
+        if [ -f "$stored_hash_file" ]; then
+            local stored_hash=$(cat "$stored_hash_file")
+            if [ "$current_hash" != "$stored_hash" ]; then
+                fail "DIQQAT! .env konfiguratsiyasi RUXSATSIZ o'zgartirilgan! (Config Drift)"
+            else
+                ok ".env konfiguratsiyasi xavfsiz (o'zgarmagan)."
+            fi
+        else
+            echo "$current_hash" > "$stored_hash_file"
+            info ".env konfiguratsiyasi hisobga olindi va himoyalandi."
+        fi
+    fi
 }
 
 # ================================================================
@@ -522,6 +544,39 @@ cmd_db() {
         fi
     done
 
+    # Cache Hit Ratio (DBA Expert)
+    echo ""
+    echo -e "  ${BOLD}DBA Ekspert (Cache Hit Ratio):${NC}"
+    docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT 
+            sum(blks_hit)*100/sum(blks_hit+blks_read) AS hit_ratio 
+        FROM pg_stat_database 
+        WHERE blks_read > 0;
+    " 2>/dev/null | while read ratio; do
+        ratio=$(echo $ratio | xargs)
+        if [ -n "$ratio" ]; then
+            if [ "$ratio" -ge 99 ] 2>/dev/null; then
+                ok "  Cache Hit Ratio: ${ratio}% (MUKAMMAL, tezlik zo'r)"
+            elif [ "$ratio" -ge 95 ] 2>/dev/null; then
+                warn "  Cache Hit Ratio: ${ratio}% (YAXSHI, lekin kamida 99% bo'lishi kerak)"
+            else
+                fail "  Cache Hit Ratio: ${ratio}% (YOMON: Baza sekin disklardan qidiryapti. Index kerak yoki RAM yetarli emas)"
+            fi
+        fi
+    done
+
+    # Unused Indexes (O'lik Indekslar)
+    echo ""
+    echo -e "  ${BOLD}O'lik Indekslar (Unused Indexes):${NC}"
+    docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT schemaname || '.' || relname AS table, indexrelname AS index, pg_size_pretty(pg_relation_size(i.indexrelid)) AS size
+        FROM pg_stat_user_indexes ui JOIN pg_index i ON ui.indexrelid = i.indexrelid
+        WHERE idx_scan = 0 AND pg_relation_size(i.indexrelid) > 100000 LIMIT 3;
+    " 2>/dev/null | while IFS='|' read tbl idx_name idx_size; do
+        tbl=$(echo "$tbl"|xargs); idx_name=$(echo "$idx_name"|xargs); idx_size=$(echo "$idx_size"|xargs)
+        [ -n "$tbl" ] && warn "  Ishlatilmayotgan index: $tbl -> $idx_name ($idx_size)"
+    done
+
     # Active connections
     echo ""
     echo -e "  ${BOLD}Faol ulanishlar:${NC}"
@@ -627,6 +682,20 @@ cmd_perf() {
             ok "Disk: $pct ishlatilgan"
         fi
     done
+    
+    # Disk I/O Wait Bottleneck (DB/App bo'g'ilishi)
+    echo ""
+    echo -e "  ${BOLD}Diskning tiqilish darajasi (I/O Wait):${NC}"
+    local iowait=$(top -bn1 | grep "Cpu(s)" | awk '{print $10}')
+    if [ -n "$iowait" ]; then
+        if [ "$(echo "$iowait > 10" | bc 2>/dev/null)" = "1" ]; then
+            fail "  Disk I/O Wait: ${iowait}% (DIQQAT! Disk o'qish/yozish tiqilib qolgan! Tizim sekinlaydi)"
+        else
+            ok "  Disk I/O Wait: ${iowait}% (Disk holati zo'r)"
+        fi
+    else
+        info "  Disk I/O Wait o'lchanolmadi."
+    fi
 
     echo ""
     echo -e "  ${BOLD}Inodes (Mayda Fayllar Limitlari):${NC}"
@@ -668,7 +737,7 @@ cmd_perf() {
 }
 
 # ================================================================
-# 8. API — Endpoint test
+# 9. API — Endpoint test
 # ================================================================
 cmd_api() {
     local endpoint="${1:-/api/v1/health/ping}"
@@ -691,7 +760,7 @@ cmd_api() {
 }
 
 # ================================================================
-# 9. RESTART — Service restart
+# 10. RESTART — Service restart
 # ================================================================
 cmd_restart() {
     local service="$1"
@@ -707,7 +776,7 @@ cmd_restart() {
 }
 
 # ================================================================
-# 10. REBUILD — Service rebuild + restart
+# 11. REBUILD — Service rebuild + restart
 # ================================================================
 cmd_rebuild() {
     local service="$1"
@@ -728,7 +797,7 @@ cmd_rebuild() {
 }
 
 # ================================================================
-# 11. FOLLOW — Real-time loglar
+# 12. FOLLOW — Real-time loglar
 # ================================================================
 cmd_follow() {
     local service="${1:-nginx}"
@@ -737,7 +806,7 @@ cmd_follow() {
 }
 
 # ================================================================
-# 12. HEAL — Auto-fix va tozalash
+# 13. HEAL — Auto-fix va tozalash
 # ================================================================
 cmd_heal() {
     header "AUTO-FIX (O'z-o'zini davolash) BOSHLANDI..."
@@ -810,7 +879,7 @@ cmd_heal() {
 }
 
 # ================================================================
-# 13. BACKUP — Database backup
+# 14. BACKUP — Database backup
 # ================================================================
 cmd_backup() {
     header "DATABASE BACKUP"
@@ -848,7 +917,7 @@ cmd_backup() {
 }
 
 # ================================================================
-# 14. RESTORE — Database restore
+# 15. RESTORE — Database restore
 # ================================================================
 cmd_restore() {
     local file="$1"
@@ -896,7 +965,7 @@ cmd_restore() {
 }
 
 # ================================================================
-# 15. WATCH — Auto-refresh monitoring
+# 16. WATCH — Auto-refresh monitoring
 # ================================================================
 cmd_watch() {
     local interval="${1:-5}"
@@ -948,7 +1017,7 @@ cmd_watch() {
 }
 
 # ================================================================
-# 16. NETWORK — Docker network diagnostika
+# 17. NETWORK — Docker network diagnostika
 # ================================================================
 cmd_network() {
     header "DOCKER NETWORK DIAGNOSTIKA"
@@ -995,10 +1064,36 @@ cmd_network() {
     # External connectivity
     local ext_ok=$(docker exec main-backend python3 -c "import urllib.request; urllib.request.urlopen('https://httpbin.org/get',timeout=5); print('ok')" 2>/dev/null)
     [ "$ext_ok" = "ok" ] && ok "Tashqi internet aloqasi bor" || warn "Tashqi internet aloqasi yo'q yoki sekin"
+
+    # Host network connections
+    echo ""
+    echo -e "  ${BOLD}Hostdagi faol ulanishlar:${NC}"
+    netstat -tupln 2>/dev/null | head -2 | while read r; do
+        echo -e "    ${DIM}$r${NC}"
+    done
+    netstat -tupln 2>/dev/null | grep -E "nginx|postgres|redis|python|node" | grep -v "127.0.0.1" | sort | while read p v t l f s cmd; do
+        printf "    %-10s %-20s %s\n" "$p" "$l" "$cmd"
+    done
+    
+    # Connection Leak Sensori
+    echo ""
+    echo -e "  ${BOLD}Connection Leak (Qotgan TCP Ulanishlar):${NC}"
+    local wait_count=$(netstat -an 2>/dev/null | awk '/^tcp/ {print $6}' | grep -E "TIME_WAIT|CLOSE_WAIT" | wc -l)
+    local close_count=$(netstat -an 2>/dev/null | awk '/^tcp/ {print $6}' | grep "CLOSE_WAIT" | wc -l)
+    if [ "$wait_count" -gt 500 ] 2>/dev/null; then
+        fail "  Yopilmagan ulanishlar mavjud! (TIME/CLOSE_WAIT = $wait_count ta port)"
+        if [ "$close_count" -gt 100 ] 2>/dev/null; then
+            fail "  Dastur kodida aniq Connection Leak bor (CLOSE_WAIT = $close_count ta)!"
+        fi
+    elif [ "$wait_count" -gt 100 ] 2>/dev/null; then
+        warn "  Ulanishlar (Wait) baland qolyapti: $wait_count ta"
+    else
+        ok "  Ulanishlarning yo'qotilishi (Leak) uchramadi: $wait_count wait"
+    fi
 }
 
 # ================================================================
-# 17. DEPLOY — Tezkor deploy
+# 18. DEPLOY — Tezkor deploy
 # ================================================================
 cmd_deploy() {
     header "TEZKOR DEPLOY"
@@ -1111,7 +1206,7 @@ cmd_deploy() {
 }
 
 # ================================================================
-# 18. REPORT — Diagnostikani faylga saqlash
+# 19. REPORT — Diagnostikani faylga saqlash
 # ================================================================
 cmd_report() {
     mkdir -p "$REPORT_DIR"
@@ -1134,7 +1229,7 @@ cmd_report() {
 }
 
 # ================================================================
-# 19. DIFF — Git o'zgarishlar
+# 20. DIFF — Git o'zgarishlar
 # ================================================================
 cmd_diff() {
     local count="${1:-5}"
@@ -1179,7 +1274,7 @@ cmd_diff() {
 }
 
 # ================================================================
-# 20. SCORE — Umumiy sog'liq bali
+# 21. SCORE — Umumiy sog'liq bali
 # ================================================================
 cmd_score() {
     # Reset score
@@ -1309,7 +1404,7 @@ cmd_score() {
 }
 
 # ================================================================
-# 21. TOP — Eng ko'p resurs ishlatayotgan konteynerlar
+# 22. TOP — Eng ko'p resurs ishlatayotgan konteynerlar
 # ================================================================
 cmd_top() {
     header "KONTEYNER RESURS REYTINGI"
@@ -1373,7 +1468,7 @@ cmd_top() {
 }
 
 # ================================================================
-# 22. SSL — SSL sertifikat batafsil tekshiruvi
+# 23. SSL — SSL sertifikat batafsil tekshiruvi
 # ================================================================
 cmd_ssl() {
     header "SSL SERTIFIKAT TEKSHIRUVI"
@@ -1417,7 +1512,7 @@ cmd_ssl() {
 }
 
 # ================================================================
-# V5.0 MAXSUS MODULLAR: SLOW, TRAFFIC, AUDIT
+# V6.0 MAXSUS MODULLAR: SLOW, TRAFFIC, AUDIT, STORM
 # ================================================================
 
 cmd_slow() {
@@ -1504,6 +1599,39 @@ cmd_audit() {
     fi
 }
 
+cmd_storm() {
+    header "LOG TSUNAMI (STORM) DETECTOR"
+    echo ""
+    
+    echo -e "  ${BOLD}Oxirgi daqiqadagi Nginx Log tezligi (Tsunami-Check):${NC}"
+    local current_minute=$(date -u +"%d/%b/%Y:%H:%M")
+    local req_per_min=$($DC logs --no-log-prefix nginx 2>/dev/null | grep "$current_minute" | wc -l)
+    if [ -n "$req_per_min" ]; then
+        if [ "$req_per_min" -gt 3000 ] 2>/dev/null; then
+            fail "DIQQAT! LOG TSUNAMI! Daqiqasiga $req_per_min ta so'rov qilinmoqda! (Infinite Loop yoki DDoS)"
+        elif [ "$req_per_min" -gt 1000 ] 2>/dev/null; then
+            warn "Trafik log yozishi balandlashmoqda ($req_per_min /minut)."
+        else
+            ok "Log Tsunami yo'q. Qulay chastota ($req_per_min kelish/minut)."
+        fi
+    else
+        info "Log ma'lumoti yetarli emas."
+    fi
+}
+
+cmd_upgrade() {
+    header "ALIF DIAGNOSE TOOL SELF-UPGRADE"
+    echo ""
+    echo -e "  ${YELLOW}Diagnostika kodini (skriptni) o'zini yangilash...${NC}"
+    local repo_dir=$(cd "$(dirname "$0")" && pwd)
+    cd "$repo_dir" && git fetch origin main 2>/dev/null
+    git checkout origin/main -- diagnose.sh 2>/dev/null
+    chmod +x diagnose.sh
+    ok "Skript muvaffaqiyatli V-LATEST versiyasiga yangilandi!"
+    echo -e "  ${DIM}Yangi imkoniyatlarni ko'rish uchun: bash diagnose.sh help${NC}"
+    exit 0
+}
+
 # ================================================================
 # FULL DIAGNOSTIKA
 # ================================================================
@@ -1564,12 +1692,14 @@ cmd_full() {
     echo -e "    ${BOLD}bash diagnose.sh ssl${NC}           — SSL tekshiruvi"
     echo -e "    ${BOLD}bash diagnose.sh network${NC}       — Tarmoq diagnostika"
     echo -e "    ${BOLD}bash diagnose.sh slow${NC}          — DB Sekin So'rovlari"
-    echo -e "    ${BOLD}bash diagnose.h traffic${NC}       — Nginx Max Trafik hajmi"
+    echo -e "    ${BOLD}bash diagnose.sh traffic${NC}       — Nginx Max Trafik hajmi"
+    echo -e "    ${BOLD}bash diagnose.sh storm${NC}         — Log rate tekshirish"
     echo -e "    ${BOLD}bash diagnose.sh audit${NC}         — Kutubxonalar auditi"
     echo ""
     echo -e "  ${BOLD}${UNDERLINE}Amallar:${NC}"
     echo -e "    ${BOLD}bash diagnose.sh deploy${NC}        — Tezkor deploy (git pull + rebuild)"
     echo -e "    ${BOLD}bash diagnose.sh heal${NC}          — Auto-fix (tozalash)"
+    echo -e "    ${BOLD}bash diagnose.sh upgrade${NC}       — Skriptni (diagnose.sh) o'zini eng yangi versiyaga yangilash"
     echo -e "    ${BOLD}bash diagnose.sh rebuild olimp-backend${NC} — Qayta build"
     echo -e "    ${BOLD}bash diagnose.sh report${NC}        — Hisobotni faylga saqlash"
     echo ""
@@ -1602,6 +1732,8 @@ case "${1:-full}" in
     slow)     cmd_slow ;;
     traffic)  cmd_traffic ;;
     audit)    cmd_audit ;;
+    storm)    cmd_storm ;;
+    upgrade)  cmd_upgrade ;;
     restart)  cmd_restart "$2" ;;
     rebuild)  cmd_rebuild "$2" ;;
     follow)   cmd_follow "$2" ;;
@@ -1636,11 +1768,13 @@ case "${1:-full}" in
         echo "    security         Xavfsizlik auditi (portlar, brute-force, scannerlar)"
         echo "    ssl              SSL sertifikat tekshiruvi (barcha domenlar)"
         echo "    audit            NPM / PIP paketlaridagi xavfsizlik tekshiruvi"
+        echo "    storm            Log Tsunami ushlagichi (Infinite Loop)"
         echo "    traffic          Nginx Bandwidth (Trafik) sarfini aniqlash"
         echo ""
         echo -e "  ${BOLD}${UNDERLINE}Amallar:${NC}"
         echo "    deploy           Tezkor deploy (git pull + aqlli rebuild + AUTO-ROLLBACK)"
         echo "    heal             Auto-fix (tozalash, optimize, chopish, qayta ishga tushirish)"
+        echo "    upgrade          Skriptni (diagnose.sh) o'zini eng yangi versiyaga yangilash"
         echo "    restart [svc]    Service restart"
         echo "    rebuild [svc]    Build + restart"
         echo "    perf             CPU, RAM, Disk, Docker stats"
