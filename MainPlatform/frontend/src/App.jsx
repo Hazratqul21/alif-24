@@ -29,6 +29,7 @@ import TelegramPage from './pages/admin/TelegramPage';
 import OlympiadsPage from './pages/admin/OlympiadsPage';
 import ReadingCompetitionPage from './pages/admin/ReadingCompetitionPage';
 import AdminSubscriptions from './pages/admin/AdminSubscriptions';
+import AdminPromoCodes from './pages/admin/AdminPromoCodes';
 
 // Sub-platform redirect helper (Harf, Games, etc. now live on their own subdomains)
 const PlatformRedirect = ({ baseUrl, path = '' }) => {
@@ -225,6 +226,7 @@ const AppRoutes = () => {
         <Route path="olympiads" element={<OlympiadsPage />} />
         <Route path="reading" element={<ReadingCompetitionPage />} />
         <Route path="subscriptions" element={<AdminSubscriptions />} />
+        <Route path="promo-codes" element={<AdminPromoCodes />} />
       </Route>
 
       {/* Fallback - Redirect to home */}

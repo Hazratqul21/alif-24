@@ -123,8 +123,97 @@ class UserSubscription(Base):
         }
 
 
+class PromoCode(Base):
+    """
+    Promocode — admin yaratadi, foydalanuvchi kiritadi
+    Turlari: discount (% chegirma), free_days (bepul kunlar), plan (plan berish)
+    """
+    __tablename__ = "promo_codes"
+
+    id = Column(String(8), primary_key=True, default=generate_8_digit_id)
+
+    # Promocode
+    code = Column(String(50), unique=True, nullable=False, index=True)  # "ALIF2026", "START30"
+    description = Column(Text, nullable=True)
+
+    # Turi
+    promo_type = Column(String(20), nullable=False, default="free_days")
+    # "discount" — chegirma % (discount_percent dan foydalanadi)
+    # "free_days" — bepul kunlar (free_days_count dan foydalanadi)
+    # "plan" — to'liq plan berish (plan_config_id dan foydalanadi)
+
+    # Discount parametrlari
+    discount_percent = Column(Integer, default=0)       # 10, 20, 50, 100 (%)
+    free_days_count = Column(Integer, default=0)         # Bepul kunlar soni
+    plan_config_id = Column(String(8), ForeignKey("subscription_plan_configs.id"), nullable=True)
+
+    # Cheklovlar
+    max_uses = Column(Integer, default=0)               # 0 = cheksiz
+    current_uses = Column(Integer, default=0)            # Necha marta ishlatildi
+    max_uses_per_user = Column(Integer, default=1)       # Bir user necha marta ishlata oladi
+
+    # Faollik muddati
+    is_active = Column(Boolean, default=True)
+    starts_at = Column(DateTime(timezone=True), nullable=True)   # Boshlanish vaqti
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # Tugash vaqti
+
+    # Vaqt tamg'alari
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    usages = relationship("PromoCodeUsage", back_populates="promo_code")
+    plan_config = relationship("SubscriptionPlanConfig")
+
+    def __repr__(self):
+        return f"<PromoCode {self.code} type={self.promo_type}>"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "code": self.code,
+            "description": self.description,
+            "promo_type": self.promo_type,
+            "discount_percent": self.discount_percent,
+            "free_days_count": self.free_days_count,
+            "plan_config_id": self.plan_config_id,
+            "max_uses": self.max_uses,
+            "current_uses": self.current_uses,
+            "max_uses_per_user": self.max_uses_per_user,
+            "is_active": self.is_active,
+            "starts_at": self.starts_at.isoformat() if self.starts_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class PromoCodeUsage(Base):
+    """Promocode ishlatish tarixi"""
+    __tablename__ = "promo_code_usages"
+
+    id = Column(String(8), primary_key=True, default=generate_8_digit_id)
+    promo_code_id = Column(String(8), ForeignKey("promo_codes.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String(8), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Natija
+    result_type = Column(String(20), nullable=True)      # "discount", "free_days", "plan"
+    result_value = Column(String(200), nullable=True)     # "30%", "14 kun", "Premium plan"
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    promo_code = relationship("PromoCode", back_populates="usages")
+    user = relationship("User")
+
+    def __repr__(self):
+        return f"<PromoCodeUsage code={self.promo_code_id} user={self.user_id}>"
+
+
 __all__ = [
     "SubscriptionStatus",
     "SubscriptionPlanConfig",
     "UserSubscription",
+    "PromoCode",
+    "PromoCodeUsage",
 ]
+

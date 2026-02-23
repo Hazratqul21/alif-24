@@ -196,6 +196,149 @@ async def get_me(
         "subscription": subscription_data,
     }
 
+class PromoCodeActivateRequest(BaseModel):
+    code: str
+
+@router.post("/promo-code")
+async def activate_promo_code(
+    data: PromoCodeActivateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Foydalanuvchi promocode kiritadi — obuna/chegirma oladi"""
+    from sqlalchemy import select, func
+    from shared.database.models import (
+        PromoCode, PromoCodeUsage, UserSubscription,
+        SubscriptionPlanConfig, SubscriptionStatus,
+    )
+    from datetime import timedelta
+
+    code = data.code.strip().upper()
+
+    # 1. Promocode topish
+    result = await db.execute(select(PromoCode).where(PromoCode.code == code))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promocode topilmadi")
+
+    # 2. Faollik tekshirish
+    if not promo.is_active:
+        raise HTTPException(status_code=400, detail="Bu promocode faol emas")
+
+    now = datetime.now(timezone.utc)
+    if promo.starts_at and now < promo.starts_at:
+        raise HTTPException(status_code=400, detail="Bu promocode hali boshlanmagan")
+    if promo.expires_at and now > promo.expires_at:
+        raise HTTPException(status_code=400, detail="Bu promocode muddati tugagan")
+
+    # 3. Max uses tekshirish
+    if promo.max_uses > 0 and promo.current_uses >= promo.max_uses:
+        raise HTTPException(status_code=400, detail="Bu promocode limiti tugagan")
+
+    # 4. Per-user limit tekshirish
+    user_usage_count = await db.scalar(
+        select(func.count(PromoCodeUsage.id)).where(
+            PromoCodeUsage.promo_code_id == promo.id,
+            PromoCodeUsage.user_id == current_user.id,
+        )
+    ) or 0
+    if user_usage_count >= promo.max_uses_per_user:
+        raise HTTPException(status_code=400, detail="Siz bu promocodeni allaqachon ishlatgansiz")
+
+    # 5. Turga qarab amal qilish
+    result_value = ""
+
+    if promo.promo_type == "free_days" and promo.free_days_count > 0:
+        # Bepul kunlar — obunasiz 'free trial' subscription yaratish
+        # Default plan topish yoki birinchi faol plan
+        plan_res = await db.execute(
+            select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.is_active == True)
+            .order_by(SubscriptionPlanConfig.sort_order)
+        )
+        plan = plan_res.scalars().first()
+
+        if plan:
+            # Eski faol obunani expire qilish
+            old_subs = await db.execute(
+                select(UserSubscription).where(
+                    UserSubscription.user_id == current_user.id,
+                    UserSubscription.status == SubscriptionStatus.active.value,
+                )
+            )
+            for old in old_subs.scalars().all():
+                old.status = SubscriptionStatus.expired.value
+
+            sub = UserSubscription(
+                user_id=current_user.id,
+                plan_config_id=plan.id,
+                status=SubscriptionStatus.active.value,
+                started_at=now,
+                expires_at=now + timedelta(days=promo.free_days_count),
+                amount_paid=0,
+                created_by=f"promo:{promo.code}",
+                notes=f"Promocode: {promo.code} ({promo.free_days_count} kun bepul)",
+            )
+            db.add(sub)
+            result_value = f"{promo.free_days_count} kun bepul '{plan.name}'"
+        else:
+            result_value = f"{promo.free_days_count} kun bepul (plan topilmadi)"
+
+    elif promo.promo_type == "plan" and promo.plan_config_id:
+        # Maxsus plan berish
+        plan_res = await db.execute(
+            select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == promo.plan_config_id)
+        )
+        plan = plan_res.scalar_one_or_none()
+        if plan:
+            old_subs = await db.execute(
+                select(UserSubscription).where(
+                    UserSubscription.user_id == current_user.id,
+                    UserSubscription.status == SubscriptionStatus.active.value,
+                )
+            )
+            for old in old_subs.scalars().all():
+                old.status = SubscriptionStatus.expired.value
+
+            sub = UserSubscription(
+                user_id=current_user.id,
+                plan_config_id=plan.id,
+                status=SubscriptionStatus.active.value,
+                started_at=now,
+                expires_at=now + timedelta(days=plan.duration_days),
+                amount_paid=0,
+                created_by=f"promo:{promo.code}",
+                notes=f"Promocode: {promo.code}",
+            )
+            db.add(sub)
+            result_value = f"'{plan.name}' plan {plan.duration_days} kunga"
+        else:
+            raise HTTPException(status_code=400, detail="Promocode plani topilmadi")
+
+    elif promo.promo_type == "discount" and promo.discount_percent > 0:
+        result_value = f"{promo.discount_percent}% chegirma"
+
+    else:
+        raise HTTPException(status_code=400, detail="Promocode noto'g'ri sozlangan")
+
+    # 6. Usage yozish
+    usage = PromoCodeUsage(
+        promo_code_id=promo.id,
+        user_id=current_user.id,
+        result_type=promo.promo_type,
+        result_value=result_value,
+    )
+    db.add(usage)
+    promo.current_uses += 1
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Promocode muvaffaqiyatli ishlatildi!",
+        "result": result_value,
+        "promo_type": promo.promo_type,
+    }
+
 @router.post("/logout")
 async def logout(
     response: Response,
