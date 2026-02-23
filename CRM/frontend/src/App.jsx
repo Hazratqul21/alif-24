@@ -14,6 +14,7 @@ import DashboardLayout from './components/Dashboard/DashboardLayout';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import ToastManager from './components/Common/ToastManager';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
+import AuthSync from './components/Auth/AuthSync';
 
 /**
  * CRM Platform App Component
@@ -25,8 +26,10 @@ const App = () => {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <LanguageProvider>
           <AuthProvider>
-            <ToastManager />
-            <AppRoutes />
+            <AuthSync>
+              <ToastManager />
+              <AppRoutes />
+            </AuthSync>
           </AuthProvider>
         </LanguageProvider>
       </BrowserRouter>

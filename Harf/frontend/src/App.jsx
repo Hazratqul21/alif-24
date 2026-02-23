@@ -10,6 +10,7 @@ import Eharf from './components/eharf/Eharf';
 // Common Components
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import ToastManager from './components/Common/ToastManager';
+import AuthSync from './components/Auth/AuthSync';
 
 /**
  * Harf Platform App Component
@@ -22,8 +23,10 @@ const App = () => {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <LanguageProvider>
           <AuthProvider>
-            <ToastManager />
-            <AppRoutes />
+            <AuthSync>
+              <ToastManager />
+              <AppRoutes />
+            </AuthSync>
           </AuthProvider>
         </LanguageProvider>
       </BrowserRouter>

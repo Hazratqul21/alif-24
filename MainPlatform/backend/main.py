@@ -33,11 +33,18 @@ IS_SERVERLESS = bool(os.getenv("VERCEL"))
 REDIS_URL = os.getenv("REDIS_URL")
 
 if REDIS_URL:
-    limiter = Limiter(
-        key_func=get_remote_address,
-        default_limits=["100/minute"],
-        storage_uri=REDIS_URL
-    )
+    try:
+        limiter = Limiter(
+            key_func=get_remote_address,
+            default_limits=["100/minute"],
+            storage_uri=REDIS_URL
+        )
+    except Exception as e:
+        print(f"Warning: Could not initialize Redis rate limiter: {e}")
+        limiter = Limiter(
+            key_func=get_remote_address,
+            default_limits=["100/minute"]
+        )
 elif IS_SERVERLESS:
     limiter = Limiter(
         key_func=get_remote_address,

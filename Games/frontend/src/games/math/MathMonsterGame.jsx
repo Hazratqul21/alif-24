@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { Trophy, Star, Lock, CheckCircle, Play, ArrowLeft, Coins } from 'lucide-react';
-import GuestGuard from '../../components/Common/GuestGuard';
 import coinService from '../../services/coinService';
 import './MathMonsterGame.css';
 
@@ -476,127 +475,125 @@ const MatematikaSarguzashti = () => {
   }
 
   return (
-    <GuestGuard contentType="math" contentId={`level-${difficulty || 'unknown'}`}>
-      <div className="matematika-container1">
-        <div className="game-wrapper1">
-          <div className="game-header">
-            <button
-              onClick={backToLevels}
-              className="game-back-button"
-            >
-              <ArrowLeft className="game-back-icon" />
+    <div className="matematika-container1">
+      <div className="game-wrapper1">
+        <div className="game-header">
+          <button
+            onClick={backToLevels}
+            className="game-back-button"
+          >
+            <ArrowLeft className="game-back-icon" />
 
-            </button>
-            <div className="game-info">
-              <span className="game-level-info">
-                {currentLevel} -  {questionNumber}/{QUESTIONS_PER_LEVEL}
-              </span>
-            </div>
-            <div className="game-score">
-              <span className="correct-answers">
-                ✓ {correctAnswers}
-              </span>
-            </div>
+          </button>
+          <div className="game-info">
+            <span className="game-level-info">
+              {currentLevel} -  {questionNumber}/{QUESTIONS_PER_LEVEL}
+            </span>
           </div>
+          <div className="game-score">
+            <span className="correct-answers">
+              ✓ {correctAnswers}
+            </span>
+          </div>
+        </div>
 
-          {question && (
-            <div className="game-content">
-              <div className="question-display1">
-                <div className="question-text1">
-                  {question.isThreeNumbers ? (
-                    <span>{question.num1} {question.operation1} {question.num2} {question.operation2} {question.num3} = ?</span>
-                  ) : (
-                    <span>{question.num1} {question.operation} {question.num2} = ?</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="answers-grid">
-                {question.answers.map((answer, index) => (
-                  <button
-                    key={index}
-                    onClick={() => checkAnswer(answer)}
-                    disabled={showFeedback !== null}
-                    className="answer-button"
-                  >
-                    {answer}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {showFeedback && (
-            <div className="feedback-overlay">
-              <div className={`feedback-modal ${showFeedback.correct ? 'correct' : 'incorrect'}`}>
-                <div className="feedback-emoji">
-                  {showFeedback.correct ? '🎉' : '💪'}
-                </div>
-                <div className="feedback-text">
-                  {showFeedback.message}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showLevelComplete && (
-            <div className="level-complete-overlay">
-              <div className="level-complete-modal">
-                <div className="level-complete-emoji">🎊</div>
-                <h2 className="level-complete-title">
-                  {t('math_levelFinished')} {currentLevel}!
-                </h2>
-                <div className="level-complete-result">
-                  {t('math_correctAnswers')}: {correctAnswers}/{QUESTIONS_PER_LEVEL}
-                </div>
-                <div className="earned-stars">
-                  {[...Array(3)].map((_, idx) => (
-                    <Star
-                      key={idx}
-                      className={`star-earned ${idx < earnedStars ? 'earned' : 'not-earned'}`}
-                      fill={idx < earnedStars ? 'currentColor' : 'none'}
-                      style={{
-                        animationDelay: `${idx * 0.2}s`,
-                      }}
-                    />
-                  ))}
-                </div>
-                {earnedCoins > 0 && (
-                  <div className="earned-coins-display" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '12px 0', padding: '8px 16px', background: '#FEF3C7', borderRadius: '12px', border: '1px solid #FDE68A' }}>
-                    <Coins size={20} style={{ color: '#D97706' }} />
-                    <span style={{ fontWeight: 'bold', color: '#92400E', fontSize: '1.1rem' }}>+{earnedCoins} coin</span>
-                  </div>
+        {question && (
+          <div className="game-content">
+            <div className="question-display1">
+              <div className="question-text1">
+                {question.isThreeNumbers ? (
+                  <span>{question.num1} {question.operation1} {question.num2} {question.operation2} {question.num3} = ?</span>
+                ) : (
+                  <span>{question.num1} {question.operation} {question.num2} = ?</span>
                 )}
-                <button
-                  onClick={closeLevelComplete}
-                  className="continue-button"
-                >
-                  {t('math_continue')}
-                </button>
               </div>
             </div>
-          )}
 
-          {showCoins && (
-            <div className="coins-overlay">
-              {[...Array(15)].map((_, i) => (
-                <div
-                  key={i}
-                  className="coin-animation"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    animationDelay: `${i * 0.1}s`
-                  }}
+            <div className="answers-grid">
+              {question.answers.map((answer, index) => (
+                <button
+                  key={index}
+                  onClick={() => checkAnswer(answer)}
+                  disabled={showFeedback !== null}
+                  className="answer-button"
                 >
-                  <Star className="coin-icon" fill="currentColor" />
-                </div>
+                  {answer}
+                </button>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {showFeedback && (
+          <div className="feedback-overlay">
+            <div className={`feedback-modal ${showFeedback.correct ? 'correct' : 'incorrect'}`}>
+              <div className="feedback-emoji">
+                {showFeedback.correct ? '🎉' : '💪'}
+              </div>
+              <div className="feedback-text">
+                {showFeedback.message}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showLevelComplete && (
+          <div className="level-complete-overlay">
+            <div className="level-complete-modal">
+              <div className="level-complete-emoji">🎊</div>
+              <h2 className="level-complete-title">
+                {t('math_levelFinished')} {currentLevel}!
+              </h2>
+              <div className="level-complete-result">
+                {t('math_correctAnswers')}: {correctAnswers}/{QUESTIONS_PER_LEVEL}
+              </div>
+              <div className="earned-stars">
+                {[...Array(3)].map((_, idx) => (
+                  <Star
+                    key={idx}
+                    className={`star-earned ${idx < earnedStars ? 'earned' : 'not-earned'}`}
+                    fill={idx < earnedStars ? 'currentColor' : 'none'}
+                    style={{
+                      animationDelay: `${idx * 0.2}s`,
+                    }}
+                  />
+                ))}
+              </div>
+              {earnedCoins > 0 && (
+                <div className="earned-coins-display" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '12px 0', padding: '8px 16px', background: '#FEF3C7', borderRadius: '12px', border: '1px solid #FDE68A' }}>
+                  <Coins size={20} style={{ color: '#D97706' }} />
+                  <span style={{ fontWeight: 'bold', color: '#92400E', fontSize: '1.1rem' }}>+{earnedCoins} coin</span>
+                </div>
+              )}
+              <button
+                onClick={closeLevelComplete}
+                className="continue-button"
+              >
+                {t('math_continue')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showCoins && (
+          <div className="coins-overlay">
+            {[...Array(15)].map((_, i) => (
+              <div
+                key={i}
+                className="coin-animation"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animationDelay: `${i * 0.1}s`
+                }}
+              >
+                <Star className="coin-icon" fill="currentColor" />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </GuestGuard>
+    </div>
   );
 };
 
