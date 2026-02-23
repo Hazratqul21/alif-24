@@ -1,50 +1,50 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { apiService } from '../services/apiService'; // Make sure this path fits
 
 /**
  * AuthSync Component
- * Enforces cross-subdomain authentication.
+ * Enforces cross-subdomain authentication using HttpOnly cookies
  * 
- * 1. Checks if a token is present in the URL (coming from MainPlatform redirect).
- * 2. If present, saves it to localStorage and cleans the URL.
- * 3. Checks if a token exists in localStorage.
- * 4. If NO token exists, redirects the user to the MainPlatform login page,
- *    passing the current subdomain URL as a `redirect` parameter so they can
- *    be sent back after logging in.
+ * 1. Pings the backend to verify the session using the cookie.
+ * 2. If NO active session exists, redirects the user to the MainPlatform login page.
  */
 const AuthSync = ({ children, enforceLogin = true }) => {
+    const [isChecked, setIsChecked] = useState(false);
+
     useEffect(() => {
-        // 1. Process URL Tokens
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlToken = urlParams.get('token');
-        const urlRefresh = urlParams.get('refresh');
+        const verifySession = async () => {
+            if (!enforceLogin) {
+                setIsChecked(true);
+                return;
+            }
 
-        if (urlToken) {
-            localStorage.setItem('accessToken', urlToken);
-            if (urlRefresh) localStorage.setItem('refreshToken', urlRefresh);
-
-            // Clean URL
-            const url = new URL(window.location);
-            url.searchParams.delete('token');
-            url.searchParams.delete('refresh');
-            window.history.replaceState({}, '', url);
-        }
-
-        // 2. Enforce Login (if required)
-        if (enforceLogin) {
-            const token = localStorage.getItem('accessToken');
-            if (!token) {
-                // We don't have a token, redirect to main platform login
+            try {
+                // Ping the backend using the apiService which includes credentials (cookies)
+                await apiService.get('/auth/me');
+                setIsChecked(true); // Session is valid
+            } catch (err) {
+                // We don't have a valid session, redirect to main platform login
                 const currentUrl = encodeURIComponent(window.location.href);
-                // Determine the main domain base (works for dev localhost too)
                 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
                 const mainDomain = isLocalhost ? 'http://localhost:5173' : 'https://alif24.uz';
 
                 window.location.href = `${mainDomain}/login?redirect=${currentUrl}`;
             }
-        }
+        };
+
+        verifySession();
     }, [enforceLogin]);
 
-    // We render children regardless, but the redirect will fire immediately if no token
+    if (!isChecked && enforceLogin) {
+        // Show a loading state while checking the session
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f3f4f6' }}>
+                <div style={{ width: '40px', height: '40px', border: '4px solid #e5e7eb', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+            </div>
+        );
+    }
+
     return children;
 };
 

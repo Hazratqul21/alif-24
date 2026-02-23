@@ -15,16 +15,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Check for existing session on mount
     const initAuth = async () => {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        try {
-          const profile = await authService.getProfile();
-          setUser(profile);
-        } catch {
-          // Token invalid, clear storage
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-        }
+      try {
+        const profile = await authService.getProfile();
+        setUser(profile);
+      } catch {
+        setUser(null);
       }
       setLoading(false);
     };
@@ -40,12 +35,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const data = await authService.login(email, password);
-      // Backend returns snake_case tokens
-      const accessToken = data.access_token || data.accessToken;
-      const refreshToken = data.refresh_token || data.refreshToken;
-
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      // Backend automatically sets HttpOnly Cookies now.
       setUser(data.user);
       return data;
     } catch (err) {
@@ -62,12 +52,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const data = await authService.register(userData);
-      // Backend returns snake_case tokens
-      const accessToken = data.access_token || data.accessToken;
-      const refreshToken = data.refresh_token || data.refreshToken;
-
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      // Backend automatically sets HttpOnly Cookies now.
       setUser(data.user);
       return data;
     } catch (err) {
@@ -85,8 +70,6 @@ export const AuthProvider = ({ children }) => {
     } catch {
       // Continue with logout even if API call fails
     }
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
     setUser(null);
   };
 

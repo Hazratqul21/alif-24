@@ -3,7 +3,7 @@ Auth Router - MainPlatform
 Authentication endpoints using shared modules
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from shared.database import get_db
 from shared.database.models import User
 from shared.auth import create_access_token, create_refresh_token
+from ..core.config import settings
 from ...middleware.auth import get_current_user
 from ...services.auth_service import AuthService
 from ...schemas.auth import LoginRequest, RegisterRequest, TokenResponse
@@ -40,47 +41,119 @@ class UpdateProfileRequest(BaseModel):
         populate_by_name = True
 
 @router.post("/register")
-async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(data: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """Register new user"""
     data.validate()
     service = AuthService(db)
     result = await service.register(data)
+    
+    # Set HttpOnly Cookies
+    domain = ".alif24.uz" if not settings.DEBUG else None
+    response.set_cookie(
+        key="access_token",
+        value=result["access_token"],
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        domain=domain,
+        max_age=15 * 60  # 15 minutes
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=result["refresh_token"],
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        domain=domain,
+        max_age=7 * 24 * 60 * 60  # 7 days
+    )
+    
     return {
         "success": True,
         "message": "Registration successful",
-        "data": result
+        "data": {"user": result["user"]}
     }
 
 @router.post("/login")
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(data: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """Login user"""
     service = AuthService(db)
     result = await service.login(data.email, data.password)
+    
+    # Set HttpOnly Cookies
+    domain = ".alif24.uz" if not settings.DEBUG else None
+    response.set_cookie(
+        key="access_token",
+        value=result["access_token"],
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        domain=domain,
+        max_age=15 * 60
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=result["refresh_token"],
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        domain=domain,
+        max_age=7 * 24 * 60 * 60
+    )
+    
     return {
         "success": True,
         "message": "Login successful",
-        "data": result
+        "data": {"user": result["user"]}
     }
 
 @router.post("/refresh")
-async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
+async def refresh_token(data: RefreshTokenRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """Refresh access token"""
     service = AuthService(db)
     result = await service.refresh_token(data.refresh_token)
+    
+    # Update Cookies
+    domain = ".alif24.uz" if not settings.DEBUG else None
+    response.set_cookie(
+        key="access_token",
+        value=result["access_token"],
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        domain=domain,
+        max_age=15 * 60
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=result["refresh_token"],
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        domain=domain,
+        max_age=7 * 24 * 60 * 60
+    )
+    
     return {
         "success": True,
-        "message": "Token refreshed",
-        "data": result
+        "message": "Token refreshed"
     }
 
 @router.post("/logout")
 async def logout(
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Logout user"""
     service = AuthService(db)
     await service.logout(current_user.id)
+    
+    # Delete Cookies
+    domain = ".alif24.uz" if not settings.DEBUG else None
+    response.delete_cookie(key="access_token", domain=domain, path="/")
+    response.delete_cookie(key="refresh_token", domain=domain, path="/")
+    
     return {
         "success": True,
         "message": "Logged out successfully"
@@ -107,6 +180,7 @@ async def change_password(
 @router.post("/child-login")
 async def child_login(
     request: ChildLoginRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db)
 ):
     """Login for child accounts using username + PIN"""
@@ -137,11 +211,30 @@ async def child_login(
     child.refresh_token = refresh_token
     await db.commit()
     
+    # Set Cookies
+    domain = ".alif24.uz" if not settings.DEBUG else None
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        domain=domain,
+        max_age=15 * 60
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        domain=domain,
+        max_age=7 * 24 * 60 * 60
+    )
+    
     return {
         "success": True,
         "data": {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
             "token_type": "bearer",
             "user": child.to_dict(),
             "parent_id": child.parent_id

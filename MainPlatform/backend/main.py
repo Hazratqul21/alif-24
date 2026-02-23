@@ -103,13 +103,13 @@ app.add_exception_handler(Exception, error_handler)
 
 # CORS
 origins = ["*"]
-allow_credentials = False
+allow_credentials = True
 if settings.CORS_ORIGINS:
     if isinstance(settings.CORS_ORIGINS, str):
         origins = [o.strip() for o in settings.CORS_ORIGINS.split(",")]
     else:
         origins = settings.CORS_ORIGINS
-    allow_credentials = "*" not in origins
+    allow_credentials = True
 
 app.add_middleware(
     CORSMiddleware,
