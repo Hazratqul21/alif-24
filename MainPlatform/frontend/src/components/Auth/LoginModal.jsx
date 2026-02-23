@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import apiService from '../../services/apiService';
@@ -7,6 +7,7 @@ import { Eye, EyeOff, Mail, Phone, Lock, User } from 'lucide-react';
 
 const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, loading, error, clearError } = useAuth();
   const { t } = useLanguage();
   const [formData, setFormData] = useState({
@@ -42,6 +43,20 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
       const data = res.data;
       localStorage.setItem('accessToken', data.access_token);
       localStorage.setItem('refreshToken', data.refresh_token);
+
+      // Check for redirect param
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect');
+
+      if (redirectUrl) {
+        // We pass the token back to the subdomain
+        const urlObj = new URL(redirectUrl);
+        urlObj.searchParams.set('token', data.access_token);
+        urlObj.searchParams.set('refresh', data.refresh_token);
+        window.location.href = urlObj.toString();
+        return;
+      }
+
       window.location.href = '/student-dashboard';
     } catch (err) {
       setChildError(err.message || 'Username yoki PIN xato');
@@ -67,6 +82,24 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
 
       const response = await login(identifier, password);
       onClose();
+
+      // Check for redirect param
+      const urlParams = new URLSearchParams(window.location.search);
+      let redirectUrl = urlParams.get('redirect');
+
+      if (!redirectUrl && location && location.search) {
+        const locParams = new URLSearchParams(location.search);
+        redirectUrl = locParams.get('redirect');
+      }
+
+      if (redirectUrl) {
+        // We pass the token to the redirect URL
+        const urlObj = new URL(redirectUrl);
+        urlObj.searchParams.set('token', response.tokens.access_token);
+        urlObj.searchParams.set('refresh', response.tokens.refresh_token);
+        window.location.href = urlObj.toString();
+        return;
+      }
 
       // Redirect based on role
       const role = response.user.role;

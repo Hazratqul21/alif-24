@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
@@ -43,7 +44,6 @@ const PlatformRedirect = ({ baseUrl, path = '' }) => {
   return null;
 };
 
-// Components
 import DashboardLayout from './components/Dashboard/DashboardLayout';
 import LoginModal from './components/Auth/LoginModal';
 import RegisterModal from './components/Auth/RegisterModal';
@@ -51,6 +51,44 @@ import SmartAuthPrompt from './components/Auth/SmartAuthPrompt';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import ToastManager from './components/Common/ToastManager';
+import { useAuth } from './context/AuthContext';
+
+// Helper component to auto-open login modal when navigating to /login
+const LoginRoute = () => {
+  const { isAuthenticated } = useAuth();
+  const [isLoginOpen, setIsLoginOpen] = useState(true);
+  const navigate = useNavigate();
+
+  // If already authenticated, redirect immediately
+  useEffect(() => {
+    if (isAuthenticated) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect');
+      if (redirectUrl) {
+        const urlObj = new URL(redirectUrl);
+        urlObj.searchParams.set('token', localStorage.getItem('accessToken'));
+        urlObj.searchParams.set('refresh', localStorage.getItem('refreshToken'));
+        window.location.href = urlObj.toString();
+        return;
+      }
+      navigate('/student-dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  return (
+    <>
+      <HomePage />
+      <LoginModal
+        isOpen={isLoginOpen && !isAuthenticated}
+        onClose={() => {
+          setIsLoginOpen(false);
+          if (!isAuthenticated) navigate('/', { replace: true });
+        }}
+        onSwitchToRegister={() => { }}
+      />
+    </>
+  );
+};
 
 /**
  * MainPlatform App Component
@@ -87,6 +125,9 @@ const AppRoutes = () => {
       {/* Home Page - Child Dashboard */}
       <Route path="/" element={<HomePage />} />
       <Route path="/dashboard" element={<HomePage />} />
+
+      {/* Auto Login Trigger Route */}
+      <Route path="/login" element={<LoginRoute />} />
 
       {/* Student Dashboard */}
       <Route
