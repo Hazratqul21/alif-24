@@ -439,10 +439,70 @@ async def student_assignments(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """O'quvchiga berilgan barcha vazifalar"""
+    """O'quvchiga berilgan barcha vazifalar.
+    
+    1. O'quvchining shaxsiy submission larini qaytaradi.
+    2. O'quvchi qaysi sinflarga kirsa, o'sha sinflarga berilgan
+       barcha vazifalarni ham tekshiradi. Agar submission yo'q bo'lsa,
+       avtomatik ravishda 'pending' holda yaratadi.
+    """
     if current_user.role != UserRole.student:
         raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
 
+    # --- 1. qism: O'quvchining sinflari ---
+    classrooms_res = await db.execute(
+        select(ClassroomStudent.classroom_id).where(
+            ClassroomStudent.student_user_id == current_user.id,
+            ClassroomStudent.status == ClassroomStudentStatus.active,
+        )
+    )
+    classroom_ids = [row[0] for row in classrooms_res.fetchall()]
+
+    # --- 2. qism: Sinflarga berilgan barcha vazifalarni topish ---
+    if classroom_ids:
+        cls_targets_res = await db.execute(
+            select(AssignmentTarget.assignment_id).where(
+                AssignmentTarget.target_type == AssignmentTargetType.classroom,
+                AssignmentTarget.target_id.in_(classroom_ids),
+            )
+        )
+        cls_assignment_ids = [row[0] for row in cls_targets_res.fetchall()]
+
+        # O'quvchining mavjud submissionlari (sinf vazifalari bo'yicha)
+        existing_subs_res = await db.execute(
+            select(AssignmentSubmission.assignment_id).where(
+                AssignmentSubmission.student_user_id == current_user.id,
+                AssignmentSubmission.assignment_id.in_(cls_assignment_ids),
+            )
+        )
+        existing_submission_ids = {row[0] for row in existing_subs_res.fetchall()}
+
+        # Yo'q bo'lgan submission larni avtomatik yaratish (on-demand)
+        for assignment_id in cls_assignment_ids:
+            if assignment_id not in existing_submission_ids:
+                a_res = await db.execute(
+                    select(Assignment).where(
+                        Assignment.id == assignment_id,
+                        Assignment.is_published == True,
+                    )
+                )
+                assignment = a_res.scalar_one_or_none()
+                if assignment:
+                    new_sub = AssignmentSubmission(
+                        assignment_id=assignment_id,
+                        student_user_id=current_user.id,
+                        status=SubmissionStatus.pending,
+                    )
+                    db.add(new_sub)
+                    logger.info(
+                        f"Auto-created submission for student={current_user.id} "
+                        f"assignment={assignment_id} (classroom join after assignment creation)"
+                    )
+
+        if any(a_id not in existing_submission_ids for a_id in cls_assignment_ids):
+            await db.commit()
+
+    # --- 3. qism: Barcha submission larni qaytarish ---
     stmt = select(AssignmentSubmission).where(
         AssignmentSubmission.student_user_id == current_user.id
     )
@@ -461,7 +521,6 @@ async def student_assignments(
         a_res = await db.execute(select(Assignment).where(Assignment.id == s.assignment_id))
         a = a_res.scalar_one_or_none()
         if a:
-            # O'qituvchi ismi
             t_res = await db.execute(select(User).where(User.id == a.created_by))
             t = t_res.scalar_one_or_none()
             result.append({
