@@ -148,6 +148,18 @@ async def refresh_token(request: Request, response: Response, data: RefreshToken
         "message": "Token refreshed"
     }
 
+@router.get("/me")
+async def get_me(
+    current_user: User = Depends(get_current_user),
+):
+    """Get current authenticated user profile.
+    Used by AuthSync across all subdomains to verify active session.
+    """
+    return {
+        "success": True,
+        "data": current_user.to_dict()
+    }
+
 @router.post("/logout")
 async def logout(
     response: Response,

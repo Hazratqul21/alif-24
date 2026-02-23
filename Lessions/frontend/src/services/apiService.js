@@ -7,7 +7,7 @@ class ApiService {
 
     getHeaders() {
         const headers = { 'Content-Type': 'application/json' };
-        const token = localStorage.getItem('accessToken');
+        // Token endi HttpOnly cookie orqali avtomatik yuboriladi
         if (token) headers['Authorization'] = `Bearer ${token}`;
         return headers;
     }

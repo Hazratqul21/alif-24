@@ -67,15 +67,10 @@ const organizationService = {
     uploadMaterial: async (formData) => {
         // For file uploads, we need raw fetch with FormData
         const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
-        const token = localStorage.getItem('accessToken');
-        const headers = {};
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
         // Don't set Content-Type for FormData — browser sets it with boundary
         const response = await fetch(`${API_URL}/organization-structure/materials`, {
             method: 'POST',
-            headers,
+            credentials: 'include',
             body: formData
         });
         if (!response.ok) {

@@ -40,8 +40,6 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
         pin: formData.pin
       });
       const data = res.data;
-      localStorage.setItem('accessToken', data.access_token);
-      localStorage.setItem('refreshToken', data.refresh_token);
       window.location.href = '/student-dashboard';
     } catch (err) {
       setChildError(err.message || 'Username yoki PIN xato');
