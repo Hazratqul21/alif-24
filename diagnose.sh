@@ -1,7 +1,7 @@
 #!/bin/bash
 # ================================================================
 #  ALIF24 PLATFORM — Professional Monitoring & Diagnostika Tool
-#  Version: 4.0
+#  Version: 4.1
 #  Ishlatish:
 #    bash diagnose.sh              — To'liq diagnostika
 #    bash diagnose.sh heal         — O'z-o'zini davolash (Auto-fix)
@@ -28,7 +28,7 @@
 #    bash diagnose.sh ssl          — SSL sertifikat tekshiruvi
 # ================================================================
 
-VERSION="4.0"
+VERSION="4.1"
 
 # Ranglar
 RED='\033[0;31m'
@@ -478,6 +478,29 @@ cmd_db() {
         [ -n "$table" ] && printf "    %-35s %-10s %s yozuv\n" "$table" "$size" "$rows"
     done
 
+    # Dead tuples
+    echo ""
+    echo -e "  ${BOLD}Baza axlatlari (Dead Tuples):${NC}"
+    docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT schemaname||'.'||relname AS table, n_dead_tup AS dead_rows
+        FROM pg_stat_user_tables
+        WHERE n_dead_tup > 0
+        ORDER BY n_dead_tup DESC
+        LIMIT 5;
+    " 2>/dev/null | while IFS='|' read table dead; do
+        table=$(echo $table | xargs)
+        dead=$(echo $dead | xargs)
+        if [ -n "$table" ]; then
+            if [ "$dead" -gt 10000 ] 2>/dev/null; then
+                fail "    %-35s %s ta o'lik qator! (VACUUM kerak)" "$table" "$dead"
+            elif [ "$dead" -gt 1000 ] 2>/dev/null; then
+                warn "    %-35s %s ta o'lik qator" "$table" "$dead"
+            else
+                info "    %-35s %s ta o'lik qator" "$table" "$dead"
+            fi
+        fi
+    done
+
     # Active connections
     echo ""
     echo -e "  ${BOLD}Faol ulanishlar:${NC}"
@@ -739,13 +762,29 @@ cmd_heal() {
     ok "Eski build cache tozalandi!"
     steps_done=$((steps_done + 1))
 
-    echo -e "  ${YELLOW}6/6 PostgreSQL VACUUM ANALYZE (bazani optimallashtirish)...${NC}"
+    echo -e "  ${YELLOW}6/7 PostgreSQL VACUUM ANALYZE (bazani optimallashtirish)...${NC}"
     docker exec alif24-postgres psql -U postgres -d alif24 -c "VACUUM ANALYZE;" 2>/dev/null
     ok "Baza optimallashtirildi (VACUUM ANALYZE)!"
     steps_done=$((steps_done + 1))
 
+    echo -e "  ${YELLOW}7/7 Docker konteyner "Semiz Loglari"ni (Obesity Logs) qirqib tashlash...${NC}"
+    local truncated=0
+    for cid in $(docker ps -qa 2>/dev/null); do
+        local logpath=$(docker inspect --format='{{.LogPath}}' "$cid" 2>/dev/null)
+        if [ -f "$logpath" ]; then
+            local size_mb=$(du -m "$logpath" 2>/dev/null | awk '{print $1}')
+            # 100MB dan kattalarini truncate qilamiz
+            if [ "$size_mb" -gt 100 ] 2>/dev/null; then
+                truncate -s 0 "$logpath" 2>/dev/null
+                truncated=$((truncated + 1))
+            fi
+        fi
+    done
+    ok "$truncated ta katta log fayli tozalandi (0 qilib qirqildi)!"
+    steps_done=$((steps_done + 1))
+
     echo ""
-    echo -e "  ${GREEN}${BOLD}Davolash yakunlandi! $steps_done/6 qadam bajarildi.${NC}"
+    echo -e "  ${GREEN}${BOLD}Davolash yakunlandi! $steps_done/7 qadam bajarildi.${NC}"
     echo -e "  ${DIM}Holatni ko'rish: bash diagnose.sh score${NC}"
 }
 
@@ -1271,6 +1310,31 @@ cmd_top() {
         else sum += $1;
     } END {printf "%.0f MiB", sum}')
     echo -e "  ${BOLD}Jami Docker xotira:${NC} $total_mem"
+
+    # Obesity Docker Logs
+    echo ""
+    separator
+    echo -e "  ${BOLD}Semiz Log Fayllar (Obesity Logs):${NC}"
+    local huge_logs=0
+    docker ps -qa 2>/dev/null | while read cid; do
+        local cname=$(docker inspect --format='{{.Name}}' "$cid" 2>/dev/null | tr -d '/')
+        local logpath=$(docker inspect --format='{{.LogPath}}' "$cid" 2>/dev/null)
+        if [ -f "$logpath" ]; then
+            local size_mb=$(du -m "$logpath" 2>/dev/null | awk '{print $1}')
+            if [ "$size_mb" -gt 1024 ] 2>/dev/null; then
+                fail "  $cname — ${size_mb} MB (1 GB dan katta!)"
+                huge_logs=$((huge_logs + 1))
+            elif [ "$size_mb" -gt 500 ] 2>/dev/null; then
+                warn "  $cname — ${size_mb} MB (Xavfli darajada limitga yaqin)"
+                huge_logs=$((huge_logs + 1))
+            fi
+        fi
+    done
+    if [ "$huge_logs" -eq 0 ]; then
+        ok "Hech qanday semiz (OBESITY) log topilmadi."
+    else
+        warn "Katta loglar aniqlandi! Tozalash uchun: bash diagnose.sh heal"
+    fi
 }
 
 # ================================================================
