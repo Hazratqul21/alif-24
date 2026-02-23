@@ -40,9 +40,6 @@ async def generate_test(
     if current_user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Faqat o'qituvchilar ruxsatga ega")
 
-    client = get_openai_client()
-    model = settings.OPENAI_MODEL or "gpt-4"
-    
     system_prompt = (
         "Siz o'qituvchilarga sifatli test tuzishda yordam beruvchi AI assistentisiz. "
         f"Matn asosida {request.question_count} ta '{request.difficulty}' qiyinchilikdagi o'zbek tilida test savollarini JSON obyekt formatida yarating. "
@@ -64,31 +61,37 @@ async def generate_test(
         {"role": "user", "content": f"Matn: {request.text}"}
     ]
 
-    # Try Azure OpenAI first, fallback to OpenAI
+    # 1) Try Azure OpenAI first
     try:
-        response = await client.chat.completions.create(
-            model=model,
+        azure_client = get_azure_client()
+        azure_model = settings.AZURE_OPENAI_DEPLOYMENT_NAME
+        logger.info(f"Trying Azure OpenAI: endpoint={settings.AZURE_OPENAI_ENDPOINT}, model={azure_model}")
+        response = await azure_client.chat.completions.create(
+            model=azure_model,
             messages=messages,
             response_format={"type": "json_object"},
             temperature=0.7,
         )
         data = json.loads(response.choices[0].message.content.strip())
+        logger.info("Azure OpenAI success")
         return {"success": True, "data": data.get("questions", [])}
     except Exception as azure_err:
-        logger.warning(f"Azure OpenAI failed, trying OpenAI fallback: {azure_err}")
+        logger.warning(f"Azure OpenAI failed: {azure_err}")
 
-    # Fallback to regular OpenAI
+    # 2) Fallback to regular OpenAI
     try:
-        fallback_client = get_openai_client()
-        fallback_model = settings.OPENAI_MODEL or "gpt-4"
-        response = await fallback_client.chat.completions.create(
-            model=fallback_model,
+        openai_client = get_openai_client()
+        openai_model = settings.OPENAI_MODEL or "gpt-4o-mini"
+        logger.info(f"Trying OpenAI fallback: model={openai_model}")
+        response = await openai_client.chat.completions.create(
+            model=openai_model,
             messages=messages,
             response_format={"type": "json_object"},
             temperature=0.7,
         )
         data = json.loads(response.choices[0].message.content.strip())
+        logger.info("OpenAI fallback success")
         return {"success": True, "data": data.get("questions", [])}
     except Exception as openai_err:
-        logger.error(f"Both Azure and OpenAI failed: {openai_err}")
-        raise HTTPException(status_code=500, detail="AI xizmati vaqtincha ishlamayapti. Keyinroq urinib ko'ring.")
+        logger.error(f"Both Azure and OpenAI failed. Azure: see above. OpenAI: {openai_err}")
+        raise HTTPException(status_code=500, detail=f"AI xizmati vaqtincha ishlamayapti: {str(openai_err)[:200]}")
