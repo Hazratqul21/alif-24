@@ -28,13 +28,13 @@ class ApiService {
         Object.entries(params).forEach(([key, val]) => {
             if (val !== undefined && val !== null) url.searchParams.append(key, val);
         });
-        const resp = await fetch(url, { method: 'GET', headers: this.getHeaders() });
+        const resp = await fetch(url, { method: "GET", credentials: "include", headers: this.getHeaders() });
         return this.handleResponse(resp);
     }
 
     async post(endpoint, data = {}) {
         const resp = await fetch(`${this.baseUrl}${endpoint}`, {
-            method: 'POST',
+            method: "POST", credentials: "include",
             headers: this.getHeaders(),
             body: JSON.stringify(data)
         });

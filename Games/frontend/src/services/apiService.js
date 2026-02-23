@@ -86,7 +86,7 @@ class ApiService {
 
     try {
       const response = await fetch(`${this.baseUrl}/auth/refresh`, {
-        method: 'POST',
+        method: "POST", credentials: "include",
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken })
       });
@@ -131,7 +131,7 @@ class ApiService {
 
     const doFetch = async () => {
       const resp = await fetch(url, {
-        method: 'GET',
+        method: "GET", credentials: "include",
         headers: this.getHeaders()
       });
       return this.handleResponse(resp, doFetch);
@@ -149,7 +149,7 @@ class ApiService {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
     const doFetch = async () => {
       const resp = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'POST',
+        method: "POST", credentials: "include",
         headers: this.getHeaders(isFormData),
         body: isFormData ? data : JSON.stringify(data)
       });
@@ -168,7 +168,7 @@ class ApiService {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
     const doFetch = async () => {
       const resp = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'PUT',
+        method: "PUT", credentials: "include",
         headers: this.getHeaders(isFormData),
         body: isFormData ? data : JSON.stringify(data)
       });
@@ -187,7 +187,7 @@ class ApiService {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
     const doFetch = async () => {
       const resp = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'PATCH',
+        method: "PATCH", credentials: "include",
         headers: this.getHeaders(isFormData),
         body: isFormData ? data : JSON.stringify(data)
       });
@@ -204,7 +204,7 @@ class ApiService {
   async delete(endpoint) {
     const doFetch = async () => {
       const resp = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'DELETE',
+        method: "DELETE", credentials: "include",
         headers: this.getHeaders()
       });
       if (resp.status === 204) return { success: true };

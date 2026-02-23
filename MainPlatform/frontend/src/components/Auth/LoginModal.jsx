@@ -41,19 +41,15 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
         pin: formData.pin
       });
       const data = res.data;
-      localStorage.setItem('accessToken', data.access_token);
-      localStorage.setItem('refreshToken', data.refresh_token);
+      // Backend automatically sets HttpOnly Cookies now.
 
       // Check for redirect param
       const urlParams = new URLSearchParams(window.location.search);
       const redirectUrl = urlParams.get('redirect');
 
       if (redirectUrl) {
-        // We pass the token back to the subdomain
-        const urlObj = new URL(redirectUrl);
-        urlObj.searchParams.set('token', data.access_token);
-        urlObj.searchParams.set('refresh', data.refresh_token);
-        window.location.href = urlObj.toString();
+        // Since we use Wildcard cookies (.alif24.uz), simply redirect.
+        window.location.href = redirectUrl;
         return;
       }
 
@@ -93,11 +89,8 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
       }
 
       if (redirectUrl) {
-        // We pass the token to the redirect URL
-        const urlObj = new URL(redirectUrl);
-        urlObj.searchParams.set('token', response.tokens.access_token);
-        urlObj.searchParams.set('refresh', response.tokens.refresh_token);
-        window.location.href = urlObj.toString();
+        // Since we use Wildcard cookies (.alif24.uz), simply redirect.
+        window.location.href = redirectUrl;
         return;
       }
 

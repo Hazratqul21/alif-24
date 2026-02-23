@@ -425,7 +425,7 @@ const TeacherDashboard = () => {
           <button onClick={() => {
             const token = localStorage.getItem('accessToken');
             const refresh = localStorage.getItem('refreshToken');
-            let url = 'https://testai.alif24.uz';
+            let url = 'https://testai.alif24.uz/test-creator';
             if (token) {
               const params = new URLSearchParams();
               params.set('token', token);
