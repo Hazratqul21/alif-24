@@ -52,6 +52,42 @@ def upgrade():
             'language', sa.String(10), server_default='uz', nullable=True
         ))
 
+    # 4. Add video_url if missing
+    if not _column_exists(conn, 'lessons', 'video_url'):
+        op.add_column('lessons', sa.Column(
+            'video_url', sa.String(500), nullable=True
+        ))
+
+    # 5. Add attachments if missing
+    if not _column_exists(conn, 'lessons', 'attachments'):
+        op.add_column('lessons', sa.Column(
+            'attachments', sa.JSON, nullable=True
+        ))
+
+    # 6. Add subject if missing
+    if not _column_exists(conn, 'lessons', 'subject'):
+        op.add_column('lessons', sa.Column(
+            'subject', sa.String(100), nullable=True
+        ))
+
+    # 7. Add grade_level if missing
+    if not _column_exists(conn, 'lessons', 'grade_level'):
+        op.add_column('lessons', sa.Column(
+            'grade_level', sa.String(20), nullable=True
+        ))
+
+    # 8. Add content if missing
+    if not _column_exists(conn, 'lessons', 'content'):
+        op.add_column('lessons', sa.Column(
+            'content', sa.Text, nullable=True
+        ))
+
+    # 9. Add updated_at if missing
+    if not _column_exists(conn, 'lessons', 'updated_at'):
+        op.add_column('lessons', sa.Column(
+            'updated_at', sa.DateTime(timezone=True), server_default=sa.func.now()
+        ))
+
 
 def downgrade():
     conn = op.get_bind()
