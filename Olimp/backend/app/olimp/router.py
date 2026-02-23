@@ -84,7 +84,7 @@ def _question_to_dict(q: OlympiadQuestion) -> dict:
 
 # ============= Olympiad Management (Admin/Teacher) =============
 
-@router.post("/olympiads")
+@router.post("/")
 async def create_olympiad(
     data: OlympiadCreate,
     db: AsyncSession = Depends(get_db)
@@ -109,7 +109,7 @@ async def create_olympiad(
     return {"success": True, "data": _olympiad_to_dict(olympiad)}
 
 
-@router.get("/olympiads")
+@router.get("/")
 async def list_olympiads(
     status: Optional[str] = None,
     subject: Optional[str] = None,
@@ -134,7 +134,7 @@ async def list_olympiads(
     }
 
 
-@router.get("/olympiads/{olympiad_id}")
+@router.get("/{olympiad_id}")
 async def get_olympiad(
     olympiad_id: str,
     db: AsyncSession = Depends(get_db)
@@ -148,7 +148,7 @@ async def get_olympiad(
     return {"success": True, "data": _olympiad_to_dict(olympiad)}
 
 
-@router.put("/olympiads/{olympiad_id}")
+@router.put("/{olympiad_id}")
 async def update_olympiad(
     olympiad_id: str,
     data: OlympiadCreate,
@@ -174,7 +174,7 @@ async def update_olympiad(
     return {"success": True, "data": _olympiad_to_dict(olympiad)}
 
 
-@router.post("/olympiads/{olympiad_id}/activate")
+@router.post("/{olympiad_id}/activate")
 async def activate_olympiad(
     olympiad_id: str,
     db: AsyncSession = Depends(get_db)
@@ -198,7 +198,7 @@ async def activate_olympiad(
     return {"success": True, "data": _olympiad_to_dict(olympiad)}
 
 
-@router.post("/olympiads/{olympiad_id}/complete")
+@router.post("/{olympiad_id}/complete")
 async def complete_olympiad(
     olympiad_id: str,
     db: AsyncSession = Depends(get_db)
@@ -215,7 +215,7 @@ async def complete_olympiad(
     return {"success": True, "data": _olympiad_to_dict(olympiad)}
 
 
-@router.delete("/olympiads/{olympiad_id}")
+@router.delete("/{olympiad_id}")
 async def delete_olympiad(
     olympiad_id: str,
     db: AsyncSession = Depends(get_db)
@@ -233,7 +233,7 @@ async def delete_olympiad(
 
 # ============= Questions Management =============
 
-@router.post("/olympiads/{olympiad_id}/questions")
+@router.post("/{olympiad_id}/questions")
 async def add_question(
     olympiad_id: str,
     data: OlympiadQuestionCreate,
@@ -269,7 +269,7 @@ async def add_question(
     return {"success": True, "data": _question_to_dict(question)}
 
 
-@router.get("/olympiads/{olympiad_id}/questions")
+@router.get("/{olympiad_id}/questions")
 async def list_questions(
     olympiad_id: str,
     db: AsyncSession = Depends(get_db)
@@ -295,7 +295,7 @@ async def list_questions(
     }
 
 
-@router.delete("/olympiads/{olympiad_id}/questions/{question_id}")
+@router.delete("/{olympiad_id}/questions/{question_id}")
 async def delete_question(
     olympiad_id: str,
     question_id: str,
@@ -319,7 +319,7 @@ async def delete_question(
 
 # ============= Student Participation =============
 
-@router.post("/olympiads/{olympiad_id}/register")
+@router.post("/{olympiad_id}/register")
 async def register_for_olympiad(
     olympiad_id: str,
     data: OlympiadRegistrationSchema,
@@ -372,7 +372,7 @@ async def register_for_olympiad(
     }
 
 
-@router.post("/olympiads/{olympiad_id}/submit")
+@router.post("/{olympiad_id}/submit")
 async def submit_answers(
     olympiad_id: str,
     answers: List[AnswerSubmit],
@@ -437,7 +437,7 @@ async def submit_answers(
 
 # ============= Leaderboard =============
 
-@router.get("/olympiads/{olympiad_id}/leaderboard")
+@router.get("/{olympiad_id}/leaderboard")
 async def get_leaderboard(
     olympiad_id: str,
     limit: int = 20,
