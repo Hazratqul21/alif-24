@@ -63,6 +63,11 @@ const ParentDashboard = () => {
     // Subscription state
     const [subscription, setSubscription] = useState(null);
 
+    // Promo code state
+    const [promoCode, setPromoCode] = useState('');
+    const [promoLoading, setPromoLoading] = useState(false);
+    const [promoResult, setPromoResult] = useState(null);
+
     useEffect(() => {
         fetchChildren();
         fetchPendingInvites();
@@ -439,8 +444,8 @@ const ParentDashboard = () => {
                                                 <div className="flex items-center gap-2 flex-shrink-0">
                                                     {st === 'graded' ? (
                                                         <span className={`text-xs px-2 py-1 rounded-full font-bold ${(a.score / maxScore) >= 0.8 ? 'bg-green-100 text-green-700' :
-                                                                (a.score / maxScore) >= 0.6 ? 'bg-yellow-100 text-yellow-700' :
-                                                                    'bg-red-100 text-red-700'
+                                                            (a.score / maxScore) >= 0.6 ? 'bg-yellow-100 text-yellow-700' :
+                                                                'bg-red-100 text-red-700'
                                                             }`}>
                                                             {a.score}/{maxScore}
                                                         </span>
@@ -451,8 +456,8 @@ const ParentDashboard = () => {
                                                         </button>
                                                     ) : (
                                                         <span className={`text-xs px-2 py-1 rounded-full ${st === 'submitted' ? 'bg-green-100 text-green-700' :
-                                                                st === 'late' ? 'bg-orange-100 text-orange-700' :
-                                                                    'bg-yellow-100 text-yellow-700'
+                                                            st === 'late' ? 'bg-orange-100 text-orange-700' :
+                                                                'bg-yellow-100 text-yellow-700'
                                                             }`}>
                                                             {st === 'submitted' ? 'Bajarildi' :
                                                                 st === 'late' ? 'Kech' : 'Kutilmoqda'}
@@ -517,11 +522,45 @@ const ParentDashboard = () => {
                 </div>
             )}
 
+            {/* Promocode */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+                <h3 className="font-bold text-lg text-gray-700 mb-3">Promocode</h3>
+                <div className="flex gap-2">
+                    <input value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                        placeholder="Kodni kiriting..."
+                        className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 font-mono tracking-wider uppercase" />
+                    <button disabled={!promoCode || promoLoading} onClick={async () => {
+                        setPromoLoading(true);
+                        setPromoResult(null);
+                        try {
+                            const res = await apiService.post('/auth/promo-code', { code: promoCode });
+                            const data = res?.data || res;
+                            setPromoResult({ type: 'success', message: data.message || 'Muvaffaqiyatli!', result: data.result });
+                            setPromoCode('');
+                            // Refresh subscription
+                            apiService.get('/auth/me').then(r => setSubscription(r?.subscription || r?.data?.subscription || null)).catch(() => { });
+                        } catch (e) {
+                            setPromoResult({ type: 'error', message: e.response?.data?.detail || 'Xatolik yuz berdi' });
+                        }
+                        setPromoLoading(false);
+                    }}
+                        className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 transition disabled:opacity-50">
+                        {promoLoading ? '...' : 'Faollashtirish'}
+                    </button>
+                </div>
+                {promoResult && (
+                    <div className={`mt-3 p-3 rounded-xl text-sm ${promoResult.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                        <p className="font-medium">{promoResult.message}</p>
+                        {promoResult.result && <p className="text-xs mt-1 opacity-80">{promoResult.result}</p>}
+                    </div>
+                )}
+            </div>
+
             {!subscription && (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
                     <CreditCard size={48} className="mx-auto mb-3 text-gray-300" />
                     <h3 className="font-bold text-lg text-gray-700 mb-2">Hozircha bepul foydalanmoqdasiz</h3>
-                    <p className="text-gray-500 text-sm">Obuna olish uchun administratsiyaga murojaat qiling</p>
+                    <p className="text-gray-500 text-sm">Obuna olish uchun administratsiyaga murojaat qiling yoki promocode kiriting</p>
                 </div>
             )}
         </div>
@@ -959,8 +998,8 @@ const ParentDashboard = () => {
                                     return (
                                         <button key={v} onClick={() => setGradeScore(String(actualVal))}
                                             className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition ${parseInt(gradeScore) === actualVal
-                                                    ? 'bg-green-600 text-white border-green-600'
-                                                    : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                                                ? 'bg-green-600 text-white border-green-600'
+                                                : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
                                                 }`}>{v}%</button>
                                     );
                                 })}
