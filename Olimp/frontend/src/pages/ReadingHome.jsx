@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import readingService from '../services/readingService';
+import apiService from '../services/apiService';
 
 const DAYS = {
     monday: { label: 'Dushanba', short: 'Du', num: 1 },
@@ -22,7 +23,11 @@ export default function ReadingHome() {
     const [activeTab, setActiveTab] = useState('tasks'); // tasks | results | leaderboard
     const [leaderboardGroup, setLeaderboardGroup] = useState('champion'); // fast_reader | accurate_reader | test_master | champion
 
-    const hasToken = !!localStorage.getItem('accessToken');
+    // HttpOnly cookie bilan auth tekshirish — localStorage emas
+    const [hasToken, setHasToken] = useState(false);
+    useEffect(() => {
+        apiService.get('/auth/me').then(() => setHasToken(true)).catch(() => setHasToken(false));
+    }, []);
 
     useEffect(() => {
         loadCompetitions();
@@ -299,7 +304,7 @@ export default function ReadingHome() {
                                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm whitespace-nowrap transition-all flex-shrink-0 ${leaderboardGroup === g.key
                                                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
                                                 : 'bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-800'
-                                            }`}>
+                                                }`}>
                                             <span>{g.icon}</span>
                                             <span className="font-medium">{g.label}</span>
                                         </button>

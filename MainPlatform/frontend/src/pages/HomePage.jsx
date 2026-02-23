@@ -31,24 +31,24 @@ const HomePage = () => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // O'yinlar va darslar ma'lumotlari
   const games = [
     { id: 1, title: t.game_read, rating: 74, image: '/ertak.jpg', category: 'alifbe', type: 'lessons' },
-    { id: 2, title: t.game_homework, rating: 67, image: '/uygavaz.jpg', category: 'math', type: 'lessons'},
+    { id: 2, title: t.game_homework, rating: 67, image: '/uygavaz.jpg', category: 'math', type: 'lessons' },
     { id: 3, title: t.game_uz_alphabet, rating: 76, image: '/alifbe.jpg', category: 'harflar', type: 'lessons' },
     { id: 4, title: t.game_en_alphabet, rating: 87, image: '/texno.jpg', category: 'letters', type: 'lessons' },
-    { id: 5, title: t.game_ru_alphabet, rating: 66, image: '/bukv.jpg', category: 'harflar', type: 'lessons'},
+    { id: 5, title: t.game_ru_alphabet, rating: 66, image: '/bukv.jpg', category: 'harflar', type: 'lessons' },
     { id: 6, title: t.game_memory_game, rating: 74, image: '/xotira.jpg', category: 'letters', type: 'games' },
     { id: 7, title: t.game_math_monster, rating: 78, image: '/matem.jpg', category: 'math', type: 'games' },
-   
-     
+
+
     /*
     { id: 8, title: 'Farm Building', rating: 83, image: '/uqish.jpg', category: 'tabiat', type: 'lessons', premium: true },
     { id: 9, title: 'Desert Shooter', rating: 68, image: '🔫', category: 'harflar', type: 'games' },
@@ -81,18 +81,9 @@ const HomePage = () => {
     return matchesMainFilter && matchesCategoryFilter;
   });
 
-  // Redirect to sub-platform with auth token
+  // Redirect to sub-platform — HttpOnly cookies handle auth automatically
   const redirectToPlatform = (baseUrl, path = '') => {
-    const token = localStorage.getItem('accessToken');
-    const refresh = localStorage.getItem('refreshToken');
-    let url = `${baseUrl}${path}`;
-    if (token) {
-      const params = new URLSearchParams();
-      params.set('token', token);
-      if (refresh) params.set('refresh', refresh);
-      url += `?${params.toString()}`;
-    }
-    window.location.href = url;
+    window.location.href = `${baseUrl}${path}`;
   };
 
   const handleGameClick = (game) => {
@@ -142,7 +133,7 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative">
       {/* Animated background stars */}
-     <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Stars */}
         <div className="absolute top-[5%] left-[10%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0s', animationDuration: '2s' }} />
         <div className="absolute top-[15%] left-[25%] w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.5s', animationDuration: '3s' }} />
@@ -150,21 +141,21 @@ const HomePage = () => {
         <div className="absolute top-[20%] left-[60%] w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '1.5s', animationDuration: '3.5s' }} />
         <div className="absolute top-[12%] left-[75%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.8s', animationDuration: '2.8s' }} />
         <div className="absolute top-[25%] left-[90%] w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '2s', animationDuration: '3.2s' }} />
-        
+
         <div className="absolute top-[35%] left-[5%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '1.2s', animationDuration: '2.3s' }} />
         <div className="absolute top-[40%] left-[18%] w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.3s', animationDuration: '3.8s' }} />
         <div className="absolute top-[38%] left-[35%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '2.2s', animationDuration: '2.6s' }} />
         <div className="absolute top-[45%] left-[52%] w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.9s', animationDuration: '3.4s' }} />
         <div className="absolute top-[42%] left-[68%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '1.7s', animationDuration: '2.9s' }} />
         <div className="absolute top-[48%] left-[82%] w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.6s', animationDuration: '3.1s' }} />
-        
+
         <div className="absolute top-[55%] left-[12%] w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '1.4s', animationDuration: '2.7s' }} />
         <div className="absolute top-[60%] left-[28%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '2.5s', animationDuration: '3.3s' }} />
         <div className="absolute top-[58%] left-[42%] w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.4s', animationDuration: '2.4s' }} />
         <div className="absolute top-[65%] left-[55%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '1.9s', animationDuration: '3.6s' }} />
         <div className="absolute top-[62%] left-[72%] w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.7s', animationDuration: '2.2s' }} />
         <div className="absolute top-[68%] left-[88%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '2.8s', animationDuration: '3.7s' }} />
-        
+
         <div className="absolute top-[75%] left-[8%] w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '1.1s', animationDuration: '2.5s' }} />
         <div className="absolute top-[80%] left-[22%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.2s', animationDuration: '3.9s' }} />
         <div className="absolute top-[78%] left-[38%] w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '2.3s', animationDuration: '2.8s' }} />
@@ -172,14 +163,14 @@ const HomePage = () => {
         <div className="absolute top-[82%] left-[65%] w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.1s', animationDuration: '2.6s' }} />
         <div className="absolute top-[88%] left-[78%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '2.7s', animationDuration: '3.5s' }} />
         <div className="absolute top-[92%] left-[92%] w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '1.3s', animationDuration: '2.1s' }} />
-        
+
         <div className="absolute top-[3%] left-[33%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '2.1s', animationDuration: '3.4s' }} />
         <div className="absolute top-[28%] left-[48%] w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.5s', animationDuration: '2.9s' }} />
         <div className="absolute top-[50%] left-[95%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '1.8s', animationDuration: '3.1s' }} />
         <div className="absolute top-[72%] left-[15%] w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '2.6s', animationDuration: '2.3s' }} />
         <div className="absolute top-[18%] left-[85%] w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '0.9s', animationDuration: '3.7s' }} />
         <div className="absolute top-[95%] left-[40%] w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]" style={{ animationDelay: '2.4s', animationDuration: '2.7s' }} />
-        
+
         {/* Comets */}
         <div className="absolute w-1 h-1 bg-white rounded-full shadow-[0_0_10px_2px_rgba(255,255,255,0.8),0_0_20px_4px_rgba(100,200,255,0.6)]" style={{ animation: 'comet 6s linear infinite', animationDelay: '0s', top: '10%', left: '-50px' }} />
         <div className="absolute w-1 h-1 bg-white rounded-full shadow-[0_0_10px_2px_rgba(255,255,255,0.8),0_0_20px_4px_rgba(100,200,255,0.6)]" style={{ animation: 'comet 5s linear infinite', animationDelay: '5s', top: '30%', left: '-50px' }} />
@@ -192,15 +183,14 @@ const HomePage = () => {
       {/* Main Content */}
       <div className="flex min-h-[calc(100vh-70px)] relative">
         {/* Sidebar - Neon Design */}
-        <aside 
-          className={`fixed top-[70px] pb-[120px] left-0 h-[calc(100vh-70px)] bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f1624] shadow-[2px_0_20px_rgba(75,48,251,0.5)] z-[998] overflow-y-auto transition-all duration-300 border-r-2 border-[rgba(75,48,251,0.3)] ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+        <aside
+          className={`fixed top-[70px] pb-[120px] left-0 h-[calc(100vh-70px)] bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#0f1624] shadow-[2px_0_20px_rgba(75,48,251,0.5)] z-[998] overflow-y-auto transition-all duration-300 border-r-2 border-[rgba(75,48,251,0.3)] ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
           style={{ width: '280px' }}
         >
           <div className={`transition-all duration-300 ${sidebarOpen ? 'p-3' : 'p-2'}`}>
             {/* Toggle Sidebar Button */}
-            <button 
+            <button
               className={`w-full bg-gradient-to-br from-[#ff00ff] to-[#00ffff] border-none text-white rounded-xl cursor-pointer flex items-center justify-center transition-all duration-300 shadow-[0_4px_15px_rgba(255,0,255,0.6)] hover:shadow-[0_8px_25px_rgba(0,255,255,0.8)] hover:scale-110 mb-3 ${sidebarOpen ? 'p-3' : 'p-2.5'}`}
               onClick={toggleSidebar}
             >
@@ -208,14 +198,12 @@ const HomePage = () => {
             </button>
 
             {/* All Category Button */}
-            <button 
-              className={`w-full flex items-center gap-3 mb-3 border-none rounded-xl cursor-pointer transition-all duration-300 text-white text-base font-bold transform hover:scale-110 shadow-lg ${
-                sidebarOpen ? 'p-3 justify-start' : 'p-2.5 justify-center'
-              } ${
-                categoryFilter === 'all' 
-                  ? 'bg-gradient-to-r from-[#ff6b6b] to-[#ff8e53] shadow-[0_4px_20px_rgba(255,107,107,0.6)]' 
+            <button
+              className={`w-full flex items-center gap-3 mb-3 border-none rounded-xl cursor-pointer transition-all duration-300 text-white text-base font-bold transform hover:scale-110 shadow-lg ${sidebarOpen ? 'p-3 justify-start' : 'p-2.5 justify-center'
+                } ${categoryFilter === 'all'
+                  ? 'bg-gradient-to-r from-[#ff6b6b] to-[#ff8e53] shadow-[0_4px_20px_rgba(255,107,107,0.6)]'
                   : 'bg-gradient-to-r from-[#4ecdc4] to-[#44a08d] shadow-[0_4px_15px_rgba(78,205,196,0.5)]'
-              }`}
+                }`}
               onClick={() => handleCategoryClick('all')}
             >
               <ClipboardList size={22} />
@@ -243,17 +231,15 @@ const HomePage = () => {
                 { from: '#ff6348', to: '#ff4757', shadow: 'rgba(255,99,72,0.6)' },
               ];
               const color = colors[index % colors.length];
-              
+
               return (
-                <button 
+                <button
                   key={cat.id}
-                  className={`w-full flex items-center gap-3 mb-3 border-none rounded-xl cursor-pointer transition-all duration-300 text-white text-base font-bold transform hover:scale-110 shadow-lg ${
-                    sidebarOpen ? 'p-3 justify-start' : 'p-2.5 justify-center'
-                  } ${
-                    categoryFilter === cat.id 
-                      ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1a2e]' 
+                  className={`w-full flex items-center gap-3 mb-3 border-none rounded-xl cursor-pointer transition-all duration-300 text-white text-base font-bold transform hover:scale-110 shadow-lg ${sidebarOpen ? 'p-3 justify-start' : 'p-2.5 justify-center'
+                    } ${categoryFilter === cat.id
+                      ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1a2e]'
                       : ''
-                  }`}
+                    }`}
                   onClick={() => handleCategoryClick(cat.id)}
                   style={{
                     background: `linear-gradient(135deg, ${color.from} 0%, ${color.to} 100%)`,
@@ -277,53 +263,49 @@ const HomePage = () => {
         </aside>
 
         {/* Main Content Area */}
-        <main 
-          className={`flex-1 transition-all duration-300 relative z-10 ${
-            sidebarOpen ? 'ml-[280px]' : 'ml-0'
-          }`}
+        <main
+          className={`flex-1 transition-all duration-300 relative z-10 ${sidebarOpen ? 'ml-[280px]' : 'ml-0'
+            }`}
         >
           <div className="p-5 pb-[100px]">
             {/* Header Controls */}
             <div className="flex items-center gap-4 mb-7 flex-wrap">
               {/* Sidebar Toggle Button */}
-              <button 
+              <button
                 onClick={toggleSidebar}
                 className="px-4 py-3 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white rounded-xl font-semibold border-none cursor-pointer flex items-center gap-2 transition-all duration-300 shadow-[0_4px_15px_rgba(75,48,251,0.4)] hover:shadow-[0_8px_25px_rgba(75,48,251,0.6)] hover:scale-110"
               >
                 <Menu size={20} />
-               
+
               </button>
-              
-              <button 
-                className={`px-6 py-3 border-none rounded-xl font-semibold text-base cursor-pointer flex items-center gap-2 transition-all duration-300 ${
-                  mainFilter === 'all'
+
+              <button
+                className={`px-6 py-3 border-none rounded-xl font-semibold text-base cursor-pointer flex items-center gap-2 transition-all duration-300 ${mainFilter === 'all'
                     ? 'bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white shadow-[0_4px_15px_rgba(75,48,251,0.4)]'
                     : 'bg-white/30 text-white hover:bg-white/20 hover:-translate-y-0.5'
-                }`}
+                  }`}
                 onClick={() => handleMainFilterClick('all')}
               >
                 <Home size={20} />
                 <span className={isMobile ? 'hidden' : ''}>{t.all}</span>
               </button>
 
-              <button 
-                className={`px-6 py-3 border-none rounded-xl font-semibold text-base cursor-pointer flex items-center gap-2 transition-all duration-300 ${
-                  mainFilter === 'lessons'
+              <button
+                className={`px-6 py-3 border-none rounded-xl font-semibold text-base cursor-pointer flex items-center gap-2 transition-all duration-300 ${mainFilter === 'lessons'
                     ? 'bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white shadow-[0_4px_15px_rgba(75,48,251,0.4)]'
                     : 'bg-white/30 text-white hover:bg-white/20 hover:-translate-y-0.5'
-                }`}
+                  }`}
                 onClick={() => handleMainFilterClick('lessons')}
               >
                 <BookOpen size={20} />
                 <span className={isMobile ? 'hidden' : ''}>{t.lessons}</span>
               </button>
 
-              <button 
-                className={`px-6 py-3 border-none rounded-xl font-semibold text-base cursor-pointer flex items-center gap-2 transition-all duration-300 ${
-                  mainFilter === 'games'
+              <button
+                className={`px-6 py-3 border-none rounded-xl font-semibold text-base cursor-pointer flex items-center gap-2 transition-all duration-300 ${mainFilter === 'games'
                     ? 'bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white shadow-[0_4px_15px_rgba(75,48,251,0.4)]'
                     : 'bg-white/30 text-white hover:bg-white/20 hover:-translate-y-0.5'
-                }`}
+                  }`}
                 onClick={() => handleMainFilterClick('games')}
               >
                 <Gamepad2 size={20} />
@@ -340,8 +322,8 @@ const HomePage = () => {
             {/* Games Grid */}
             <div className={`grid gap-5 ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}`}>
               {filteredItems.map((game, index) => (
-                <div 
-                  key={game.id} 
+                <div
+                  key={game.id}
                   className="group cursor-pointer transition-all duration-300 hover:-translate-y-2"
                   onClick={() => handleGameClick(game)}
                   style={{
@@ -355,11 +337,10 @@ const HomePage = () => {
                       </span>
                     )}
                     <div className="absolute top-2 left-2 z-10">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                        game.type === 'lessons' 
-                          ? 'bg-emerald-500/80 text-white' 
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${game.type === 'lessons'
+                          ? 'bg-emerald-500/80 text-white'
                           : 'bg-amber-500/80 text-white'
-                      }`}>
+                        }`}>
                         {game.type === 'lessons' ? <BookOpen size={12} className="inline" /> : <Gamepad2 size={12} className="inline" />} {game.type === 'lessons' ? (t.lessons || 'Dars') : (t.games || "O'yin")}
                       </span>
                     </div>
@@ -377,7 +358,7 @@ const HomePage = () => {
                       <h3 className="text-white font-bold text-sm md:text-base truncate mb-2">{game.title}</h3>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-[#4b30fb] to-[#00d4ff]"
                             style={{ width: `${game.rating}%` }}
                           />
@@ -405,8 +386,8 @@ const HomePage = () => {
 
       {/* Overlay for mobile */}
       {sidebarOpen && isMobile && (
-        <div 
-          className="fixed inset-0 bg-black/70 z-[997] backdrop-blur-[5px] top-[70px]" 
+        <div
+          className="fixed inset-0 bg-black/70 z-[997] backdrop-blur-[5px] top-[70px]"
           onClick={toggleSidebar}
         />
       )}
