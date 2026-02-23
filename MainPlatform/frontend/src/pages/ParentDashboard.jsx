@@ -38,6 +38,12 @@ const ParentDashboard = () => {
         max_score: 100
     });
 
+    // Grading state
+    const [gradingItem, setGradingItem] = useState(null);
+    const [gradeScore, setGradeScore] = useState('');
+    const [gradeFeedback, setGradeFeedback] = useState('');
+    const [gradingLoading, setGradingLoading] = useState(false);
+
     // Notifications state
     const [notifications, setNotifications] = useState([]);
 
@@ -104,6 +110,32 @@ const ParentDashboard = () => {
         }
         setChildAssignments(assignmentsMap);
         setChildTeachers(teachersMap);
+    };
+
+    const handleParentGrade = async () => {
+        if (!gradingItem || gradeScore === '') return;
+        const score = parseFloat(gradeScore);
+        const maxScore = gradingItem.assignment?.max_score || 100;
+        if (isNaN(score) || score < 0 || score > maxScore) {
+            alert(`Ball 0 dan ${maxScore} gacha bo'lishi kerak`);
+            return;
+        }
+        try {
+            setGradingLoading(true);
+            await parentService.gradeSubmission(gradingItem.assignment_id, gradingItem.id, {
+                score,
+                feedback: gradeFeedback || null,
+            });
+            setGradingItem(null);
+            setGradeScore('');
+            setGradeFeedback('');
+            fetchAllChildrenAssignments();
+            alert('Baho muvaffaqiyatli qo\'yildi!');
+        } catch (e) {
+            alert(e.message || 'Baholashda xatolik');
+        } finally {
+            setGradingLoading(false);
+        }
     };
 
     const handleAssignTask = async (e) => {
@@ -386,20 +418,42 @@ const ParentDashboard = () => {
                                     <BookOpen size={16} /> Vazifalar ({childAssignments[child.id].length})
                                 </h4>
                                 <div className="space-y-2">
-                                    {childAssignments[child.id].slice(0, 3).map(a => {
+                                    {childAssignments[child.id].slice(0, 5).map(a => {
                                         const st = a.status || 'pending';
                                         const assign = a.assignment || a;
+                                        const maxScore = assign.max_score || 100;
+                                        const isParentCreated = assign.creator_role === 'parent';
                                         return (
-                                            <div key={a.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg text-sm">
-                                                <span className="font-medium text-gray-800 truncate">{assign.title || a.title}</span>
-                                                <span className={`text-xs px-2 py-1 rounded-full ${st === 'submitted' ? 'bg-green-100 text-green-700' :
-                                                    st === 'graded' ? 'bg-blue-100 text-blue-700' :
-                                                        'bg-yellow-100 text-yellow-700'
-                                                    }`}>
-                                                    {st === 'submitted' ? 'Bajarildi' :
-                                                        st === 'graded' ? 'Baholandi' :
-                                                            'Kutilmoqda'}
-                                                </span>
+                                            <div key={a.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg text-sm">
+                                                <div className="flex-1 min-w-0 mr-2">
+                                                    <span className="font-medium text-gray-800 truncate block">{assign.title || a.title}</span>
+                                                    {a.teacher_name && <span className="text-xs text-gray-400">{a.teacher_name}</span>}
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    {st === 'graded' ? (
+                                                        <span className={`text-xs px-2 py-1 rounded-full font-bold ${
+                                                            (a.score / maxScore) >= 0.8 ? 'bg-green-100 text-green-700' :
+                                                            (a.score / maxScore) >= 0.6 ? 'bg-yellow-100 text-yellow-700' :
+                                                            'bg-red-100 text-red-700'
+                                                        }`}>
+                                                            {a.score}/{maxScore}
+                                                        </span>
+                                                    ) : (st === 'submitted' || st === 'late') && isParentCreated ? (
+                                                        <button onClick={(e) => { e.stopPropagation(); setGradingItem({ ...a, assignment: assign }); setGradeScore(''); setGradeFeedback(''); }}
+                                                            className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700 font-medium hover:bg-green-200 transition border-none cursor-pointer">
+                                                            Baholash
+                                                        </button>
+                                                    ) : (
+                                                        <span className={`text-xs px-2 py-1 rounded-full ${
+                                                            st === 'submitted' ? 'bg-green-100 text-green-700' :
+                                                            st === 'late' ? 'bg-orange-100 text-orange-700' :
+                                                            'bg-yellow-100 text-yellow-700'
+                                                        }`}>
+                                                            {st === 'submitted' ? 'Bajarildi' :
+                                                             st === 'late' ? 'Kech' : 'Kutilmoqda'}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -841,6 +895,59 @@ const ParentDashboard = () => {
                                 Vazifa berish
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Grading Modal */}
+            {gradingItem && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setGradingItem(null)}>
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-gray-800">Baholash</h3>
+                            <button onClick={() => setGradingItem(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                <X size={20} className="text-gray-500" />
+                            </button>
+                        </div>
+                        <div className="bg-gray-50 rounded-xl p-3">
+                            <div className="font-medium text-gray-800">{gradingItem.assignment?.title || 'Vazifa'}</div>
+                            {gradingItem.content && <p className="text-gray-500 text-sm mt-1">{gradingItem.content}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Ball (0 — {gradingItem.assignment?.max_score || 100})</label>
+                            <div className="flex items-center gap-3">
+                                <input type="number" min="0" max={gradingItem.assignment?.max_score || 100} step="1"
+                                    value={gradeScore} onChange={e => setGradeScore(e.target.value)} placeholder="0"
+                                    className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-2xl font-bold text-center focus:ring-2 focus:ring-green-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                <span className="text-gray-400 text-lg font-bold">/ {gradingItem.assignment?.max_score || 100}</span>
+                            </div>
+                            <div className="flex gap-2 mt-3">
+                                {[100, 90, 80, 70, 60, 50].map(v => {
+                                    const maxS = gradingItem.assignment?.max_score || 100;
+                                    const actualVal = Math.round(maxS * v / 100);
+                                    return (
+                                        <button key={v} onClick={() => setGradeScore(String(actualVal))}
+                                            className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition ${
+                                                parseInt(gradeScore) === actualVal
+                                                    ? 'bg-green-600 text-white border-green-600'
+                                                    : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                                            }`}>{v}%</button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Izoh (ixtiyoriy)</label>
+                            <textarea value={gradeFeedback} onChange={e => setGradeFeedback(e.target.value)}
+                                placeholder="Bolaga izoh yozing..." rows={2}
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none resize-none text-sm" />
+                        </div>
+                        <button onClick={handleParentGrade} disabled={gradingLoading || gradeScore === ''}
+                            className={`w-full py-3 rounded-xl font-bold text-sm transition ${
+                                gradingLoading || gradeScore === '' ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                            }`}>
+                            {gradingLoading ? 'Saqlanmoqda...' : 'Bahoni saqlash'}
+                        </button>
                     </div>
                 </div>
             )}

@@ -38,6 +38,14 @@ const TeacherDashboard = () => {
   const [studentDetail, setStudentDetail] = useState(null);
   const [studentDetailLoading, setStudentDetailLoading] = useState(false);
 
+  // Grading states
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [assignmentSubmissions, setAssignmentSubmissions] = useState([]);
+  const [gradingSubmission, setGradingSubmission] = useState(null);
+  const [gradeScore, setGradeScore] = useState('');
+  const [gradeFeedback, setGradeFeedback] = useState('');
+  const [gradingLoading, setGradingLoading] = useState(false);
+
   // Form states
   const [newClass, setNewClass] = useState({ name: '', subject: '', grade_level: '', description: '' });
   const [inviteData, setInviteData] = useState({ identifier: '', invitation_type: 'phone', message: '' });
@@ -138,6 +146,40 @@ const TeacherDashboard = () => {
       }).catch(() => {});
     }
   }, [activeTab, mySchool]);
+
+  const fetchAssignmentDetail = async (assignmentId) => {
+    try {
+      setLoading(true);
+      const res = await teacherService.getAssignmentDetail(assignmentId);
+      const d = res.data || res;
+      setSelectedAssignment(d.assignment);
+      setAssignmentSubmissions(d.submissions || []);
+    } catch (e) { showNotif('error', 'Vazifa yuklanmadi'); }
+    finally { setLoading(false); }
+  };
+
+  const handleGradeSubmission = async () => {
+    if (!gradingSubmission || gradeScore === '') return;
+    const score = parseFloat(gradeScore);
+    if (isNaN(score) || score < 0 || score > (selectedAssignment?.max_score || 100)) {
+      showNotif('error', `Ball 0 dan ${selectedAssignment?.max_score || 100} gacha bo'lishi kerak`);
+      return;
+    }
+    try {
+      setGradingLoading(true);
+      await teacherService.gradeSubmission(selectedAssignment.id, gradingSubmission.id, {
+        score,
+        feedback: gradeFeedback || null,
+      });
+      showNotif('success', 'Baho muvaffaqiyatli qo\'yildi!');
+      setGradingSubmission(null);
+      setGradeScore('');
+      setGradeFeedback('');
+      fetchAssignmentDetail(selectedAssignment.id);
+      fetchAssignments();
+    } catch (e) { showNotif('error', e.message || 'Baholashda xatolik'); }
+    finally { setGradingLoading(false); }
+  };
 
   const fetchClassroomDetail = async (id) => {
     try {
@@ -566,45 +608,269 @@ const TeacherDashboard = () => {
 
   // ============ RENDER: ASSIGNMENTS ============
 
-  const renderAssignments = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-white">Vazifalar</h3>
-        <button onClick={() => setShowCreateAssignment(true)}
-          className="flex items-center gap-2 bg-gradient-to-br from-green-500 to-green-600 text-white px-4 py-2 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform text-sm font-medium">
-          <Plus size={16} /> Yangi vazifa
-        </button>
-      </div>
-      {assignments.length === 0 ? (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
-          <ClipboardList className="w-12 h-12 text-white/30 mx-auto mb-3" />
-          <p className="text-white/60">Hozircha vazifa yo'q</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {assignments.map(a => (
-            <div key={a.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h4 className="text-white font-bold">{a.title}</h4>
-                  <p className="text-white/50 text-sm mt-1">{a.description || ''}</p>
-                </div>
-                <span className={`px-2 py-1 rounded-lg text-xs font-medium ${a.assignment_type === 'homework' ? 'bg-blue-500/20 text-blue-400' :
-                  a.assignment_type === 'test' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400'
-                  }`}>{a.assignment_type}</span>
+  const getScoreColor = (score, max) => {
+    const pct = (score / max) * 100;
+    if (pct >= 80) return 'text-green-400';
+    if (pct >= 60) return 'text-yellow-400';
+    if (pct >= 40) return 'text-orange-400';
+    return 'text-red-400';
+  };
+
+  const getScoreBg = (score, max) => {
+    const pct = (score / max) * 100;
+    if (pct >= 80) return 'bg-green-500/20 border-green-500/30';
+    if (pct >= 60) return 'bg-yellow-500/20 border-yellow-500/30';
+    if (pct >= 40) return 'bg-orange-500/20 border-orange-500/30';
+    return 'bg-red-500/20 border-red-500/30';
+  };
+
+  const renderAssignments = () => {
+    // Assignment detail view with submissions
+    if (selectedAssignment) {
+      const maxScore = selectedAssignment.max_score || 100;
+      const gradedSubs = assignmentSubmissions.filter(s => s.status === 'graded');
+      const avgScore = gradedSubs.length > 0
+        ? (gradedSubs.reduce((sum, s) => sum + (s.score || 0), 0) / gradedSubs.length).toFixed(1)
+        : 0;
+
+      return (
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => { setSelectedAssignment(null); setAssignmentSubmissions([]); }}
+              className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all border-none cursor-pointer">
+              <ArrowLeft size={18} className="text-white" />
+            </button>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-white">{selectedAssignment.title}</h3>
+              <p className="text-white/50 text-sm">{selectedAssignment.description || ''}</p>
+            </div>
+            <span className={`px-3 py-1 rounded-lg text-xs font-medium ${selectedAssignment.assignment_type === 'homework' ? 'bg-blue-500/20 text-blue-400' :
+              selectedAssignment.assignment_type === 'test' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400'
+              }`}>{selectedAssignment.assignment_type}</span>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
+              <div className="text-blue-400 text-xl font-bold">{assignmentSubmissions.length}</div>
+              <div className="text-white/40 text-xs">Jami</div>
+            </div>
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 text-center">
+              <div className="text-yellow-400 text-xl font-bold">{assignmentSubmissions.filter(s => s.status === 'submitted').length}</div>
+              <div className="text-white/40 text-xs">Topshirdi</div>
+            </div>
+            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+              <div className="text-green-400 text-xl font-bold">{gradedSubs.length}</div>
+              <div className="text-white/40 text-xs">Baholandi</div>
+            </div>
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 text-center">
+              <div className="text-purple-400 text-xl font-bold">{avgScore}/{maxScore}</div>
+              <div className="text-white/40 text-xs">O'rtacha ball</div>
+            </div>
+          </div>
+
+          {/* Submissions list */}
+          <div className="space-y-2">
+            <h4 className="text-white/60 text-xs font-bold uppercase tracking-wider">O'quvchilar topshiruvlari</h4>
+            {assignmentSubmissions.length === 0 ? (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
+                <p className="text-white/40">Hozircha topshiruv yo'q</p>
               </div>
-              <div className="flex items-center gap-4 text-sm text-white/40">
-                {a.due_date && <span><Calendar size={14} className="inline mr-1" />{new Date(a.due_date).toLocaleDateString('uz')}</span>}
-                <span><Users size={14} className="inline mr-1" />{a.total_students || 0} ta o'quvchi</span>
-                <span><CheckCircle size={14} className="inline mr-1" />{a.submitted_count || 0} topshirdi</span>
-                <span className="text-green-400"><Award size={14} className="inline mr-1" />{a.graded_count || 0} baholandi</span>
+            ) : (
+              assignmentSubmissions.map(sub => (
+                <div key={sub.id} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                        sub.status === 'graded' ? getScoreBg(sub.score, maxScore) :
+                        sub.status === 'submitted' ? 'bg-yellow-500/20 border border-yellow-500/30' :
+                        sub.status === 'late' ? 'bg-orange-500/20 border border-orange-500/30' :
+                        'bg-white/10 border border-white/20'
+                      }`}>
+                        {sub.status === 'graded' ? (
+                          <span className={getScoreColor(sub.score, maxScore)}>{sub.score}</span>
+                        ) : sub.status === 'submitted' || sub.status === 'late' ? (
+                          <CheckCircle size={18} className={sub.status === 'late' ? 'text-orange-400' : 'text-yellow-400'} />
+                        ) : (
+                          <Clock size={18} className="text-white/30" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-white font-medium text-sm">{sub.student_name || `ID: ${sub.student_user_id}`}</div>
+                        <div className="text-white/40 text-xs">
+                          {sub.status === 'graded' && sub.graded_at
+                            ? `Baholangan: ${new Date(sub.graded_at).toLocaleDateString('uz')}`
+                            : sub.status === 'submitted' && sub.submitted_at
+                            ? `Topshirgan: ${new Date(sub.submitted_at).toLocaleDateString('uz')}`
+                            : sub.status === 'late' && sub.submitted_at
+                            ? `Kech topshirgan: ${new Date(sub.submitted_at).toLocaleDateString('uz')}`
+                            : 'Kutilmoqda'
+                          }
+                        </div>
+                        {sub.status === 'graded' && sub.feedback && (
+                          <div className="text-white/50 text-xs mt-1 italic">"{sub.feedback}"</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {sub.status === 'graded' ? (
+                        <div className="flex items-center gap-2">
+                          <div className={`px-3 py-1.5 rounded-lg border text-sm font-bold ${getScoreBg(sub.score, maxScore)} ${getScoreColor(sub.score, maxScore)}`}>
+                            {sub.score} / {maxScore}
+                          </div>
+                          <button onClick={() => { setGradingSubmission(sub); setGradeScore(String(sub.score)); setGradeFeedback(sub.feedback || ''); }}
+                            className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-all border-none cursor-pointer" title="Qayta baholash">
+                            <Edit size={14} className="text-white/60" />
+                          </button>
+                        </div>
+                      ) : (sub.status === 'submitted' || sub.status === 'late') ? (
+                        <button onClick={() => { setGradingSubmission(sub); setGradeScore(''); setGradeFeedback(''); }}
+                          className="flex items-center gap-1.5 bg-gradient-to-br from-green-500 to-green-600 text-white px-3 py-1.5 rounded-lg border-none cursor-pointer hover:scale-105 transition-transform text-xs font-medium">
+                          <Award size={14} /> Baholash
+                        </button>
+                      ) : (
+                        <span className="text-white/30 text-xs px-3 py-1.5 bg-white/5 rounded-lg">Topshirmagan</span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Submission content */}
+                  {sub.content && (
+                    <div className="mt-3 pt-3 border-t border-white/10">
+                      <p className="text-white/60 text-sm">{sub.content}</p>
+                    </div>
+                  )}
+                  {sub.attachments?.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {sub.attachments.map((att, i) => (
+                        <a key={i} href={att.url || att} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-lg text-xs text-white/60 hover:text-white hover:bg-white/20 transition-all no-underline">
+                          <Paperclip size={12} /> {att.name || `Fayl ${i + 1}`}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Grading Modal */}
+          {gradingSubmission && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setGradingSubmission(null)}>
+              <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl w-full max-w-md p-6 space-y-5" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-white font-bold text-lg">Baholash</h3>
+                  <button onClick={() => setGradingSubmission(null)} className="p-1 hover:bg-white/10 rounded-lg border-none cursor-pointer">
+                    <X size={18} className="text-white/60" />
+                  </button>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+                  <div className="text-white font-medium text-sm">{gradingSubmission.student_name || `ID: ${gradingSubmission.student_user_id}`}</div>
+                  <div className="text-white/40 text-xs mt-1">Vazifa: {selectedAssignment.title}</div>
+                  {gradingSubmission.content && <p className="text-white/50 text-sm mt-2">{gradingSubmission.content}</p>}
+                </div>
+
+                {/* Score input */}
+                <div>
+                  <label className="text-white/60 text-sm font-medium block mb-2">Ball (0 — {maxScore})</label>
+                  <div className="flex items-center gap-3">
+                    <input type="number" min="0" max={maxScore} step="1" value={gradeScore}
+                      onChange={e => setGradeScore(e.target.value)}
+                      placeholder="0"
+                      className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-2xl font-bold text-center placeholder:text-white/20 focus:outline-none focus:border-[#4b30fb] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    <span className="text-white/40 text-lg font-bold">/ {maxScore}</span>
+                  </div>
+                  {/* Quick score buttons */}
+                  <div className="flex gap-2 mt-3">
+                    {[100, 90, 80, 70, 60, 50].map(v => {
+                      const actualVal = Math.round(maxScore * v / 100);
+                      return (
+                        <button key={v} onClick={() => setGradeScore(String(actualVal))}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border-none cursor-pointer transition-all ${
+                            parseInt(gradeScore) === actualVal
+                              ? 'bg-[#4b30fb] text-white'
+                              : 'bg-white/10 text-white/60 hover:bg-white/20'
+                          }`}>{v}%</button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Feedback */}
+                <div>
+                  <label className="text-white/60 text-sm font-medium block mb-2">Izoh (ixtiyoriy)</label>
+                  <textarea value={gradeFeedback} onChange={e => setGradeFeedback(e.target.value)}
+                    placeholder="O'quvchiga izoh yozing..."
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-[#4b30fb] h-20 resize-none text-sm" />
+                </div>
+
+                <button onClick={handleGradeSubmission} disabled={gradingLoading || gradeScore === ''}
+                  className={`w-full py-3 rounded-xl text-white font-bold text-sm border-none cursor-pointer transition-all ${
+                    gradingLoading || gradeScore === '' ? 'bg-white/10 text-white/30 cursor-not-allowed' : 'bg-gradient-to-br from-green-500 to-green-600 hover:scale-[1.02]'
+                  }`}>
+                  {gradingLoading ? 'Saqlanmoqda...' : 'Bahoni saqlash'}
+                </button>
               </div>
             </div>
-          ))}
+          )}
         </div>
-      )}
-    </div>
-  );
+      );
+    }
+
+    // Assignment list view
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-white">Vazifalar</h3>
+          <button onClick={() => setShowCreateAssignment(true)}
+            className="flex items-center gap-2 bg-gradient-to-br from-green-500 to-green-600 text-white px-4 py-2 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform text-sm font-medium">
+            <Plus size={16} /> Yangi vazifa
+          </button>
+        </div>
+        {assignments.length === 0 ? (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+            <ClipboardList className="w-12 h-12 text-white/30 mx-auto mb-3" />
+            <p className="text-white/60">Hozircha vazifa yo'q</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {assignments.map(a => (
+              <div key={a.id} onClick={() => fetchAssignmentDetail(a.id)}
+                className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all cursor-pointer group">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <h4 className="text-white font-bold group-hover:text-[#4b30fb] transition-colors">{a.title}</h4>
+                    <p className="text-white/50 text-sm mt-1">{a.description || ''}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded-lg text-xs font-medium ${a.assignment_type === 'homework' ? 'bg-blue-500/20 text-blue-400' :
+                      a.assignment_type === 'test' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400'
+                      }`}>{a.assignment_type}</span>
+                    <ChevronRight size={16} className="text-white/30 group-hover:text-white/60 transition-colors" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-white/40">
+                  {a.due_date && <span><Calendar size={14} className="inline mr-1" />{new Date(a.due_date).toLocaleDateString('uz')}</span>}
+                  <span><Users size={14} className="inline mr-1" />{a.total_students || 0} ta</span>
+                  <span><CheckCircle size={14} className="inline mr-1" />{a.submitted_count || 0} topshirdi</span>
+                  <span className="text-green-400"><Award size={14} className="inline mr-1" />{a.graded_count || 0} baholandi</span>
+                </div>
+                {/* Progress bar */}
+                {(a.total_students || 0) > 0 && (
+                  <div className="mt-3 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all"
+                      style={{ width: `${Math.round(((a.graded_count || 0) / a.total_students) * 100)}%` }} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // ============ RENDER: LESSONS ============
 

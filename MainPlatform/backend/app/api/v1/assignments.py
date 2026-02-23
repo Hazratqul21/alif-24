@@ -611,6 +611,91 @@ async def parent_child_assignments(
     }}
 
 
+@router.get("/parents/assignments/{assignment_id}")
+async def parent_assignment_detail(
+    assignment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ota-ona vazifa tafsilotlarini ko'radi (o'zi bergan yoki bolasiga berilgan)"""
+    if current_user.role != UserRole.parent:
+        raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun")
+
+    res = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
+    assignment = res.scalar_one_or_none()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Vazifa topilmadi")
+
+    subs_res = await db.execute(
+        select(AssignmentSubmission).where(AssignmentSubmission.assignment_id == assignment_id)
+    )
+    submissions = []
+    for s in subs_res.scalars().all():
+        sd = submission_dict(s)
+        u_res = await db.execute(select(User).where(User.id == s.student_user_id))
+        u = u_res.scalar_one_or_none()
+        if u:
+            sd["student_name"] = f"{u.first_name} {u.last_name}".strip()
+        submissions.append(sd)
+
+    return {
+        "success": True,
+        "data": {
+            "assignment": assignment_dict(assignment),
+            "submissions": submissions,
+        }
+    }
+
+
+@router.post("/parents/assignments/{assignment_id}/grade/{submission_id}")
+async def parent_grade_submission(
+    assignment_id: str, submission_id: str, data: GradeSubmission,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ota-ona o'zi bergan vazifani baholaydi"""
+    if current_user.role != UserRole.parent:
+        raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun")
+
+    # Faqat o'zi bergan vazifani baholashi mumkin
+    a_res = await db.execute(
+        select(Assignment).where(
+            Assignment.id == assignment_id,
+            Assignment.created_by == current_user.id,
+        )
+    )
+    assignment = a_res.scalar_one_or_none()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Vazifa topilmadi yoki siz yaratmagansiz")
+
+    res = await db.execute(
+        select(AssignmentSubmission).where(
+            AssignmentSubmission.id == submission_id,
+            AssignmentSubmission.assignment_id == assignment_id,
+        )
+    )
+    submission = res.scalar_one_or_none()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Topshiruv topilmadi")
+
+    submission.score = data.score
+    submission.feedback = data.feedback
+    submission.status = SubmissionStatus.graded
+    submission.graded_at = datetime.now(timezone.utc)
+    submission.graded_by = current_user.id
+
+    await create_notification(
+        db, submission.student_user_id,
+        f"Vazifa baholandi: {assignment.title}",
+        f"Sizning vazifangiz baholandi. Ball: {data.score}/{assignment.max_score}",
+        InAppNotifType.assignment_graded,
+        "assignment", assignment_id, current_user.id,
+    )
+
+    await db.commit()
+    return {"success": True, "data": {"submission": submission_dict(submission)}}
+
+
 @router.post("/parents/assign")
 async def parent_assign_task(
     data: AssignmentCreate,
