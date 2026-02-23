@@ -4,19 +4,49 @@ MathKids Solver - Matematik masalalarni yechish va o'rgatish
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, AsyncAzureOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, HTTPException, Depends
 from shared.database import get_db
 import os
 import json
+import logging
 from ..core.config import settings
 from ..services.ai_cache_service import AICacheService
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # OpenAI configuration
-OPENAI_MODEL = settings.OPENAI_MODEL or "gpt-4"
+OPENAI_MODEL = settings.OPENAI_MODEL or "gpt-4o-mini"
+
+async def call_ai(messages, response_format=None, temperature=0.7):
+    """Azure first, OpenAI fallback."""
+    # 1) Azure
+    try:
+        client = AsyncAzureOpenAI(
+            azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+            api_key=settings.AZURE_OPENAI_KEY,
+            api_version=settings.AZURE_OPENAI_API_VERSION
+        )
+        kwargs = dict(model=settings.AZURE_OPENAI_DEPLOYMENT_NAME, messages=messages, temperature=temperature)
+        if response_format:
+            kwargs["response_format"] = response_format
+        resp = await client.chat.completions.create(**kwargs)
+        return resp.choices[0].message.content
+    except Exception as e:
+        logger.warning(f"Azure math AI failed: {e}")
+    # 2) OpenAI fallback
+    try:
+        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        kwargs = dict(model=OPENAI_MODEL, messages=messages, temperature=temperature)
+        if response_format:
+            kwargs["response_format"] = response_format
+        resp = await client.chat.completions.create(**kwargs)
+        return resp.choices[0].message.content
+    except Exception as e:
+        logger.error(f"OpenAI math fallback also failed: {e}")
+        raise
 
 # Request models
 class SolveProblemRequest(BaseModel):
@@ -60,10 +90,6 @@ async def solve_math_problem(request: SolveProblemRequest, db: AsyncSession = De
         if cached:
             return {"solution": cached}
 
-        # Initialize Async Client
-        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        model = OPENAI_MODEL
-        
         system_prompt = (
             "Siz bog'cha va 1-4 sinf bolalari uchun matematik masalalarni yechadigan o'qituvchisiz. "
             "\n\nMUHIM QOIDALAR:"
@@ -91,22 +117,19 @@ async def solve_math_problem(request: SolveProblemRequest, db: AsyncSession = De
             f"Bu masalani bolaga juda sodda tilda tushuntirib ber. JSON formatida javob ber."
         )
         
-        response = await async_client.chat.completions.create(
-            model=model,
+        content = await call_ai(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            max_tokens=2000,
-            temperature=0.7,
             response_format={"type": "json_object"},
-            timeout=25.0
+            temperature=0.7
         )
         
-        solution = json.loads(response.choices[0].message.content.strip())
+        solution = json.loads(content.strip())
         
         # Save to Cache
-        await AICacheService.set_cached_response(db, cache_key, solution, prompt_text=request.problem, model=model)
+        await AICacheService.set_cached_response(db, cache_key, solution, prompt_text=request.problem, model=OPENAI_MODEL)
         
         return {"solution": solution}
         
@@ -126,9 +149,6 @@ async def explain_step(request: ExplainStepRequest, db: AsyncSession = Depends(g
         if cached:
             return cached
 
-        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        model = OPENAI_MODEL
-        
         system_prompt = (
             "Siz matematika o'qituvchisisiz. Talaba konkret qadam haqida savol bermoqda. "
             "Qisqa, aniq va tushunarli javob bering. Sodda tilda tushuntiring."
@@ -141,21 +161,18 @@ async def explain_step(request: ExplainStepRequest, db: AsyncSession = Depends(g
             f"Bu qadamni batafsil tushuntiring."
         )
         
-        response = await async_client.chat.completions.create(
-            model=model,
+        content = await call_ai(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            max_tokens=500,
-            temperature=0.7,
-            timeout=20.0
+            temperature=0.7
         )
         
-        explanation = response.choices[0].message.content.strip()
+        explanation = content.strip()
         result = {"explanation": explanation}
         
-        await AICacheService.set_cached_response(db, cache_key, result, prompt_text=request.question, model=model)
+        await AICacheService.set_cached_response(db, cache_key, result, prompt_text=request.question, model=OPENAI_MODEL)
         return result
         
     except Exception as e:
@@ -168,9 +185,6 @@ async def generate_similar(request: GenerateSimilarRequest, db: AsyncSession = D
     O'xshash masala yaratish (Async)
     """
     try:
-        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        model = OPENAI_MODEL
-        
         system_prompt = (
             "Siz matematika o'qituvchisisiz. Berilgan masalaga o'xshash, lekin biroz boshqacha "
             "masala yarating. Murakkablik darajasi bir xil bo'lsin."
@@ -185,18 +199,15 @@ async def generate_similar(request: GenerateSimilarRequest, db: AsyncSession = D
             f"Bu masalaga o'xshash yangi masala yarating. Faqat masala matnini yozing."
         )
         
-        response = await async_client.chat.completions.create(
-            model=model,
+        content = await call_ai(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            max_tokens=300,
-            temperature=0.9,
-            timeout=20.0
+            temperature=0.9
         )
         
-        similar_problem = response.choices[0].message.content.strip()
+        similar_problem = content.strip()
         return {"similar_problem": similar_problem}
         
     except Exception as e:
@@ -209,9 +220,6 @@ async def chat_about_solution(request: ChatRequest, db: AsyncSession = Depends(g
     Yechim haqida savolga javob berish (Async)
     """
     try:
-        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        model = OPENAI_MODEL
-        
         system_prompt = (
             "Siz matematika o'qituvchisisiz. Talaba sizdan yechim haqida savol bermoqda. "
             "Javobingiz qisqa, aniq va tushunarli bo'lsin. Agar talaba tushunmagan bo'lsa, "
@@ -226,18 +234,15 @@ async def chat_about_solution(request: ChatRequest, db: AsyncSession = Depends(g
             f"Javob bering:"
         )
         
-        response = await async_client.chat.completions.create(
-            model=model,
+        content = await call_ai(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            max_tokens=500,
-            temperature=0.7,
-            timeout=20.0
+            temperature=0.7
         )
         
-        ai_response = response.choices[0].message.content.strip()
+        ai_response = content.strip()
         return {"ai_response": ai_response}
         
     except Exception as e:
@@ -250,9 +255,6 @@ async def interactive_solve(request: InteractiveSolveRequest, db: AsyncSession =
     Interaktiv yechish (Async)
     """
     try:
-        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        model = OPENAI_MODEL
-        
         system_prompt = (
             "Siz bog'cha va 1-4 sinf bolalari bilan ishlaydigan mehribon o'qituvchisiz. "
             "Masalani JUDA SODDA, TUSHINARLI tilda tushuntiring. "
@@ -297,16 +299,13 @@ async def interactive_solve(request: InteractiveSolveRequest, db: AsyncSession =
         
         messages.append({"role": "user", "content": user_prompt})
         
-        response = await async_client.chat.completions.create(
-            model=model,
+        content = await call_ai(
             messages=messages,
-            max_tokens=800,
-            temperature=0.7,
             response_format={"type": "json_object"},
-            timeout=25.0
+            temperature=0.7
         )
         
-        result = json.loads(response.choices[0].message.content.strip())
+        result = json.loads(content.strip())
         return result
         
     except Exception as e:

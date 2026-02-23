@@ -7,7 +7,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta, timezone
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, AsyncAzureOpenAI
+import logging
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, cast, Date, select
 from shared.database import get_db
@@ -20,7 +23,7 @@ router = APIRouter()
 
 # OpenAI configuration
 OPENAI_API_KEY = settings.OPENAI_API_KEY
-OPENAI_MODEL = settings.OPENAI_MODEL or "gpt-4"
+OPENAI_MODEL = settings.OPENAI_MODEL or "gpt-4o-mini"
 
 # Language-specific prompts
 def get_system_prompt(language: str, prompt_type: str):
@@ -199,6 +202,38 @@ def get_openai_client():
     """OpenAI async client yaratish"""
     return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
+def get_azure_client():
+    """Azure OpenAI async client yaratish"""
+    return AsyncAzureOpenAI(
+        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+        api_key=settings.AZURE_OPENAI_KEY,
+        api_version=settings.AZURE_OPENAI_API_VERSION
+    )
+
+async def call_ai(messages, response_format=None, temperature=0.7):
+    """Azure first, OpenAI fallback. Returns parsed content string."""
+    # 1) Azure
+    try:
+        azure_client = get_azure_client()
+        kwargs = dict(model=settings.AZURE_OPENAI_DEPLOYMENT_NAME, messages=messages, temperature=temperature)
+        if response_format:
+            kwargs["response_format"] = response_format
+        resp = await azure_client.chat.completions.create(**kwargs)
+        return resp.choices[0].message.content
+    except Exception as e:
+        logger.warning(f"Azure OpenAI failed: {e}")
+    # 2) OpenAI fallback
+    try:
+        openai_client = get_openai_client()
+        kwargs = dict(model=OPENAI_MODEL, messages=messages, temperature=temperature)
+        if response_format:
+            kwargs["response_format"] = response_format
+        resp = await openai_client.chat.completions.create(**kwargs)
+        return resp.choices[0].message.content
+    except Exception as e:
+        logger.error(f"OpenAI fallback also failed: {e}")
+        raise
+
 
 @router.post("/detect-language")
 async def detect_language_endpoint(request: DetectLanguageRequest):
@@ -239,9 +274,6 @@ async def next_question(request: NextQuestionRequest):
         except:
             request.language = "uz-UZ"
             
-        client = get_openai_client()
-        model = OPENAI_MODEL
-        
         # Get language-specific system prompt
         system_prompt = get_system_prompt(request.language, "next-question")
         
@@ -257,17 +289,15 @@ async def next_question(request: NextQuestionRequest):
             question_number=request.question_number
         )
         
-        response = await client.chat.completions.create(
-            model=model,
+        content = await call_ai(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            max_tokens=150,
             temperature=0.8
         )
         
-        question = response.choices[0].message.content.strip()
+        question = content.strip()
         
         # Raqam yoki tire bo'lsa olib tashlash
         if question and question[0].isdigit():
@@ -297,9 +327,6 @@ async def analyze_answer(request: AnalyzeRequest):
         except:
             pass
             
-        client = get_openai_client()
-        model = OPENAI_MODEL
-        
         # Get language-specific system prompt
         system_prompt = get_system_prompt(request.language, "analyze")
         
@@ -371,18 +398,16 @@ async def analyze_answer(request: AnalyzeRequest):
             f'}}'
         )
         
-        response = await client.chat.completions.create(
-            model=model,
+        content = await call_ai(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            max_tokens=500,
-            temperature=0.7,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            temperature=0.7
         )
         
-        analysis_result = json.loads(response.choices[0].message.content.strip())
+        analysis_result = json.loads(content.strip())
         return {"analysis": analysis_result}
         
     except Exception as e:
@@ -403,9 +428,6 @@ async def analyze_reading(request: AnalyzeReadingRequest):
             else: request.language = "uz-UZ"
         except:
             pass
-
-        client = get_openai_client()
-        model = OPENAI_MODEL
         
         # Language-specific prompts
         language_prompts = {
@@ -454,18 +476,16 @@ async def analyze_reading(request: AnalyzeReadingRequest):
             f"{lang_config['age']}: {request.age}"
         )
         
-        response = await client.chat.completions.create(
-            model=model,
+        content = await call_ai(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            max_tokens=500,
-            temperature=0.7,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            temperature=0.7
         )
         
-        analysis_result = json.loads(response.choices[0].message.content.strip())
+        analysis_result = json.loads(content.strip())
         return {"analysis": analysis_result}
         
     except Exception as e:
@@ -487,9 +507,6 @@ async def chat_and_ask(request: ChatRequest):
         except:
             pass
 
-        client = get_openai_client()
-        model = OPENAI_MODEL
-        
         # Get language-specific system prompt
         system_prompt = get_system_prompt(request.language, "chat-and-ask")
         
@@ -511,14 +528,9 @@ async def chat_and_ask(request: ChatRequest):
             for msg in request.conversation_history[-4:]:
                 messages.insert(-1, msg)
         
-        response = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=150,
-            temperature=0.8
-        )
+        content = await call_ai(messages=messages, temperature=0.8)
         
-        ai_response = response.choices[0].message.content.strip()
+        ai_response = content.strip()
         return {"ai_response": ai_response}
         
     except Exception as e:
