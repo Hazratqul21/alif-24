@@ -151,6 +151,10 @@ class StudentService {
     return apiService.post(`/students/assignments/${assignmentId}/submit`, data);
   }
 
+  async uploadFile(formData) {
+    return apiService.post('/upload/assignment-file', formData);
+  }
+
   async submitTest(assignmentId, answers) {
     return apiService.post(`/students/assignments/${assignmentId}/submit-test`, { answers });
   }

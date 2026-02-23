@@ -47,6 +47,7 @@ const StudentDashboard = () => {
     const [taskFilter, setTaskFilter] = useState('all');
     const [selectedTask, setSelectedTask] = useState(null);
     const [submissionContent, setSubmissionContent] = useState('');
+    const [submissionFile, setSubmissionFile] = useState(null);
     const [mySchool, setMySchool] = useState(undefined); // undefined=not loaded, null=no school
     const [parentInvites, setParentInvites] = useState([]);
     const [realLessons, setRealLessons] = useState([]);
@@ -226,11 +227,23 @@ const StudentDashboard = () => {
     };
 
     const handleSubmitAssignment = async () => {
-        if (!selectedTask || !submissionContent.trim()) return;
+        if (!selectedTask || (!submissionContent.trim() && !submissionFile)) return;
         try {
-            await studentService.submitAssignment(selectedTask.assignment_id || selectedTask.id, { content: submissionContent });
+            let fileUrl = null;
+            let fileName = null;
+            if (submissionFile) {
+                const formData = new FormData();
+                formData.append('file', submissionFile);
+                const upRes = await studentService.uploadFile(formData);
+                fileUrl = upRes.url || upRes.data?.url;
+                fileName = submissionFile.name;
+            }
+            const payload = { content: submissionContent };
+            if (fileUrl) { payload.file_url = fileUrl; payload.file_name = fileName; }
+            await studentService.submitAssignment(selectedTask.assignment_id || selectedTask.id, payload);
             showNotif('success', "Vazifa topshirildi!");
             setSubmissionContent('');
+            setSubmissionFile(null);
             setSelectedTask(null);
             await fetchLMSData();
         } catch (err) {
@@ -851,7 +864,7 @@ const StudentDashboard = () => {
             {/* Task Detail Modal — unified for test and regular */}
             {selectedTask && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[9999]" onClick={() => { if (!testStarted) { setSelectedTask(null); setTestQuestions([]); setTestResult(null); } }}>
-                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className="p-5 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
                             <div>
@@ -1009,17 +1022,23 @@ const StudentDashboard = () => {
 
                         {/* REGULAR: Task content (non-test) */}
                         {testQuestions.length === 0 && (
-                            <div className="p-6 flex-1 text-gray-700 whitespace-pre-wrap">
-                                {selectedTask.description || "Vazifa matni mavjud emas."}
+                            <div className="p-6 md:p-8 flex-1">
+                                <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 md:p-6 mb-4">
+                                    <h4 className="text-sm font-bold text-indigo-500 uppercase tracking-wide mb-3">Vazifa tavsifi</h4>
+                                    <div className="text-gray-800 text-base md:text-lg leading-relaxed whitespace-pre-wrap">
+                                        {selectedTask.description || "Vazifa matni mavjud emas."}
+                                    </div>
+                                </div>
                                 {selectedTask.assignment?.attachments?.length > 0 && (
-                                    <div className="mt-4 pt-4 border-t border-gray-100">
-                                        <h4 className="text-sm font-bold text-gray-600 mb-2 flex items-center gap-1">Biriktirilgan fayllar</h4>
+                                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                                        <h4 className="text-sm font-bold text-blue-700 mb-3 flex items-center gap-2"><Download size={16} /> Biriktirilgan fayllar</h4>
                                         <div className="flex flex-wrap gap-2">
                                             {selectedTask.assignment.attachments.map((att, i) => (
                                                 <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors">
+                                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm">
+                                                    <Download size={16} />
                                                     {att.name || `Fayl ${i + 1}`}
-                                                    {att.size && <span className="text-xs text-indigo-400">({(att.size / 1024).toFixed(0)} KB)</span>}
+                                                    {att.size && <span className="text-xs text-blue-400">({(att.size / 1024).toFixed(0)} KB)</span>}
                                                 </a>
                                             ))}
                                         </div>
@@ -1042,17 +1061,37 @@ const StudentDashboard = () => {
                             </div>
                         )}
                         {testQuestions.length === 0 && selectedTask.status === 'pending' && (
-                            <div className="p-6 bg-gray-50 border-t border-gray-100">
-                                <h4 className="font-bold text-gray-800 mb-2">Javobingizni kiriting</h4>
+                            <div className="p-6 md:p-8 bg-gray-50 border-t border-gray-100">
+                                <h4 className="font-bold text-gray-800 mb-3 text-lg">Javobingizni kiriting</h4>
                                 <textarea
                                     value={submissionContent}
                                     onChange={e => setSubmissionContent(e.target.value)}
-                                    className="w-full p-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white min-h-[150px] resize-y"
+                                    className="w-full p-4 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white min-h-[180px] resize-y text-base"
                                     placeholder="Ustoz, vazifani bajardim..."
                                 />
-                                <div className="mt-4 flex justify-end">
-                                    <button onClick={handleSubmitAssignment} disabled={!submissionContent.trim()}
-                                        className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                <div className="mt-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                                    <div className="flex-1">
+                                        <label className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors text-sm font-medium text-gray-600">
+                                            <Upload size={16} />
+                                            <span>{submissionFile ? submissionFile.name : 'Fayl biriktirish (ixtiyoriy)'}</span>
+                                            <input type="file" className="hidden" onChange={e => {
+                                                const f = e.target.files[0];
+                                                if (f && f.size > 10 * 1024 * 1024) {
+                                                    showNotif('error', 'Fayl 10MB dan oshmasligi kerak');
+                                                    e.target.value = '';
+                                                } else {
+                                                    setSubmissionFile(f || null);
+                                                }
+                                            }} />
+                                        </label>
+                                        {submissionFile && (
+                                            <button onClick={() => setSubmissionFile(null)} className="mt-1 text-xs text-red-500 hover:text-red-700 bg-transparent border-none cursor-pointer">
+                                                Faylni olib tashlash
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button onClick={handleSubmitAssignment} disabled={!submissionContent.trim() && !submissionFile}
+                                        className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-base">
                                         <Send size={18} /> Topshirish
                                     </button>
                                 </div>
@@ -1238,16 +1277,7 @@ const StudentDashboard = () => {
                             <p className="text-gray-400 text-sm mb-6">Olimpiadalarda qatnashish uchun maxsus platforma yaratilgan</p>
                             <button
                                 onClick={() => {
-                                    const token = localStorage.getItem('accessToken');
-                                    const refresh = localStorage.getItem('refreshToken');
-                                    let url = 'https://olimp.alif24.uz';
-                                    if (token) {
-                                        const params = new URLSearchParams();
-                                        params.set('token', token);
-                                        if (refresh) params.set('refresh', refresh);
-                                        url += `?${params.toString()}`;
-                                    }
-                                    window.location.href = url;
+                                        window.location.href = 'https://olimp.alif24.uz';
                                 }}
                                 className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl border-none cursor-pointer"
                             >
