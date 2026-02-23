@@ -185,6 +185,10 @@ async def root():
         "features": ["auth", "smartkids", "mathkids", "classrooms", "assignments", "notifications"]
     }
 
+@app.get("/health")
+async def health_root():
+    return {"status": "healthy"}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
