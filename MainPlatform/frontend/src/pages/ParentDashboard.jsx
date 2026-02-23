@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import parentService from '../services/parentService';
 import organizationService from '../services/organizationService';
 import Navbar from '../components/Common/Navbar';
-import { Users, CreditCard, Bell, Settings, PieChart, Calendar, TrendingUp, Plus, X, Eye, EyeOff, Key, UserCheck, ArrowDown, ArrowUp, School, BookOpen, ClipboardList, Zap, Phone, Globe } from 'lucide-react';
+import { Users, CreditCard, Bell, Settings, PieChart, Calendar, TrendingUp, Plus, X, Eye, EyeOff, Key, UserCheck, ArrowDown, ArrowUp, School, BookOpen, ClipboardList, Zap, Phone, Globe, CheckCircle } from 'lucide-react';
+import apiService from '../services/apiService';
 
 const ParentDashboard = () => {
     const { language } = useLanguage();
@@ -59,10 +60,16 @@ const ParentDashboard = () => {
             weeklyReport: true, screenTimeLimit: false
         };
     });
+    // Subscription state
+    const [subscription, setSubscription] = useState(null);
 
     useEffect(() => {
         fetchChildren();
         fetchPendingInvites();
+        // Fetch subscription from /auth/me
+        apiService.get('/auth/me').then(res => {
+            setSubscription(res?.subscription || res?.data?.subscription || null);
+        }).catch(() => { });
     }, []);
 
     useEffect(() => {
@@ -431,11 +438,10 @@ const ParentDashboard = () => {
                                                 </div>
                                                 <div className="flex items-center gap-2 flex-shrink-0">
                                                     {st === 'graded' ? (
-                                                        <span className={`text-xs px-2 py-1 rounded-full font-bold ${
-                                                            (a.score / maxScore) >= 0.8 ? 'bg-green-100 text-green-700' :
-                                                            (a.score / maxScore) >= 0.6 ? 'bg-yellow-100 text-yellow-700' :
-                                                            'bg-red-100 text-red-700'
-                                                        }`}>
+                                                        <span className={`text-xs px-2 py-1 rounded-full font-bold ${(a.score / maxScore) >= 0.8 ? 'bg-green-100 text-green-700' :
+                                                                (a.score / maxScore) >= 0.6 ? 'bg-yellow-100 text-yellow-700' :
+                                                                    'bg-red-100 text-red-700'
+                                                            }`}>
                                                             {a.score}/{maxScore}
                                                         </span>
                                                     ) : (st === 'submitted' || st === 'late') && isParentCreated ? (
@@ -444,13 +450,12 @@ const ParentDashboard = () => {
                                                             Baholash
                                                         </button>
                                                     ) : (
-                                                        <span className={`text-xs px-2 py-1 rounded-full ${
-                                                            st === 'submitted' ? 'bg-green-100 text-green-700' :
-                                                            st === 'late' ? 'bg-orange-100 text-orange-700' :
-                                                            'bg-yellow-100 text-yellow-700'
-                                                        }`}>
+                                                        <span className={`text-xs px-2 py-1 rounded-full ${st === 'submitted' ? 'bg-green-100 text-green-700' :
+                                                                st === 'late' ? 'bg-orange-100 text-orange-700' :
+                                                                    'bg-yellow-100 text-yellow-700'
+                                                            }`}>
                                                             {st === 'submitted' ? 'Bajarildi' :
-                                                             st === 'late' ? 'Kech' : 'Kutilmoqda'}
+                                                                st === 'late' ? 'Kech' : 'Kutilmoqda'}
                                                         </span>
                                                     )}
                                                 </div>
@@ -478,21 +483,47 @@ const ParentDashboard = () => {
 
     const renderPayments = () => (
         <div className="max-w-4xl">
-            <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-2xl p-5 md:p-8 text-white mb-6 md:mb-8 shadow-lg shadow-indigo-200">
-                <p className="opacity-80 mb-2 font-medium text-sm md:text-base">{t.payments.balance}</p>
+            <div className={`rounded-2xl p-5 md:p-8 text-white mb-6 md:mb-8 shadow-lg ${subscription ? 'bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-200' : 'bg-gradient-to-r from-indigo-600 to-blue-600 shadow-indigo-200'}`}>
+                <p className="opacity-80 mb-2 font-medium text-sm md:text-base">Joriy obuna</p>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
-                    <h2 className="text-2xl md:text-4xl font-bold">0 UZS</h2>
-                    <span className="bg-white/20 text-white px-4 py-2 rounded-xl text-sm font-medium backdrop-blur-sm">
-                        Tez kunda ishga tushadi
+                    <h2 className="text-2xl md:text-4xl font-bold">{subscription ? subscription.plan_name : 'Bepul'}</h2>
+                    <span className={`px-4 py-2 rounded-xl text-sm font-medium backdrop-blur-sm ${subscription?.status === 'active' ? 'bg-white/20 text-white' : 'bg-white/20 text-white'}`}>
+                        {subscription?.status === 'active' ? '✅ Faol' : 'Obuna yo\'q'}
                     </span>
                 </div>
+                {subscription?.expires_at && (
+                    <p className="mt-3 text-sm opacity-80">
+                        Muddat: {new Date(subscription.expires_at).toLocaleDateString('uz', { year: 'numeric', month: 'long', day: 'numeric' })} gacha
+                    </p>
+                )}
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-                <CreditCard size={48} className="mx-auto mb-3 text-gray-300" />
-                <h3 className="font-bold text-lg text-gray-700 mb-2">To'lov tizimi tayyorlanmoqda</h3>
-                <p className="text-gray-500 text-sm">Obuna va to'lov imkoniyatlari tez orada ishga tushadi. Hozircha platforma bepul!</p>
-            </div>
+            {subscription?.features && Object.keys(subscription.features).length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+                    <h3 className="font-bold text-lg text-gray-700 mb-4">Plan imkoniyatlari</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {Object.entries(subscription.features).map(([key, value]) => (
+                            <div key={key} className="flex items-center gap-3 text-sm">
+                                <CheckCircle size={16} className={value ? 'text-emerald-500' : 'text-gray-300'} />
+                                <span className={value ? 'text-gray-700' : 'text-gray-400 line-through'}>{key}</span>
+                            </div>
+                        ))}
+                    </div>
+                    {subscription.max_children && (
+                        <p className="mt-4 text-sm text-gray-500 border-t border-gray-100 pt-3">
+                            Maksimal bolalar soni: <span className="font-bold text-gray-700">{subscription.max_children}</span>
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {!subscription && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+                    <CreditCard size={48} className="mx-auto mb-3 text-gray-300" />
+                    <h3 className="font-bold text-lg text-gray-700 mb-2">Hozircha bepul foydalanmoqdasiz</h3>
+                    <p className="text-gray-500 text-sm">Obuna olish uchun administratsiyaga murojaat qiling</p>
+                </div>
+            )}
         </div>
     );
 
@@ -927,11 +958,10 @@ const ParentDashboard = () => {
                                     const actualVal = Math.round(maxS * v / 100);
                                     return (
                                         <button key={v} onClick={() => setGradeScore(String(actualVal))}
-                                            className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition ${
-                                                parseInt(gradeScore) === actualVal
+                                            className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition ${parseInt(gradeScore) === actualVal
                                                     ? 'bg-green-600 text-white border-green-600'
                                                     : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
-                                            }`}>{v}%</button>
+                                                }`}>{v}%</button>
                                     );
                                 })}
                             </div>
@@ -943,9 +973,8 @@ const ParentDashboard = () => {
                                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none resize-none text-sm" />
                         </div>
                         <button onClick={handleParentGrade} disabled={gradingLoading || gradeScore === ''}
-                            className={`w-full py-3 rounded-xl font-bold text-sm transition ${
-                                gradingLoading || gradeScore === '' ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
-                            }`}>
+                            className={`w-full py-3 rounded-xl font-bold text-sm transition ${gradingLoading || gradeScore === '' ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                                }`}>
                             {gradingLoading ? 'Saqlanmoqda...' : 'Bahoni saqlash'}
                         </button>
                     </div>
