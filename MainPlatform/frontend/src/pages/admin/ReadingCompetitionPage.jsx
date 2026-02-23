@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
     BookOpen, Plus, Trash2, X, Edit, Eye, ChevronLeft, Trophy,
     Calendar, Users, Clock, CheckCircle, FileText, BarChart3,
-    Image, Save, AlertCircle
+    Image, Save, AlertCircle, Video
 } from 'lucide-react';
 import adminService from '../../services/adminService';
 
@@ -49,7 +49,7 @@ export default function ReadingCompetitionPage() {
     // Task (hikoya) form
     const [taskModal, setTaskModal] = useState(null); // null | 'create' | task object (edit)
     const [taskForm, setTaskForm] = useState({
-        day_of_week: 'monday', title: '', image_url: '', story_text: '', questions: [], time_limit_seconds: ''
+        day_of_week: 'monday', title: '', image_url: '', video_url: '', story_text: '', questions: [], time_limit_seconds: ''
     });
     const [questionForm, setQuestionForm] = useState({ question: '', options: ['', '', '', ''], correct: 0 });
 
@@ -136,7 +136,7 @@ export default function ReadingCompetitionPage() {
     // ============ TASK CRUD ============
 
     const openTaskCreate = (day) => {
-        setTaskForm({ day_of_week: day || 'monday', title: '', image_url: '', story_text: '', questions: [], time_limit_seconds: '' });
+        setTaskForm({ day_of_week: day || 'monday', title: '', image_url: '', video_url: '', story_text: '', questions: [], time_limit_seconds: '' });
         setTaskModal('create');
         setError('');
     };
@@ -146,6 +146,7 @@ export default function ReadingCompetitionPage() {
             day_of_week: task.day_of_week,
             title: task.title,
             image_url: task.image_url || '',
+            video_url: task.video_url || '',
             story_text: task.story_text || '',
             questions: task.questions || [],
             time_limit_seconds: task.time_limit_seconds || '',
@@ -167,6 +168,7 @@ export default function ReadingCompetitionPage() {
                 await adminService.updateTask(selectedComp.id, taskModal.id, {
                     title: taskForm.title,
                     image_url: taskForm.image_url || null,
+                    video_url: taskForm.video_url || null,
                     story_text: taskForm.story_text,
                     questions: taskForm.questions,
                     time_limit_seconds: taskForm.time_limit_seconds ? parseInt(taskForm.time_limit_seconds) : null,
@@ -595,6 +597,21 @@ export default function ReadingCompetitionPage() {
                                 </label>
                             </div>
                             {taskForm.image_url && <img src={taskForm.image_url} alt="" className="mt-2 max-h-32 rounded-lg" />}
+                        </div>
+                        <div>
+                            <label className="text-sm text-gray-400 mb-1 block">Video (ixtiyoriy)</label>
+                            <div className="flex gap-2 items-center">
+                                <input value={taskForm.video_url} onChange={e => setTaskForm(p => ({ ...p, video_url: e.target.value }))}
+                                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none" placeholder="YouTube yoki video URL" />
+                                <span className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-gray-500 text-sm">
+                                    <Video className="w-4 h-4 inline" />
+                                </span>
+                            </div>
+                            {taskForm.video_url && (
+                                <div className="mt-2 p-2 bg-gray-800/50 rounded-lg text-xs text-emerald-400 flex items-center gap-1">
+                                    <Video className="w-3.5 h-3.5" /> Video biriktirilgan
+                                </div>
+                            )}
                         </div>
                         <div>
                             <label className="text-sm text-gray-400 mb-1 block">Hikoya matni * <span className="text-gray-600">({taskForm.story_text.split(/\s+/).filter(Boolean).length} so'z)</span></label>

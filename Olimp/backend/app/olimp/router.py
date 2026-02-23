@@ -440,30 +440,47 @@ async def submit_answers(
 @router.get("/{olympiad_id}/leaderboard")
 async def get_leaderboard(
     olympiad_id: str,
-    limit: int = 20,
+    limit: int = 50,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get olympiad leaderboard"""
+    """Get olympiad leaderboard with student names"""
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     olympiad = res.scalar_one_or_none()
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
+    from shared.database.models import StudentProfile, User
+
     r_res = await db.execute(
         select(OlympiadResult).where(OlympiadResult.olympiad_id == olympiad.id)
-        .order_by(OlympiadResult.score.desc()).limit(limit)
+        .order_by(OlympiadResult.score.desc(), OlympiadResult.time_taken_seconds.asc())
+        .limit(limit)
     )
     results = r_res.scalars().all()
 
     leaderboard = []
     for idx, r in enumerate(results, 1):
+        student_name = f"O'quvchi #{r.student_id}"
+        try:
+            sp_res = await db.execute(select(StudentProfile).where(StudentProfile.id == r.student_id))
+            sp = sp_res.scalar_one_or_none()
+            if sp:
+                u_res = await db.execute(select(User).where(User.id == sp.user_id))
+                u = u_res.scalar_one_or_none()
+                if u:
+                    student_name = f"{u.first_name} {u.last_name}".strip() or student_name
+        except Exception:
+            pass
+
         leaderboard.append({
             "rank": idx,
             "student_id": r.student_id,
+            "student_name": student_name,
             "score": r.score,
             "total_points": r.total_points,
             "correct_answers": r.correct_answers,
             "total_questions": r.total_questions,
+            "time_taken_seconds": r.time_taken_seconds,
         })
 
     return {

@@ -99,6 +99,7 @@ class ReadingTask(Base):
     day_of_week = Column(SQLEnum(TaskDay), nullable=False)
     title = Column(String(300), nullable=False)
     image_url = Column(String(500), nullable=True)
+    video_url = Column(String(500), nullable=True)
     story_text = Column(Text, nullable=False)
     total_words = Column(Integer, nullable=False, default=0)
 
