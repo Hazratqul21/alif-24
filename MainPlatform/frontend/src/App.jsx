@@ -31,16 +31,8 @@ import ReadingCompetitionPage from './pages/admin/ReadingCompetitionPage';
 
 // Sub-platform redirect helper (Harf, Games, etc. now live on their own subdomains)
 const PlatformRedirect = ({ baseUrl, path = '' }) => {
-  const token = localStorage.getItem('accessToken');
-  const refresh = localStorage.getItem('refreshToken');
-  let url = `${baseUrl}${path}`;
-  if (token) {
-    const params = new URLSearchParams();
-    params.set('token', token);
-    if (refresh) params.set('refresh', refresh);
-    url += `?${params.toString()}`;
-  }
-  window.location.href = url;
+  // HttpOnly cookies bilan token URL orqali emas, avtomatik cookie orqali yuboriladi
+  window.location.href = `${baseUrl}${path}`;
   return null;
 };
 
@@ -65,10 +57,8 @@ const LoginRoute = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const redirectUrl = urlParams.get('redirect');
       if (redirectUrl) {
-        const urlObj = new URL(redirectUrl);
-        urlObj.searchParams.set('token', localStorage.getItem('accessToken'));
-        urlObj.searchParams.set('refresh', localStorage.getItem('refreshToken'));
-        window.location.href = urlObj.toString();
+        // HttpOnly cookies .alif24.uz domenida barcha subdomenlarga avtomatik yuboriladi
+        window.location.href = redirectUrl;
         return;
       }
       navigate('/student-dashboard', { replace: true });

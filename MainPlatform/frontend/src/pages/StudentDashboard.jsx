@@ -90,7 +90,7 @@ const StudentDashboard = () => {
         const fetchDashboard = async () => {
             try {
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/student`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
+                    credentials: 'include'
                 });
                 if (response.ok) {
                     const res = await response.json();
@@ -1277,7 +1277,7 @@ const StudentDashboard = () => {
                             <p className="text-gray-400 text-sm mb-6">Olimpiadalarda qatnashish uchun maxsus platforma yaratilgan</p>
                             <button
                                 onClick={() => {
-                                        window.location.href = 'https://olimp.alif24.uz';
+                                    window.location.href = 'https://olimp.alif24.uz';
                                 }}
                                 className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl border-none cursor-pointer"
                             >
