@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import quizService from '../services/quizService';
 import {
   Plus, Trash2, Play, Users, Trophy, ArrowLeft, Loader2, CheckCircle, Copy,
-  Clock, BarChart3, ChevronRight, X, Zap, Star
+  Clock, BarChart3, ChevronRight, X, Zap, Star, Target, Medal, PartyPopper
 } from 'lucide-react';
 
 const OPTION_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FB8C00'];
@@ -177,7 +177,7 @@ const LiveQuizTeacher = () => {
           </button>
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <div className="text-center mb-6">
-              <div className="text-4xl mb-2">🎯</div>
+              <div className="mb-2 flex justify-center"><Target size={40} className="text-indigo-600" /></div>
               <h1 className="text-2xl font-bold">Yangi Live Quiz</h1>
             </div>
             <div className="space-y-4">
@@ -249,7 +249,7 @@ const LiveQuizTeacher = () => {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400 mt-2">✅ Yashil ramkali variant = to'g'ri javob</p>
+                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1"><CheckCircle size={12} className="text-green-500" /> Yashil ramkali variant = to'g'ri javob</p>
               </div>
             ))}
           </div>
@@ -415,7 +415,7 @@ const LiveQuizTeacher = () => {
             {leaderboard.map((p, i) => (
               <div key={i} className={`flex items-center justify-between p-4 rounded-xl ${i === 0 ? 'bg-yellow-50 border-2 border-yellow-300' : i === 1 ? 'bg-gray-50 border border-gray-200' : i === 2 ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50'}`}>
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl font-black">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>
+                  <span className="text-2xl font-black">{i < 3 ? <Medal size={24} className={i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-amber-600'} /> : `#${i + 1}`}</span>
                   <span className="text-lg">{p.avatar_emoji}</span>
                   <span className="font-bold">{p.display_name}</span>
                 </div>
@@ -440,7 +440,7 @@ const LiveQuizTeacher = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-600 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg text-center">
-          <div className="text-5xl mb-4">🎉</div>
+          <div className="mb-4 flex justify-center"><Trophy size={52} className="text-yellow-500" /></div>
           <h1 className="text-3xl font-bold text-gray-800 mb-6">Quiz tugadi!</h1>
 
           {leaderboard.length > 0 && (
@@ -448,7 +448,7 @@ const LiveQuizTeacher = () => {
               {leaderboard.slice(0, 5).map((p, i) => (
                 <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                   <span className="flex items-center gap-2">
-                    <span className="font-black">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>
+                    <span className="font-black">{i < 3 ? <Medal size={18} className={i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-amber-600'} /> : `#${i + 1}`}</span>
                     <span>{p.avatar_emoji} {p.display_name}</span>
                   </span>
                   <span className="font-bold text-indigo-600">{p.total_score}</span>

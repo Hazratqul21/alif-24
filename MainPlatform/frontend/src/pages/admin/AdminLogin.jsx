@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Eye, EyeOff } from 'lucide-react';
+import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 const roles = [
@@ -101,7 +101,7 @@ export default function AdminLogin({ defaultRole = null }) {
                     {/* Error */}
                     {error && (
                         <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
-                            ❌ {error}
+                            <AlertCircle size={16} className="inline mr-1" /> {error}
                         </div>
                     )}
 

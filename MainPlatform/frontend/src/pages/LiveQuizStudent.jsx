@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import quizService from '../services/quizService';
 import {
-  Trophy, CheckCircle, X, Clock, Zap, Medal, ArrowLeft, Loader2, Star, Coins, Users
+  Trophy, CheckCircle, X, Clock, Zap, Medal, ArrowLeft, Loader2, Star, Coins, Users, Target, Flame
 } from 'lucide-react';
 
 const AVATARS = ['🎮', '🦊', '🐱', '🐶', '🦁', '🐼', '🐨', '🐯', '🦄', '🐸', '🐵', '🦉'];
@@ -154,7 +154,7 @@ const LiveQuizStudent = () => {
           </button>
 
           <div className="text-center mb-6">
-            <div className="text-5xl mb-3">🎯</div>
+            <div className="mb-3 flex justify-center"><Target size={48} className="text-indigo-600" /></div>
             <h1 className="text-2xl font-bold text-gray-800">Live Quiz</h1>
             <p className="text-gray-500 text-sm mt-1">6 xonali kodni kiriting</p>
           </div>
@@ -297,7 +297,7 @@ const LiveQuizStudent = () => {
         {streak > 1 && (
           <div className="p-4 text-center">
             <span className="bg-orange-500 text-white px-4 py-2 rounded-full font-bold inline-flex items-center gap-2">
-              🔥 {streak} ta ketma-ket to'g'ri!
+              <Flame size={16} className="inline" /> {streak} ta ketma-ket to'g'ri!
             </span>
           </div>
         )}
@@ -319,7 +319,7 @@ const LiveQuizStudent = () => {
             </div>
             {streak > 0 && (
               <div className="bg-white/10 rounded-xl px-4 py-2">
-                <span className="text-orange-400 font-bold">🔥 {streak}</span>
+                <span className="text-orange-400 font-bold flex items-center gap-1"><Flame size={14} /> {streak}</span>
                 <span className="text-white/60 text-sm ml-1">seriya</span>
               </div>
             )}
@@ -331,11 +331,11 @@ const LiveQuizStudent = () => {
 
   // ====== RENDER: RESULTS ======
   if (phase === 'results') {
-    const rankEmoji = results?.rank === 1 ? '🥇' : results?.rank === 2 ? '🥈' : results?.rank === 3 ? '🥉' : '🏅';
+    const rankColors = { 1: 'text-yellow-500', 2: 'text-gray-400', 3: 'text-amber-600' };
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-600 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md text-center">
-          <div className="text-6xl mb-4">{rankEmoji}</div>
+          <div className="mb-4 flex justify-center"><Trophy size={56} className={rankColors[results?.rank] || 'text-indigo-500'} /></div>
           <h1 className="text-3xl font-bold text-gray-800 mb-1">{results?.quiz_title || 'Quiz tugadi!'}</h1>
 
           {results?.rank && (
@@ -356,7 +356,7 @@ const LiveQuizStudent = () => {
               <div className="text-xs text-gray-500 mt-1">Noto'g'ri</div>
             </div>
             <div className="bg-orange-50 p-4 rounded-2xl">
-              <div className="text-2xl font-bold text-orange-600">🔥 {results?.best_streak || 0}</div>
+              <div className="text-2xl font-bold text-orange-600 flex items-center justify-center gap-1"><Flame size={20} /> {results?.best_streak || 0}</div>
               <div className="text-xs text-gray-500 mt-1">Eng yaxshi seriya</div>
             </div>
           </div>

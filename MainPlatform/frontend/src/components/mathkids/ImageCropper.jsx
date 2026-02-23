@@ -251,7 +251,7 @@ function ImageCropper({ onTextExtracted }) {
             className="absolute top-0 right-0 text-white text-lg font-bold rounded-full shadow-lg hover:bg-red-600 transition-all duration-300"
             style={{ paddingTop: '15px', paddingRight: '15px', margin: '15px' }}
           >
-            ❌
+            ✕
           </button>
 
           {/* Suratga olish tugmasi - pastda markazda */}
@@ -260,7 +260,7 @@ function ImageCropper({ onTextExtracted }) {
               onClick={handleCapture}
               className="w-20 h-20 bg-gradient-to-r from-green-400 to-cyan-400 text-white text-3xl rounded-full shadow-2xl hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
             >
-              📸
+              ⏺
             </button>
           </div>
         </div>

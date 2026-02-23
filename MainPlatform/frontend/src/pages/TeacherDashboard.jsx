@@ -11,7 +11,7 @@ import {
   FileText, Settings, Bell, Search, Filter, ChevronRight,
   GraduationCap, Target, TrendingUp, Calendar, MessageSquare,
   Play, Eye, Edit, Trash2, ArrowLeft, LogOut, Zap, Copy,
-  Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon
+  Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon, Paperclip
 } from 'lucide-react';
 
 const TeacherDashboard = () => {
@@ -643,7 +643,7 @@ const TeacherDashboard = () => {
                   <div className="flex flex-wrap gap-2 mb-2">
                     {l.attachments.map((att, i) => (
                       <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white px-3 py-1.5 rounded-lg text-xs transition-colors">
-                        📎 {att.name || `Fayl ${i + 1}`}
+                        <Paperclip size={12} className="inline" /> {att.name || `Fayl ${i + 1}`}
                       </a>
                     ))}
                   </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Star } from 'lucide-react';
+import { X, Star, Trophy, Type } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import './AchievementsModal.css';
 
@@ -19,7 +19,7 @@ const AchievementsModal = ({ isOpen, onClose, totalStars, starsBreakdown, getSta
       <div className="achievements-modal">
         <div className="achievements-modal-header">
           <h2 className="achievements-modal-title">
-            🏆 {t('achievements') || 'Yutuqlar'}
+            <Trophy size={20} className="inline" /> {t('achievements') || 'Yutuqlar'}
           </h2>
           <button 
             className="achievements-close-btn"
@@ -48,7 +48,7 @@ const AchievementsModal = ({ isOpen, onClose, totalStars, starsBreakdown, getSta
             <h3 className="section-title">{t('starsByGames') || "O'yinlar bo'yicha"}</h3>
             
             <div className="game-star-card">
-              <div className="game-icon">🅰️</div>
+              <div className="game-icon"><Type size={20} /></div>
               <div className="game-info">
                 <div className="game-name">{t('uzbekLetters') || "O'zbek harflari"}</div>
                 <div className="game-stars">
@@ -94,7 +94,7 @@ const AchievementsModal = ({ isOpen, onClose, totalStars, starsBreakdown, getSta
                 {/* O'zbek harflar tarixi */}
                 {history.harfModal.slice(-5).reverse().map((item, index) => (
                   <div key={`harf-${index}`} className="history-item">
-                    <div className="history-icon">🅰️</div>
+                    <div className="history-icon"><Type size={16} /></div>
                     <div className="history-content">
                       <div className="history-text">
                         <strong>{item.letter}</strong> harfi uchun

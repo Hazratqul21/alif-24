@@ -43,29 +43,29 @@ const MatematikaSarguzashti = () => {
   });
 
   const difficulties = [
-    { id: 1, name: t('math_easy'), min: 0, max: 10, color: 'green', emoji: '🌱' },
-    { id: 2, name: t('math_medium'), min: 10, max: 100, color: 'blue', emoji: '🌟' },
-    { id: 3, name: t('math_hard'), min: 100, max: 1000, color: 'purple', emoji: '🚀' }
+    { id: 1, name: t('math_easy'), min: 0, max: 10, color: 'green', emoji: '' },
+    { id: 2, name: t('math_medium'), min: 10, max: 100, color: 'blue', emoji: '' },
+    { id: 3, name: t('math_hard'), min: 100, max: 1000, color: 'purple', emoji: '' }
   ];
 
   const TOTAL_LEVELS = 50;
   const QUESTIONS_PER_LEVEL = 10;
 
   const encouragements = [
-    `${t('math_enc1')} 🎉`,
-    `${t('math_enc2')} ⭐`,
-    `${t('math_enc3')} 🌟`,
-    `${t('math_enc4')} 🎊`,
-    `${t('math_enc5')} 💫`,
-    `${t('math_enc6')} 🏆`,
-    `${t('math_enc7')} ✨`
+    t('math_enc1'),
+    t('math_enc2'),
+    t('math_enc3'),
+    t('math_enc4'),
+    t('math_enc5'),
+    t('math_enc6'),
+    t('math_enc7')
   ];
 
   const tryAgainMessages = [
-    `${t('math_tryAgain1')} 💪`,
-    `${t('math_tryAgain2')} 🎯`,
-    `${t('math_tryAgain3')} 🌈`,
-    `${t('math_tryAgain4')} 💪`
+    t('math_tryAgain1'),
+    t('math_tryAgain2'),
+    t('math_tryAgain3'),
+    t('math_tryAgain4')
   ];
 
   const saveProgress = (diff, levels, stars, score) => {
@@ -530,7 +530,7 @@ const MatematikaSarguzashti = () => {
           <div className="feedback-overlay">
             <div className={`feedback-modal ${showFeedback.correct ? 'correct' : 'incorrect'}`}>
               <div className="feedback-emoji">
-                {showFeedback.correct ? '🎉' : '💪'}
+                {showFeedback.correct ? <CheckCircle size={48} className="text-green-500" /> : <Star size={48} className="text-orange-500" />}
               </div>
               <div className="feedback-text">
                 {showFeedback.message}

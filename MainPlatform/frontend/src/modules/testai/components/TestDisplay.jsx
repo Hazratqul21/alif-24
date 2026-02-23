@@ -344,7 +344,7 @@ const TestDisplay = ({ tests, onSave }) => {
                           ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.5)]'
                           : 'bg-orange-500/20 text-orange-400 border-orange-400 shadow-[0_0_25px_rgba(251,146,60,0.5)]'
                       }`}>
-                        {percentage >= 80 ? '🌟 A\'LO!' : percentage >= 60 ? '👍 YAXSHI!' : '💪 HARAKAT QILING!'}
+                        {percentage >= 80 ? "A'LO!" : percentage >= 60 ? 'YAXSHI!' : 'HARAKAT QILING!'}
                       </div>
                     </div>
                   )}

@@ -165,7 +165,7 @@ const KidsMode = ({ tests }) => {
 
             <h2 className="text-4xl sm:text-5xl font-black mb-4">
               <span className="neon-text-rainbow animate-glow">
-                TABRIKLAYMIZ! 🎉
+                TABRIKLAYMIZ!
               </span>
             </h2>
 

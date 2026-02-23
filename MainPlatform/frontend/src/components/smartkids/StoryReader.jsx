@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
-import { Mic, StopCircle, BookOpen, CheckCircle } from 'lucide-react';
+import { Mic, StopCircle, BookOpen, CheckCircle, AlertTriangle, RefreshCw, HelpCircle, BarChart3, Type, MessageCircle, FileText, Users, Scale, ArrowRight, PartyPopper, FileUp } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from "react-router-dom";
 
@@ -1353,7 +1353,7 @@ export default function StoryReader({ storyText, age = 7 }) {
           border: "2px solid #f44336",
           color: "#c62828"
         }}>
-          <strong>⚠️ {languageError}</strong>
+          <strong><AlertTriangle size={16} style={{display:'inline',verticalAlign:'middle',marginRight:4}} /> {languageError}</strong>
         </div>
       )}
       
@@ -1448,11 +1448,11 @@ export default function StoryReader({ storyText, age = 7 }) {
   {readingFinished && !isQuestioningFinished && (
     <div style={{ marginTop: 30, padding: 20, backgroundColor: "#f5f5f5", borderRadius: "10px" }}>
       {loadingQuestion ? (
-        <p>🔄 Savol yaratilmoqda...</p>
+        <p><RefreshCw size={16} style={{display:'inline',verticalAlign:'middle',marginRight:4,animation:'spin 1s linear infinite'}} /> Savol yaratilmoqda...</p>
       ) : currentQuestion ? (
         <div>
           <h3 style={{ color: "#333", marginBottom: 15 }}>
-            ❓ Savol {questionCount}:
+            <HelpCircle size={18} style={{display:'inline',verticalAlign:'middle',marginRight:4}} /> Savol {questionCount}:
           </h3>
           <p style={{ fontSize: "1.1em", marginBottom: 20, fontWeight: "bold", color: "#555" }}>
             {currentQuestion}
@@ -1497,7 +1497,7 @@ export default function StoryReader({ storyText, age = 7 }) {
                 marginBottom: 10,
                 color: "#1976d2"
               }}>
-                🎤 Eshitildi: "{childAudioText}"
+                <Mic size={16} style={{display:'inline',verticalAlign:'middle',marginRight:4}} /> Eshitildi: "{childAudioText}"
               </div>
             )}
             
@@ -1512,7 +1512,7 @@ export default function StoryReader({ storyText, age = 7 }) {
                 textAlign: "center",
                 color: "#666"
               }}>
-                🔄 Tahlil qilinmoqda...
+                <RefreshCw size={16} style={{display:'inline',verticalAlign:'middle',marginRight:4,animation:'spin 1s linear infinite'}} /> Tahlil qilinmoqda...
               </div>
             )}
           </div>
@@ -1572,11 +1572,11 @@ export default function StoryReader({ storyText, age = 7 }) {
 
           {analysisResult && (
             <div style={{ marginTop: 20, padding: 15, backgroundColor: "#fff3cd", borderRadius: "5px", border: "1px solid #ffc107" }}>
-              <h4 style={{ marginTop: 0, color: "#856404" }}>📊 Tahlil natijalari:</h4>
+              <h4 style={{ marginTop: 0, color: "#856404", display:'flex', alignItems:'center', gap:6 }}><BarChart3 size={18} /> Tahlil natijalari:</h4>
               
               {analysisResult.speech_errors && analysisResult.speech_errors.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
-                  <strong>🔤 Nutq xatolari:</strong>
+                  <strong style={{display:'flex',alignItems:'center',gap:4}}><Type size={16} /> Nutq xatolari:</strong>
                   <ul style={{ margin: "5px 0", paddingLeft: 20 }}>
                     {analysisResult.speech_errors.map((error, idx) => (
                       <li key={idx}>{error}</li>
@@ -1587,28 +1587,28 @@ export default function StoryReader({ storyText, age = 7 }) {
               
               {analysisResult.thinking_assessment && (
                 <div style={{ marginBottom: 10 }}>
-                  <strong>💭 Fikrlash baholash:</strong>
+                  <strong style={{display:'flex',alignItems:'center',gap:4}}><MessageCircle size={16} /> Fikrlash baholash:</strong>
                   <p style={{ margin: "5px 0" }}>{analysisResult.thinking_assessment}</p>
                 </div>
               )}
               
               {analysisResult.meaning_analysis && (
                 <div style={{ marginBottom: 10 }}>
-                  <strong>📝 Ma'no tahlili:</strong>
+                  <strong style={{display:'flex',alignItems:'center',gap:4}}><FileText size={16} /> Ma'no tahlili:</strong>
                   <p style={{ margin: "5px 0" }}>{analysisResult.meaning_analysis}</p>
                 </div>
               )}
               
               {analysisResult.character_recall && (
                 <div style={{ marginBottom: 10 }}>
-                  <strong>👥 Qahramonlarni eslash:</strong>
+                  <strong style={{display:'flex',alignItems:'center',gap:4}}><Users size={16} /> Qahramonlarni eslash:</strong>
                   <p style={{ margin: "5px 0" }}>{analysisResult.character_recall}</p>
                 </div>
               )}
               
               {analysisResult.character_distinction && (
                 <div style={{ marginBottom: 10 }}>
-                  <strong>⚖️ Qahramonlarni ajratish:</strong>
+                  <strong style={{display:'flex',alignItems:'center',gap:4}}><Scale size={16} /> Qahramonlarni ajratish:</strong>
                   <p style={{ margin: "5px 0" }}>{analysisResult.character_distinction}</p>
                 </div>
               )}
@@ -1633,7 +1633,7 @@ export default function StoryReader({ storyText, age = 7 }) {
                     cursor: (isSpeakingRef.current || loadingQuestion) ? "not-allowed" : "pointer"
                   }}
                 >
-                  ➡️ Keyingi savol
+                  <ArrowRight size={16} style={{display:'inline',verticalAlign:'middle',marginRight:4}} /> Keyingi savol
                 </button>
               )}
             </div>
@@ -1645,7 +1645,7 @@ export default function StoryReader({ storyText, age = 7 }) {
 
   {isQuestioningFinished && (
     <div style={{ marginTop: 30, padding: 20, backgroundColor: "#e8f5e9", borderRadius: "10px", textAlign: "center" }}>
-      <h3 style={{ color: "#4CAF50", marginBottom: 15 }}>🎉 Rahmat!</h3>
+      <h3 style={{ color: "#4CAF50", marginBottom: 15 }}>Rahmat!</h3>
       <p style={{ fontSize: "18px", marginBottom: 10 }}>Siz ajoyib javob berdingiz! Ertakni juda yaxshi tushundingiz.</p>
       <p style={{ color: "#666", marginBottom: 20 }}>Yana o'qimoqchimisiz?</p>
       
@@ -1664,7 +1664,7 @@ export default function StoryReader({ storyText, age = 7 }) {
           fontWeight: "bold"
         }}
       >
-        📄 Yangi fayl yuklash
+        <FileUp size={18} style={{display:'inline',verticalAlign:'middle',marginRight:4}} /> Yangi fayl yuklash
       </button>
     </div>
   )}

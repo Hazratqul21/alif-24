@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, X as XIcon, Clock } from 'lucide-react';
+import { Check, X as XIcon, Clock, CheckCircle, GraduationCap } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 export default function TeachersPage() {
@@ -45,7 +45,7 @@ export default function TeachersPage() {
 
             {teachers.length === 0 ? (
                 <div className="bg-gray-900 border border-gray-800 rounded-2xl p-12 text-center">
-                    <div className="text-4xl mb-3">✅</div>
+                    <CheckCircle size={48} className="mx-auto mb-3 text-emerald-500" />
                     <p className="text-gray-400">Kutayotgan o'qituvchilar yo'q</p>
                     <p className="text-gray-600 text-sm mt-1">Barcha arizalar ko'rib chiqilgan</p>
                 </div>
@@ -56,7 +56,7 @@ export default function TeachersPage() {
                             <div className="flex flex-wrap items-center justify-between gap-4">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
-                                        <span className="text-xl">👨‍🏫</span>
+                                        <GraduationCap size={20} className="text-purple-400" />
                                     </div>
                                     <div>
                                         <h3 className="text-white font-medium">{t.first_name} {t.last_name}</h3>

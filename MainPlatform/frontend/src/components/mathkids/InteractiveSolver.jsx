@@ -115,12 +115,12 @@ export default function InteractiveSolver({ problem, gradeLevel, onBack }) {
         <button className="back-btn" onClick={onBack}>
           ← Orqaga
         </button>
-        <h2>🎯 Interaktiv Yechish</h2>
+        <h2>Interaktiv Yechish</h2>
         <div className="progress-badge">Qadim {currentStep}</div>
       </div>
 
       <div className="problem-display">
-        <h3>📝 Masala:</h3>
+        <h3>Masala:</h3>
         <p>{problem}</p>
       </div>
 
@@ -137,7 +137,7 @@ export default function InteractiveSolver({ problem, gradeLevel, onBack }) {
             {item.user && (
               <div className="student-message">
                 <div className="message-content">{item.user}</div>
-                <div className="message-icon">👤</div>
+                <div className="message-icon">You</div>
               </div>
             )}
           </div>
@@ -159,12 +159,12 @@ export default function InteractiveSolver({ problem, gradeLevel, onBack }) {
                 )}
 
                 {aiResponse.is_correct === true && (
-                  <div className="correct-badge">✅ To'g'ri!</div>
+                  <div className="correct-badge">To'g'ri!</div>
                 )}
 
                 {aiResponse.is_correct === false && (
                   <div className="incorrect-badge">
-                    ❌ Qaytadan urinib ko'ring
+                    Qaytadan urinib ko'ring
                   </div>
                 )}
 
@@ -174,7 +174,7 @@ export default function InteractiveSolver({ problem, gradeLevel, onBack }) {
                       className="hint-btn"
                       onClick={() => setShowHint(!showHint)}
                     >
-                      💡 Maslahat {showHint ? "▼" : "▶"}
+                      Maslahat {showHint ? "▼" : "▶"}
                     </button>
                     {showHint && (
                       <div className="hint-content">{aiResponse.hint}</div>
@@ -184,7 +184,7 @@ export default function InteractiveSolver({ problem, gradeLevel, onBack }) {
 
                 {aiResponse.final_answer && (
                   <div className="final-answer">
-                    <h3>🎉 Ajoyib! Masalani yechtingiz!</h3>
+                    <h3>Ajoyib! Masalani yechtingiz!</h3>
                     <p>
                       <strong>Javob:</strong> {aiResponse.final_answer}
                     </p>
@@ -214,7 +214,7 @@ export default function InteractiveSolver({ problem, gradeLevel, onBack }) {
             onClick={submitAnswer}
             disabled={loading || !studentAnswer.trim()}
           >
-            {loading ? "⏳ Yuklanmoqda..." : "📤 Javob yuborish"}
+            {loading ? "Yuklanmoqda..." : "Javob yuborish"}
           </button>
         </div>
       )}
@@ -223,7 +223,7 @@ export default function InteractiveSolver({ problem, gradeLevel, onBack }) {
       {aiResponse?.final_answer && (
         <div className="completion-actions">
           <button className="btn-primary" onClick={onBack}>
-            🏠 Bosh sahifaga qaytish
+            Bosh sahifaga qaytish
           </button>
         </div>
       )}

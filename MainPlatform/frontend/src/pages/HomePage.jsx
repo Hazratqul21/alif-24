@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, BookOpen, Gamepad2, ChevronRight, Menu, X, Type, Calculator, Car, Monitor, TreePine, Gem, Sparkles, Star, Zap } from 'lucide-react';
+import { Home, BookOpen, Gamepad2, ChevronRight, Menu, X, Type, Calculator, Car, Monitor, TreePine, Gem, Sparkles, Star, Zap, ClipboardList, Search } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useUsageTracking, USAGE_ACTIONS } from '../hooks/useUsageTracking';
@@ -218,7 +218,7 @@ const HomePage = () => {
               }`}
               onClick={() => handleCategoryClick('all')}
             >
-              <span className="text-2xl">📋</span>
+              <ClipboardList size={22} />
               {sidebarOpen && (
                 <>
                   <span className="flex-1 text-left">
@@ -360,7 +360,7 @@ const HomePage = () => {
                           ? 'bg-emerald-500/80 text-white' 
                           : 'bg-amber-500/80 text-white'
                       }`}>
-                        {game.type === 'lessons' ? '📖' : '🎮'} {game.type === 'lessons' ? (t.lessons || 'Dars') : (t.games || "O'yin")}
+                        {game.type === 'lessons' ? <BookOpen size={12} className="inline" /> : <Gamepad2 size={12} className="inline" />} {game.type === 'lessons' ? (t.lessons || 'Dars') : (t.games || "O'yin")}
                       </span>
                     </div>
                     <div className="w-full relative" style={{ paddingTop: '65%' }}>
@@ -395,7 +395,7 @@ const HomePage = () => {
 
             {filteredItems.length === 0 && (
               <div className="text-center py-16 text-white/60">
-                <div className="text-8xl mb-5 opacity-50 animate-bounce">🔍</div>
+                <div className="mb-5 opacity-50 animate-bounce"><Search size={80} /></div>
                 <p className="text-xl font-semibold">{t.nothing_found}</p>
               </div>
             )}

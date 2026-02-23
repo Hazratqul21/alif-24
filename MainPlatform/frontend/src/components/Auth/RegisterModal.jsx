@@ -674,7 +674,7 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
           </div>
           <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
             <p className="text-xs text-indigo-700">
-              📋 Ro'yxatdan o'tuvchi: <strong>{formData.first_name} {formData.last_name}</strong>
+              Ro'yxatdan o'tuvchi: <strong>{formData.first_name} {formData.last_name}</strong>
             </p>
           </div>
         </>

@@ -25,6 +25,7 @@ export default function MathSolver() {
   const [steps, setSteps] = useState([]);
   const [userAnswer, setUserAnswer] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [feedbackType, setFeedbackType] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [finalAnswer, setFinalAnswer] = useState("");
   
@@ -148,7 +149,7 @@ const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL
 
   const checkAnswer = () => {
     if (!userAnswer.trim()) {
-      setFeedback("⚠️ Iltimos, javobingizni kiriting!");
+      setFeedback("Iltimos, javobingizni kiriting!"); setFeedbackType('warning');
       return;
     }
 
@@ -157,7 +158,7 @@ const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL
     const user = userAnswer.trim().toLowerCase();
 
     if (expected && (user === expected || user.includes(expected) || expected.includes(user))) {
-      setFeedback("✅ To'g'ri!");
+      setFeedback("To'g'ri!"); setFeedbackType('success');
       
       setTimeout(() => {
         if (currentStep < steps.length - 1) {
@@ -165,11 +166,11 @@ const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL
           setUserAnswer("");
           setFeedback("");
         } else {
-          setFeedback(`🎉 Ajoyib! ${finalAnswer}`);
+          setFeedback(`Ajoyib! ${finalAnswer}`); setFeedbackType('complete');
         }
       }, 1500);
     } else {
-      setFeedback("❌ Qaytadan urinib ko'ring. Maslahat: " + (step.example || ""));
+      setFeedback("Qaytadan urinib ko'ring. Maslahat: " + (step.example || "")); setFeedbackType('warning');
     }
   };
 
@@ -272,7 +273,7 @@ const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL
             {ProblemList()}
             <main className="math-main">
               <div className="math-solver-card">
-                <h2>🧮 Masala yechilmoqda…</h2>
+                <h2>Masala yechilmoqda…</h2>
                 <p>Yechim yuklanmoqda, biroz kuting...</p>
               </div>
             </main>
@@ -281,17 +282,17 @@ const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL
       );
     }
     const isLastStep = currentStep === steps.length - 1;
-    const isComplete = feedback.includes("🎉");
+    const isComplete = feedbackType === 'complete';
     return (
       <div className="math-solver-container">
         <div className={`math-layout ${problems.length === 0 ? 'no-list' : ''}`}>
           {ProblemList()}
           <main className="math-main">
             <div className="math-solver-card">
-              <h2>🧮 Masalani yechamiz</h2>
+              <h2>Masalani yechamiz</h2>
 
               <div className="problem-display">
-                <strong>📝 Masala {selectedProblem?.num}:</strong>
+                <strong>Masala {selectedProblem?.num}:</strong>
                 <p>{selectedProblem?.text}</p>
               </div>
 
@@ -320,7 +321,7 @@ const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL
                 <p className="step-explanation">{step.explanation}</p>
                 {step.example && (
                   <div className="step-example">
-                    <span className="example-label">💡 Misol:</span>
+                    <span className="example-label">Misol:</span>
                     <span>{step.example}</span>
                   </div>
                 )}
@@ -344,7 +345,7 @@ const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL
                       disabled={loading || isRecording}
                       title="Ovoz bilan javob berish"
                     >
-                      {isRecording ? '🔴' : '🎤'}
+                      {isRecording ? '●' : '🎤'}
                     </button>
                   </div>
                   <button 
@@ -358,13 +359,13 @@ const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL
               )}
 
               {feedback && (
-                <div className={`feedback ${feedback.includes('✅') ? 'success' : feedback.includes('🎉') ? 'complete' : 'warning'}`}>
+                <div className={`feedback ${feedbackType}`}>
                   {feedback}
                 </div>
               )}
 
               <button className="reset-button" onClick={resetSolver}>
-                🔄 Yangi masala
+                Yangi masala
               </button>
             </div>
           </main>
@@ -409,7 +410,7 @@ const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL
                   }}
                   disabled={!inputText || !inputText.trim()}
                 >
-                  ✏️ Tahrirlash
+                  Tahrirlash
                 </button>
               </div>
             )}
@@ -436,7 +437,7 @@ const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL
                   onClick={handleManualInput} 
                   disabled={loading || !inputText.trim()}
                 >
-                  {loading ? '⏳ Yuklanmoqda...' : '📋 Masalalarni ajratish'}
+                  {loading ? 'Yuklanmoqda...' : 'Masalalarni ajratish'}
                 </button>
               </>
             )}

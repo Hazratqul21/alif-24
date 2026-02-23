@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Plus, Trash2, X, Book, Globe, Pencil } from 'lucide-react';
+import { BookOpen, Plus, Trash2, X, Book, Globe, Pencil, Video, Paperclip } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 export default function ContentPage() {
@@ -216,9 +216,9 @@ export default function ContentPage() {
                                         {l.grade_level && <span>• {l.grade_level}</span>}
                                     </div>
                                     <div className="flex items-center gap-2 mt-1">
-                                        {l.video_url && <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs">🎬 Video</a>}
+                                        {l.video_url && <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1"><Video size={12} /> Video</a>}
                                         {l.attachments && l.attachments.length > 0 && l.attachments.map((att, i) => (
-                                            <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-xs">📎 {att.name || `Fayl ${i+1}`}</a>
+                                            <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-xs flex items-center gap-1"><Paperclip size={12} /> {att.name || `Fayl ${i+1}`}</a>
                                         ))}
                                     </div>
                                 </div>
@@ -363,7 +363,7 @@ export default function ContentPage() {
                                 <label className="text-gray-400 text-xs mb-1 block">Mavjud fayllar</label>
                                 <div className="flex flex-wrap gap-2">
                                     {editLesson.attachments.map((att, i) => (
-                                        <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded">📎 {att.name}</a>
+                                        <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded flex items-center gap-1"><Paperclip size={12} /> {att.name}</a>
                                     ))}
                                 </div>
                             </div>

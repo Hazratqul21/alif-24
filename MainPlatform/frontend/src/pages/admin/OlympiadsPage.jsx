@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Trophy, Plus, Trash2, X, Eye, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, BarChart3, FileText, AlertCircle } from 'lucide-react';
+import { Trophy, Plus, Trash2, X, Eye, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, BarChart3, FileText, AlertCircle, PenLine, RefreshCw, Target, AudioLines, Waves } from 'lucide-react';
 import olympiadService from '../../services/olympiadService';
 
 export default function OlympiadsPage() {
@@ -158,7 +158,7 @@ export default function OlympiadsPage() {
         cancelled: 'bg-red-500/20 text-red-400',
     };
 
-    const typeLabels = { test: '📝 Test', reading: '📖 O\'qish', mixed: '🔄 Aralash' };
+    const typeLabels = { test: 'Test', reading: "O'qish", mixed: 'Aralash' };
 
     // ======================== RENDER: LIST ========================
     const renderList = () => (
@@ -226,9 +226,9 @@ export default function OlympiadsPage() {
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Turi</label>
                         <select value={createForm.type} onChange={e => setCreateForm({...createForm, type: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
-                            <option value="test">📝 Test</option>
-                            <option value="reading">📖 O'qish tezligi</option>
-                            <option value="mixed">🔄 Aralash</option>
+                            <option value="test">Test</option>
+                            <option value="reading">O'qish tezligi</option>
+                            <option value="mixed">Aralash</option>
                         </select>
                     </div>
                     <div>
@@ -582,12 +582,12 @@ export default function OlympiadsPage() {
                         )}
                     </div>
                     {[
-                        { key: 'pronunciation_score', label: 'Talaffuz (0-10)', icon: '🗣️' },
-                        { key: 'fluency_score', label: 'Ravonlik (0-10)', icon: '🌊' },
-                        { key: 'accuracy_score', label: 'Aniqlik (0-10)', icon: '🎯' },
+                        { key: 'pronunciation_score', label: 'Talaffuz (0-10)', Icon: AudioLines },
+                        { key: 'fluency_score', label: 'Ravonlik (0-10)', Icon: Waves },
+                        { key: 'accuracy_score', label: 'Aniqlik (0-10)', Icon: Target },
                     ].map(item => (
                         <div key={item.key}>
-                            <label className="text-sm text-gray-400 mb-1 block">{item.icon} {item.label}</label>
+                            <label className="text-sm text-gray-400 mb-1 block flex items-center gap-1.5"><item.Icon size={14} /> {item.label}</label>
                             <input type="range" min={0} max={10} value={gradeForm[item.key]} onChange={e => setGradeForm({...gradeForm, [item.key]: parseInt(e.target.value)})} className="w-full accent-emerald-500" />
                             <div className="text-right text-emerald-400 font-bold text-sm">{gradeForm[item.key]}/10</div>
                         </div>
