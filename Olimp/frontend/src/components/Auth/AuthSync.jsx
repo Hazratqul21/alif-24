@@ -7,7 +7,11 @@ import { apiService } from '../../services/apiService';
  * 
  * 1. Pings the backend to verify the session using the cookie.
  * 2. If NO active session exists, redirects the user to the MainPlatform login page.
+ * 3. Loop protection: max 2 redirects before giving up.
  */
+const REDIRECT_KEY = 'authsync_redirect_count';
+const MAX_REDIRECTS = 2;
+
 const AuthSync = ({ children, enforceLogin = true }) => {
     const [isChecked, setIsChecked] = useState(false);
 
@@ -21,9 +25,23 @@ const AuthSync = ({ children, enforceLogin = true }) => {
             try {
                 // Ping the backend using the apiService which includes credentials (cookies)
                 await apiService.get('/auth/me');
-                setIsChecked(true); // Session is valid
+                // Session is valid — reset redirect counter
+                sessionStorage.removeItem(REDIRECT_KEY);
+                setIsChecked(true);
             } catch (err) {
-                // We don't have a valid session, redirect to main platform login
+                // Loop protection: check how many times we've redirected
+                const count = parseInt(sessionStorage.getItem(REDIRECT_KEY) || '0', 10);
+                if (count >= MAX_REDIRECTS) {
+                    // Too many redirects — likely a loop. Stop redirecting, show content anyway.
+                    console.warn('AuthSync: Loop detected, stopping redirects');
+                    sessionStorage.removeItem(REDIRECT_KEY);
+                    setIsChecked(true);
+                    return;
+                }
+
+                // Increment counter before redirecting
+                sessionStorage.setItem(REDIRECT_KEY, String(count + 1));
+
                 const currentUrl = encodeURIComponent(window.location.href);
                 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
                 const mainDomain = isLocalhost ? 'http://localhost:5173' : 'https://alif24.uz';

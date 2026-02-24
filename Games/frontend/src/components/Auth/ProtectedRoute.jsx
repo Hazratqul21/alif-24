@@ -51,9 +51,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
         // User role not allowed for this route - redirect to main platform dashboard
         const appropriateDashboard = ROLE_DASHBOARDS[user?.role] || '/';
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        window.location.href = isLocalhost ? `http://localhost:5173${appropriateDashboard}` : `https://alif24.uz${appropriateDashboard}`;
-        return null;
+        return <Navigate to={appropriateDashboard} replace />;
     }
 
     return children;

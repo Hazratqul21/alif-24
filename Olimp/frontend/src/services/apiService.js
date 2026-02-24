@@ -5,10 +5,12 @@ class ApiService {
         this.baseUrl = API_URL;
     }
 
-    getHeaders() {
-        const headers = { 'Content-Type': 'application/json' };
+    getHeaders(isFormData = false) {
+        const headers = {};
+        if (!isFormData) {
+            headers['Content-Type'] = 'application/json';
+        }
         // Token endi HttpOnly cookie orqali avtomatik yuboriladi
-        if (token) headers['Authorization'] = `Bearer ${token}`;
         return headers;
     }
 

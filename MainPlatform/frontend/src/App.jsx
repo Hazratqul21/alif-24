@@ -58,11 +58,38 @@ const LoginRoute = () => {
     if (isAuthenticated) {
       const urlParams = new URLSearchParams(window.location.search);
       const redirectUrl = urlParams.get('redirect');
+
       if (redirectUrl) {
-        // HttpOnly cookies .alif24.uz domenida barcha subdomenlarga avtomatik yuboriladi
-        window.location.href = redirectUrl;
-        return;
+        // Validate redirect URL — only allow alif24.uz subdomains or localhost
+        try {
+          const parsed = new URL(redirectUrl);
+          const isAllowed =
+            parsed.hostname.endsWith('alif24.uz') ||
+            parsed.hostname === 'localhost' ||
+            parsed.hostname === '127.0.0.1';
+
+          if (isAllowed) {
+            // Loop protection: check redirect counter
+            const REDIRECT_KEY = 'login_redirect_count';
+            const count = parseInt(sessionStorage.getItem(REDIRECT_KEY) || '0', 10);
+
+            if (count >= 2) {
+              // Too many redirects — likely a loop. Stay on main platform.
+              console.warn('LoginRoute: Redirect loop detected, staying on dashboard');
+              sessionStorage.removeItem(REDIRECT_KEY);
+              navigate('/student-dashboard', { replace: true });
+              return;
+            }
+
+            sessionStorage.setItem(REDIRECT_KEY, String(count + 1));
+            window.location.href = redirectUrl;
+            return;
+          }
+        } catch {
+          // Invalid URL — ignore
+        }
       }
+
       navigate('/student-dashboard', { replace: true });
     }
   }, [isAuthenticated, navigate]);
