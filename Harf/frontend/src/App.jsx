@@ -23,7 +23,7 @@ const App = () => {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <LanguageProvider>
           <AuthProvider>
-            <AuthSync>
+            <AuthSync enforceLogin={false}>
               <ToastManager />
               <AppRoutes />
             </AuthSync>
