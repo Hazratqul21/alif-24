@@ -4,10 +4,12 @@ services:
     image: postgres:15
     container_name: alif24-postgres
     restart: always
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: alif24_secure_password
-      POSTGRES_DB: alif24
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alif24_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-alif24}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -38,31 +40,23 @@ services:
       dockerfile: MainPlatform/backend/Dockerfile
     container_name: main-backend
     restart: always
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - OPENAI_API_KEY=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
-      - AZURE_OPENAI_KEY=Ekghfq1yMBAeGkHM6kKpsfPrWP77Ab7x0NaQaS81I9I7zGDfbt8lJQQJ99BLACfhMk5XJ3w3AAABACOGUD56
-      - AZURE_OPENAI_ENDPOINT=https://deplo.cognitiveservices.azure.com/
-      - AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-chat
-      - AZURE_OPENAI_API_VERSION=2025-01-01-preview
-      - AZURE_SPEECH_KEY=54V9TJPS3HtXlzdnmUY0sgRv6NtugLsgFcf2s3yZlwS0Ogint3u6JQQJ99BLACYeBjFXJ3w3AAAYACOGlQP9
-      - AZURE_SPEECH_REGION=eastus
-      - AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=alifbe24;AccountKey=kNOPukOWmPce4VbxB7FSXL4SgVMml4zXkMTPdouqFhRLJwvp0Cp3rNpxFb3pkA766hfa00BBHSjR+AStteDO3Q==;EndpointSuffix=core.windows.net
-      - AZURE_CONTAINER_NAME=audiostories
-      - TELEGRAM_BOT_TOKEN=8379431489:AAH2xUGuEy0_FZV8vnN8_vyIII13VqDPryU
-      - TELEGRAM_CHAT_ID=234413715
-      - ADMIN_SECRET_KEY=alif24_rahbariyat26!
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - REDIS_URL=redis://redis:6379
-      - CORS_ORIGINS=
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
     volumes:
       - /data/uploads:/app/uploads
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - alif24-network
 
@@ -84,17 +78,18 @@ services:
       dockerfile: Harf/backend/Dockerfile
     container_name: harf-backend
     restart: always
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - AZURE_SPEECH_KEY=54V9TJPS3HtXlzdnmUY0sgRv6NtugLsgFcf2s3yZlwS0Ogint3u6JQQJ99BLACYeBjFXJ3w3AAAYACOGlQP9
-      - AZURE_SPEECH_REGION=eastus
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
     ports:
       - "8001:8001"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - alif24-network
 
@@ -116,16 +111,18 @@ services:
       dockerfile: TestAI/backend/Dockerfile
     container_name: testai-backend
     restart: always
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - OPENAI_API_KEY=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
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
     ports:
       - "8002:8002"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - alif24-network
 
@@ -147,16 +144,18 @@ services:
       dockerfile: CRM/backend/Dockerfile
     container_name: crm-backend
     restart: always
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - TELEGRAM_BOT_TOKEN=8379431489:AAH2xUGuEy0_FZV8vnN8_vyIII13VqDPryU
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
     ports:
       - "8003:8003"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - alif24-network
 
@@ -178,15 +177,18 @@ services:
       dockerfile: Games/backend/Dockerfile
     container_name: games-backend
     restart: always
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
     ports:
       - "8004:8004"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - alif24-network
 
@@ -208,15 +210,18 @@ services:
       dockerfile: Olimp/backend/Dockerfile
     container_name: olimp-backend
     restart: always
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
     ports:
       - "8005:8005"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - alif24-network
 
@@ -238,16 +243,18 @@ services:
       dockerfile: Lessions/backend/Dockerfile
     container_name: lessions-backend
     restart: always
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
-      - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
-      - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
-      - OPENAI_API_KEY=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
-      - CORS_ORIGINS=
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
     ports:
       - "8006:8006"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - alif24-network
 
@@ -298,9 +305,11 @@ services:
     image: dpage/pgadmin4
     container_name: alif24-pgadmin
     restart: always
+    env_file:
+      - .env
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@alif24.uz
-      PGADMIN_DEFAULT_PASSWORD: alif24_admin_2026
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@alif24.uz}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-alif24_admin_2026}
       PGADMIN_CONFIG_SCRIPT_NAME: "'/pgadmin'"
       PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
     ports:

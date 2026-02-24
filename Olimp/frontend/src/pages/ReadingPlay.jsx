@@ -22,6 +22,7 @@ export default function ReadingPlay() {
 
     // Countdown
     const [countdown, setCountdown] = useState(3);
+    const countdownRef = useRef(null);
 
     // Reading
     const [timer, setTimer] = useState(0);
@@ -43,6 +44,7 @@ export default function ReadingPlay() {
     useEffect(() => {
         loadTask();
         return () => {
+            stopCountdown();
             stopTimer();
             stopSTT();
         };
@@ -78,11 +80,12 @@ export default function ReadingPlay() {
         setCountdown(3);
 
         let count = 3;
-        const interval = setInterval(() => {
+        countdownRef.current = setInterval(() => {
             count--;
             setCountdown(count);
             if (count === 0) {
-                clearInterval(interval);
+                clearInterval(countdownRef.current);
+                countdownRef.current = null;
                 startReading();
             }
         }, 1000);
@@ -168,6 +171,13 @@ export default function ReadingPlay() {
         if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
+        }
+    };
+
+    const stopCountdown = () => {
+        if (countdownRef.current) {
+            clearInterval(countdownRef.current);
+            countdownRef.current = null;
         }
     };
 

@@ -270,7 +270,7 @@ async def next_question(request: NextQuestionRequest):
             if detected == 'ru': request.language = "ru-RU"
             elif detected == 'en': request.language = "en-US"
             else: request.language = "uz-UZ"
-            print(f"🌍 Lang detected: {detected} -> {request.language}")
+            logger.info(f"Lang detected: {detected} -> {request.language}")
         except:
             request.language = "uz-UZ"
             
@@ -543,7 +543,7 @@ async def save_analysis(request: SaveAnalysisRequest, db: AsyncSession = Depends
     SmartReaderTTS tahlilini saqlash
     """
     try:
-        print(f"💾 Tahlilni saqlash: user_id={request.user_id}, title={request.story_title}")
+        logger.info(f"Saving analysis: user_id={request.user_id}, title={request.story_title}")
         
         analysis = ReadingAnalysis(
             user_id=request.user_id,
@@ -567,17 +567,17 @@ async def save_analysis(request: SaveAnalysisRequest, db: AsyncSession = Depends
         await db.commit()
         await db.refresh(analysis)
         
-        print(f"✅ Tahlil saqlandi: ID={analysis.id}")
-        
+        logger.info(f"Analysis saved: ID={analysis.id}")
+
         return {
             "message": "Tahlil saqlandi",
             "analysis_id": analysis.id
         }
-        
+
     except Exception as e:
-        print(f"❌ Xato tahlilni saqlashda: {str(e)}")
+        logger.error(f"Error saving analysis: {str(e)}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error saving analysis: {str(e)}")
 
@@ -589,11 +589,11 @@ async def get_user_analyses(user_id: str, days: int = 30, db: AsyncSession = Dep
     StudentDashboard uchun
     """
     try:
-        print(f"📊 Tahlillarni olish: user_id={user_id}, days={days}")
-        
+        logger.info(f"Getting user analyses: user_id={user_id}, days={days}")
+
         # Oxirgi N kun
         start_date = datetime.now(timezone.utc) - timedelta(days=days)
-        
+
         result = await db.execute(
             select(ReadingAnalysis).where(
                 ReadingAnalysis.user_id == user_id,
@@ -601,8 +601,8 @@ async def get_user_analyses(user_id: str, days: int = 30, db: AsyncSession = Dep
             ).order_by(ReadingAnalysis.session_date.desc())
         )
         analyses = result.scalars().all()
-        
-        print(f"📈 Topilgan tahlillar: {len(analyses)} ta")
+
+        logger.info(f"Found {len(analyses)} analyses")
         
         # Kunlik statistika
         daily_result = await db.execute(
@@ -627,7 +627,7 @@ async def get_user_analyses(user_id: str, days: int = 30, db: AsyncSession = Dep
         avg_comprehension = sum([a.comprehension_score for a in analyses]) / total_sessions if total_sessions > 0 else 0
         total_errors = sum([a.speech_errors for a in analyses])
         
-        print(f"📊 Statistika: sessions={total_sessions}, words={total_words}, daily_stats={len(daily_stats)}")
+        logger.info(f"Statistics: sessions={total_sessions}, words={total_words}, daily_stats={len(daily_stats)}")
         
         return {
             "total_sessions": total_sessions,
@@ -661,7 +661,7 @@ async def get_user_analyses(user_id: str, days: int = 30, db: AsyncSession = Dep
         }
         
     except Exception as e:
-        print(f"❌ Xato tahlillarni olishda: {str(e)}")
+        logger.error(f"Error fetching analyses: {str(e)}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error fetching analyses: {str(e)}")

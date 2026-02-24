@@ -90,7 +90,8 @@ async def list_olympiads(
         try:
             stmt = stmt.where(Olympiad.status == OlympiadStatus(status))
         except ValueError:
-            pass
+            # Invalid status value, return empty list
+            return {"success": True, "data": {"olympiads": [], "total": 0}}
     if subject:
         stmt = stmt.where(Olympiad.subject.ilike(f"%{subject}%"))
 
@@ -353,8 +354,8 @@ async def get_leaderboard(
                 u = u_res.scalar_one_or_none()
                 if u:
                     student_name = f"{u.first_name} {u.last_name}".strip() or student_name
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning(f"Failed to get student name for {p.student_id}: {e}")
 
         leaderboard.append({
             "rank": idx,

@@ -14,6 +14,7 @@ Thumbs.db
 
 # Documentation
 *.md
+CLAUDE.md
 docs/
 ARCHITECTURE.md
 COMPREHENSIVE_TECHNICAL_AUDIT_2026.md
