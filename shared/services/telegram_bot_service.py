@@ -106,10 +106,10 @@ class TelegramBotService:
     
     def __init__(self, db: AsyncSession, bot_token: Optional[str] = None):
         self.db = db
-        # Hardcoded kalitlar (config.py dan import qilmaslik uchun — shared module)
-        self.bot_token = bot_token or "8379431489:AAH2xUGuEy0_FZV8vnN8_vyIII13VqDPryU"
+        # Read from environment variables
+        self.bot_token = bot_token or os.getenv("TELEGRAM_BOT_TOKEN", "")
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}"
-        self.openai_api_key = "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"
+        self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
         self.openai_model = "gpt-4o-mini"
         self.openai_fallback_model = "gpt-3.5-turbo"
         # Chat tarixi (xotirada, oxirgi 10 ta xabar)

@@ -1,35 +1,34 @@
-"""Harf Platform Configuration — hardcoded for VDS"""
+"""Harf Platform Configuration"""
 
 import os
 from typing import Optional
 
-
 class Settings:
-    # App
     APP_NAME: str = "Harf Platform"
-    DEBUG: bool = False
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     API_PREFIX: str = "/api/v1"
 
-    # Database
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24"
-    )
+    # Database — REQUIRED
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable is required!")
 
-    # JWT
-    JWT_SECRET: str = "super_secure_jwt_secret_key_for_local_development_only_12345"
+    # JWT — REQUIRED
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "")
+    if not JWT_SECRET:
+        raise ValueError("JWT_SECRET environment variable is required!")
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
-    # Azure Speech
-    AZURE_SPEECH_KEY: str = "54V9TJPS3HtXlzdnmUY0sgRv6NtugLsgFcf2s3yZlwS0Ogint3u6JQQJ99BLACYeBjFXJ3w3AAAYACOGlQP9"
-    AZURE_SPEECH_REGION: str = "eastus"
+    # Azure Speech (optional - for TTS/STT)
+    AZURE_SPEECH_KEY: Optional[str] = os.getenv("AZURE_SPEECH_KEY", None)
+    AZURE_SPEECH_REGION: str = os.getenv("AZURE_SPEECH_REGION", "eastus")
 
-    # Azure Storage
-    AZURE_STORAGE_CONNECTION: str = "DefaultEndpointsProtocol=https;AccountName=alifbe24;AccountKey=kNOPukOWmPce4VbxB7FSXL4SgVMml4zXkMTPdouqFhRLJwvp0Cp3rNpxFb3pkA766hfa00BBHSjR+AStteDO3Q==;EndpointSuffix=core.windows.net"
+    # Azure Storage (optional)
+    AZURE_STORAGE_CONNECTION: Optional[str] = os.getenv("AZURE_STORAGE_CONNECTION_STRING", None)
 
     # Audio
-    AUDIO_BASE_URL: str = "https://alif24storage.blob.core.windows.net/harflar"
+    AUDIO_BASE_URL: str = os.getenv("AUDIO_BASE_URL", "https://alif24storage.blob.core.windows.net/harflar")
 
 
 settings = Settings()

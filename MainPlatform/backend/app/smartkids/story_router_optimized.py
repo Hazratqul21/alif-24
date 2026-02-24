@@ -3,7 +3,10 @@ Story API - ertak asosida AI suhbat va tahlil
 """
 import os
 import json
+import logging
 from fastapi import APIRouter, HTTPException, Depends
+
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
@@ -105,7 +108,7 @@ async def chat_and_ask_question(request: ChatRequest, db: AsyncSession = Depends
 
     except Exception as e:
         # Fallback to keep app running if AI fails
-        print(f"AI Error: {e}")
+        logger.error(f"AI Error: {e}")
         return {"question": "Ertak sizga yoqdimi?", "comment": "Juda yaxshi!"}
 
 # ... (Rest of the file with similar optimizations)

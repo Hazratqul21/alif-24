@@ -1,6 +1,9 @@
 import hashlib
 import json
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import select, func
 from ..models.ai_cache import AICache
 from typing import Optional, Dict, Any
@@ -59,4 +62,4 @@ class AICacheService:
             await db.commit()
         except Exception as e:
             await db.rollback()
-            print(f"Cache Save Error: {e}")
+            logger.error(f"Cache Save Error: {e}")

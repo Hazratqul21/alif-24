@@ -7,7 +7,10 @@ Uses shared database, auth, and payments modules
 
 import sys
 import os
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Add project root to path for shared modules
 import sentry_sdk
@@ -40,7 +43,7 @@ if REDIS_URL:
             storage_uri=REDIS_URL
         )
     except Exception as e:
-        print(f"Warning: Could not initialize Redis rate limiter: {e}")
+        logger.warning(f"Could not initialize Redis rate limiter: {e}")
         limiter = Limiter(
             key_func=get_remote_address,
             default_limits=["100/minute"]
