@@ -1003,7 +1003,10 @@ cmd_watch() {
         echo -e "  ${BOLD}SERVER:${NC} CPU Load: $load | RAM: ${mem_pct}% | Disk: ${disk_pct}%"
         
         # Errors in last minute
-        local err_count=$($DC logs --since=1m 2>/dev/null | grep -ciE "error|exception|fatal" || echo 0)
+        local err_count=$($DC logs --since=1m 2>/dev/null | grep -ciE "error|exception|fatal" || echo "0")
+        err_count=$(echo "$err_count" | tail -1 | tr -d ' ')
+        if [ -z "$err_count" ]; then err_count=0; fi
+        
         if [ "$err_count" -gt 0 ]; then
             echo -e "  ${RED}XATOLIKLAR (oxirgi 1m): $err_count${NC}"
         else
@@ -1359,7 +1362,11 @@ cmd_score() {
     # 6. Errors in last hour
     separator
     echo -e "  ${BOLD}Xatoliklar (oxirgi 1 soat):${NC}"
-    local err_count=$($DC logs --since=1h 2>/dev/null | grep -ciE "error|exception|fatal|traceback" || echo 0)
+    local err_count=$($DC logs --since=1h 2>/dev/null | grep -ciE "error|exception|fatal|traceback" || echo "0")
+    # Clean output just in case of multiple lines
+    err_count=$(echo "$err_count" | tail -1 | tr -d ' ')
+    if [ -z "$err_count" ]; then err_count=0; fi
+    
     if [ "$err_count" -lt 10 ]; then
         ok "Xatoliklar kam: $err_count"
     elif [ "$err_count" -lt 50 ]; then
