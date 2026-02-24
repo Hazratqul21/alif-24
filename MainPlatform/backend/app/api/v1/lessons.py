@@ -307,16 +307,24 @@ STORY_VOICES = {
 @router.post("/public/stories/{story_id}/tts")
 async def story_tts(
     story_id: str,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """AI yordamida ertakni o'qib berish (OpenAI TTS)"""
+    """AI yordamida ertakni o'qib berish (OpenAI TTS) — auth kerak emas"""
+    if not OPENAI_API_KEY:
+        logger.error("OPENAI_API_KEY is not set!")
+        raise HTTPException(status_code=500, detail="OpenAI API kaliti sozlanmagan")
+
     res = await db.execute(select(Story).where(Story.id == story_id))
     story = res.scalar_one_or_none()
     if not story:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
 
     voice = STORY_VOICES.get(story.language or "uz", "alloy")
+    text = (story.content or "")[:4096]
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Ertak matni bo'sh")
+
+    logger.info(f"TTS request: story={story_id}, lang={story.language}, voice={voice}, text_len={len(text)}")
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -328,14 +336,20 @@ async def story_tts(
                 },
                 json={
                     "model": "tts-1",
-                    "input": story.content[:4096],
+                    "input": text,
                     "voice": voice,
                     "response_format": "mp3",
                 },
             )
-            response.raise_for_status()
+            if response.status_code != 200:
+                logger.error(f"OpenAI TTS error: status={response.status_code}, body={response.text[:500]}")
+                raise HTTPException(status_code=500, detail=f"OpenAI xatoligi: {response.status_code}")
             return FastAPIResponse(content=response.content, media_type="audio/mpeg")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"OpenAI TTS HTTP error: {e.response.status_code} - {e.response.text[:300]}")
+        raise HTTPException(status_code=500, detail=f"TTS xatoligi: {e.response.status_code}")
     except Exception as e:
-        logger.error(f"TTS error for story {story_id}: {e}")
+        logger.error(f"TTS error for story {story_id}: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
+
 
