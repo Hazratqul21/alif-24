@@ -14,6 +14,10 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Create enum types if they don't exist
+    op.execute("DO $$ BEGIN CREATE TYPE leadstatus AS ENUM ('new', 'contacted', 'trial_lesson', 'negotiation', 'won', 'lost'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE activitytype AS ENUM ('call', 'meeting', 'note', 'task'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+
     # CRM Leads table
     op.create_table(
         'crm_leads',
@@ -22,7 +26,7 @@ def upgrade() -> None:
         sa.Column('last_name', sa.String(), nullable=True),
         sa.Column('phone', sa.String(), nullable=False, index=True),
         sa.Column('source', sa.String(), nullable=True),
-        sa.Column('status', sa.Enum('new', 'contacted', 'trial_lesson', 'negotiation', 'won', 'lost', name='leadstatus'), default='new'),
+        sa.Column('status', sa.Enum('new', 'contacted', 'trial_lesson', 'negotiation', 'won', 'lost', name='leadstatus', create_type=False), default='new'),
         sa.Column('notes', sa.Text(), nullable=True),
         sa.Column('assigned_to_id', sa.String(8), sa.ForeignKey('users.id'), nullable=True),
         sa.Column('organization_id', sa.String(8), sa.ForeignKey('organization_profiles.id', ondelete='CASCADE'), nullable=True),
@@ -35,7 +39,7 @@ def upgrade() -> None:
         'crm_activities',
         sa.Column('id', sa.String(8), primary_key=True),
         sa.Column('lead_id', sa.String(8), sa.ForeignKey('crm_leads.id'), nullable=False),
-        sa.Column('type', sa.Enum('call', 'meeting', 'note', 'task', name='activitytype'), default='note'),
+        sa.Column('type', sa.Enum('call', 'meeting', 'note', 'task', name='activitytype', create_type=False), default='note'),
         sa.Column('summary', sa.String(), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('due_date', sa.DateTime(timezone=True), nullable=True),
