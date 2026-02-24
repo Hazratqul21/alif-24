@@ -298,11 +298,16 @@ from fastapi import Response as FastAPIResponse
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
 
+# HD ovozlar — bolalar uchun iliq, tabiiy ovozlar
 STORY_VOICES = {
-    "uz": "alloy",
-    "ru": "nova",
-    "en": "alloy",
+    "uz": "shimmer",   # O'zbek — iliq, tabiiy ayol ovozi
+    "ru": "nova",      # Rus — yumshoq, aniq ayol ovozi
+    "en": "nova",      # Ingliz — professional, tiniq ovoz
 }
+
+# HD model = yuqori sifat, bolalar uchun sekinroq tezlik
+TTS_MODEL = "tts-1-hd"
+TTS_SPEED = 0.95  # biroz sekinroq — bolalar uchun aniqroq
 
 @router.post("/public/stories/{story_id}/tts")
 async def story_tts(
@@ -335,9 +340,10 @@ async def story_tts(
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "tts-1",
+                    "model": TTS_MODEL,
                     "input": text,
                     "voice": voice,
+                    "speed": TTS_SPEED,
                     "response_format": "mp3",
                 },
             )

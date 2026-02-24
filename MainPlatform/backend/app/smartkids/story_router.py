@@ -211,18 +211,8 @@ def get_azure_client():
     )
 
 async def call_ai(messages, response_format=None, temperature=0.7):
-    """Azure first, OpenAI fallback. Returns parsed content string."""
-    # 1) Azure
-    try:
-        azure_client = get_azure_client()
-        kwargs = dict(model=settings.AZURE_OPENAI_DEPLOYMENT_NAME, messages=messages, temperature=temperature)
-        if response_format:
-            kwargs["response_format"] = response_format
-        resp = await azure_client.chat.completions.create(**kwargs)
-        return resp.choices[0].message.content
-    except Exception as e:
-        logger.warning(f"Azure OpenAI failed: {e}")
-    # 2) OpenAI fallback
+    """OpenAI first, Azure as fallback. Returns parsed content string."""
+    # 1) OpenAI primary
     try:
         openai_client = get_openai_client()
         kwargs = dict(model=OPENAI_MODEL, messages=messages, temperature=temperature)
@@ -231,8 +221,21 @@ async def call_ai(messages, response_format=None, temperature=0.7):
         resp = await openai_client.chat.completions.create(**kwargs)
         return resp.choices[0].message.content
     except Exception as e:
-        logger.error(f"OpenAI fallback also failed: {e}")
-        raise
+        logger.warning(f"OpenAI failed: {e}")
+
+    # 2) Azure fallback (only if configured)
+    if settings.AZURE_OPENAI_KEY and settings.AZURE_OPENAI_ENDPOINT:
+        try:
+            azure_client = get_azure_client()
+            kwargs = dict(model=settings.AZURE_OPENAI_DEPLOYMENT_NAME, messages=messages, temperature=temperature)
+            if response_format:
+                kwargs["response_format"] = response_format
+            resp = await azure_client.chat.completions.create(**kwargs)
+            return resp.choices[0].message.content
+        except Exception as e:
+            logger.warning(f"Azure OpenAI failed: {e}")
+
+    raise Exception("Both OpenAI and Azure AI failed")
 
 
 @router.post("/detect-language")
