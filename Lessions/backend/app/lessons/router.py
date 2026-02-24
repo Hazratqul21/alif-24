@@ -392,3 +392,100 @@ async def delete_ertak(
     await db.delete(ertak)
     await db.commit()
     return {"success": True, "message": "Ertak o'chirildi"}
+
+
+# ============= TTS — Ertakni AI o'qib berish (OpenAI) =============
+
+from fastapi import Response as FastAPIResponse
+from pydantic import BaseModel as TTSBaseModel
+import httpx
+import os
+
+class TTSRequest(TTSBaseModel):
+    text: str
+    language: str = "uz"
+
+# OpenAI TTS ovozlari (tilga mos)
+LANGUAGE_VOICES = {
+    "uz": "alloy",     # O'zbek uchun alloy ovoz
+    "ru": "nova",      # Rus uchun nova ovoz
+    "en": "alloy",     # Ingliz uchun alloy ovoz
+}
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
+
+
+@router.post("/ertaklar/{ertak_id}/tts")
+async def ertak_tts(
+    ertak_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """AI yordamida ertakni o'qib berish (OpenAI TTS)"""
+    res = await db.execute(select(Ertak).where(Ertak.id == ertak_id))
+    ertak = res.scalar_one_or_none()
+    if not ertak:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+
+    lang = ertak.language or "uz"
+    voice = LANGUAGE_VOICES.get(lang, "alloy")
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                OPENAI_TTS_URL,
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "tts-1",
+                    "input": ertak.content[:4096],  # OpenAI limit
+                    "voice": voice,
+                    "response_format": "mp3",
+                },
+            )
+            response.raise_for_status()
+            return FastAPIResponse(content=response.content, media_type="audio/mpeg")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"OpenAI TTS HTTP error: {e.response.status_code}")
+        raise HTTPException(status_code=500, detail=f"TTS xatoligi: {e.response.status_code}")
+    except Exception as e:
+        logger.error(f"TTS error for ertak {ertak_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
+
+
+@router.post("/tts")
+async def general_tts(data: TTSRequest):
+    """Umumiy TTS endpoint — istalgan matnni o'qib berish (OpenAI)"""
+    if not data.text or not data.text.strip():
+        raise HTTPException(status_code=400, detail="Matn kiritilmadi")
+
+    lang = data.language or "uz"
+    voice = LANGUAGE_VOICES.get(lang, "alloy")
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                OPENAI_TTS_URL,
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "tts-1",
+                    "input": data.text[:4096],
+                    "voice": voice,
+                    "response_format": "mp3",
+                },
+            )
+            response.raise_for_status()
+            return FastAPIResponse(content=response.content, media_type="audio/mpeg")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"OpenAI TTS HTTP error: {e.response.status_code}")
+        raise HTTPException(status_code=500, detail=f"TTS xatoligi: {e.response.status_code}")
+    except Exception as e:
+        logger.error(f"TTS error: {e}")
+        raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
+
+

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, BookMarked, Volume2 } from 'lucide-react';
+import { ArrowLeft, BookMarked, Volume2, Square, Loader } from 'lucide-react';
 import apiService from '../services/apiService';
 
 export default function ErtaklarPage() {
@@ -9,9 +9,19 @@ export default function ErtaklarPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selected, setSelected] = useState(null);
+    const [playingId, setPlayingId] = useState(null);
+    const [ttsLoading, setTtsLoading] = useState(null);
+    const audioRef = useRef(null);
 
     useEffect(() => {
         loadErtaklar();
+        return () => {
+            // Cleanup audio on unmount
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+        };
     }, []);
 
     const loadErtaklar = async () => {
@@ -26,16 +36,78 @@ export default function ErtaklarPage() {
         }
     };
 
+    const handlePlayTTS = async (e, ertak) => {
+        e.stopPropagation();
+
+        // If already playing this story, stop it
+        if (playingId === ertak.id) {
+            stopAudio();
+            return;
+        }
+
+        // Stop any currently playing audio
+        stopAudio();
+
+        try {
+            setTtsLoading(ertak.id);
+
+            const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+            const response = await fetch(`${API_URL}/ertaklar/${ertak.id}/tts`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                throw new Error('TTS xatoligi');
+            }
+
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+
+            const audio = new Audio(audioUrl);
+            audioRef.current = audio;
+
+            audio.onended = () => {
+                setPlayingId(null);
+                URL.revokeObjectURL(audioUrl);
+                audioRef.current = null;
+            };
+
+            audio.onerror = () => {
+                setPlayingId(null);
+                URL.revokeObjectURL(audioUrl);
+                audioRef.current = null;
+            };
+
+            await audio.play();
+            setPlayingId(ertak.id);
+        } catch (err) {
+            console.error('TTS error:', err);
+            alert("Audio o'qib bo'lmadi. Qayta urinib ko'ring.");
+        } finally {
+            setTtsLoading(null);
+        }
+    };
+
+    const stopAudio = () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            audioRef.current = null;
+        }
+        setPlayingId(null);
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative overflow-hidden">
             {/* Stars */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute top-[5%] left-[10%] w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0s', animationDuration: '2s' }} />
-              <div className="absolute top-[15%] left-[30%] w-1.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.5s', animationDuration: '3s' }} />
-              <div className="absolute top-[20%] left-[70%] w-2 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: '1.5s', animationDuration: '3.5s' }} />
-              <div className="absolute top-[50%] left-[85%] w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.8s', animationDuration: '2.8s' }} />
-              <div className="absolute top-[70%] left-[20%] w-1.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: '1.2s', animationDuration: '3.2s' }} />
-              <div className="absolute top-[85%] left-[55%] w-2 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.4s', animationDuration: '2.4s' }} />
+                <div className="absolute top-[5%] left-[10%] w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0s', animationDuration: '2s' }} />
+                <div className="absolute top-[15%] left-[30%] w-1.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.5s', animationDuration: '3s' }} />
+                <div className="absolute top-[20%] left-[70%] w-2 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: '1.5s', animationDuration: '3.5s' }} />
+                <div className="absolute top-[50%] left-[85%] w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.8s', animationDuration: '2.8s' }} />
+                <div className="absolute top-[70%] left-[20%] w-1.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: '1.2s', animationDuration: '3.2s' }} />
+                <div className="absolute top-[85%] left-[55%] w-2 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.4s', animationDuration: '2.4s' }} />
             </div>
             {/* Header */}
             <header className="relative z-10 border-b border-white/10 backdrop-blur-md bg-white/5">
@@ -71,7 +143,7 @@ export default function ErtaklarPage() {
                     transition={{ delay: 0.1 }}
                     className="text-white/50 text-lg max-w-xl mx-auto"
                 >
-                    Qiziqarli hikoyalar va ertaklar to'plami
+                    Qiziqarli hikoyalar — AI o'qib beradi!
                 </motion.p>
             </section>
 
@@ -103,25 +175,22 @@ export default function ErtaklarPage() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}
                             >
-                                <button
-                                    onClick={() => setSelected(selected === ertak.id ? null : ertak.id)}
-                                    className="w-full text-left bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all"
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <h3 className="text-lg font-bold text-white mb-1">{ertak.title}</h3>
-                                            <div className="flex items-center gap-3 text-xs text-white/50">
-                                                <span>{ertak.language === 'uz' ? "O'zbek" : ertak.language === 'ru' ? 'Русский' : 'English'}</span>
-                                                <span>Yosh: {ertak.age_group || '6-8'}</span>
-                                                {ertak.has_audio && (
-                                                    <span className="flex items-center gap-1 text-[#4b30fb]">
-                                                        <Volume2 className="w-3 h-3" /> Audio
-                                                    </span>
-                                                )}
+                                <div className="w-full text-left bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all">
+                                    <button
+                                        onClick={() => setSelected(selected === ertak.id ? null : ertak.id)}
+                                        className="w-full text-left"
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <div>
+                                                <h3 className="text-lg font-bold text-white mb-1">{ertak.title}</h3>
+                                                <div className="flex items-center gap-3 text-xs text-white/50">
+                                                    <span>{ertak.language === 'uz' ? "O'zbek" : ertak.language === 'ru' ? 'Русский' : 'English'}</span>
+                                                    <span>Yosh: {ertak.age_group || '6-8'}</span>
+                                                </div>
                                             </div>
+                                            <span className="text-white/40 text-xl">{selected === ertak.id ? '▲' : '▼'}</span>
                                         </div>
-                                        <span className="text-white/40 text-xl">{selected === ertak.id ? '▲' : '▼'}</span>
-                                    </div>
+                                    </button>
 
                                     {selected === ertak.id && (
                                         <motion.div
@@ -129,10 +198,47 @@ export default function ErtaklarPage() {
                                             animate={{ opacity: 1, height: 'auto' }}
                                             className="mt-4 pt-4 border-t border-white/10"
                                         >
+                                            {/* TTS Button */}
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <button
+                                                    onClick={(e) => handlePlayTTS(e, ertak)}
+                                                    disabled={ttsLoading === ertak.id}
+                                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${playingId === ertak.id
+                                                            ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
+                                                            : ttsLoading === ertak.id
+                                                                ? 'bg-white/10 text-white/50 cursor-wait'
+                                                                : 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white hover:scale-105'
+                                                        }`}
+                                                >
+                                                    {ttsLoading === ertak.id ? (
+                                                        <>
+                                                            <Loader className="w-4 h-4 animate-spin" />
+                                                            Yuklanmoqda...
+                                                        </>
+                                                    ) : playingId === ertak.id ? (
+                                                        <>
+                                                            <Square className="w-4 h-4" />
+                                                            To'xtatish
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Volume2 className="w-4 h-4" />
+                                                            🤖 AI o'qib bersin
+                                                        </>
+                                                    )}
+                                                </button>
+                                                {playingId === ertak.id && (
+                                                    <span className="flex items-center gap-1 text-xs text-[#4b30fb]">
+                                                        <span className="w-1.5 h-1.5 bg-[#4b30fb] rounded-full animate-pulse" />
+                                                        Eshitilmoqda...
+                                                    </span>
+                                                )}
+                                            </div>
+
                                             <p className="text-white/80 leading-relaxed whitespace-pre-wrap">{ertak.content}</p>
                                         </motion.div>
                                     )}
-                                </button>
+                                </div>
                             </motion.div>
                         ))}
                     </div>
@@ -141,3 +247,4 @@ export default function ErtaklarPage() {
         </div>
     );
 }
+

@@ -242,6 +242,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24
       - JWT_SECRET=super_secure_jwt_secret_key_for_local_development_only_12345
       - JWT_REFRESH_SECRET=super_secure_refresh_secret_key_for_local_development_only_67890
+      - OPENAI_API_KEY=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
       - CORS_ORIGINS=
     ports:
       - "8006:8006"
