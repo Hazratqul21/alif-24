@@ -7,7 +7,11 @@ import { apiService } from '../../services/apiService';
  * 
  * 1. Pings the backend to verify the session using the cookie.
  * 2. If NO active session exists, redirects the user to the MainPlatform login page.
+ * 3. Loop protection: max 2 redirects before giving up.
  */
+const REDIRECT_KEY = 'authsync_redirect_count';
+const MAX_REDIRECTS = 2;
+
 const AuthSync = ({ children, enforceLogin = true }) => {
     const [isChecked, setIsChecked] = useState(false);
 
@@ -19,11 +23,20 @@ const AuthSync = ({ children, enforceLogin = true }) => {
             }
 
             try {
-                // Ping the backend using the apiService which includes credentials (cookies)
                 await apiService.get('/auth/me');
-                setIsChecked(true); // Session is valid
+                sessionStorage.removeItem(REDIRECT_KEY);
+                setIsChecked(true);
             } catch (err) {
-                // We don't have a valid session, redirect to main platform login
+                const count = parseInt(sessionStorage.getItem(REDIRECT_KEY) || '0', 10);
+                if (count >= MAX_REDIRECTS) {
+                    console.warn('AuthSync: Loop detected, stopping redirects');
+                    sessionStorage.removeItem(REDIRECT_KEY);
+                    setIsChecked(true);
+                    return;
+                }
+
+                sessionStorage.setItem(REDIRECT_KEY, String(count + 1));
+
                 const currentUrl = encodeURIComponent(window.location.href);
                 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
                 const mainDomain = isLocalhost ? 'http://localhost:5173' : 'https://alif24.uz';
@@ -36,7 +49,6 @@ const AuthSync = ({ children, enforceLogin = true }) => {
     }, [enforceLogin]);
 
     if (!isChecked && enforceLogin) {
-        // Show a loading state while checking the session
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f3f4f6' }}>
                 <div style={{ width: '40px', height: '40px', border: '4px solid #e5e7eb', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
