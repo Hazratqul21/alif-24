@@ -56,6 +56,18 @@ const StudentDashboard = () => {
     const [selectedLesson, setSelectedLesson] = useState(null);
     const [selectedStory, setSelectedStory] = useState(null);
 
+    // TTS + Recording states for story modal
+    const [storyPlaying, setStoryPlaying] = useState(false);
+    const [storyTtsLoading, setStoryTtsLoading] = useState(false);
+    const [storyTtsDone, setStoryTtsDone] = useState(false);
+    const [storyRecording, setStoryRecording] = useState(false);
+    const [storyRecordedUrl, setStoryRecordedUrl] = useState(null);
+    const [storyPlayingRec, setStoryPlayingRec] = useState(false);
+    const storyAudioRef = React.useRef(null);
+    const storyMediaRecRef = React.useRef(null);
+    const storyChunksRef = React.useRef([]);
+    const storyRecAudioRef = React.useRef(null);
+
     // Interactive Test states
     const [testQuestions, setTestQuestions] = useState([]);
     const [testAnswers, setTestAnswers] = useState({});
@@ -794,18 +806,133 @@ const StudentDashboard = () => {
                 </div>
             )}
             {selectedStory && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedStory(null)}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => {
+                    if (storyAudioRef.current) { storyAudioRef.current.pause(); storyAudioRef.current = null; }
+                    if (storyMediaRecRef.current?.state === 'recording') storyMediaRecRef.current.stop();
+                    if (storyRecAudioRef.current) { storyRecAudioRef.current.pause(); storyRecAudioRef.current = null; }
+                    setStoryPlaying(false); setStoryTtsLoading(false); setStoryTtsDone(false);
+                    setStoryRecording(false); setStoryRecordedUrl(null); setStoryPlayingRec(false);
+                    setSelectedStory(null);
+                }}>
                     <div className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-start mb-4">
                             <h3 className="text-xl font-bold text-gray-800">{selectedStory.title}</h3>
-                            <button onClick={() => setSelectedStory(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                            <button onClick={() => {
+                                if (storyAudioRef.current) { storyAudioRef.current.pause(); storyAudioRef.current = null; }
+                                if (storyMediaRecRef.current?.state === 'recording') storyMediaRecRef.current.stop();
+                                if (storyRecAudioRef.current) { storyRecAudioRef.current.pause(); storyRecAudioRef.current = null; }
+                                setStoryPlaying(false); setStoryTtsLoading(false); setStoryTtsDone(false);
+                                setStoryRecording(false); setStoryRecordedUrl(null); setStoryPlayingRec(false);
+                                setSelectedStory(null);
+                            }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
                         </div>
                         <div className="flex items-center gap-3 mb-4 text-sm">
                             <span className="bg-purple-50 text-purple-600 px-3 py-1 rounded-full">{selectedStory.age_group || '6-8'} yosh</span>
                             <span className="bg-gray-50 text-gray-600 px-3 py-1 rounded-full">{selectedStory.language === 'uz' ? "O'zbek" : selectedStory.language === 'ru' ? 'Rus' : 'English'}</span>
                         </div>
-                        {selectedStory.audio_url && <audio controls className="w-full mb-4 rounded-xl" src={selectedStory.audio_url} />}
-                        <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">{selectedStory.content}</div>
+
+                        {/* Ertak matni */}
+                        <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed mb-5">{selectedStory.content}</div>
+
+                        {/* 1-qadam: AI o'qib bersin */}
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-3">
+                            <p className="text-indigo-600 text-xs font-bold mb-2">1-qadam: AI o'qib bersin 🤖</p>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    disabled={storyTtsLoading}
+                                    onClick={async () => {
+                                        if (storyPlaying) {
+                                            if (storyAudioRef.current) { storyAudioRef.current.pause(); storyAudioRef.current.currentTime = 0; storyAudioRef.current = null; }
+                                            setStoryPlaying(false);
+                                            return;
+                                        }
+                                        try {
+                                            setStoryTtsLoading(true);
+                                            const apiBase = import.meta.env.VITE_API_URL || '/api/v1';
+                                            const resp = await fetch(`${apiBase}/public/stories/${selectedStory.id}/tts`, { method: 'POST', credentials: 'include' });
+                                            if (!resp.ok) throw new Error('TTS xato');
+                                            const blob = await resp.blob();
+                                            const url = URL.createObjectURL(blob);
+                                            const audio = new Audio(url);
+                                            storyAudioRef.current = audio;
+                                            audio.onended = () => { setStoryPlaying(false); setStoryTtsDone(true); URL.revokeObjectURL(url); storyAudioRef.current = null; };
+                                            audio.onerror = () => { setStoryPlaying(false); URL.revokeObjectURL(url); storyAudioRef.current = null; };
+                                            await audio.play();
+                                            setStoryPlaying(true);
+                                        } catch (err) { console.error(err); alert("Audio yuklab bo'lmadi"); }
+                                        finally { setStoryTtsLoading(false); }
+                                    }}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${storyPlaying ? 'bg-red-100 text-red-600 hover:bg-red-200' :
+                                            storyTtsLoading ? 'bg-gray-100 text-gray-400 cursor-wait' :
+                                                'bg-indigo-600 text-white hover:bg-indigo-700'
+                                        }`}
+                                >
+                                    {storyTtsLoading ? <><Clock size={16} className="animate-spin" /> Yuklanmoqda...</> :
+                                        storyPlaying ? <><X size={16} /> To'xtatish</> :
+                                            <><Play size={16} /> 🤖 AI o'qib bersin</>}
+                                </button>
+                                {storyPlaying && <span className="text-xs text-indigo-500 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" /> Eshitilmoqda...</span>}
+                                {storyTtsDone && !storyPlaying && <span className="text-xs text-green-600">✅ AI o'qib bo'ldi!</span>}
+                            </div>
+                        </div>
+
+                        {/* 2-qadam: Bola o'qisin */}
+                        <div className={`rounded-xl p-4 border transition-all ${storyTtsDone ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100 opacity-50'}`}>
+                            <p className="text-green-700 text-xs font-bold mb-2">2-qadam: Endi sen o'qi! 🎤</p>
+                            {!storyTtsDone ? (
+                                <p className="text-gray-400 text-sm">Avval AI o'qib bersin!</p>
+                            ) : (
+                                <div className="flex flex-wrap items-center gap-3">
+                                    {storyRecording ? (
+                                        <button onClick={() => {
+                                            if (storyMediaRecRef.current?.state === 'recording') storyMediaRecRef.current.stop();
+                                            setStoryRecording(false);
+                                        }} className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-medium animate-pulse">
+                                            <Mic size={16} /> Yozishni to'xtatish
+                                        </button>
+                                    ) : (
+                                        <button onClick={async () => {
+                                            try {
+                                                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                                                const mr = new MediaRecorder(stream);
+                                                storyMediaRecRef.current = mr;
+                                                storyChunksRef.current = [];
+                                                mr.ondataavailable = (ev) => { if (ev.data.size > 0) storyChunksRef.current.push(ev.data); };
+                                                mr.onstop = () => {
+                                                    const blob = new Blob(storyChunksRef.current, { type: 'audio/webm' });
+                                                    setStoryRecordedUrl(URL.createObjectURL(blob));
+                                                    stream.getTracks().forEach(t => t.stop());
+                                                };
+                                                mr.start();
+                                                setStoryRecording(true);
+                                            } catch { alert("Mikrofonga ruxsat bering!"); }
+                                        }} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition">
+                                            <Mic size={16} /> 🎤 O'qishni boshlash
+                                        </button>
+                                    )}
+                                    {storyRecording && <span className="text-xs text-red-500 flex items-center gap-1"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" /> Yozilmoqda...</span>}
+                                    {storyRecordedUrl && !storyRecording && (
+                                        <>
+                                            <button onClick={() => {
+                                                if (storyPlayingRec) {
+                                                    if (storyRecAudioRef.current) { storyRecAudioRef.current.pause(); storyRecAudioRef.current = null; }
+                                                    setStoryPlayingRec(false);
+                                                    return;
+                                                }
+                                                const a = new Audio(storyRecordedUrl);
+                                                storyRecAudioRef.current = a;
+                                                a.onended = () => { setStoryPlayingRec(false); storyRecAudioRef.current = null; };
+                                                a.play();
+                                                setStoryPlayingRec(true);
+                                            }} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${storyPlayingRec ? 'bg-amber-100 text-amber-600' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                                                <Play size={16} /> {storyPlayingRec ? "To'xtatish" : "🔊 O'z ovozingni eshit"}
+                                            </button>
+                                            <span className="text-xs text-green-600 font-medium">🌟 Barakalla! Ajoyib o'qiding!</span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
