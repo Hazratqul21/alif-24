@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from shared.database import get_db
 from shared.database.models import User
 from shared.auth import create_access_token, create_refresh_token
-from ..core.config import settings
+from ...core.config import settings
 from ...middleware.auth import get_current_user
 from ...services.auth_service import AuthService
 from ...schemas.auth import LoginRequest, RegisterRequest, TokenResponse
