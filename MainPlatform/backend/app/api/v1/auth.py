@@ -380,7 +380,8 @@ async def change_password(
 
 @router.post("/child-login")
 async def child_login(
-    request: ChildLoginRequest,
+    request: Request,
+    data: ChildLoginRequest,
     response: Response,
     db: AsyncSession = Depends(get_db)
 ):
@@ -390,9 +391,15 @@ async def child_login(
     from sqlalchemy import select
     
     user_repo = UserRepository(db)
-    child = await user_repo.find_by_username(request.username)
+    parent = await user_repo.get_by_phone(data.parent_phone)
+    if not parent:
+        raise UnauthorizedError(detail="Parent account not found")
+        
+    # Get children
+    children = await user_repo.get_children(parent.id)
+    child = next((c for c in children if c.username == data.username and getattr(c, 'pin_code', None) == data.pin_code), None)
     
-    if not child or not child.verify_pin(request.pin):
+    if not child:
         raise UnauthorizedError("Invalid username or PIN")
     
     # Update last login
@@ -413,7 +420,7 @@ async def child_login(
     await db.commit()
     
     # Set Cookies
-    domain = ".alif24.uz" if not settings.DEBUG else None
+    domain = ".alif24.uz" if request and request.url.hostname and "alif24.uz" in request.url.hostname else None
     response.set_cookie(
         key="access_token",
         value=access_token,

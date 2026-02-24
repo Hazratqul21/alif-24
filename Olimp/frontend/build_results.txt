@@ -1,0 +1,17 @@
+Building Olimp
+
+removed 89 packages in 41s
+
+> @alif24/olimp-platform@1.0.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 1847 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.83 kB │ gzip:   0.50 kB
+dist/assets/index-B7VJr0Lh.css   25.99 kB │ gzip:   5.21 kB
+dist/assets/index-ZBseG61Y.js   325.01 kB │ gzip: 102.00 kB
+✓ built in 996ms
+Building TestAI
