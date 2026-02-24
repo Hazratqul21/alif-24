@@ -41,14 +41,14 @@ class UpdateProfileRequest(BaseModel):
         populate_by_name = True
 
 @router.post("/register")
-async def register(data: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)):
+async def register(request: Request, data: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """Register new user"""
     data.validate()
     service = AuthService(db)
     result = await service.register(data)
     
     # Set HttpOnly Cookies
-    domain = ".alif24.uz" if not settings.DEBUG else None
+    domain = ".alif24.uz" if request and request.url.hostname and "alif24.uz" in request.url.hostname else None
     response.set_cookie(
         key="access_token",
         value=result["access_token"],
@@ -75,13 +75,13 @@ async def register(data: RegisterRequest, response: Response, db: AsyncSession =
     }
 
 @router.post("/login")
-async def login(data: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
+async def login(request: Request, data: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """Login user"""
     service = AuthService(db)
     result = await service.login(data.email, data.password)
     
     # Set HttpOnly Cookies
-    domain = ".alif24.uz" if not settings.DEBUG else None
+    domain = ".alif24.uz" if request and request.url.hostname and "alif24.uz" in request.url.hostname else None
     response.set_cookie(
         key="access_token",
         value=result["access_token"],
@@ -123,7 +123,7 @@ async def refresh_token(request: Request, response: Response, data: RefreshToken
     result = await service.refresh_token(token)
     
     # Update Cookies
-    domain = ".alif24.uz" if not settings.DEBUG else None
+    domain = ".alif24.uz" if request and request.url.hostname and "alif24.uz" in request.url.hostname else None
     response.set_cookie(
         key="access_token",
         value=result["access_token"],
@@ -341,6 +341,7 @@ async def activate_promo_code(
 
 @router.post("/logout")
 async def logout(
+    request: Request,
     response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -350,7 +351,7 @@ async def logout(
     await service.logout(current_user.id)
     
     # Delete Cookies
-    domain = ".alif24.uz" if not settings.DEBUG else None
+    domain = ".alif24.uz" if request and request.url.hostname and "alif24.uz" in request.url.hostname else None
     response.delete_cookie(key="access_token", domain=domain, path="/")
     response.delete_cookie(key="refresh_token", domain=domain, path="/")
     
