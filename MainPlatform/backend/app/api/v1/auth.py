@@ -453,19 +453,6 @@ async def upload_avatar(
         "data": {"avatar": current_user.avatar}
     }
 
-@router.get("/me")
-async def get_profile(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get current user profile"""
-    service = AuthService(db)
-    profile = await service.get_profile(current_user.id)
-    return {
-        "success": True,
-        "data": profile
-    }
-
 @router.put("/me")
 async def update_profile(
     data: UpdateProfileRequest,
