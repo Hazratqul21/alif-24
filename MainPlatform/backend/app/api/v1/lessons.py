@@ -285,3 +285,57 @@ async def list_public_stories(
         ],
         "total": total,
     }
+
+
+# ============================================================================
+# TTS: AI ertak o'qish (OpenAI TTS)
+# ============================================================================
+
+import os
+import httpx
+from fastapi import Response as FastAPIResponse
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
+
+STORY_VOICES = {
+    "uz": "alloy",
+    "ru": "nova",
+    "en": "alloy",
+}
+
+@router.post("/public/stories/{story_id}/tts")
+async def story_tts(
+    story_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """AI yordamida ertakni o'qib berish (OpenAI TTS)"""
+    res = await db.execute(select(Story).where(Story.id == story_id))
+    story = res.scalar_one_or_none()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+
+    voice = STORY_VOICES.get(story.language or "uz", "alloy")
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                OPENAI_TTS_URL,
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "tts-1",
+                    "input": story.content[:4096],
+                    "voice": voice,
+                    "response_format": "mp3",
+                },
+            )
+            response.raise_for_status()
+            return FastAPIResponse(content=response.content, media_type="audio/mpeg")
+    except Exception as e:
+        logger.error(f"TTS error for story {story_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
+
