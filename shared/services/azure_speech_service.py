@@ -25,6 +25,11 @@ VOICE_MAP = {
     "en": {"female": "en-US-AriaNeural", "male": "en-US-GuyNeural"},
 }
 
+# Backwards compatibility alias
+def get_voice_for_language(language_code: str, gender: str = "female") -> str:
+    lang = language_code[:2]
+    return VOICE_MAP.get(lang, VOICE_MAP["uz"]).get(gender, "uz-UZ-MadinaNeural")
+
 class AzureSpeechService:
     """
     Azure Speech Service - TTS va STT uchun
