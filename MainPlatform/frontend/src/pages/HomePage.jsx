@@ -103,13 +103,14 @@ const HomePage = () => {
     }
 
     // Redirect to sub-platforms
-    if (game.id === 1) return redirectToPlatform('https://lessions.alif24.uz', '/ertaklar');  // Ertak o'qish
-    if (game.id === 2) return navigate('/mathkids');   // Matematika (MainPlatform ichida)
-    if (game.id === 3) return redirectToPlatform('https://harf.alif24.uz');        // O'zbek alifbesi
-    if (game.id === 4) return redirectToPlatform('https://harf.alif24.uz', '/en'); // Ingliz alifbesi
-    if (game.id === 5) return redirectToPlatform('https://harf.alif24.uz', '/ru'); // Rus alifbesi
-    if (game.id === 6) return redirectToPlatform('https://games.alif24.uz', '/letter-memory'); // Xotira o'yini
-    if (game.id === 7) return redirectToPlatform('https://games.alif24.uz', '/math-monster');  // Matematika o'yini
+    const gid = String(game.id);
+    if (gid === '1') return redirectToPlatform('https://lessions.alif24.uz', '/ertaklar');  // Ertak o'qish
+    if (gid === '2') return navigate('/mathkids');   // Matematika (MainPlatform ichida)
+    if (gid === '3') return redirectToPlatform('https://harf.alif24.uz', '/harf');        // O'zbek alifbesi
+    if (gid === '4') return redirectToPlatform('https://harf.alif24.uz', '/eharf'); // Ingliz alifbesi
+    if (gid === '5') return redirectToPlatform('https://harf.alif24.uz', '/rharf'); // Rus alifbesi
+    if (gid === '6') return redirectToPlatform('https://games.alif24.uz', '/letter-memory'); // Xotira o'yini
+    if (gid === '7') return redirectToPlatform('https://games.alif24.uz', '/math-monster');  // Matematika o'yini
 
     // Fallback
     redirectToPlatform(game.type === 'lessons' ? 'https://lessions.alif24.uz' : 'https://games.alif24.uz');
@@ -279,8 +280,8 @@ const HomePage = () => {
 
               <button
                 className={`px-6 py-3 border-none rounded-xl font-semibold text-base cursor-pointer flex items-center gap-2 transition-all duration-300 ${mainFilter === 'all'
-                    ? 'bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white shadow-[0_4px_15px_rgba(75,48,251,0.4)]'
-                    : 'bg-white/30 text-white hover:bg-white/20 hover:-translate-y-0.5'
+                  ? 'bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white shadow-[0_4px_15px_rgba(75,48,251,0.4)]'
+                  : 'bg-white/30 text-white hover:bg-white/20 hover:-translate-y-0.5'
                   }`}
                 onClick={() => handleMainFilterClick('all')}
               >
@@ -290,8 +291,8 @@ const HomePage = () => {
 
               <button
                 className={`px-6 py-3 border-none rounded-xl font-semibold text-base cursor-pointer flex items-center gap-2 transition-all duration-300 ${mainFilter === 'lessons'
-                    ? 'bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white shadow-[0_4px_15px_rgba(75,48,251,0.4)]'
-                    : 'bg-white/30 text-white hover:bg-white/20 hover:-translate-y-0.5'
+                  ? 'bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white shadow-[0_4px_15px_rgba(75,48,251,0.4)]'
+                  : 'bg-white/30 text-white hover:bg-white/20 hover:-translate-y-0.5'
                   }`}
                 onClick={() => handleMainFilterClick('lessons')}
               >
@@ -301,8 +302,8 @@ const HomePage = () => {
 
               <button
                 className={`px-6 py-3 border-none rounded-xl font-semibold text-base cursor-pointer flex items-center gap-2 transition-all duration-300 ${mainFilter === 'games'
-                    ? 'bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white shadow-[0_4px_15px_rgba(75,48,251,0.4)]'
-                    : 'bg-white/30 text-white hover:bg-white/20 hover:-translate-y-0.5'
+                  ? 'bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white shadow-[0_4px_15px_rgba(75,48,251,0.4)]'
+                  : 'bg-white/30 text-white hover:bg-white/20 hover:-translate-y-0.5'
                   }`}
                 onClick={() => handleMainFilterClick('games')}
               >
@@ -336,8 +337,8 @@ const HomePage = () => {
                     )}
                     <div className="absolute top-2 left-2 z-10">
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${game.type === 'lessons'
-                          ? 'bg-emerald-500/80 text-white'
-                          : 'bg-amber-500/80 text-white'
+                        ? 'bg-emerald-500/80 text-white'
+                        : 'bg-amber-500/80 text-white'
                         }`}>
                         {game.type === 'lessons' ? <BookOpen size={12} className="inline" /> : <Gamepad2 size={12} className="inline" />} {game.type === 'lessons' ? (t.lessons || 'Dars') : (t.games || "O'yin")}
                       </span>
