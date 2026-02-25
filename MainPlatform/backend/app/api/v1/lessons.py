@@ -295,65 +295,30 @@ import os
 import httpx
 from fastapi import Response as FastAPIResponse
 
-OPENAI_TTS_URL = os.getenv("OPENAI_TTS_URL", "https://api.openai.com/v1/audio/speech")
-
-# HD ovozlar — bolalar uchun iliq, tabiiy ovozlar
-STORY_VOICES = {
-    "uz": "shimmer",   # O'zbek — iliq, tabiiy ayol ovozi
-    "ru": "nova",      # Rus — yumshoq, aniq ayol ovozi
-    "en": "nova",      # Ingliz — professional, tiniq ovoz
-}
-
-# HD model = yuqori sifat yoki env dan olingan model
-TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "tts-1-hd")
-TTS_SPEED = 0.95  # biroz sekinroq — bolalar uchun aniqroq
-
+from shared.services.azure_speech_service import speech_service
 @router.post("/public/stories/{story_id}/tts")
 async def story_tts(
     story_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """AI yordamida ertakni o'qib berish (OpenAI TTS) — auth kerak emas"""
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key:
-        logger.error("OPENAI_API_KEY is not set in environment!")
-        raise HTTPException(status_code=503, detail="Tizimda ovoz sozlamalari mavjud emas (API kaliti yo'q)")
-
+    """AI yordamida ertakni o'qib berish (Azure TTS) — auth kerak emas"""
     res = await db.execute(select(Story).where(Story.id == story_id))
     story = res.scalar_one_or_none()
     if not story:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
 
-    voice = STORY_VOICES.get(story.language or "uz", "alloy")
     text = (story.content or "")[:4096]
     if not text.strip():
         raise HTTPException(status_code=400, detail="Ertak matni bo'sh")
 
-    logger.info(f"TTS request: story={story_id}, lang={story.language}, voice={voice}, text_len={len(text)}")
+    lang = story.language or "uz"
+    logger.info(f"Azure TTS request: story={story_id}, lang={lang}, text_len={len(text)}")
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                OPENAI_TTS_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": TTS_MODEL,
-                    "input": text,
-                    "voice": voice,
-                    "speed": TTS_SPEED,
-                    "response_format": "mp3",
-                },
-            )
-            if response.status_code != 200:
-                logger.error(f"OpenAI TTS error: status={response.status_code}, body={response.text[:500]}")
-                raise HTTPException(status_code=500, detail=f"OpenAI xatoligi: {response.status_code}")
-            return FastAPIResponse(content=response.content, media_type="audio/mpeg")
-    except httpx.HTTPStatusError as e:
-        logger.error(f"OpenAI TTS HTTP error: {e.response.status_code} - {e.response.text[:300]}")
-        raise HTTPException(status_code=500, detail=f"TTS xatoligi: {e.response.status_code}")
+        audio_content = await speech_service.text_to_speech(text=text, language=lang, gender="female")
+        return FastAPIResponse(content=audio_content, media_type="audio/mpeg")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"TTS error for story {story_id}: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")

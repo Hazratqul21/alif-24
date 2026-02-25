@@ -36,7 +36,7 @@ from shared.database.models.reading_competition import (
 )
 from shared.auth import verify_token
 from shared.services.storage_service import get_storage_service
-from shared.services.openai_service import get_openai_service
+from shared.services.azure_speech_service import speech_service
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
@@ -341,17 +341,7 @@ async def get_task_for_reading(
 import os
 import httpx
 
-OPENAI_TTS_URL = os.getenv("OPENAI_TTS_URL", "https://api.openai.com/v1/audio/speech")
-
-TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "tts-1-hd")
-TTS_SPEED = 0.95
-
-# Tilga mos ovozlar
-STORY_VOICES = {
-    "uz": "alloy",   # O'zbek — alloy eng yaxshi tanlov
-    "ru": "echo",   # Rus
-    "en": "alloy",  # Ingliz
-}
+from shared.services.azure_speech_service import speech_service
 
 
 @router.get("/competitions/{comp_id}/tasks/{task_id}/tts")
@@ -360,18 +350,9 @@ async def get_task_tts(
     task_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Hikoyani TTS bilan eshittirish (OpenAI TTS)"""
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=503, detail="Tizimda ovoz sozlamalari mavjud emas (API kaliti yo'q)")
-
+    """Hikoyani TTS bilan eshittirish (Azure TTS)"""
     # Task ni olish
-    task_res = await db.execute(
-        select(ReadingTask).where(
-            ReadingTask.id == task_id,
-            ReadingTask.competition_id == comp_id,
-        )
-    )
+    task_res = await db.execute(select(ReadingTask).join(ReadingTask.competition).options(selectinload(ReadingTask.competition)).where(ReadingTask.id == task_id, ReadingTask.competition_id == comp_id))
     task = task_res.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Hikoya topilmadi")
@@ -380,33 +361,15 @@ async def get_task_tts(
     if not text.strip():
         raise HTTPException(status_code=400, detail="Hikoya matni bo'sh")
 
-    language = task.competition.language if task.competition else "uz"
-    voice = STORY_VOICES.get(language, "alloy")
-
-    logger.info(f"TTS request: task={task_id}, lang={language}, voice={voice}, text_len={len(text)}")
+    language = getattr(task.competition, 'language', 'uz') if task.competition else "uz"
+    logger.info(f"Azure TTS request: task={task_id}, lang={language}, text_len={len(text)}")
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                OPENAI_TTS_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": TTS_MODEL,
-                    "input": text,
-                    "voice": voice,
-                    "speed": TTS_SPEED,
-                    "response_format": "mp3",
-                },
-            )
-            if response.status_code != 200:
-                logger.error(f"OpenAI TTS error: status={response.status_code}")
-                raise HTTPException(status_code=500, detail=f"OpenAI xatoligi: {response.status_code}")
+        audio_content = await speech_service.text_to_speech(text=text, language=language, gender="female")
+        return FastAPIResponse(content=audio_content, media_type="audio/mpeg")
 
-            return FastAPIResponse(content=response.content, media_type="audio/mpeg")
-
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"TTS error for task {task_id}: {e}")
         raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
@@ -932,13 +895,10 @@ async def analyze_voice_recording(
     else:
         raise HTTPException(status_code=400, detail="Audio fayl yo'q")
 
-    # STT qilish (OpenAI Whisper)
-    openai_service = get_openai_service()
-    if not openai_service:
-        raise HTTPException(status_code=500, detail="OpenAI service not available")
-
+    # STT qilish (Azure Speech Service)
     try:
-        stt_result = await openai_service.speech_to_text(audio_data, language="uz")
+        language = getattr(task.competition, 'language', 'uz') if task.competition else "uz"
+        stt_result = await speech_service.speech_to_text(audio_data, language=language)
     except Exception as e:
         logger.error(f"STT xatoligi: {e}")
         raise HTTPException(status_code=500, detail=f"STT xatoligi: {str(e)}")
@@ -955,8 +915,9 @@ async def analyze_voice_recording(
     # Matnni taqqoslash
     similarity = calculate_text_similarity(task.story_text, transcript)
 
-    # Reading speed (words per minute) - OpenAI doesn't return duration, use session time
-    duration_seconds = session.reading_time_seconds or 0
+    # Reading speed (words per minute) - Azure returns actual duration
+    azure_duration = stt_result.get("duration", 0) / 10000000.0  # Azure duration is in 100-nanosecond units
+    duration_seconds = max(azure_duration, session.reading_time_seconds or 0)
     words_per_minute = 0
     if duration_seconds > 0:
         words_per_minute = round((similarity["words_read"] / duration_seconds) * 60, 1)
