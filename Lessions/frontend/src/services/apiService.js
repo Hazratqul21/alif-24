@@ -23,13 +23,13 @@ class ApiService {
     }
 
     async get(endpoint, params = {}) {
-        const baseUrl = this.baseUrl.startsWith('http')
-            ? this.baseUrl
-            : `${window.location.origin}${this.baseUrl}`;
-        const url = new URL(`${baseUrl}${endpoint}`);
+        let url = `${this.baseUrl}${endpoint}`;
+        const searchParams = new URLSearchParams();
         Object.entries(params).forEach(([key, val]) => {
-            if (val !== undefined && val !== null) url.searchParams.append(key, val);
+            if (val !== undefined && val !== null) searchParams.append(key, val);
         });
+        const qs = searchParams.toString();
+        if (qs) url += `?${qs}`;
         const resp = await fetch(url, { method: "GET", credentials: "include", headers: this.getHeaders() });
         return this.handleResponse(resp);
     }
