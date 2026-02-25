@@ -328,10 +328,9 @@ async def get_task_for_reading(
 import os
 import httpx
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
 
-TTS_MODEL = "tts-1-hd"
+TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "tts-1-hd")
 TTS_SPEED = 0.95
 
 # Tilga mos ovozlar
@@ -349,8 +348,9 @@ async def get_task_tts(
     db: AsyncSession = Depends(get_db),
 ):
     """Hikoyani TTS bilan eshittirish (OpenAI TTS)"""
-    if not OPENAI_API_KEY:
-        raise HTTPException(status_code=500, detail="OpenAI API kaliti sozlanmagan")
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Tizimda ovoz sozlamalari mavjud emas (API kaliti yo'q)")
 
     # Task ni olish
     task_res = await db.execute(
@@ -377,7 +377,7 @@ async def get_task_tts(
             response = await client.post(
                 OPENAI_TTS_URL,
                 headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={

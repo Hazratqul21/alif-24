@@ -393,9 +393,8 @@ LANGUAGE_VOICES = {
     "en": "nova",      # Ingliz — professional ovoz
 }
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
-TTS_MODEL = "tts-1-hd"   # HD sifat
+TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "tts-1-hd")   # e.g gpt-4o-mini-tts
 TTS_SPEED = 0.95          # sekinroq — bolalar uchun
 
 
@@ -405,8 +404,9 @@ async def ertak_tts(
     db: AsyncSession = Depends(get_db),
 ):
     """AI yordamida ertakni o'qib berish (OpenAI TTS HD)"""
-    if not OPENAI_API_KEY:
-        raise HTTPException(status_code=500, detail="OpenAI API kaliti sozlanmagan")
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Tizimda ovoz sozlamalari mavjud emas (API kaliti yo'q)")
 
     res = await db.execute(select(Ertak).where(Ertak.id == ertak_id))
     ertak = res.scalar_one_or_none()
@@ -422,7 +422,7 @@ async def ertak_tts(
             response = await client.post(
                 OPENAI_TTS_URL,
                 headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
@@ -447,8 +447,9 @@ async def general_tts(data: TTSRequest):
     """Umumiy TTS endpoint — istalgan matnni o'qib berish (OpenAI HD)"""
     if not data.text or not data.text.strip():
         raise HTTPException(status_code=400, detail="Matn kiritilmadi")
-    if not OPENAI_API_KEY:
-        raise HTTPException(status_code=500, detail="OpenAI API kaliti sozlanmagan")
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Tizimda ovoz sozlamalari mavjud emas (API kaliti yo'q)")
 
     lang = data.language or "uz"
     voice = LANGUAGE_VOICES.get(lang, "shimmer")
@@ -458,7 +459,7 @@ async def general_tts(data: TTSRequest):
             response = await client.post(
                 OPENAI_TTS_URL,
                 headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
