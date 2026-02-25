@@ -93,11 +93,6 @@ async def read_image(file: UploadFile = File(...)):
         except Exception as azure_err:
             logger.warning(f"Azure OCR failed: {azure_err}")
             raise HTTPException(status_code=500, detail=f"Azure OCR failed: {azure_err}")
-                max_tokens=1200,
-                temperature=0.3
-            )
-            text_output = response.choices[0].message.content.strip()
-            logger.info("OpenAI OCR fallback success")
         
         # Matn uzunligini cheklash (250 so'z)
         words = text_output.split()
