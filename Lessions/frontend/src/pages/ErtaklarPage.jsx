@@ -1,41 +1,249 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, BookMarked, Volume2, Square, Loader, Mic, MicOff, Play } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, BookMarked, Mic, MicOff, Play, Square, X, BookOpen } from 'lucide-react';
 import apiService from '../services/apiService';
 
+// ─── Recording Modal ───────────────────────────────────────────────────────────
+function RecordingModal({ ertak, onClose }) {
+    // phase: 'countdown' | 'reading' | 'done'
+    const [phase, setPhase] = useState('countdown');
+    const [count, setCount] = useState(3);
+    const [elapsed, setElapsed] = useState(0);
+    const [recordedUrl, setRecordedUrl] = useState(null);
+    const [playing, setPlaying] = useState(false);
+
+    const mediaRecorderRef = useRef(null);
+    const chunksRef = useRef([]);
+    const playbackRef = useRef(null);
+    const timerRef = useRef(null);
+
+    // ── Countdown ──
+    useEffect(() => {
+        if (phase !== 'countdown') return;
+        if (count <= 0) {
+            setPhase('reading');
+            return;
+        }
+        const t = setTimeout(() => setCount(c => c - 1), 1000);
+        return () => clearTimeout(t);
+    }, [phase, count]);
+
+    // ── Start mic when phase becomes 'reading' ──
+    useEffect(() => {
+        if (phase !== 'reading') return;
+        let stream;
+        (async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mr = new MediaRecorder(stream);
+                mediaRecorderRef.current = mr;
+                chunksRef.current = [];
+                mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+                mr.onstop = () => {
+                    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                    setRecordedUrl(URL.createObjectURL(blob));
+                    stream.getTracks().forEach(t => t.stop());
+                    setPhase('done');
+                };
+                mr.start();
+            } catch {
+                alert('Mikrofonga ruxsat bering!');
+                onClose();
+            }
+        })();
+
+        // elapsed timer
+        timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
+        return () => clearInterval(timerRef.current);
+    }, [phase]);
+
+    const stopRecording = () => {
+        clearInterval(timerRef.current);
+        if (mediaRecorderRef.current?.state === 'recording') {
+            mediaRecorderRef.current.stop();
+        }
+    };
+
+    const togglePlay = () => {
+        if (playing) {
+            playbackRef.current?.pause();
+            setPlaying(false);
+        } else {
+            const a = new Audio(recordedUrl);
+            playbackRef.current = a;
+            a.onended = () => setPlaying(false);
+            a.play();
+            setPlaying(true);
+        }
+    };
+
+    const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+            <motion.div
+                initial={{ scale: 0.85, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.85, opacity: 0 }}
+                className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Close */}
+                <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
+                    <X className="w-5 h-5" />
+                </button>
+
+                {/* Title */}
+                <h2 className="text-white font-bold text-xl mb-1 pr-6">{ertak.title}</h2>
+                <p className="text-white/40 text-sm mb-8">Matnni quyida o'zing o'qi 🎤</p>
+
+                {/* Story text */}
+                <div className="bg-white/5 rounded-xl p-4 mb-8 max-h-40 overflow-y-auto">
+                    <p className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap">{ertak.content}</p>
+                </div>
+
+                {/* ── Countdown phase ── */}
+                {phase === 'countdown' && (
+                    <div className="flex flex-col items-center gap-4">
+                        <p className="text-white/60 text-sm">Tayyor bo'l, yozish boshlanmoqda...</p>
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#4b30fb] to-[#764ba2] flex items-center justify-center shadow-lg shadow-purple-500/30">
+                            <span className="text-white text-5xl font-black">{count}</span>
+                        </div>
+                        <p className="text-white/40 text-xs">Mikrofon sozlanmoqda...</p>
+                    </div>
+                )}
+
+                {/* ── Reading phase ── */}
+                {phase === 'reading' && (
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="relative w-20 h-20">
+                            <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" />
+                            <div className="w-20 h-20 rounded-full bg-red-500/30 border-2 border-red-500 flex items-center justify-center">
+                                <Mic className="w-8 h-8 text-red-400" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                            <span className="text-red-400 font-mono text-lg font-bold">{fmt(elapsed)}</span>
+                            <span className="text-white/40 text-sm">Yozilmoqda</span>
+                        </div>
+                        <button
+                            onClick={stopRecording}
+                            className="flex items-center gap-2 px-6 py-3 bg-red-500/20 border border-red-500/40 text-red-400 rounded-2xl font-medium hover:bg-red-500/30 transition-all"
+                        >
+                            <Square className="w-4 h-4" />
+                            Tugatish
+                        </button>
+                    </div>
+                )}
+
+                {/* ── Done phase ── */}
+                {phase === 'done' && (
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center">
+                            <span className="text-3xl">🌟</span>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-white font-bold text-lg">Barakalla!</p>
+                            <p className="text-white/50 text-sm">Juda yaxshi o'qiding!</p>
+                        </div>
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={togglePlay}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-medium transition-all ${playing
+                                        ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
+                                        : 'bg-white/10 text-white hover:bg-white/20'
+                                    }`}
+                            >
+                                {playing ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                                {playing ? "To'xtatish" : "Eshitish"}
+                            </button>
+                            <button
+                                onClick={() => { setPhase('countdown'); setCount(3); setElapsed(0); setRecordedUrl(null); setPlaying(false); }}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-medium hover:scale-105 transition-all"
+                            >
+                                <Mic className="w-4 h-4" />
+                                Qayta o'qi
+                            </button>
+                        </div>
+                        <button onClick={onClose} className="text-white/40 text-sm hover:text-white/70 transition-colors">
+                            Yopish
+                        </button>
+                    </div>
+                )}
+            </motion.div>
+        </div>
+    );
+}
+
+// ─── Card ──────────────────────────────────────────────────────────────────────
+function ErtakCard({ ertak, index, onClick }) {
+    const [imgError, setImgError] = useState(false);
+    const hasImage = ertak.cover_image && !imgError;
+
+    const dayNames = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
+    const date = ertak.created_at ? new Date(ertak.created_at) : null;
+    const dayLabel = date ? dayNames[date.getDay()] : '';
+    const wordCount = ertak.content ? ertak.content.trim().split(/\s+/).length : 0;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.06 }}
+            onClick={onClick}
+            className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group"
+        >
+            {/* Cover image area */}
+            <div className="w-full aspect-[4/3] relative overflow-hidden">
+                {hasImage ? (
+                    <img
+                        src={ertak.cover_image}
+                        alt={ertak.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={() => setImgError(true)}
+                    />
+                ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#4b6ef5] to-[#9b59b6] flex items-center justify-center group-hover:opacity-90 transition-opacity">
+                        <BookOpen className="w-14 h-14 text-white/40" strokeWidth={1.5} />
+                    </div>
+                )}
+            </div>
+
+            {/* Card body */}
+            <div className="p-4">
+                <h3 className="text-[#1a1a2e] font-bold text-base mb-1 line-clamp-2 leading-snug">{ertak.title}</h3>
+                {ertak.content && (
+                    <p className="text-[#4b30fb] text-xs mb-3 line-clamp-2 flex items-center gap-1">
+                        <span>📖</span> {ertak.content.slice(0, 60)}...
+                    </p>
+                )}
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4">
+                    {dayLabel && <span>{dayLabel}</span>}
+                    {dayLabel && wordCount > 0 && <span>•</span>}
+                    {wordCount > 0 && <span>{wordCount} so'z</span>}
+                </div>
+
+                {/* CTA button */}
+                <button className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-semibold text-sm hover:scale-[1.02] transition-transform shadow-md shadow-purple-500/30">
+                    <Mic className="w-4 h-4" />
+                    O'qishni boshlash
+                </button>
+            </div>
+        </motion.div>
+    );
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function ErtaklarPage() {
     const [ertaklar, setErtaklar] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selected, setSelected] = useState(null);
+    const [activeErtak, setActiveErtak] = useState(null);
 
-    // TTS state
-    const [playingId, setPlayingId] = useState(null);
-    const [ttsLoading, setTtsLoading] = useState(null);
-    const [ttsDone, setTtsDone] = useState({}); // {ertakId: true} — AI o'qib bo'ldi
-    const audioRef = useRef(null);
-
-    // Voice recording state
-    const [recordingId, setRecordingId] = useState(null);
-    const [recordedAudio, setRecordedAudio] = useState({}); // {ertakId: blobUrl}
-    const [playingRecording, setPlayingRecording] = useState(null);
-    const mediaRecorderRef = useRef(null);
-    const audioChunksRef = useRef([]);
-    const recordAudioRef = useRef(null);
-
-    useEffect(() => {
-        loadErtaklar();
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current = null;
-            }
-            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-                mediaRecorderRef.current.stop();
-            }
-        };
-    }, []);
+    useEffect(() => { loadErtaklar(); }, []);
 
     const loadErtaklar = async () => {
         try {
@@ -50,126 +258,21 @@ export default function ErtaklarPage() {
         }
     };
 
-    // ========== AI TTS O'qish ==========
-    const handlePlayTTS = async (e, ertak) => {
-        e.stopPropagation();
-        if (playingId === ertak.id) { stopAudio(); return; }
-        stopAudio();
-
-        try {
-            setTtsLoading(ertak.id);
-            const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
-            const response = await fetch(`${API_URL}/ertaklar/${ertak.id}/tts`, {
-                method: 'POST',
-                credentials: 'include',
-            });
-            if (!response.ok) throw new Error('TTS xatoligi');
-
-            const audioBlob = await response.blob();
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            audioRef.current = audio;
-
-            audio.onended = () => {
-                setPlayingId(null);
-                setTtsDone(prev => ({ ...prev, [ertak.id]: true }));
-                URL.revokeObjectURL(audioUrl);
-                audioRef.current = null;
-            };
-            audio.onerror = () => {
-                setPlayingId(null);
-                URL.revokeObjectURL(audioUrl);
-                audioRef.current = null;
-            };
-
-            await audio.play();
-            setPlayingId(ertak.id);
-        } catch (err) {
-            console.error('TTS error:', err);
-            alert("Audio o'qib bo'lmadi. Qayta urinib ko'ring.");
-        } finally {
-            setTtsLoading(null);
-        }
-    };
-
-    const stopAudio = () => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            audioRef.current = null;
-        }
-        setPlayingId(null);
-    };
-
-    // ========== Bola ovozini yozish ==========
-    const startRecording = async (e, ertakId) => {
-        e.stopPropagation();
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream);
-            mediaRecorderRef.current = mediaRecorder;
-            audioChunksRef.current = [];
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
-                }
-            };
-
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                setRecordedAudio(prev => ({ ...prev, [ertakId]: audioUrl }));
-                stream.getTracks().forEach(track => track.stop());
-            };
-
-            mediaRecorder.start();
-            setRecordingId(ertakId);
-        } catch (err) {
-            console.error('Microphone error:', err);
-            alert("Mikrofonga ruxsat bering!");
-        }
-    };
-
-    const stopRecording = (e) => {
-        e.stopPropagation();
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            mediaRecorderRef.current.stop();
-        }
-        setRecordingId(null);
-    };
-
-    const playRecording = (e, ertakId) => {
-        e.stopPropagation();
-        const url = recordedAudio[ertakId];
-        if (!url) return;
-
-        if (playingRecording === ertakId) {
-            if (recordAudioRef.current) {
-                recordAudioRef.current.pause();
-                recordAudioRef.current = null;
-            }
-            setPlayingRecording(null);
-            return;
-        }
-
-        const audio = new Audio(url);
-        recordAudioRef.current = audio;
-        audio.onended = () => { setPlayingRecording(null); recordAudioRef.current = null; };
-        audio.play();
-        setPlayingRecording(ertakId);
-    };
-
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative overflow-hidden">
             {/* Stars */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-[5%] left-[10%] w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0s', animationDuration: '2s' }} />
-                <div className="absolute top-[15%] left-[30%] w-1.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.5s', animationDuration: '3s' }} />
-                <div className="absolute top-[20%] left-[70%] w-2 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: '1.5s', animationDuration: '3.5s' }} />
-                <div className="absolute top-[50%] left-[85%] w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.8s', animationDuration: '2.8s' }} />
-                <div className="absolute top-[70%] left-[20%] w-1.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: '1.2s', animationDuration: '3.2s' }} />
-                <div className="absolute top-[85%] left-[55%] w-2 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.4s', animationDuration: '2.4s' }} />
+                {[
+                    { top: '5%', left: '10%', size: 'w-1 h-1', delay: '0s', dur: '2s' },
+                    { top: '15%', left: '30%', size: 'w-1.5 h-1.5', delay: '0.5s', dur: '3s' },
+                    { top: '20%', left: '70%', size: 'w-2 h-2', delay: '1.5s', dur: '3.5s' },
+                    { top: '50%', left: '85%', size: 'w-1 h-1', delay: '0.8s', dur: '2.8s' },
+                    { top: '70%', left: '20%', size: 'w-1.5 h-1.5', delay: '1.2s', dur: '3.2s' },
+                    { top: '85%', left: '55%', size: 'w-2 h-2', delay: '0.4s', dur: '2.4s' },
+                ].map((s, i) => (
+                    <div key={i} className={`absolute ${s.size} bg-white rounded-full animate-pulse`}
+                        style={{ top: s.top, left: s.left, animationDelay: s.delay, animationDuration: s.dur }} />
+                ))}
             </div>
 
             {/* Header */}
@@ -192,26 +295,19 @@ export default function ErtaklarPage() {
             </header>
 
             {/* Hero */}
-            <section className="relative z-10 max-w-6xl mx-auto px-4 py-12 text-center">
-                <motion.h2
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-4xl md:text-5xl font-bold text-white mb-4"
-                >
+            <section className="relative z-10 max-w-6xl mx-auto px-4 py-10 text-center">
+                <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                    className="text-4xl md:text-5xl font-bold text-white mb-3">
                     ✨ Ertaklar
                 </motion.h2>
-                <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="text-white/50 text-lg max-w-xl mx-auto"
-                >
-                    Qiziqarli hikoyalar — AI o'qib beradi, keyin sen o'qi!
+                <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                    className="text-white/50 text-lg max-w-xl mx-auto">
+                    Kartochkani bosib o'qi — mikrofon yoqiladi!
                 </motion.p>
             </section>
 
-            {/* Content */}
-            <div className="relative z-10 max-w-6xl mx-auto px-4 pb-16">
+            {/* Grid */}
+            <div className="relative z-10 max-w-6xl mx-auto px-4 pb-20">
                 {loading ? (
                     <div className="text-center py-20">
                         <div className="w-10 h-10 border-4 border-[#4b30fb]/30 border-t-[#4b30fb] rounded-full animate-spin mx-auto" />
@@ -230,141 +326,28 @@ export default function ErtaklarPage() {
                         <p className="text-white/30 text-sm mt-2">Tez kunda yangi ertaklar qo'shiladi</p>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                         {ertaklar.map((ertak, i) => (
-                            <motion.div
+                            <ErtakCard
                                 key={ertak.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.05 }}
-                            >
-                                <div className="w-full text-left bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all">
-                                    <button
-                                        onClick={() => setSelected(selected === ertak.id ? null : ertak.id)}
-                                        className="w-full text-left"
-                                    >
-                                        <div className="flex items-start justify-between">
-                                            <div>
-                                                <h3 className="text-lg font-bold text-white mb-1">{ertak.title}</h3>
-                                                <div className="flex items-center gap-3 text-xs text-white/50">
-                                                    <span>{ertak.language === 'uz' ? "O'zbek" : ertak.language === 'ru' ? 'Русский' : 'English'}</span>
-                                                    <span>Yosh: {ertak.age_group || '6-8'}</span>
-                                                </div>
-                                            </div>
-                                            <span className="text-white/40 text-xl">{selected === ertak.id ? '▲' : '▼'}</span>
-                                        </div>
-                                    </button>
-
-                                    {selected === ertak.id && (
-                                        <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            className="mt-4 pt-4 border-t border-white/10"
-                                        >
-                                            {/* Ertak matni */}
-                                            <p className="text-white/80 leading-relaxed whitespace-pre-wrap mb-6">{ertak.content}</p>
-
-                                            {/* === 1-qadam: AI o'qib bersin === */}
-                                            <div className="bg-white/5 rounded-xl p-4 mb-3 border border-white/10">
-                                                <p className="text-white/60 text-xs font-medium mb-2">1-qadam: AI o'qib bersin</p>
-                                                <div className="flex items-center gap-3">
-                                                    <button
-                                                        onClick={(e) => handlePlayTTS(e, ertak)}
-                                                        disabled={ttsLoading === ertak.id}
-                                                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${playingId === ertak.id
-                                                                ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
-                                                                : ttsLoading === ertak.id
-                                                                    ? 'bg-white/10 text-white/50 cursor-wait'
-                                                                    : 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white hover:scale-105'
-                                                            }`}
-                                                    >
-                                                        {ttsLoading === ertak.id ? (
-                                                            <><Loader className="w-4 h-4 animate-spin" /> Yuklanmoqda...</>
-                                                        ) : playingId === ertak.id ? (
-                                                            <><Square className="w-4 h-4" /> To'xtatish</>
-                                                        ) : (
-                                                            <><Volume2 className="w-4 h-4" /> 🤖 AI o'qib bersin</>
-                                                        )}
-                                                    </button>
-                                                    {playingId === ertak.id && (
-                                                        <span className="flex items-center gap-1 text-xs text-[#4b30fb]">
-                                                            <span className="w-1.5 h-1.5 bg-[#4b30fb] rounded-full animate-pulse" />
-                                                            Eshitilmoqda...
-                                                        </span>
-                                                    )}
-                                                    {ttsDone[ertak.id] && !playingId && (
-                                                        <span className="text-xs text-green-400">✅ AI o'qib bo'ldi!</span>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* === 2-qadam: Endi sen o'qi! === */}
-                                            <div className={`rounded-xl p-4 border transition-all ${ttsDone[ertak.id]
-                                                    ? 'bg-emerald-500/10 border-emerald-500/20'
-                                                    : 'bg-white/5 border-white/10 opacity-50'
-                                                }`}>
-                                                <p className="text-white/60 text-xs font-medium mb-2">
-                                                    2-qadam: Endi sen o'qi! 🎤
-                                                </p>
-
-                                                {!ttsDone[ertak.id] ? (
-                                                    <p className="text-white/30 text-sm">Avval AI o'qib bersin, keyin sen o'qi!</p>
-                                                ) : (
-                                                    <div className="flex flex-wrap items-center gap-3">
-                                                        {/* Record/Stop button */}
-                                                        {recordingId === ertak.id ? (
-                                                            <button
-                                                                onClick={stopRecording}
-                                                                className="flex items-center gap-2 px-5 py-2.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-sm font-medium hover:bg-red-500/30 transition-all animate-pulse"
-                                                            >
-                                                                <MicOff className="w-4 h-4" />
-                                                                Yozishni to'xtatish
-                                                            </button>
-                                                        ) : (
-                                                            <button
-                                                                onClick={(e) => startRecording(e, ertak.id)}
-                                                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl text-sm font-medium hover:scale-105 transition-all"
-                                                            >
-                                                                <Mic className="w-4 h-4" />
-                                                                🎤 O'qishni boshlash
-                                                            </button>
-                                                        )}
-
-                                                        {recordingId === ertak.id && (
-                                                            <span className="flex items-center gap-1 text-xs text-red-400">
-                                                                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                                                                Yozilmoqda...
-                                                            </span>
-                                                        )}
-
-                                                        {/* Play recording */}
-                                                        {recordedAudio[ertak.id] && !recordingId && (
-                                                            <button
-                                                                onClick={(e) => playRecording(e, ertak.id)}
-                                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${playingRecording === ertak.id
-                                                                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                                                        : 'bg-white/10 text-white/70 hover:text-white'
-                                                                    }`}
-                                                            >
-                                                                <Play className="w-4 h-4" />
-                                                                {playingRecording === ertak.id ? "To'xtatish" : "O'z ovozingni eshit"}
-                                                            </button>
-                                                        )}
-
-                                                        {recordedAudio[ertak.id] && !recordingId && (
-                                                            <span className="text-xs text-green-400">🌟 Barakalla! Ajoyib o'qiding!</span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </div>
-                            </motion.div>
+                                ertak={ertak}
+                                index={i}
+                                onClick={() => setActiveErtak(ertak)}
+                            />
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* Recording Modal */}
+            <AnimatePresence>
+                {activeErtak && (
+                    <RecordingModal
+                        ertak={activeErtak}
+                        onClose={() => setActiveErtak(null)}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }
