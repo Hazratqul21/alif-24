@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, Integer, Boolean, DateTime
+from sqlalchemy import Column, String, Text, Integer, Boolean, DateTime, JSON
 from sqlalchemy.sql import func
 from shared.database.base import Base
 from shared.database.id_generator import generate_8_digit_id
@@ -15,5 +15,7 @@ class Story(Base):
     has_audio = Column(Boolean, default=False)
     audio_url = Column(String(500), nullable=True)
     view_count = Column(Integer, default=0)
+    # Savollar: [{"question": "...", "answer": "..."}]
+    questions = Column(JSON, nullable=True, default=list)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
