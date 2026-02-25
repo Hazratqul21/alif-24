@@ -44,6 +44,11 @@ class LessonProgressSchema(BaseModel):
     time_spent_minutes: int = Field(default=0, ge=0)
 
 
+class QuizQuestion(BaseModel):
+    question: str = Field(..., min_length=3)
+    answer: str = Field(..., min_length=1)  # To'g'ri javob
+
+
 class ErtakCreate(BaseModel):
     """Ertak (Fairy tale / Story) for reading"""
     title: str = Field(..., min_length=3, max_length=200)
@@ -52,6 +57,7 @@ class ErtakCreate(BaseModel):
     age_group: str = Field(default="6-8")  # 4-6, 6-8, 8-10, 10-12
     has_audio: bool = False
     audio_url: Optional[str] = None
+    questions: List[QuizQuestion] = []  # Admin tomonidan qo'shilgan savollar
 
 
 def _lesson_to_dict(lesson: Lesson) -> dict:
@@ -78,6 +84,7 @@ def _ertak_to_dict(ertak: Story) -> dict:
         "has_audio": ertak.has_audio,
         "audio_url": ertak.audio_url,
         "view_count": ertak.view_count,
+        "questions": ertak.questions or [],
         "created_at": ertak.created_at.isoformat() if ertak.created_at else None,
     }
 
@@ -310,6 +317,7 @@ async def create_ertak(
         age_group=data.age_group,
         has_audio=data.has_audio,
         audio_url=data.audio_url,
+        questions=[q.dict() for q in data.questions] if data.questions else [],
     )
     db.add(ertak)
     await db.commit()
@@ -374,6 +382,96 @@ async def delete_ertak(
     await db.delete(ertak)
     await db.commit()
     return {"success": True, "message": "Ertak o'chirildi"}
+
+
+# ============= Ertak Savollar (Quiz Questions) =============
+
+class QuestionsUpdate(BaseModel):
+    questions: List[QuizQuestion]
+
+
+@router.put("/ertaklar/{ertak_id}/questions")
+async def update_ertak_questions(
+    ertak_id: str,
+    data: QuestionsUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin: ertakka savollar qo'shish yoki yangilash"""
+    res = await db.execute(select(Story).where(Story.id == ertak_id))
+    ertak = res.scalars().first()
+    if not ertak:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+
+    ertak.questions = [q.dict() for q in data.questions]
+    await db.commit()
+    await db.refresh(ertak)
+    return {"success": True, "data": _ertak_to_dict(ertak)}
+
+
+# ============= Quiz Answer Evaluation (STT + Keyword Scoring) =============
+
+from fastapi import UploadFile, File
+import difflib
+
+@router.post("/ertaklar/{ertak_id}/quiz/evaluate")
+async def evaluate_quiz_answer(
+    ertak_id: str,
+    question_index: int,
+    audio: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Bolaning ovozini qabul qilib, STT orqali matnga aylantiradi va
+    admin bergan to'g'ri javob bilan 100 ballik shkalada solishtiradi.
+    """
+    res = await db.execute(select(Story).where(Story.id == ertak_id))
+    ertak = res.scalars().first()
+    if not ertak:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+
+    questions = ertak.questions or []
+    if question_index < 0 or question_index >= len(questions):
+        raise HTTPException(status_code=400, detail="Savol indeksi noto'g'ri")
+
+    correct_answer = questions[question_index].get("answer", "").strip().lower()
+
+    # STT — Bolaning ovozini matnga aylantirish
+    try:
+        audio_bytes = await audio.read()
+        lang = ertak.language or "uz"
+        recognized_text = await speech_service.speech_to_text(audio_data=audio_bytes, language=lang)
+        recognized_text = recognized_text.strip().lower()
+    except Exception as e:
+        logger.warning(f"STT failed: {e}")
+        recognized_text = ""
+
+    # Keyword + fuzzy matching scoring (0-100)
+    score = 0
+    if recognized_text and correct_answer:
+        # Sequence matching (overall similarity)
+        ratio = difflib.SequenceMatcher(None, recognized_text, correct_answer).ratio()
+        score = int(ratio * 100)
+
+        # Bonus: har bir to'g'ri kalit so'z uchun qo'shimcha ball
+        correct_words = set(correct_answer.split())
+        recognized_words = set(recognized_text.split())
+        keyword_matches = len(correct_words & recognized_words)
+        if correct_words:
+            keyword_ratio = keyword_matches / len(correct_words)
+            # Keyword va sequence o'rtacha
+            score = int((ratio * 0.5 + keyword_ratio * 0.5) * 100)
+
+        score = min(100, max(0, score))
+
+    return {
+        "success": True,
+        "data": {
+            "recognized_text": recognized_text,
+            "correct_answer": questions[question_index].get("answer", ""),
+            "score": score,
+            "passed": score >= 60,
+        }
+    }
 
 
 # ============= TTS — Ertakni AI o'qib berish (OpenAI) =============

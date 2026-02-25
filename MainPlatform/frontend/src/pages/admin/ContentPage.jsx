@@ -15,6 +15,7 @@ export default function ContentPage() {
 
     const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
     const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
+    const [ertakQuestions, setErtakQuestions] = useState([]); // [{question:'',answer:''}]
     const [uploadFile, setUploadFile] = useState(null);
     const [editLesson, setEditLesson] = useState(null); // lesson object to edit
     const [editForm, setEditForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
@@ -83,7 +84,10 @@ export default function ContentPage() {
             setSaving(true);
             setError('');
 
-            const payload = { ...ertakForm };
+            const payload = {
+                ...ertakForm,
+                questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim())
+            };
             if (uploadFile) {
                 const upRes = await adminService.uploadFile(uploadFile);
                 if (upRes.data?.url) {
@@ -98,6 +102,7 @@ export default function ContentPage() {
             await adminService.createErtak(payload);
             setCreateModal(null);
             setErtakForm({ title: '', content: '', language: 'uz', age_group: '6-8' });
+            setErtakQuestions([]);
             setUploadFile(null);
             loadContent();
         } catch (err) {
@@ -106,6 +111,12 @@ export default function ContentPage() {
             setSaving(false);
         }
     };
+
+    const addQuestion = () => setErtakQuestions(prev => [...prev, { question: '', answer: '' }]);
+    const removeQuestion = (i) => setErtakQuestions(prev => prev.filter((_, idx) => idx !== i));
+    const updateQuestion = (i, field, val) => setErtakQuestions(prev =>
+        prev.map((q, idx) => idx === i ? { ...q, [field]: val } : q)
+    );
 
     const handleEditLesson = (lesson) => {
         setEditLesson(lesson);
@@ -224,7 +235,7 @@ export default function ContentPage() {
                                     <div className="flex items-center gap-2 mt-1">
                                         {l.video_url && <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1"><Video size={12} /> Video</a>}
                                         {l.attachments && l.attachments.length > 0 && l.attachments.map((att, i) => (
-                                            <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-xs flex items-center gap-1"><Paperclip size={12} /> {att.name || `Fayl ${i+1}`}</a>
+                                            <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-xs flex items-center gap-1"><Paperclip size={12} /> {att.name || `Fayl ${i + 1}`}</a>
                                         ))}
                                     </div>
                                 </div>
@@ -408,6 +419,51 @@ export default function ContentPage() {
                             <Select label="Til" value={ertakForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setErtakForm({ ...ertakForm, language: v })} />
                             <Select label="Yosh guruhi" value={ertakForm.age_group} options={['4-6', '6-8', '8-10', '10-12']} onChange={(v) => setErtakForm({ ...ertakForm, age_group: v })} />
                         </div>
+
+                        {/* ── Savollar bo'limi ── */}
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
+                                <button
+                                    onClick={addQuestion}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Savol qo'shish
+                                </button>
+                            </div>
+
+                            {ertakQuestions.length === 0 ? (
+                                <p className="text-gray-500 text-xs text-center py-2">Hali savol qo'shilmagan. "Savol qo'shish" tugmasini bosing.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {ertakQuestions.map((q, i) => (
+                                        <div key={i} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-400 text-xs font-medium">{i + 1}-savol</span>
+                                                <button onClick={() => removeQuestion(i)} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={q.question}
+                                                onChange={e => updateQuestion(i, 'question', e.target.value)}
+                                                placeholder="Savol matni..."
+                                                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={q.answer}
+                                                onChange={e => updateQuestion(i, 'answer', e.target.value)}
+                                                placeholder="To'g'ri javob..."
+                                                className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
                         <div>
                             <label className="text-gray-400 text-xs mb-1 block">Audio / Fayl yuklash (Ixtiyoriy)</label>
                             <input type="file" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
