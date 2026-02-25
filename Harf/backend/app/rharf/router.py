@@ -34,10 +34,10 @@ async def text_to_speech(request: TextToSpeechRequest):
     voice_name = request.voice or VOICE_MAP.get(lang_code, {}).get(request.gender or "female", "ru-RU-SvetlanaNeural")
     
     try:
-        audio_data = await speech_service.generate_speech(
+        audio_data = await speech_service.text_to_speech(
             text=request.text,
-            voice_name=voice_name,
             language=request.language,
+            gender=request.gender or "female"
         )
         return Response(content=audio_data, media_type="audio/mpeg")
     except Exception as e:

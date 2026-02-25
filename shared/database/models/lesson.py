@@ -1,8 +1,14 @@
-from sqlalchemy import Column, String, Text, ForeignKey, DateTime, JSON
+import enum
+from sqlalchemy import Column, String, Text, ForeignKey, DateTime, JSON, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from shared.database.base import Base
 from shared.database.id_generator import generate_8_digit_id
+
+class LessonStatus(str, enum.Enum):
+    draft = "draft"
+    published = "published"
+    archived = "archived"
 
 class Lesson(Base):
     __tablename__ = "lessons"
@@ -14,6 +20,7 @@ class Lesson(Base):
     title = Column(String(300), nullable=False)
     subject = Column(String(100), nullable=True)
     grade_level = Column(String(20), nullable=True)
+    status = Column(SQLEnum(LessonStatus), default=LessonStatus.published, nullable=False)
     content = Column(Text, nullable=True)
     language = Column(String(10), nullable=True, default="uz")
     video_url = Column(String(500), nullable=True)

@@ -228,8 +228,8 @@ const AppRoutes = () => {
 
       {/* Harf - Redirect to harf.alif24.uz */}
       <Route path="/harf" element={<PlatformRedirect baseUrl="https://harf.alif24.uz" />} />
-      <Route path="/rharf" element={<PlatformRedirect baseUrl="https://harf.alif24.uz" path="/ru" />} />
-      <Route path="/eharf" element={<PlatformRedirect baseUrl="https://harf.alif24.uz" path="/en" />} />
+      <Route path="/rharf" element={<PlatformRedirect baseUrl="https://harf.alif24.uz" path="/rharf" />} />
+      <Route path="/eharf" element={<PlatformRedirect baseUrl="https://harf.alif24.uz" path="/eharf" />} />
 
       {/* Games - Redirect to games.alif24.uz */}
       <Route path="/games/letter-memory" element={<PlatformRedirect baseUrl="https://games.alif24.uz" path="/letter-memory" />} />

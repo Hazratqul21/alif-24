@@ -107,8 +107,8 @@ const HomePage = () => {
     if (gid === '1') return redirectToPlatform('https://lessions.alif24.uz', '/ertaklar');  // Ertak o'qish
     if (gid === '2') return navigate('/mathkids');   // Matematika (MainPlatform ichida)
     if (gid === '3') return redirectToPlatform('https://harf.alif24.uz');        // O'zbek alifbesi
-    if (gid === '4') return redirectToPlatform('https://harf.alif24.uz'); // Ingliz alifbesi
-    if (gid === '5') return redirectToPlatform('https://harf.alif24.uz'); // Rus alifbes
+    if (gid === '4') return redirectToPlatform('https://harf.alif24.uz', '/eharf'); // Ingliz alifbesi
+    if (gid === '5') return redirectToPlatform('https://harf.alif24.uz', '/rharf'); // Rus alifbes
     if (gid === '6') return redirectToPlatform('https://games.alif24.uz'); // Xotira o'yini
     if (gid === '7') return redirectToPlatform('https://games.alif24.uz');  // Matematika o'yini
 
