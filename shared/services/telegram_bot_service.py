@@ -138,17 +138,13 @@ class TelegramBotService:
                 "message": "Bu raqam Telegram bot bilan bog'lanmagan. Iltimos, avval @Alif24Bot ni ishga tushuring."
             }
         
-        # Create or update verification
-        stmt = select(PhoneVerification).filter(
+        # Delete all existing unverified codes for this phone
+        stmt = delete(PhoneVerification).where(
             PhoneVerification.phone == phone,
             PhoneVerification.verified == False
         )
-        result = await self.db.execute(stmt)
-        existing = result.scalar_one_or_none()
-        
-        if existing:
-            await self.db.delete(existing)
-            await self.db.commit()
+        await self.db.execute(stmt)
+        await self.db.commit()
         
         # Create new verification
         verification = PhoneVerification.create_for_phone(phone, expires_minutes=5)
