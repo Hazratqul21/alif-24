@@ -22,23 +22,19 @@ router = APIRouter()
 class LessonCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=200)
     subject: str = Field(..., min_length=2, max_length=100)
-    description: Optional[str] = None
     content: str = Field(..., min_length=10)
     grade_level: Optional[str] = None
-    difficulty: str = Field(default="medium")
-    duration_minutes: int = Field(default=30, ge=5, le=180)
-    language: str = Field(default="uz")  # uz, ru, en
+    language: str = Field(default="uz")
+    video_url: Optional[str] = None  # uz, ru, en
 
 
 class LessonUpdate(BaseModel):
     title: Optional[str] = None
     subject: Optional[str] = None
-    description: Optional[str] = None
     content: Optional[str] = None
     grade_level: Optional[str] = None
-    difficulty: Optional[str] = None
-    duration_minutes: Optional[int] = None
     language: Optional[str] = None
+    video_url: Optional[str] = None
 
 
 class LessonProgressSchema(BaseModel):
@@ -62,15 +58,10 @@ def _lesson_to_dict(lesson: Lesson) -> dict:
         "id": lesson.id,
         "title": lesson.title,
         "subject": lesson.subject,
-        "description": lesson.description,
         "content": lesson.content,
         "grade_level": lesson.grade_level,
-        "difficulty": lesson.difficulty,
-        "duration_minutes": lesson.duration_minutes,
-        "language": lesson.language,
-        "status": lesson.status.value if lesson.status else "draft",
-        "view_count": lesson.view_count,
-        "completion_count": lesson.completion_count,
+        "language": getattr(lesson, 'language', 'uz'),
+        "video_url": getattr(lesson, 'video_url', None),
         "created_at": lesson.created_at.isoformat() if lesson.created_at else None,
         "updated_at": lesson.updated_at.isoformat() if lesson.updated_at else None,
     }
@@ -101,13 +92,10 @@ async def create_lesson(
     lesson = Lesson(
         title=data.title,
         subject=data.subject,
-        description=data.description,
         content=data.content,
         grade_level=data.grade_level,
-        difficulty=data.difficulty,
-        duration_minutes=data.duration_minutes,
         language=data.language,
-        status=LessonStatus.draft,
+        video_url=data.video_url,
     )
     db.add(lesson)
     await db.commit()
@@ -134,8 +122,6 @@ async def list_lessons(
         stmt = stmt.where(Lesson.grade_level == grade_level)
     if language:
         stmt = stmt.where(Lesson.language == language)
-    if status:
-        stmt = stmt.where(Lesson.status == LessonStatus(status))
 
     result = await db.execute(stmt)
     results = result.scalars().all()
@@ -159,8 +145,6 @@ async def get_lesson(
     if not lesson:
         raise HTTPException(status_code=404, detail="Darslik topilmadi")
 
-    lesson.view_count += 1
-    await db.commit()
     return {"success": True, "data": _lesson_to_dict(lesson)}
 
 
@@ -190,15 +174,12 @@ async def publish_lesson(
     lesson_id: str,
     db: AsyncSession = Depends(get_db)
 ):
-    """Publish a lesson"""
+    """Publish a lesson (No-op since status is removed from shared model)"""
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
     lesson = res.scalar_one_or_none()
     if not lesson:
         raise HTTPException(status_code=404, detail="Darslik topilmadi")
 
-    lesson.status = LessonStatus.published
-    await db.commit()
-    await db.refresh(lesson)
     return {"success": True, "data": _lesson_to_dict(lesson)}
 
 

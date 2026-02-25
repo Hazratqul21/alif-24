@@ -101,7 +101,8 @@ const StudentDashboard = () => {
     useEffect(() => {
         const fetchDashboard = async () => {
             try {
-                const response = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/student`, {
+                const apiBaseUrl = import.meta.env.VITE_API_URL || '/api/v1';
+                const response = await fetch(`${apiBaseUrl}/dashboard/student`, {
                     credentials: 'include'
                 });
                 if (response.ok) {
@@ -863,8 +864,8 @@ const StudentDashboard = () => {
                                         finally { setStoryTtsLoading(false); }
                                     }}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${storyPlaying ? 'bg-red-100 text-red-600 hover:bg-red-200' :
-                                            storyTtsLoading ? 'bg-gray-100 text-gray-400 cursor-wait' :
-                                                'bg-indigo-600 text-white hover:bg-indigo-700'
+                                        storyTtsLoading ? 'bg-gray-100 text-gray-400 cursor-wait' :
+                                            'bg-indigo-600 text-white hover:bg-indigo-700'
                                         }`}
                                 >
                                     {storyTtsLoading ? <><Clock size={16} className="animate-spin" /> Yuklanmoqda...</> :
