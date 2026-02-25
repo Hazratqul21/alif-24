@@ -917,18 +917,16 @@ async def analyze_voice_recording(
     else:
         raise HTTPException(status_code=400, detail="Audio fayl yo'q")
 
-    # STT qilish
-    try:
-        # STT qilish (OpenAI Whisper)
-        openai_service = get_openai_service()
-        if not openai_service:
-            raise HTTPException(status_code=500, detail="OpenAI service not available")
+    # STT qilish (OpenAI Whisper)
+    openai_service = get_openai_service()
+    if not openai_service:
+        raise HTTPException(status_code=500, detail="OpenAI service not available")
 
-        try:
-            stt_result = await openai_service.speech_to_text(audio_data, language="uz")
-        except Exception as e:
-            logger.error(f"STT xatoligi: {e}")
-            raise HTTPException(status_code=500, detail=f"STT xatoligi: {str(e)}")
+    try:
+        stt_result = await openai_service.speech_to_text(audio_data, language="uz")
+    except Exception as e:
+        logger.error(f"STT xatoligi: {e}")
+        raise HTTPException(status_code=500, detail=f"STT xatoligi: {str(e)}")
 
     if not stt_result.get("success"):
         return {
