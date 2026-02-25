@@ -1,40 +1,31 @@
 """
-Storage Service — Ovoz yozuvlarini saqlash uchun
-Azure Blob Storage ishlatiladi
+Storage Service — Ovoz yozuvlarini serverda saqlash
+Local file system — /app/uploads/audio/
 """
 import os
 import uuid
 import logging
+import aiofiles
 from typing import Optional
-from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
-# Azure Blob config
-AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
-AZURE_CONTAINER_NAME = os.getenv("AZURE_CONTAINER_NAME", "audiostories")
-BLOB_BASE_URL = os.getenv("BLOB_BASE_URL", "https://alif24storage.blob.core.windows.net/audiostories")
+# Local storage config
+UPLOAD_DIR = os.getenv("AUDIO_UPLOAD_DIR", "/app/uploads/audio")
+# Public URL prefix — Nginx /api/uploads/ ga proxy qilgan
+AUDIO_URL_PREFIX = os.getenv("AUDIO_URL_PREFIX", "/api/uploads/audio")
 
 
 class StorageService:
     """
-    Voice recordings storage — Azure Blob Storage
+    Voice recordings storage — Local file system
     """
 
     def __init__(self):
-        self.container_name = AZURE_CONTAINER_NAME
-        self.base_url = BLOB_BASE_URL
-        self.connection_string = AZURE_STORAGE_CONNECTION_STRING
-        self._blob_service = None
-
-    def _get_blob_service(self):
-        """Azure Blob Service olish (lazy load)"""
-        if self._blob_service is None:
-            from azure.storage.blob import BlobServiceClient
-            self._blob_service = BlobServiceClient.from_connection_string(
-                self.connection_string
-            )
-        return self._blob_service
+        self.upload_dir = UPLOAD_DIR
+        self.url_prefix = AUDIO_URL_PREFIX
+        # Papka mavjudligini tekshirish
+        os.makedirs(self.upload_dir, exist_ok=True)
 
     def _generate_filename(self, session_id: str, extension: str = "webm") -> str:
         """Yangi fayl nomi yaratish"""
@@ -48,7 +39,7 @@ class StorageService:
         extension: str = "webm"
     ) -> dict:
         """
-        Ovoz faylini Azure Blob Storage ga saqlash
+        Ovoz faylini local serverga saqlash
 
         Args:
             audio_data: Ovoz fayli baytlari
@@ -59,19 +50,16 @@ class StorageService:
             dict: {url, filename, file_size}
         """
         filename = self._generate_filename(session_id, extension)
+        filepath = os.path.join(self.upload_dir, filename)
 
         try:
-            blob_service = self._get_blob_service()
-            container_client = blob_service.get_container_client(self.container_name)
-            blob_client = container_client.get_blob_client(filename)
-
-            # Upload blob
-            blob_client.upload_blob(audio_data, overwrite=True)
+            async with aiofiles.open(filepath, "wb") as f:
+                await f.write(audio_data)
 
             file_size = len(audio_data)
-            file_url = f"{self.base_url}/{filename}"
+            file_url = f"{self.url_prefix}/{filename}"
 
-            logger.info(f"Saved audio to Azure Blob: {filename} ({file_size} bytes)")
+            logger.info(f"Saved audio: {filename} ({file_size} bytes)")
 
             return {
                 "url": file_url,
@@ -80,40 +68,36 @@ class StorageService:
             }
 
         except Exception as e:
-            logger.error(f"Azure Blob upload error: {e}")
+            logger.error(f"Audio save error: {e}")
             raise Exception(f"Audio saqlashda xatolik: {str(e)}")
 
     async def delete_audio(self, filename: str) -> bool:
         """Ovoz faylini o'chirish"""
         try:
-            blob_service = self._get_blob_service()
-            container_client = blob_service.get_container_client(self.container_name)
-            blob_client = container_client.get_blob_client(filename)
-
-            blob_client.delete_blob()
-            logger.info(f"Deleted audio from Azure Blob: {filename}")
-            return True
-
+            filepath = os.path.join(self.upload_dir, filename)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+                logger.info(f"Deleted audio: {filename}")
+                return True
+            return False
         except Exception as e:
-            logger.error(f"Azure Blob delete error: {e}")
+            logger.error(f"Audio delete error: {e}")
             return False
 
     async def get_audio_url(self, filename: str) -> Optional[str]:
         """Fayl URL olish"""
-        return f"{self.base_url}/{filename}"
+        return f"{self.url_prefix}/{filename}"
 
     async def get_audio_data(self, filename: str) -> Optional[bytes]:
         """Fayl ma'lumotlarini olish"""
         try:
-            blob_service = self._get_blob_service()
-            container_client = blob_service.get_container_client(self.container_name)
-            blob_client = container_client.get_blob_client(filename)
-
-            download = blob_client.download_blob()
-            return download.readall()
-
+            filepath = os.path.join(self.upload_dir, filename)
+            if not os.path.exists(filepath):
+                return None
+            async with aiofiles.open(filepath, "rb") as f:
+                return await f.read()
         except Exception as e:
-            logger.error(f"Azure Blob download error: {e}")
+            logger.error(f"Audio read error: {e}")
             return None
 
 
