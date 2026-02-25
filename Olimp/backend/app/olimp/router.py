@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 import logging
 
 from shared.database import get_db
-from shared.database.models import User, StudentProfile
+from shared.database.models import User, StudentProfile, UserRole
 from shared.database.models.olympiad import (
     Olympiad, OlympiadQuestion, OlympiadParticipant, OlympiadAnswer,
     OlympiadStatus, ParticipationStatus,
@@ -185,10 +185,24 @@ async def register_for_olympiad(
     if olympiad.status not in (OlympiadStatus.active, OlympiadStatus.upcoming):
         raise HTTPException(status_code=400, detail="Olimpiada hali faol emas")
 
+    # Check if real user exists and is a student
+    user_res = await db.execute(select(User).where(User.id == data.student_id))
+    user = user_res.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Foydalanuvchi topilmadi. Iltimos, ro'yxatdan o'ting.")
+        
+    if user.role != UserRole.student:
+        raise HTTPException(status_code=400, detail="Kechiarsiz, Olimpiadada faqat O'quvchilar ishtirok etishi mumkin!")
+
     # Resolve student profile from user_id
     sp = await _resolve_student_profile(data.student_id, db)
     if not sp:
-        raise HTTPException(status_code=400, detail="Talaba profili topilmadi. Iltimos, avval tizimga kiring.")
+        # Auto-create profile if missing (e.g for telegram bot registrations)
+        sp = StudentProfile(user_id=user.id)
+        db.add(sp)
+        await db.commit()
+        await db.refresh(sp)
 
     # Check max participants
     count_res = await db.execute(

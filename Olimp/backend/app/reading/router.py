@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from shared.database import get_db
-from shared.database.models import User
+from shared.database.models import User, StudentProfile, UserRole
 from shared.database.models.reading_competition import (
     ReadingCompetition, ReadingTask, CompetitionTest,
     ReadingSession, CompetitionResult,
@@ -70,6 +70,19 @@ async def get_current_student(
     user = user_res.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="Foydalanuvchi topilmadi")
+        
+    if user.role and user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Kechirasiz, musobaqada faqat o'quvchilar ishtirok etishi mumkin!")
+
+    # Auto-create student profile if missing (e.g., registered via bot)
+    sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user.id))
+    sp = sp_res.scalar_one_or_none()
+    if not sp:
+        sp = StudentProfile(user_id=user.id)
+        db.add(sp)
+        await db.commit()
+        await db.refresh(sp)
+
     return user
 
 
