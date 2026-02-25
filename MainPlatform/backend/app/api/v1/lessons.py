@@ -295,7 +295,6 @@ import os
 import httpx
 from fastapi import Response as FastAPIResponse
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
 
 # HD ovozlar — bolalar uchun iliq, tabiiy ovozlar
@@ -305,8 +304,8 @@ STORY_VOICES = {
     "en": "nova",      # Ingliz — professional, tiniq ovoz
 }
 
-# HD model = yuqori sifat, bolalar uchun sekinroq tezlik
-TTS_MODEL = "tts-1-hd"
+# HD model = yuqori sifat yoki env dan olingan model
+TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "tts-1-hd")
 TTS_SPEED = 0.95  # biroz sekinroq — bolalar uchun aniqroq
 
 @router.post("/public/stories/{story_id}/tts")
@@ -315,8 +314,9 @@ async def story_tts(
     db: AsyncSession = Depends(get_db),
 ):
     """AI yordamida ertakni o'qib berish (OpenAI TTS) — auth kerak emas"""
-    if not OPENAI_API_KEY:
-        logger.error("OPENAI_API_KEY is not set!")
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
+        logger.error("OPENAI_API_KEY is not set in environment!")
         raise HTTPException(status_code=503, detail="Tizimda ovoz sozlamalari mavjud emas (API kaliti yo'q)")
 
     res = await db.execute(select(Story).where(Story.id == story_id))
@@ -336,7 +336,7 @@ async def story_tts(
             response = await client.post(
                 OPENAI_TTS_URL,
                 headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
