@@ -44,18 +44,3 @@ class LessonProgress(Base):
 
     lesson = relationship("Lesson", foreign_keys=[lesson_id])
 
-
-class Ertak(Base):
-    __tablename__ = "ertaklar"
-    __table_args__ = {'extend_existing': True}
-
-    id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    title = Column(String(200), nullable=False)
-    content = Column(Text, nullable=False)
-    language = Column(String(5), default="uz")
-    age_group = Column(String(10), default="6-8")
-    has_audio = Column(Boolean, default=False)
-    audio_url = Column(String(500), nullable=True)
-    view_count = Column(Integer, default=0)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())

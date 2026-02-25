@@ -10,7 +10,8 @@ from typing import List, Optional
 import logging
 
 from shared.database import get_db
-from app.lessons.models import Lesson, LessonProgress as LessonProgressModel, Ertak, LessonStatus
+from shared.database.models.story import Story
+from app.lessons.models import Lesson, LessonProgress as LessonProgressModel, LessonStatus
 
 logger = logging.getLogger("lessions")
 
@@ -67,7 +68,7 @@ def _lesson_to_dict(lesson: Lesson) -> dict:
     }
 
 
-def _ertak_to_dict(ertak: Ertak) -> dict:
+def _ertak_to_dict(ertak: Story) -> dict:
     return {
         "id": ertak.id,
         "title": ertak.title,
@@ -302,7 +303,7 @@ async def create_ertak(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new ertak (story)"""
-    ertak = Ertak(
+    ertak = Story(
         title=data.title,
         content=data.content,
         language=data.language,
@@ -325,12 +326,12 @@ async def list_ertaklar(
     db: AsyncSession = Depends(get_db)
 ):
     """List all ertaklar (stories)"""
-    stmt = select(Ertak)
+    stmt = select(Story)
 
     if language:
-        stmt = stmt.where(Ertak.language == language)
+        stmt = stmt.where(Story.language == language)
     if age_group:
-        stmt = stmt.where(Ertak.age_group == age_group)
+        stmt = stmt.where(Story.age_group == age_group)
 
     result = await db.execute(stmt)
     results = result.scalars().all()
@@ -349,7 +350,7 @@ async def get_ertak(
     db: AsyncSession = Depends(get_db)
 ):
     """Get ertak details"""
-    res = await db.execute(select(Ertak).where(Ertak.id == ertak_id))
+    res = await db.execute(select(Story).where(Story.id == ertak_id))
     ertak = res.scalar_one_or_none()
     if not ertak:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
@@ -365,7 +366,7 @@ async def delete_ertak(
     db: AsyncSession = Depends(get_db)
 ):
     """Delete an ertak"""
-    res = await db.execute(select(Ertak).where(Ertak.id == ertak_id))
+    res = await db.execute(select(Story).where(Story.id == ertak_id))
     ertak = res.scalar_one_or_none()
     if not ertak:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
