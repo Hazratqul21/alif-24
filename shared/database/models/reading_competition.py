@@ -177,6 +177,11 @@ class ReadingSession(Base):
     total_words = Column(Integer, default=0)
     completion_percentage = Column(Float, default=0.0)
 
+    # Ovoz yozuvi (reading)
+    audio_url = Column(String(500), nullable=True)
+    audio_filename = Column(String(200), nullable=True)
+    audio_duration_seconds = Column(Float, nullable=True)
+
     # Savollar natijalari
     question_answers = Column(JSON, nullable=True)
     questions_correct = Column(Integer, default=0)

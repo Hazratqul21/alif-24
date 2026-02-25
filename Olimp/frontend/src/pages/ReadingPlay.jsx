@@ -1,13 +1,15 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import readingService from '../services/readingService';
+import VoiceRecorder from '../components/VoiceRecorder';
 
-// Phases: loading -> preview -> countdown -> reading -> questions -> result
+// Phases: loading -> preview -> countdown -> reading -> voice_record -> questions -> result
 const PHASE = {
     LOADING: 'loading',
     PREVIEW: 'preview',
     COUNTDOWN: 'countdown',
     READING: 'reading',
+    VOICE_RECORD: 'voice_record',
     QUESTIONS: 'questions',
     RESULT: 'result',
 };
@@ -40,6 +42,14 @@ export default function ReadingPlay() {
     const [result, setResult] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
+    // Voice recording mode
+    const [sessionId, setSessionId] = useState(null);
+    const [recordingMode, setRecordingMode] = useState(false);
+
+    // TTS
+    const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+    const audioRef = useRef(null);
+
     // ============ LOAD TASK ============
     useEffect(() => {
         loadTask();
@@ -67,10 +77,14 @@ export default function ReadingPlay() {
     };
 
     // ============ COUNTDOWN ============
-    const startCountdown = async () => {
+    const startCountdown = async (useVoiceRecording = false) => {
         // Start session on backend
         try {
-            await readingService.startReading(compId, taskId);
+            const response = await readingService.startReading(compId, taskId);
+            if (useVoiceRecording) {
+                setSessionId(response.session_id);
+                setRecordingMode(true);
+            }
         } catch (err) {
             setError(err.message);
             return;
@@ -86,9 +100,57 @@ export default function ReadingPlay() {
             if (count === 0) {
                 clearInterval(countdownRef.current);
                 countdownRef.current = null;
-                startReading();
+                // If voice recording mode, go to voice record phase
+                if (recordingMode) {
+                    setPhase(PHASE.VOICE_RECORD);
+                } else {
+                    startReading();
+                }
             }
         }, 1000);
+    };
+
+    // ============ VOICE RECORDING ============
+    const handleVoiceRecordingComplete = async (audioBlob, duration) => {
+        if (!sessionId) {
+            setError("Sessiya topilmadi");
+            return;
+        }
+
+        try {
+            setSubmitting(true);
+
+            // Upload audio
+            await readingService.uploadAudio(sessionId, audioBlob);
+
+            // Analyze audio (STT + scoring)
+            const analysis = await readingService.analyzeAudio(sessionId);
+
+            if (analysis.success) {
+                // Set the analysis result and go to result phase
+                setResult(analysis.analysis);
+
+                // If there are questions, go to questions phase
+                if (task?.questions?.length > 0) {
+                    setAnswers(new Array(task.questions.length).fill(-1));
+                    setCurrentQ(0);
+                    setPhase(PHASE.QUESTIONS);
+                    speakQuestion(task.questions[0].question);
+                } else {
+                    setPhase(PHASE.RESULT);
+                }
+            } else {
+                setError(analysis.error || "Tahlil qilishda xatolik");
+            }
+        } catch (err) {
+            setError(err.message || 'Xatolik yuz berdi');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleVoiceError = (errorMsg) => {
+        setError(errorMsg);
     };
 
     // ============ READING + STT ============
@@ -256,6 +318,54 @@ export default function ReadingPlay() {
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
+    // ============ TTS - Hikoyani eshittirish ============
+    const playTTS = async () => {
+        if (isPlayingTTS) {
+            // Stop playing
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+            setIsPlayingTTS(false);
+            return;
+        }
+
+        try {
+            setIsPlayingTTS(true);
+            const ttsUrl = readingService.getTaskTTSUrl(compId, taskId);
+
+            // Fetch audio
+            const response = await fetch(ttsUrl, { credentials: 'include' });
+            if (!response.ok) {
+                throw new Error('TTS xatoligi');
+            }
+
+            const blob = await response.blob();
+            const audioUrl = URL.createObjectURL(blob);
+
+            // Play audio
+            const audio = new Audio(audioUrl);
+            audioRef.current = audio;
+
+            audio.onended = () => {
+                setIsPlayingTTS(false);
+                URL.revokeObjectURL(audioUrl);
+            };
+
+            audio.onerror = () => {
+                setIsPlayingTTS(false);
+                setError('Audio playback error');
+            };
+
+            await audio.play();
+
+        } catch (err) {
+            console.error('TTS error:', err);
+            setIsPlayingTTS(false);
+            setError('TTS xatoligi: ' + err.message);
+        }
+    };
+
     const getScoreColor = (score) => {
         if (score >= 80) return 'text-emerald-400';
         if (score >= 50) return 'text-amber-400';
@@ -296,6 +406,20 @@ export default function ReadingPlay() {
                         <img src={task.image_url} alt="" className="w-full max-h-64 object-cover rounded-2xl mb-6 shadow-xl" />
                     )}
                     <h1 className="text-white text-2xl font-bold mb-2">{task?.title}</h1>
+
+                    {/* Play TTS button */}
+                    <button
+                        onClick={playTTS}
+                        disabled={isPlayingTTS}
+                        className={`mb-4 px-6 py-2 rounded-xl font-bold transition-all ${
+                            isPlayingTTS
+                                ? 'bg-amber-500 text-white animate-pulse'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                    >
+                        {isPlayingTTS ? '⏸ To\'xtatish' : '🔊 Hikoyani eshittirish'}
+                    </button>
+
                     <div className="flex items-center justify-center gap-4 text-gray-500 text-sm mb-8">
                         <span>📝 {task?.total_words} so'z</span>
                         <span>❓ {task?.questions?.length || 0} savol</span>
@@ -313,9 +437,14 @@ export default function ReadingPlay() {
                         </ul>
                     </div>
 
-                    <button onClick={startCountdown}
+                    <button onClick={() => startCountdown(false)}
                         className="w-full py-4 bg-emerald-600 text-white text-lg font-bold rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
                         🎤 O'qishni Boshlash
+                    </button>
+
+                    <button onClick={() => startCountdown(true)}
+                        className="w-full mt-3 py-3 bg-red-600/80 text-white font-bold rounded-xl hover:bg-red-600 transition-all">
+                        🎙 Ovoz yozib o'qish
                     </button>
 
                     <button onClick={() => navigate(-1)} className="mt-3 text-gray-600 text-sm hover:text-gray-400">
@@ -376,6 +505,47 @@ export default function ReadingPlay() {
                         className="w-full py-4 bg-red-600 text-white text-lg font-bold rounded-2xl hover:bg-red-700 transition-all active:scale-95 shadow-lg shadow-red-500/20">
                         🛑 STOP — O'qishni tugatish
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    // VOICE RECORD — ovoz yozib olish
+    if (phase === PHASE.VOICE_RECORD) {
+        return (
+            <div className="min-h-screen bg-gray-950 flex flex-col">
+                {/* Top bar */}
+                <div className="bg-gray-900 border-b border-gray-800 px-4 py-3">
+                    <div className="text-white font-mono text-2xl font-bold text-center">
+                        🎤 Ovoz yozib oling
+                    </div>
+                </div>
+
+                {/* Story text */}
+                <div className="flex-1 overflow-y-auto px-4 py-6 max-w-3xl mx-auto w-full">
+                    <div className="text-white text-lg leading-relaxed whitespace-pre-wrap font-serif">
+                        {task?.story_text}
+                    </div>
+                </div>
+
+                {/* Voice recorder */}
+                <div className="p-4 bg-gray-950 border-t border-gray-800">
+                    <VoiceRecorder
+                        onRecordingComplete={handleVoiceRecordingComplete}
+                        onError={handleVoiceError}
+                        disabled={submitting}
+                        className="w-full"
+                    />
+                    {submitting && (
+                        <div className="mt-4 text-center text-gray-400">
+                            ⏳ Yuklanmoqda, kuting...
+                        </div>
+                    )}
+                    {error && (
+                        <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
+                            {error}
+                        </div>
+                    )}
                 </div>
             </div>
         );

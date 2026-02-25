@@ -144,6 +144,9 @@ from shared.database.models.reading_competition import (
     ResultGroup,
 )
 
+# Audio Cache System
+from shared.database.models.audio_cache import AudioCache
+
 # Subscription System
 from shared.database.models.subscription import (
     SubscriptionStatus,
@@ -279,6 +282,9 @@ __all__ = [
     "TaskDay",
     "SessionStatus",
     "ResultGroup",
+
+    # Audio Cache Models
+    "AudioCache",
 
     # Subscription Models
     "SubscriptionStatus",

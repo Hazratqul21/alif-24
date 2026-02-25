@@ -42,6 +42,18 @@ class ApiService {
         });
         return this.handleResponse(resp);
     }
+
+    async postForm(endpoint, formData) {
+        const baseUrl = this.baseUrl.startsWith('http')
+            ? this.baseUrl
+            : `${window.location.origin}${this.baseUrl}`;
+        const resp = await fetch(`${baseUrl}${endpoint}`, {
+            method: "POST",
+            credentials: "include",
+            body: formData,
+        });
+        return this.handleResponse(resp);
+    }
 }
 
 export const apiService = new ApiService();
