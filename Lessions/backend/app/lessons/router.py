@@ -382,6 +382,7 @@ from fastapi import Response as FastAPIResponse
 from pydantic import BaseModel as TTSBaseModel
 import httpx
 import os
+from shared.services.azure_speech_service import speech_service
 
 class TTSRequest(TTSBaseModel):
     text: str
@@ -404,42 +405,24 @@ async def ertak_tts(
     ertak_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """AI yordamida ertakni o'qib berish (OpenAI TTS HD)"""
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=503, detail="Tizimda ovoz sozlamalari mavjud emas (API kaliti yo'q)")
-
-    res = await db.execute(select(Ertak).where(Ertak.id == ertak_id))
+    """AI yordamida ertakni o'qib berish (Azure TTS)"""
+    res = await db.execute(select(Story).where(Story.id == ertak_id))
     ertak = res.scalar_one_or_none()
     if not ertak:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
 
     lang = ertak.language or "uz"
-    voice = LANGUAGE_VOICES.get(lang, "shimmer")
     text = (ertak.content or "")[:4096]
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                OPENAI_TTS_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": TTS_MODEL,
-                    "input": text,
-                    "voice": voice,
-                    "speed": TTS_SPEED,
-                    "response_format": "mp3",
-                },
-            )
-            if response.status_code != 200:
-                logger.error(f"OpenAI TTS error: {response.status_code} - {response.text[:300]}")
-                raise HTTPException(status_code=500, detail=f"OpenAI xatoligi: {response.status_code}")
-            return FastAPIResponse(content=response.content, media_type="audio/mpeg")
+        # Generate Audio using Azure Speech Services
+        audio_content = await speech_service.text_to_speech(text=text, language=lang, gender="female")
+        return FastAPIResponse(content=audio_content, media_type="audio/mpeg")
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"TTS error for ertak {ertak_id}: {e}")
+        logger.error(f"TTS error for story {ertak_id}: {e}")
         raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
 
 
