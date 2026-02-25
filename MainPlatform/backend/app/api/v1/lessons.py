@@ -295,7 +295,7 @@ import os
 import httpx
 from fastapi import Response as FastAPIResponse
 
-OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
+OPENAI_TTS_URL = os.getenv("OPENAI_TTS_URL", "https://api.openai.com/v1/audio/speech")
 
 # HD ovozlar — bolalar uchun iliq, tabiiy ovozlar
 STORY_VOICES = {

@@ -301,6 +301,31 @@ async def get_leaderboard(
 # Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "success": False,
+                "error": {
+                    "code": f"HTTP_{exc.status_code}",
+                    "message": exc.detail
+                }
+            }
+        )
+    
+    if isinstance(exc, RequestValidationError):
+        return JSONResponse(
+            status_code=422,
+            content={
+                "success": False,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Noto'g'ri so'rov",
+                    "details": exc.errors()
+                }
+            }
+        )
+
     logger.error(f"Unhandled error: {exc}")
     return JSONResponse(
         status_code=500,
