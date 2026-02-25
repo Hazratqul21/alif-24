@@ -26,16 +26,16 @@ class Settings:
     JWT_REFRESH_EXPIRES_IN: str = os.getenv("JWT_REFRESH_EXPIRES_IN", "30d")
     JWT_ALGORITHM: str = "HS256"
 
-    # OpenAI (SmartKids / MathKids)
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "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")
+    # OpenAI (legacy - not used, kept for compatibility)
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-    # Azure OpenAI (optional)
-    AZURE_OPENAI_KEY: Optional[str] = os.getenv("AZURE_OPENAI_KEY", None)
-    AZURE_OPENAI_ENDPOINT: Optional[str] = os.getenv("AZURE_OPENAI_ENDPOINT", None)
-    AZURE_OPENAI_DEPLOYMENT_NAME: str = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4")
-    AZURE_OPENAI_API_VERSION: str = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01")
-    AZURE_OPENAI_REGION: Optional[str] = os.getenv("AZURE_OPENAI_REGION", None)
+    # Azure OpenAI (SmartKids / MathKids)
+    AZURE_OPENAI_KEY: str = os.getenv("AZURE_OPENAI_KEY", "")
+    AZURE_OPENAI_ENDPOINT: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+    AZURE_OPENAI_DEPLOYMENT_NAME: str = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-chat")
+    AZURE_OPENAI_API_VERSION: str = os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview")
+    AZURE_OPENAI_REGION: str = os.getenv("AZURE_OPENAI_REGION", "eastus")
 
     # Azure Speech (optional)
     AZURE_SPEECH_KEY: Optional[str] = os.getenv("AZURE_SPEECH_KEY", None)

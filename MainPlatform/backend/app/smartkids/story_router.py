@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta, timezone
-from openai import AsyncOpenAI, AsyncAzureOpenAI
+from openai import AsyncAzureOpenAI
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,9 +21,8 @@ from app.services.ai_cache_service import AICacheService
 
 router = APIRouter()
 
-# OpenAI configuration
-OPENAI_API_KEY = settings.OPENAI_API_KEY
-OPENAI_MODEL = settings.OPENAI_MODEL or "gpt-4o-mini"
+# Azure OpenAI configuration
+AZURE_DEPLOYMENT_NAME = settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-5-chat"
 
 # Language-specific prompts
 def get_system_prompt(language: str, prompt_type: str):
@@ -198,10 +197,6 @@ class DetectLanguageRequest(BaseModel):
     text: str
 
 
-def get_openai_client():
-    """OpenAI async client yaratish"""
-    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-
 def get_azure_client():
     """Azure OpenAI async client yaratish"""
     return AsyncAzureOpenAI(
@@ -211,31 +206,20 @@ def get_azure_client():
     )
 
 async def call_ai(messages, response_format=None, temperature=0.7):
-    """OpenAI first, Azure as fallback. Returns parsed content string."""
-    # 1) OpenAI primary
+    """Azure OpenAI - returns parsed content string."""
+    if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
+        raise Exception("Azure OpenAI not configured")
+
     try:
-        openai_client = get_openai_client()
-        kwargs = dict(model=OPENAI_MODEL, messages=messages, temperature=temperature)
+        azure_client = get_azure_client()
+        kwargs = dict(model=AZURE_DEPLOYMENT_NAME, messages=messages, temperature=temperature)
         if response_format:
             kwargs["response_format"] = response_format
-        resp = await openai_client.chat.completions.create(**kwargs)
+        resp = await azure_client.chat.completions.create(**kwargs)
         return resp.choices[0].message.content
     except Exception as e:
-        logger.warning(f"OpenAI failed: {e}")
-
-    # 2) Azure fallback (only if configured)
-    if settings.AZURE_OPENAI_KEY and settings.AZURE_OPENAI_ENDPOINT:
-        try:
-            azure_client = get_azure_client()
-            kwargs = dict(model=settings.AZURE_OPENAI_DEPLOYMENT_NAME, messages=messages, temperature=temperature)
-            if response_format:
-                kwargs["response_format"] = response_format
-            resp = await azure_client.chat.completions.create(**kwargs)
-            return resp.choices[0].message.content
-        except Exception as e:
-            logger.warning(f"Azure OpenAI failed: {e}")
-
-    raise Exception("Both OpenAI and Azure AI failed")
+        logger.warning(f"Azure OpenAI failed: {e}")
+        raise Exception(f"Azure OpenAI failed: {e}")
 
 
 @router.post("/detect-language")

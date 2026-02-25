@@ -1,31 +1,47 @@
 """
 Storage Service — Ovoz yozuvlarini serverda saqlash
-Local file system — /app/uploads/audio/
+Azure Blob Storage Container
 """
 import os
 import uuid
 import logging
-import aiofiles
 from typing import Optional
+from azure.storage.blob.aio import BlobServiceClient
+from azure.core.exceptions import ResourceExistsError
 
 logger = logging.getLogger(__name__)
 
-# Local storage config
-UPLOAD_DIR = os.getenv("AUDIO_UPLOAD_DIR", "/app/uploads/audio")
-# Public URL prefix — Nginx /api/uploads/ ga proxy qilgan
-AUDIO_URL_PREFIX = os.getenv("AUDIO_URL_PREFIX", "/api/uploads/audio")
-
+AZURE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+CONTAINER_NAME = os.getenv("AZURE_CONTAINER_NAME", "audiostories")
 
 class StorageService:
     """
-    Voice recordings storage — Local file system
+    Voice recordings storage — Azure Blob Storage (Cloud)
     """
 
     def __init__(self):
-        self.upload_dir = UPLOAD_DIR
-        self.url_prefix = AUDIO_URL_PREFIX
-        # Papka mavjudligini tekshirish
-        os.makedirs(self.upload_dir, exist_ok=True)
+        self.connection_string = AZURE_CONNECTION_STRING
+        self.container_name = CONTAINER_NAME
+        self.blob_service_client = None
+        self.container_client = None
+
+        if self.connection_string:
+            try:
+                self.blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
+                self.container_client = self.blob_service_client.get_container_client(self.container_name)
+                logger.info("Successfully connected to Azure Blob Storage.")
+            except Exception as e:
+                logger.error(f"Failed to initialize Azure Blob Storage: {e}")
+
+    async def _ensure_container(self):
+        """Konteyner mavjudligini tekshiradi va yo'q bo'lsa yaratadi."""
+        if self.container_client:
+            try:
+                await self.container_client.create_container()
+            except ResourceExistsError:
+                pass
+            except Exception as e:
+                logger.error(f"Error checking/creating container: {e}")
 
     def _generate_filename(self, session_id: str, extension: str = "webm") -> str:
         """Yangi fayl nomi yaratish"""
@@ -39,7 +55,7 @@ class StorageService:
         extension: str = "webm"
     ) -> dict:
         """
-        Ovoz faylini local serverga saqlash
+        Ovoz faylini Azure Blob ga saqlash
 
         Args:
             audio_data: Ovoz fayli baytlari
@@ -49,17 +65,21 @@ class StorageService:
         Returns:
             dict: {url, filename, file_size}
         """
+        if not self.container_client:
+            raise Exception("Azure Storage is not configured properly. Missing AZURE_STORAGE_CONNECTION_STRING.")
+
+        await self._ensure_container()
         filename = self._generate_filename(session_id, extension)
-        filepath = os.path.join(self.upload_dir, filename)
-
+        
         try:
-            async with aiofiles.open(filepath, "wb") as f:
-                await f.write(audio_data)
-
+            blob_client = self.container_client.get_blob_client(filename)
+            await blob_client.upload_blob(audio_data, overwrite=True)
+            
+            # Using the primary endpoint URL of the blob
+            file_url = blob_client.url
             file_size = len(audio_data)
-            file_url = f"{self.url_prefix}/{filename}"
 
-            logger.info(f"Saved audio: {filename} ({file_size} bytes)")
+            logger.info(f"Saved audio to Azure: {filename} ({file_size} bytes)")
 
             return {
                 "url": file_url,
@@ -68,42 +88,45 @@ class StorageService:
             }
 
         except Exception as e:
-            logger.error(f"Audio save error: {e}")
+            logger.error(f"Azure audio save error: {e}")
             raise Exception(f"Audio saqlashda xatolik: {str(e)}")
 
     async def delete_audio(self, filename: str) -> bool:
-        """Ovoz faylini o'chirish"""
-        try:
-            filepath = os.path.join(self.upload_dir, filename)
-            if os.path.exists(filepath):
-                os.remove(filepath)
-                logger.info(f"Deleted audio: {filename}")
-                return True
+        """Ovoz faylini Azure'dan o'chirish"""
+        if not self.container_client:
             return False
+            
+        try:
+            blob_client = self.container_client.get_blob_client(filename)
+            await blob_client.delete_blob()
+            logger.info(f"Deleted audio from Azure: {filename}")
+            return True
         except Exception as e:
-            logger.error(f"Audio delete error: {e}")
+            logger.error(f"Azure audio delete error: {e}")
             return False
 
     async def get_audio_url(self, filename: str) -> Optional[str]:
-        """Fayl URL olish"""
-        return f"{self.url_prefix}/{filename}"
+        """Fayl public URL manzilini olish"""
+        if not self.container_client:
+            return None
+        return self.container_client.get_blob_client(filename).url
 
     async def get_audio_data(self, filename: str) -> Optional[bytes]:
-        """Fayl ma'lumotlarini olish"""
+        """Fayl ma'lumotlarini (bytes) o'qib olish (Masalan STT qilish uchun)"""
+        if not self.container_client:
+            return None
+            
         try:
-            filepath = os.path.join(self.upload_dir, filename)
-            if not os.path.exists(filepath):
-                return None
-            async with aiofiles.open(filepath, "rb") as f:
-                return await f.read()
+            blob_client = self.container_client.get_blob_client(filename)
+            download_stream = await blob_client.download_blob()
+            return await download_stream.readall()
         except Exception as e:
-            logger.error(f"Audio read error: {e}")
+            logger.error(f"Azure audio read error: {e}")
             return None
 
 
 # Singleton instance
 _storage_service: Optional[StorageService] = None
-
 
 def get_storage_service() -> StorageService:
     """Storage service olish (singleton)"""
