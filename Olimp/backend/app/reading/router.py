@@ -13,8 +13,7 @@ Endpoints:
 """
 
 import aiofiles
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
-from fastapi.responses import FastAPIResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Response as FastAPIResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
@@ -22,6 +21,9 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 import difflib
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
