@@ -79,23 +79,35 @@ async def read_image(file: UploadFile = File(...)):
         }]
         
         text_output = None
-        
-        # 1) Try Azure first
+
+        # 1) OpenAI primary
         try:
-            azure_client = get_azure_client()
-            response = await azure_client.chat.completions.create(
-                model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
+            client = get_client()
+            response = await client.chat.completions.create(
+                model=settings.OPENAI_MODEL or "gpt-4o-mini",
                 messages=vision_messages,
                 max_tokens=1200,
                 temperature=0.3
             )
             text_output = response.choices[0].message.content.strip()
-            logger.info("Azure OCR success")
-        except Exception as azure_err:
-            logger.warning(f"Azure OCR failed: {azure_err}")
-        
-        # 2) Fallback to OpenAI
-        if not text_output:
+            logger.info("OpenAI OCR success")
+        except Exception as openai_err:
+            logger.warning(f"OpenAI OCR failed: {openai_err}")
+
+        # 2) Azure fallback (only if configured)
+        if not text_output and settings.AZURE_OPENAI_KEY and settings.AZURE_OPENAI_ENDPOINT:
+            try:
+                azure_client = get_azure_client()
+                response = await azure_client.chat.completions.create(
+                    model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
+                    messages=vision_messages,
+                    max_tokens=1200,
+                    temperature=0.3
+                )
+                text_output = response.choices[0].message.content.strip()
+                logger.info("Azure OCR fallback success")
+            except Exception as azure_err:
+                logger.warning(f"Azure OCR failed: {azure_err}")
             client = get_client()
             response = await client.chat.completions.create(
                 model=settings.OPENAI_MODEL or "gpt-4o-mini",

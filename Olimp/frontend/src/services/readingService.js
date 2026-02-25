@@ -1,5 +1,7 @@
 import apiService from './apiService';
 
+const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
 const readingService = {
     getCompetitions: (params) => apiService.get('/reading/competitions', params),
     getCompetition: (id) => apiService.get(`/reading/competitions/${id}`),
@@ -9,6 +11,20 @@ const readingService = {
     submitTest: (compId, data) => apiService.post(`/reading/competitions/${compId}/test/submit`, data),
     getMyResults: (compId) => apiService.get(`/reading/competitions/${compId}/my-results`),
     getLeaderboard: (compId, params) => apiService.get(`/reading/competitions/${compId}/leaderboard`, params),
+
+    // Voice recording
+    uploadAudio: (sessionId, audioBlob) => {
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+        return apiService.postForm(`/reading/sessions/${sessionId}/audio`, formData);
+    },
+    analyzeAudio: (sessionId) => apiService.post(`/reading/sessions/${sessionId}/analyze`),
+
+    // TTS - Hikoyani eshittirish
+    getTaskTTSUrl: (compId, taskId) => {
+        const baseUrl = API_URL.startsWith('http') ? API_URL : window.location.origin + API_URL;
+        return `${baseUrl}/reading/competitions/${compId}/tasks/${taskId}/tts`;
+    },
 };
 
 export default readingService;

@@ -12,7 +12,9 @@ Endpoints:
 - GET /competitions/{id}/leaderboard — Umumiy natijalar (4 guruh)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+import aiofiles
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
+from fastapi.responses import FastAPIResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
@@ -31,6 +33,8 @@ from shared.database.models.reading_competition import (
     CompetitionStatus, TaskDay, SessionStatus, ResultGroup,
 )
 from shared.auth import verify_token
+from shared.services.storage_service import get_storage_service
+from shared.services.openai_service import get_openai_service
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
@@ -313,6 +317,84 @@ async def get_task_for_reading(
             "total_score": session.total_score if session else None,
         } if session else None,
     }
+
+
+# ============================================================
+# TTS ENDPOINT — Hikoyani eshittirish
+# ============================================================
+
+import os
+import httpx
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
+
+TTS_MODEL = "tts-1-hd"
+TTS_SPEED = 0.95
+
+# Tilga mos ovozlar
+STORY_VOICES = {
+    "uz": "alloy",   # O'zbek — alloy eng yaxshi tanlov
+    "ru": "echo",   # Rus
+    "en": "alloy",  # Ingliz
+}
+
+
+@router.get("/competitions/{comp_id}/tasks/{task_id}/tts")
+async def get_task_tts(
+    comp_id: str,
+    task_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Hikoyani TTS bilan eshittirish (OpenAI TTS)"""
+    if not OPENAI_API_KEY:
+        raise HTTPException(status_code=500, detail="OpenAI API kaliti sozlanmagan")
+
+    # Task ni olish
+    task_res = await db.execute(
+        select(ReadingTask).where(
+            ReadingTask.id == task_id,
+            ReadingTask.competition_id == comp_id,
+        )
+    )
+    task = task_res.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Hikoya topilmadi")
+
+    text = (task.story_text or "")[:4096]
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Hikoya matni bo'sh")
+
+    language = task.competition.language if task.competition else "uz"
+    voice = STORY_VOICES.get(language, "alloy")
+
+    logger.info(f"TTS request: task={task_id}, lang={language}, voice={voice}, text_len={len(text)}")
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                OPENAI_TTS_URL,
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": TTS_MODEL,
+                    "input": text,
+                    "voice": voice,
+                    "speed": TTS_SPEED,
+                    "response_format": "mp3",
+                },
+            )
+            if response.status_code != 200:
+                logger.error(f"OpenAI TTS error: status={response.status_code}")
+                raise HTTPException(status_code=500, detail=f"OpenAI xatoligi: {response.status_code}")
+
+            return FastAPIResponse(content=response.content, media_type="audio/mpeg")
+
+    except Exception as e:
+        logger.error(f"TTS error for task {task_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
 
 
 @router.post("/competitions/{comp_id}/tasks/{task_id}/start")
@@ -733,3 +815,283 @@ async def get_leaderboard(
             })
 
     return {"success": True, "leaderboard": items, "total": len(items)}
+
+
+# ============================================================
+# VOICE RECORDING ENDPOINTS
+# ============================================================
+
+
+@router.post("/sessions/{session_id}/audio")
+async def upload_voice_recording(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    student: User = Depends(get_current_student),
+    audio: UploadFile = File(...),
+):
+    """
+    Ovoz yozuvini yuklash — bola o'qishni yozib oldi
+
+    Args:
+        session_id: Reading session ID
+        audio: Ovoz fayli (webm, wav, mp3)
+
+    Returns:
+        Audio URL va metadata
+    """
+    # Session tekshirish
+    session_res = await db.execute(
+        select(ReadingSession).where(
+            ReadingSession.id == session_id,
+            ReadingSession.student_id == student.id,
+        )
+    )
+    session = session_res.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Sessiya topilmadi")
+
+    # Faylni o'qish
+    audio_data = await audio.read()
+
+    if len(audio_data) < 1000:  # Kamida 1KB
+        raise HTTPException(status_code=400, detail="Juda kichik audio fayl")
+
+    # Saqlash
+    storage = get_storage_service()
+    extension = audio.filename.split(".")[-1] if "." in audio.filename else "webm"
+    result = await storage.save_audio(audio_data, session_id, extension)
+
+    # Session yangilash
+    session.audio_url = result["url"]
+    session.audio_filename = result["filename"]
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Ovoz yozuvi saqlandi",
+        "audio": {
+            "url": result["url"],
+            "file_size": result["file_size"],
+        }
+    }
+
+
+@router.post("/sessions/{session_id}/analyze")
+async def analyze_voice_recording(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    student: User = Depends(get_current_student),
+):
+    """
+    Ovoz yozuvini tahlil qilish — STT + scoring
+
+    Avval ovoz yozuvi yuklangan bo'lishi kerak.
+    STT qiladi, matnni taqqoslaydi, ballarni hisoblaydi.
+    """
+    # Session tekshirish
+    session_res = await db.execute(
+        select(ReadingSession).where(
+            ReadingSession.id == session_id,
+            ReadingSession.student_id == student.id,
+        )
+    )
+    session = session_res.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Sessiya topilmadi")
+
+    if not session.audio_url:
+        raise HTTPException(status_code=400, detail="Avval ovoz yozuvini yuklang")
+
+    # Task va original matnni olish
+    task_res = await db.execute(select(ReadingTask).where(ReadingTask.id == session.task_id))
+    task = task_res.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Hikoya topilmadi")
+
+    # Audio faylini olish (Azure Blob)
+    storage = get_storage_service()
+    if session.audio_filename:
+        audio_data = await storage.get_audio_data(session.audio_filename)
+        if not audio_data:
+            raise HTTPException(status_code=404, detail="Audio fayl topilmadi")
+    else:
+        raise HTTPException(status_code=400, detail="Audio fayl yo'q")
+
+    # STT qilish
+    try:
+        # STT qilish (OpenAI Whisper)
+        openai_service = get_openai_service()
+        if not openai_service:
+            raise HTTPException(status_code=500, detail="OpenAI service not available")
+
+        try:
+            stt_result = await openai_service.speech_to_text(audio_data, language="uz")
+        except Exception as e:
+            logger.error(f"STT xatoligi: {e}")
+            raise HTTPException(status_code=500, detail=f"STT xatoligi: {str(e)}")
+
+    if not stt_result.get("success"):
+        return {
+            "success": False,
+            "error": stt_result.get("error", "Ovoz tanib olinmadi"),
+            "transcript": "",
+        }
+
+    transcript = stt_result.get("transcript", "")
+
+    # Matnni taqqoslash
+    similarity = calculate_text_similarity(task.story_text, transcript)
+
+    # Reading speed (words per minute) - OpenAI doesn't return duration, use session time
+    duration_seconds = session.reading_time_seconds or 0
+    words_per_minute = 0
+    if duration_seconds > 0:
+        words_per_minute = round((similarity["words_read"] / duration_seconds) * 60, 1)
+
+    # Accuracy (so'zlarning to'g'riligi)
+    accuracy_percentage = similarity["completion_percentage"]
+
+    # Session yangilash
+    session.stt_transcript = transcript
+    session.words_read = similarity["words_read"]
+    session.total_words = similarity["total_words"]
+    session.completion_percentage = similarity["completion_percentage"]
+    session.audio_duration_seconds = duration_seconds
+
+    # Ballarni hisoblash
+    scores = calculate_scores(
+        completion_pct=similarity["completion_percentage"],
+        words_read=similarity["words_read"],
+        total_words=similarity["total_words"],
+        reading_time=duration_seconds,
+        questions_correct=session.questions_correct or 0,
+        questions_total=session.questions_total or 0,
+    )
+
+    session.score_completion = scores["score_completion"]
+    session.score_words = scores["score_words"]
+    session.score_time = scores["score_time"]
+    session.score_questions = scores["score_questions"]
+    session.total_score = scores["total_score"]
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "analysis": {
+            "transcript": transcript,
+            "words_read": similarity["words_read"],
+            "total_words": similarity["total_words"],
+            "completion_percentage": similarity["completion_percentage"],
+            "reading_time_seconds": round(duration_seconds, 1),
+            "words_per_minute": words_per_minute,
+            "accuracy_percentage": accuracy_percentage,
+            **scores,
+        }
+    }
+
+
+# ============================================================
+# ADMIN ENDPOINTS
+# ============================================================
+
+from fastapi import Header
+from app.core.config import settings
+
+
+async def verify_admin_key(x_admin_key: str = Header(..., alias="X-Admin-Key")):
+    """Admin key tekshirish"""
+    if x_admin_key != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Admin emas")
+    return True
+
+
+@router.get("/admin/sessions-with-audio")
+async def get_sessions_with_audio(
+    competition_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """
+    Admin uchun: ovoz yozuvlari bor sessiyalar ro'yxati
+    """
+    stmt = (
+        select(ReadingSession, User, ReadingTask)
+        .join(User, ReadingSession.student_id == User.id)
+        .join(ReadingTask, ReadingSession.task_id == ReadingTask.id)
+        .where(ReadingSession.audio_url.isnot(None))
+    )
+
+    if competition_id:
+        stmt = stmt.where(ReadingSession.competition_id == competition_id)
+
+    stmt = stmt.order_by(ReadingSession.created_at.desc())
+
+    result = await db.execute(stmt.limit(100))
+    rows = result.all()
+
+    items = []
+    for session, user, task in rows:
+        items.append({
+            "session_id": session.id,
+            "student_name": f"{user.first_name} {user.last_name}",
+            "student_id": user.id,
+            "task_title": task.title,
+            "competition_id": session.competition_id,
+            "audio_url": session.audio_url,
+            "audio_duration_seconds": session.audio_duration_seconds,
+            "completion_percentage": session.completion_percentage,
+            "total_score": session.total_score,
+            "created_at": session.created_at.isoformat() if session.created_at else None,
+        })
+
+    return {"success": True, "sessions": items, "total": len(items)}
+
+
+@router.get("/admin/session/{session_id}/audio")
+async def get_session_audio(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """
+    Admin uchun: sessiya ovoz yozuvini olish
+    """
+    session_res = await db.execute(
+        select(ReadingSession, User, ReadingTask)
+        .join(User, ReadingSession.student_id == User.id)
+        .join(ReadingTask, ReadingSession.task_id == ReadingTask.id)
+        .where(ReadingSession.id == session_id)
+    )
+    row = session_res.one_or_none()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Sessiya topilmadi")
+
+    session, user, task = row
+
+    if not session.audio_url:
+        raise HTTPException(status_code=404, detail="Audio yo'q")
+
+    return {
+        "success": True,
+        "session": {
+            "session_id": session.id,
+            "student_name": f"{user.first_name} {user.last_name}",
+            "task_title": task.title,
+            "story_text": task.story_text[:500] + "..." if task.story_text else None,
+            "audio_url": session.audio_url,
+            "audio_filename": session.audio_filename,
+            "audio_duration_seconds": session.audio_duration_seconds,
+            "stt_transcript": session.stt_transcript,
+            "words_read": session.words_read,
+            "total_words": session.total_words,
+            "completion_percentage": session.completion_percentage,
+            "reading_time_seconds": session.reading_time_seconds,
+            "score_completion": session.score_completion,
+            "score_words": session.score_words,
+            "score_time": session.score_time,
+            "total_score": session.total_score,
+            "created_at": session.created_at.isoformat() if session.created_at else None,
+        }
+    }

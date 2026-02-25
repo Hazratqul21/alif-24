@@ -745,3 +745,98 @@ async def get_competition_stats(
             "has_test": has_test > 0,
         }
     }
+
+
+# ============================================================
+# VOICE RECORDINGS (from Olimp platform)
+# ============================================================
+
+from shared.database.models import User
+
+
+@router.get("/competitions/{comp_id}/sessions-with-audio")
+async def get_sessions_with_audio(
+    comp_id: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ovoz yozuvlari bor sessiyalar ro'yxati"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+
+    # Query sessions with audio
+    stmt = (
+        select(ReadingSession, User, ReadingTask)
+        .join(User, ReadingSession.student_id == User.id)
+        .join(ReadingTask, ReadingSession.task_id == ReadingTask.id)
+        .where(
+            ReadingSession.competition_id == comp_id,
+            ReadingSession.audio_url.isnot(None),
+        )
+        .order_by(ReadingSession.created_at.desc())
+    )
+
+    result = await db.execute(stmt.limit(100))
+    rows = result.all()
+
+    items = []
+    for session, user, task in rows:
+        items.append({
+            "session_id": session.id,
+            "student_name": f"{user.first_name} {user.last_name}",
+            "student_id": user.id,
+            "task_title": task.title,
+            "audio_url": session.audio_url,
+            "audio_duration_seconds": session.audio_duration_seconds,
+            "completion_percentage": session.completion_percentage,
+            "total_score": session.total_score,
+            "created_at": session.created_at.isoformat() if session.created_at else None,
+        })
+
+    return {"total": len(items), "sessions": items}
+
+
+@router.get("/sessions/{session_id}/audio-details")
+async def get_session_audio_details(
+    session_id: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sessiya ovoz yozuvi tafsilotlari"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+
+    stmt = (
+        select(ReadingSession, User, ReadingTask)
+        .join(User, ReadingSession.student_id == User.id)
+        .join(ReadingTask, ReadingSession.task_id == ReadingTask.id)
+        .where(ReadingSession.id == session_id)
+    )
+
+    result = await db.execute(stmt)
+    row = result.one_or_none()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Sessiya topilmadi")
+
+    session, user, task = row
+
+    return {
+        "session_id": session.id,
+        "student_name": f"{user.first_name} {user.last_name}",
+        "task_title": task.title,
+        "story_text": task.story_text[:500] + "..." if task.story_text and len(task.story_text) > 500 else task.story_text,
+        "audio_url": session.audio_url,
+        "audio_filename": session.audio_filename,
+        "audio_duration_seconds": session.audio_duration_seconds,
+        "stt_transcript": session.stt_transcript,
+        "words_read": session.words_read,
+        "total_words": session.total_words,
+        "completion_percentage": session.completion_percentage,
+        "reading_time_seconds": session.reading_time_seconds,
+        "score_completion": session.score_completion,
+        "score_words": session.score_words,
+        "score_time": session.score_time,
+        "total_score": session.total_score,
+        "created_at": session.created_at.isoformat() if session.created_at else None,
+    }

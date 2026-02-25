@@ -18,5 +18,8 @@ class Settings:
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
+    # Admin
+    ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "alif24_rahbariyat26!")
+
 
 settings = Settings()
