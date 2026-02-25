@@ -328,7 +328,7 @@ async def get_task_for_reading(
 import os
 import httpx
 
-OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
+OPENAI_TTS_URL = os.getenv("OPENAI_TTS_URL", "https://api.openai.com/v1/audio/speech")
 
 TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "tts-1-hd")
 TTS_SPEED = 0.95

@@ -393,7 +393,7 @@ LANGUAGE_VOICES = {
     "en": "nova",      # Ingliz — professional ovoz
 }
 
-OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
+OPENAI_TTS_URL = os.getenv("OPENAI_TTS_URL", "https://api.openai.com/v1/audio/speech")
 TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "tts-1-hd")   # e.g gpt-4o-mini-tts
 TTS_SPEED = 0.95          # sekinroq — bolalar uchun
 
