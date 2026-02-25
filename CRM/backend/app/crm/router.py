@@ -35,7 +35,7 @@ async def get_current_user(
     
     stmt = select(User).filter(User.id == user_id)
     result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
     
     if not user:
         raise HTTPException(status_code=401, detail="User not found")

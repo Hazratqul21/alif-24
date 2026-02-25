@@ -126,7 +126,7 @@ async def check_phone_linked(
     
     stmt = select(TelegramUser).filter(TelegramUser.phone == phone)
     result = await db.execute(stmt)
-    tg_user = result.scalar_one_or_none()
+    tg_user = result.scalars().first()
     
     return {
         "phone": phone,

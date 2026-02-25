@@ -71,7 +71,7 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid token payload")
     
     result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
@@ -589,7 +589,7 @@ async def get_test(
 ):
     """Test tafsilotlari (savollar bilan)"""
     result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
-    test = result.scalar_one_or_none()
+    test = result.scalars().first()
     if not test:
         raise HTTPException(404, "Test topilmadi")
 
@@ -622,7 +622,7 @@ async def update_test(
 ):
     """Testni yangilash"""
     result = await db.execute(select(SavedTest).where(SavedTest.id == test_id, SavedTest.creator_id == current_user.id))
-    test = result.scalar_one_or_none()
+    test = result.scalars().first()
     if not test:
         raise HTTPException(404, "Test topilmadi yoki sizga tegishli emas")
 
@@ -648,7 +648,7 @@ async def delete_test(
 ):
     """Testni o'chirish"""
     result = await db.execute(select(SavedTest).where(SavedTest.id == test_id, SavedTest.creator_id == current_user.id))
-    test = result.scalar_one_or_none()
+    test = result.scalars().first()
     if not test:
         raise HTTPException(404, "Test topilmadi")
 
@@ -695,7 +695,7 @@ async def register_for_olympiad(
     
     # Check if olympiad exists
     result = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    olympiad = result.scalar_one_or_none()
+    olympiad = result.scalars().first()
     if not olympiad:
         raise HTTPException(404, "Olympiad not found")
         
@@ -706,7 +706,7 @@ async def register_for_olympiad(
             OlympiadParticipant.student_id == user_id
         )
     )
-    existing = result.scalar_one_or_none()
+    existing = result.scalars().first()
     
     if existing:
         return {"success": True, "message": "Already registered"}

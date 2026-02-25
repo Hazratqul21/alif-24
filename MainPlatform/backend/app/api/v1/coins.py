@@ -25,7 +25,7 @@ async def get_or_create_coin_balance(db: AsyncSession, user: User) -> StudentCoi
     res = await db.execute(
         select(StudentProfile).where(StudentProfile.user_id == user.id)
     )
-    profile = res.scalar_one_or_none()
+    profile = res.scalars().first()
     if not profile:
         profile = StudentProfile(user_id=user.id)
         db.add(profile)
@@ -35,7 +35,7 @@ async def get_or_create_coin_balance(db: AsyncSession, user: User) -> StudentCoi
     res = await db.execute(
         select(StudentCoin).where(StudentCoin.student_id == profile.id)
     )
-    coin = res.scalar_one_or_none()
+    coin = res.scalars().first()
     if not coin:
         coin = StudentCoin(student_id=profile.id, current_balance=0, total_earned=0, total_spent=0, total_withdrawn=0)
         db.add(coin)
@@ -87,7 +87,7 @@ async def claim_daily_bonus(
             CoinTransaction.created_at >= today_start,
         )
     )
-    existing = res.scalar_one_or_none()
+    existing = res.scalars().first()
     if existing:
         return {
             "success": True,

@@ -63,7 +63,7 @@ async def get_current_user(
     
     stmt = select(User).filter(User.id == user_id)
     result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
@@ -163,7 +163,7 @@ async def complete_memory_game(
     
     stmt = select(StudentProfile).filter(StudentProfile.user_id == current_user.id)
     result = await db.execute(stmt)
-    student = result.scalar_one_or_none()
+    student = result.scalars().first()
     
     if student and coins_earned > 0:
         await reward_game_win(db, student.user_id, coins_earned, "Memory Game")
@@ -191,7 +191,7 @@ async def complete_math_monster(
     
     stmt = select(StudentProfile).filter(StudentProfile.user_id == current_user.id)
     result = await db.execute(stmt)
-    student = result.scalar_one_or_none()
+    student = result.scalars().first()
     
     if student and coins_earned > 0:
         await reward_game_win(db, student.user_id, coins_earned, "Math Monster")
@@ -221,7 +221,7 @@ async def complete_tetris(
     
     stmt = select(StudentProfile).filter(StudentProfile.user_id == current_user.id)
     result = await db.execute(stmt)
-    student = result.scalar_one_or_none()
+    student = result.scalars().first()
     
     if student and coins_earned > 0:
         await reward_game_win(db, student.user_id, coins_earned, "Tetris")
@@ -249,7 +249,7 @@ async def complete_2048(
     
     stmt = select(StudentProfile).filter(StudentProfile.user_id == current_user.id)
     result = await db.execute(stmt)
-    student = result.scalar_one_or_none()
+    student = result.scalars().first()
     
     if student and coins_earned > 0:
         await reward_game_win(db, student.user_id, coins_earned, "2048")
@@ -281,7 +281,7 @@ async def get_leaderboard(
     for idx, s in enumerate(top_students):
         stmt = select(User).filter(User.id == s.user_id)
         u_res = await db.execute(stmt)
-        u = u_res.scalar_one_or_none()
+        u = u_res.scalars().first()
         leaderboard_data.append({
             "rank": idx + 1,
             "name": f"{u.first_name} {u.last_name}" if u else "Unknown",

@@ -35,7 +35,7 @@ async def get_teacher_profile_local(user: User, db: AsyncSession) -> TeacherProf
     if user.role != UserRole.teacher:
         raise HTTPException(status_code=403, detail="Faqat o'qituvchilar ruxsatga ega")
     res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == user.id))
-    profile = res.scalar_one_or_none()
+    profile = res.scalars().first()
     if not profile:
         profile = TeacherProfile(user_id=user.id)
         db.add(profile)
@@ -107,7 +107,7 @@ async def get_lesson_by_id(
 ):
     """Get a single lesson by ID (any authenticated user)"""
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
-    lesson = res.scalar_one_or_none()
+    lesson = res.scalars().first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Dars topilmadi")
 
@@ -201,7 +201,7 @@ async def get_lesson_detail(
 ):
     teacher = await get_teacher_profile_local(current_user, db)
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id, Lesson.teacher_id == teacher.id))
-    lesson = res.scalar_one_or_none()
+    lesson = res.scalars().first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Dars topilmadi")
     return {"success": True, "data": lesson_dict(lesson)}
@@ -214,7 +214,7 @@ async def update_lesson(
 ):
     teacher = await get_teacher_profile_local(current_user, db)
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id, Lesson.teacher_id == teacher.id))
-    lesson = res.scalar_one_or_none()
+    lesson = res.scalars().first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Dars topilmadi")
     
@@ -233,7 +233,7 @@ async def delete_lesson(
 ):
     teacher = await get_teacher_profile_local(current_user, db)
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id, Lesson.teacher_id == teacher.id))
-    lesson = res.scalar_one_or_none()
+    lesson = res.scalars().first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Dars topilmadi")
     
@@ -303,7 +303,7 @@ async def story_tts(
 ):
     """AI yordamida ertakni o'qib berish (Azure TTS) — auth kerak emas"""
     res = await db.execute(select(Story).where(Story.id == story_id))
-    story = res.scalar_one_or_none()
+    story = res.scalars().first()
     if not story:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
 

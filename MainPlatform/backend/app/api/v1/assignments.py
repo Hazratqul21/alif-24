@@ -71,7 +71,7 @@ async def get_teacher_profile(user: User, db: AsyncSession) -> TeacherProfile:
     if user.role != UserRole.teacher:
         raise HTTPException(status_code=403, detail="Faqat o'qituvchilar uchun")
     res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == user.id))
-    profile = res.scalar_one_or_none()
+    profile = res.scalars().first()
     if not profile:
         profile = TeacherProfile(user_id=user.id)
         db.add(profile)
@@ -96,7 +96,7 @@ async def notify_telegram(db: AsyncSession, user_id: str, message: str):
         from shared.database.models import TelegramUser
         from app.core.config import settings
         tg_res = await db.execute(select(TelegramUser).where(TelegramUser.user_id == user_id))
-        tg_user = tg_res.scalar_one_or_none()
+        tg_user = tg_res.scalars().first()
         if tg_user and tg_user.telegram_chat_id and tg_user.notifications_enabled:
             import httpx
             token = settings.TELEGRAM_BOT_TOKEN
@@ -195,7 +195,7 @@ async def create_assignment(
                 Classroom.teacher_id == teacher.id,
             )
         )
-        classroom = cls_res.scalar_one_or_none()
+        classroom = cls_res.scalars().first()
         if not classroom:
             raise HTTPException(status_code=404, detail="Sinf topilmadi")
 
@@ -318,7 +318,7 @@ async def get_assignment_detail(
             Assignment.created_by == current_user.id,
         )
     )
-    assignment = res.scalar_one_or_none()
+    assignment = res.scalars().first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Vazifa topilmadi")
 
@@ -329,7 +329,7 @@ async def get_assignment_detail(
     for s in subs_res.scalars().all():
         sd = submission_dict(s)
         u_res = await db.execute(select(User).where(User.id == s.student_user_id))
-        u = u_res.scalar_one_or_none()
+        u = u_res.scalars().first()
         if u:
             sd["student_name"] = f"{u.first_name} {u.last_name}".strip()
         submissions.append(sd)
@@ -356,7 +356,7 @@ async def update_assignment(
             Assignment.created_by == current_user.id,
         )
     )
-    assignment = res.scalar_one_or_none()
+    assignment = res.scalars().first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Vazifa topilmadi")
 
@@ -380,7 +380,7 @@ async def delete_assignment(
             Assignment.created_by == current_user.id,
         )
     )
-    assignment = res.scalar_one_or_none()
+    assignment = res.scalars().first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Vazifa topilmadi")
     await db.delete(assignment)
@@ -403,7 +403,7 @@ async def grade_submission(
             AssignmentSubmission.assignment_id == assignment_id,
         )
     )
-    submission = res.scalar_one_or_none()
+    submission = res.scalars().first()
     if not submission:
         raise HTTPException(status_code=404, detail="Topshiruv topilmadi")
 
@@ -415,7 +415,7 @@ async def grade_submission(
 
     # O'quvchiga notification
     a_res = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
-    assignment = a_res.scalar_one_or_none()
+    assignment = a_res.scalars().first()
     if assignment:
         await create_notification(
             db, submission.student_user_id,
@@ -486,7 +486,7 @@ async def student_assignments(
                         Assignment.is_published == True,
                     )
                 )
-                assignment = a_res.scalar_one_or_none()
+                assignment = a_res.scalars().first()
                 if assignment:
                     new_sub = AssignmentSubmission(
                         assignment_id=assignment_id,
@@ -519,10 +519,10 @@ async def student_assignments(
     result = []
     for s in submissions:
         a_res = await db.execute(select(Assignment).where(Assignment.id == s.assignment_id))
-        a = a_res.scalar_one_or_none()
+        a = a_res.scalars().first()
         if a:
             t_res = await db.execute(select(User).where(User.id == a.created_by))
-            t = t_res.scalar_one_or_none()
+            t = t_res.scalars().first()
             result.append({
                 **submission_dict(s),
                 "assignment": assignment_dict(a),
@@ -548,7 +548,7 @@ async def submit_assignment(
             AssignmentSubmission.student_user_id == current_user.id,
         )
     )
-    submission = res.scalar_one_or_none()
+    submission = res.scalars().first()
     if not submission:
         raise HTTPException(status_code=404, detail="Vazifa topilmadi yoki sizga berilmagan")
 
@@ -556,7 +556,7 @@ async def submit_assignment(
         raise HTTPException(status_code=400, detail="Vazifa allaqachon baholangan")
 
     a_res = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
-    assignment = a_res.scalar_one_or_none()
+    assignment = a_res.scalars().first()
 
     # Muddati o'tganmi?
     is_late = False
@@ -584,10 +584,10 @@ async def submit_assignment(
     try:
         from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
         sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == current_user.id))
-        sp = sp_res.scalar_one_or_none()
+        sp = sp_res.scalars().first()
         if sp:
             sc_res = await db.execute(select(StudentCoin).where(StudentCoin.student_id == sp.id))
-            coin = sc_res.scalar_one_or_none()
+            coin = sc_res.scalars().first()
             if not coin:
                 coin = StudentCoin(student_id=sp.id, current_balance=0, total_earned=0, total_spent=0, total_withdrawn=0)
                 db.add(coin)
@@ -638,7 +638,7 @@ async def submit_test_assignment(
             AssignmentSubmission.student_user_id == current_user.id,
         )
     )
-    submission = res.scalar_one_or_none()
+    submission = res.scalars().first()
     if not submission:
         raise HTTPException(status_code=404, detail="Vazifa topilmadi yoki sizga berilmagan")
     if submission.status == SubmissionStatus.graded:
@@ -646,7 +646,7 @@ async def submit_test_assignment(
 
     # Assignment va content olish
     a_res = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
-    assignment = a_res.scalar_one_or_none()
+    assignment = a_res.scalars().first()
     if not assignment or assignment.assignment_type != AssignmentType.test:
         raise HTTPException(status_code=400, detail="Bu vazifa test emas")
 
@@ -710,10 +710,10 @@ async def submit_test_assignment(
     try:
         from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
         sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == current_user.id))
-        sp = sp_res.scalar_one_or_none()
+        sp = sp_res.scalars().first()
         if sp:
             sc_res = await db.execute(select(StudentCoin).where(StudentCoin.student_id == sp.id))
-            coin = sc_res.scalar_one_or_none()
+            coin = sc_res.scalars().first()
             if not coin:
                 coin = StudentCoin(student_id=sp.id, current_balance=0, total_earned=0, total_spent=0, total_withdrawn=0)
                 db.add(coin)
@@ -767,13 +767,13 @@ async def parent_child_assignments(
     parent_res = await db.execute(
         select(ParentProfile).where(ParentProfile.user_id == current_user.id)
     )
-    parent = parent_res.scalar_one_or_none()
+    parent = parent_res.scalars().first()
     if not parent:
         raise HTTPException(status_code=404, detail="Ota-ona profili topilmadi")
 
     # Bola mavjudmi?
     child_res = await db.execute(select(User).where(User.id == child_user_id))
-    child = child_res.scalar_one_or_none()
+    child = child_res.scalars().first()
     if not child:
         raise HTTPException(status_code=404, detail="Bola topilmadi")
 
@@ -788,10 +788,10 @@ async def parent_child_assignments(
     result = []
     for s in submissions:
         a_res = await db.execute(select(Assignment).where(Assignment.id == s.assignment_id))
-        a = a_res.scalar_one_or_none()
+        a = a_res.scalars().first()
         if a:
             t_res = await db.execute(select(User).where(User.id == a.created_by))
-            t = t_res.scalar_one_or_none()
+            t = t_res.scalars().first()
             result.append({
                 **submission_dict(s),
                 "assignment": assignment_dict(a),
@@ -816,7 +816,7 @@ async def parent_assignment_detail(
         raise HTTPException(status_code=403, detail="Faqat ota-onalar uchun")
 
     res = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
-    assignment = res.scalar_one_or_none()
+    assignment = res.scalars().first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Vazifa topilmadi")
 
@@ -827,7 +827,7 @@ async def parent_assignment_detail(
     for s in subs_res.scalars().all():
         sd = submission_dict(s)
         u_res = await db.execute(select(User).where(User.id == s.student_user_id))
-        u = u_res.scalar_one_or_none()
+        u = u_res.scalars().first()
         if u:
             sd["student_name"] = f"{u.first_name} {u.last_name}".strip()
         submissions.append(sd)
@@ -858,7 +858,7 @@ async def parent_grade_submission(
             Assignment.created_by == current_user.id,
         )
     )
-    assignment = a_res.scalar_one_or_none()
+    assignment = a_res.scalars().first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Vazifa topilmadi yoki siz yaratmagansiz")
 
@@ -868,7 +868,7 @@ async def parent_grade_submission(
             AssignmentSubmission.assignment_id == assignment_id,
         )
     )
-    submission = res.scalar_one_or_none()
+    submission = res.scalars().first()
     if not submission:
         raise HTTPException(status_code=404, detail="Topshiruv topilmadi")
 

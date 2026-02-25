@@ -18,19 +18,19 @@ class UserRepository(BaseRepository):
         """Find user by email"""
         stmt = select(User).filter(func.lower(User.email) == email.lower())
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
     
     async def find_by_phone(self, phone: str) -> Optional[User]:
         """Find user by phone"""
         stmt = select(User).filter(User.phone == phone)
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
     
     async def find_by_username(self, username: str) -> Optional[User]:
         """Find user by username (for children)"""
         stmt = select(User).filter(User.username == username)
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
     
     async def find_by_role(self, role: str):
         """Find users by role"""

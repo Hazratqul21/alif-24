@@ -46,7 +46,7 @@ async def get_org_profile(user: User, db: AsyncSession) -> OrganizationProfile:
     result = await db.execute(
         select(OrganizationProfile).where(OrganizationProfile.user_id == user.id)
     )
-    profile = result.scalar_one_or_none()
+    profile = result.scalars().first()
     
     if not profile:
         # Auto-create org profile if missing
@@ -286,7 +286,7 @@ async def add_teacher_to_org(
     
     # Find user
     result = await db.execute(select(User).where(User.id == data.user_id))
-    target_user = result.scalar_one_or_none()
+    target_user = result.scalars().first()
     
     if not target_user:
         raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
@@ -298,7 +298,7 @@ async def add_teacher_to_org(
     result = await db.execute(
         select(TeacherProfile).where(TeacherProfile.user_id == target_user.id)
     )
-    teacher_profile = result.scalar_one_or_none()
+    teacher_profile = result.scalars().first()
     
     if not teacher_profile:
         # Create teacher profile
@@ -337,7 +337,7 @@ async def remove_teacher_from_org(
             TeacherProfile.organization_id == org.id
         )
     )
-    teacher_profile = result.scalar_one_or_none()
+    teacher_profile = result.scalars().first()
     
     if not teacher_profile:
         raise HTTPException(status_code=404, detail="O'qituvchi topilmadi")
@@ -400,7 +400,7 @@ async def review_teacher(
             TeacherProfile.organization_id == org.id
         )
     )
-    teacher_profile = result.scalar_one_or_none()
+    teacher_profile = result.scalars().first()
     
     if not teacher_profile:
         raise HTTPException(status_code=404, detail="O'qituvchi topilmadi")
@@ -498,7 +498,7 @@ async def add_student_to_org(
     
     # Find user
     result = await db.execute(select(User).where(User.id == data.user_id))
-    target_user = result.scalar_one_or_none()
+    target_user = result.scalars().first()
     
     if not target_user:
         raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
@@ -510,7 +510,7 @@ async def add_student_to_org(
     result = await db.execute(
         select(StudentProfile).where(StudentProfile.user_id == target_user.id)
     )
-    student_profile = result.scalar_one_or_none()
+    student_profile = result.scalars().first()
     
     if not student_profile:
         student_profile = StudentProfile(
@@ -659,7 +659,7 @@ async def remove_student_from_org(
             StudentProfile.organization_id == org.id
         )
     )
-    student_profile = result.scalar_one_or_none()
+    student_profile = result.scalars().first()
     
     if not student_profile:
         raise HTTPException(status_code=404, detail="O'quvchi topilmadi")
@@ -844,7 +844,7 @@ async def delete_org_lesson(
             )
         )
     )
-    lesson = result.scalar_one_or_none()
+    lesson = result.scalars().first()
     
     if not lesson:
         raise HTTPException(status_code=404, detail="Dars topilmadi yoki sizga tegishli emas")
@@ -924,7 +924,7 @@ async def get_my_school(
         result = await db.execute(
             select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
         )
-        profile = result.scalar_one_or_none()
+        profile = result.scalars().first()
         if profile:
             org_id = profile.organization_id
     
@@ -932,7 +932,7 @@ async def get_my_school(
         result = await db.execute(
             select(StudentProfile).where(StudentProfile.user_id == current_user.id)
         )
-        profile = result.scalar_one_or_none()
+        profile = result.scalars().first()
         if profile:
             org_id = profile.organization_id
     
@@ -953,7 +953,7 @@ async def get_my_school(
     result = await db.execute(
         select(OrganizationProfile).where(OrganizationProfile.id == org_id)
     )
-    org = result.scalar_one_or_none()
+    org = result.scalars().first()
     
     if not org:
         return {"success": True, "school": None}

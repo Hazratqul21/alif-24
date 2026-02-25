@@ -20,7 +20,7 @@ class AICacheService:
         """Retrieve cached response if exists (Async)"""
         stmt = select(AICache).filter(AICache.prompt_hash == prompt_hash)
         result = await db.execute(stmt)
-        cache_entry = result.scalar_one_or_none()
+        cache_entry = result.scalars().first()
         
         if cache_entry:
             try:
@@ -43,7 +43,7 @@ class AICacheService:
         
         stmt = select(AICache).filter(AICache.prompt_hash == prompt_hash)
         result = await db.execute(stmt)
-        existing = result.scalar_one_or_none()
+        existing = result.scalars().first()
         
         if existing:
             existing.response_json = response_str

@@ -6,8 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 import os
 from urllib.parse import quote
-from app.services.speech_service import speech_service
-from shared.services.azure_speech_service import get_voice_for_language
+from shared.services.azure_speech_service import speech_service, VOICE_MAP
 
 router = APIRouter()
 
@@ -48,7 +47,8 @@ async def text_to_speech(request: TextToSpeechRequest):
     if request.language == "uz-UZ":
         text = normalize_uz(text)
     
-    voice_name = request.voice or get_voice_for_language(request.language, request.gender or "female")
+    lang_code = "uz" if request.language.startswith("uz") else ("ru" if request.language.startswith("ru") else "en")
+    voice_name = request.voice or VOICE_MAP.get(lang_code, {}).get(request.gender or "female", "uz-UZ-MadinaNeural")
     
     try:
         audio_data = await speech_service.generate_speech(

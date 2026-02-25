@@ -50,7 +50,7 @@ class LiveQuizService:
         """Create a new live quiz."""
         # Get teacher profile
         res = await self.db.execute(select(TeacherProfile).where(TeacherProfile.user_id == teacher_user_id))
-        teacher_profile = res.scalar_one_or_none()
+        teacher_profile = res.scalars().first()
         
         if not teacher_profile:
             raise ForbiddenError("O'qituvchi profili topilmadi")
@@ -229,7 +229,7 @@ class LiveQuizService:
         quiz = await self._get_quiz_for_teacher(quiz_id, teacher_user_id)
         
         res = await self.db.execute(select(LiveQuizQuestion).where(LiveQuizQuestion.id == question_id))
-        question = res.scalar_one_or_none()
+        question = res.scalars().first()
         
         if not question:
             raise NotFoundError("Savol topilmadi")
@@ -306,7 +306,7 @@ class LiveQuizService:
             select(LiveQuiz).where(LiveQuiz.join_code == join_code.upper())
             .options(selectinload(LiveQuiz.participants))
         )
-        quiz = res.scalar_one_or_none()
+        quiz = res.scalars().first()
         
         if not quiz:
             raise NotFoundError("Quiz topilmadi. Kodni tekshiring.")
@@ -319,7 +319,7 @@ class LiveQuizService:
         
         # Get student profile
         res = await self.db.execute(select(StudentProfile).where(StudentProfile.user_id == student_user_id))
-        student_profile = res.scalar_one_or_none()
+        student_profile = res.scalars().first()
         
         if not student_profile:
             raise NotFoundError("O'quvchi profili topilmadi")
@@ -333,7 +333,7 @@ class LiveQuizService:
                 )
             )
         )
-        existing = res.scalar_one_or_none()
+        existing = res.scalars().first()
         
         if existing:
             return {
@@ -386,7 +386,7 @@ class LiveQuizService:
                 )
             )
         )
-        already_answered = res.scalar_one_or_none()
+        already_answered = res.scalars().first()
         
         return {
             "status": "active",
@@ -417,7 +417,7 @@ class LiveQuizService:
         
         # Get question
         res = await self.db.execute(select(LiveQuizQuestion).where(LiveQuizQuestion.id == question_id))
-        question = res.scalar_one_or_none()
+        question = res.scalars().first()
         
         if not question or question.quiz_id != quiz.id:
             raise NotFoundError("Savol topilmadi")
@@ -431,7 +431,7 @@ class LiveQuizService:
                 )
             )
         )
-        existing = res.scalar_one_or_none()
+        existing = res.scalars().first()
         
         if existing:
             raise BadRequestError("Bu savolga allaqachon javob berdingiz")
@@ -497,14 +497,14 @@ class LiveQuizService:
         while True:
             code = ''.join(secrets.choice(string.digits) for _ in range(length))
             res = await self.db.execute(select(LiveQuiz).where(LiveQuiz.join_code == code))
-            existing = res.scalar_one_or_none()
+            existing = res.scalars().first()
             if not existing:
                 return code
     
     async def _get_quiz_for_teacher(self, quiz_id: str, teacher_user_id: str) -> LiveQuiz:
         """Get quiz and verify teacher ownership."""
         res = await self.db.execute(select(TeacherProfile).where(TeacherProfile.user_id == teacher_user_id))
-        teacher_profile = res.scalar_one_or_none()
+        teacher_profile = res.scalars().first()
         
         if not teacher_profile:
             raise ForbiddenError("O'qituvchi profili topilmadi")
@@ -517,7 +517,7 @@ class LiveQuizService:
                 selectinload(LiveQuiz.participants)
             )
         )
-        quiz = res.scalar_one_or_none()
+        quiz = res.scalars().first()
         
         if not quiz:
             raise NotFoundError("Quiz topilmadi")
@@ -527,7 +527,7 @@ class LiveQuizService:
     async def _get_participant(self, student_user_id: str, quiz_id: str) -> LiveQuizParticipant:
         """Get participant by student user ID."""
         res = await self.db.execute(select(StudentProfile).where(StudentProfile.user_id == student_user_id))
-        student_profile = res.scalar_one_or_none()
+        student_profile = res.scalars().first()
         
         if not student_profile:
             raise NotFoundError("O'quvchi profili topilmadi")
@@ -540,7 +540,7 @@ class LiveQuizService:
                 )
             ).options(selectinload(LiveQuizParticipant.quiz).selectinload(LiveQuiz.questions))
         )
-        participant = res.scalar_one_or_none()
+        participant = res.scalars().first()
         
         if not participant:
             raise NotFoundError("Siz bu quizga qo'shilmagansiz")
@@ -570,7 +570,7 @@ class LiveQuizService:
     async def _add_coins(self, student_id: str, amount: int):
         """Add coins to student balance."""
         res = await self.db.execute(select(StudentCoin).where(StudentCoin.student_id == student_id))
-        coin_balance = res.scalar_one_or_none()
+        coin_balance = res.scalars().first()
         
         if not coin_balance:
             coin_balance = StudentCoin(student_id=student_id)

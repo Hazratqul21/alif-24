@@ -49,7 +49,7 @@ async def get_current_user(
     # Query user from shared database (8-digit string ID)
     stmt = select(User).filter(User.id == user_id)
     result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
     if not user:
         raise UnauthorizedError("User not found")
     

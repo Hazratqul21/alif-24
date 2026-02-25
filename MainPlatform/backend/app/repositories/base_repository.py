@@ -21,7 +21,7 @@ class BaseRepository:
             return None
         stmt = select(self.model).filter(self.model.id == id)
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
     
     async def find_one(self, filters: Dict[str, Any]) -> Optional[T]:
         """Find one by filters"""
@@ -30,7 +30,7 @@ class BaseRepository:
             if hasattr(self.model, key):
                 stmt = stmt.filter(getattr(self.model, key) == value)
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
     
     async def find_all(self, filters: Dict[str, Any] = None) -> List[T]:
         """Find all matching filters"""

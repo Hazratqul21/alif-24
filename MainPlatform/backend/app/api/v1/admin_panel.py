@@ -219,7 +219,7 @@ async def get_direct_lesson(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
     result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
-    lesson = result.scalar_one_or_none()
+    lesson = result.scalars().first()
     
     if not lesson:
         raise HTTPException(status_code=404, detail="Dars topilmadi")
@@ -282,7 +282,7 @@ async def update_direct_lesson(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
     result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
-    lesson = result.scalar_one_or_none()
+    lesson = result.scalars().first()
     
     if not lesson:
         raise HTTPException(status_code=404, detail="Dars topilmadi")
@@ -319,7 +319,7 @@ async def delete_direct_lesson(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
     result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
-    lesson = result.scalar_one_or_none()
+    lesson = result.scalars().first()
     
     if not lesson:
         raise HTTPException(status_code=404, detail="Dars topilmadi")
@@ -419,7 +419,7 @@ async def update_direct_story(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
     result = await db.execute(select(Story).where(Story.id == story_id))
-    story = result.scalar_one_or_none()
+    story = result.scalars().first()
     
     if not story:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
@@ -451,7 +451,7 @@ async def delete_direct_story(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
     result = await db.execute(select(Story).where(Story.id == story_id))
-    story = result.scalar_one_or_none()
+    story = result.scalars().first()
     
     if not story:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
@@ -610,7 +610,7 @@ async def get_user_details(
 ):
     """Get detailed user information"""
     result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -618,7 +618,7 @@ async def get_user_details(
     profile_data = None
     if user.role == UserRole.student:
         res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user_id))
-        p = res.scalar_one_or_none()
+        p = res.scalars().first()
         if p:
             profile_data = {
                 "grade": getattr(p, 'grade', None),
@@ -626,7 +626,7 @@ async def get_user_details(
             }
     elif user.role == UserRole.teacher:
         res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == user_id))
-        p = res.scalar_one_or_none()
+        p = res.scalars().first()
         if p:
             profile_data = {
                 "subject": getattr(p, 'subject', None),
@@ -665,13 +665,13 @@ async def create_user(
     # Check duplicate email
     if data.email:
         existing = await db.execute(select(User).where(User.email == data.email))
-        if existing.scalar_one_or_none():
+        if existing.scalars().first():
             raise HTTPException(status_code=400, detail="Bu email allaqachon mavjud")
     
     # Check duplicate phone
     if data.phone:
         existing = await db.execute(select(User).where(User.phone == data.phone))
-        if existing.scalar_one_or_none():
+        if existing.scalars().first():
             raise HTTPException(status_code=400, detail="Bu telefon raqam allaqachon mavjud")
     
     user = User(
@@ -705,7 +705,7 @@ async def update_user(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
     result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -745,13 +745,13 @@ async def delete_user(
         raise HTTPException(status_code=403, detail="Faqat super admin o'chira oladi")
     
     result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
     # Telegram linkni ham tozalash
     tg_res = await db.execute(select(TelegramUser).where(TelegramUser.user_id == user_id))
-    tg_user = tg_res.scalar_one_or_none()
+    tg_user = tg_res.scalars().first()
     telegram_unlinked = False
     if tg_user:
         tg_user.user_id = None
@@ -790,7 +790,7 @@ async def list_pending_teachers(
     result = []
     for tp in pending:
         user_res = await db.execute(select(User).where(User.id == tp.user_id))
-        user = user_res.scalar_one_or_none()
+        user = user_res.scalars().first()
         if user:
             result.append({
                 "user_id": user.id,
@@ -818,7 +818,7 @@ async def approve_teacher(
     res = await db.execute(
         select(TeacherProfile).where(TeacherProfile.user_id == data.teacher_id)
     )
-    teacher_profile = res.scalar_one_or_none()
+    teacher_profile = res.scalars().first()
     
     if not teacher_profile:
         raise HTTPException(status_code=404, detail="O'qituvchi profili topilmadi")
@@ -834,7 +834,7 @@ async def approve_teacher(
     await db.commit()
     
     user_res = await db.execute(select(User).where(User.id == data.teacher_id))
-    user = user_res.scalar_one_or_none()
+    user = user_res.scalars().first()
     
     return {
         "message": f"O'qituvchi statusi: {data.status}",
@@ -1253,7 +1253,7 @@ async def get_content_by_key(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
     result = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
-    content = result.scalar_one_or_none()
+    content = result.scalars().first()
     
     if not content:
         raise HTTPException(status_code=404, detail="Kontent topilmadi")
@@ -1277,7 +1277,7 @@ async def update_content_by_key(
         raise HTTPException(status_code=400, detail="'value' maydoni kerak")
     
     result = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
-    content = result.scalar_one_or_none()
+    content = result.scalars().first()
     
     if not content:
         content = PlatformContent(key=key, value=value)
@@ -1343,7 +1343,7 @@ async def get_platform_content(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
     result = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
-    item = result.scalar_one_or_none()
+    item = result.scalars().first()
     
     if not item:
         raise HTTPException(status_code=404, detail="Kontent topilmadi")
@@ -1372,7 +1372,7 @@ async def create_platform_content(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
     existing = await db.execute(select(PlatformContent).where(PlatformContent.key == body.key))
-    if existing.scalar_one_or_none():
+    if existing.scalars().first():
         raise HTTPException(status_code=400, detail=f"'{body.key}' kaliti allaqachon mavjud")
     
     content = PlatformContent(key=body.key, value=body.value)
@@ -1398,7 +1398,7 @@ async def update_platform_content(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     
     result = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
-    content = result.scalar_one_or_none()
+    content = result.scalars().first()
     
     if not content:
         content = PlatformContent(key=key, value=body.value)
@@ -1425,7 +1425,7 @@ async def delete_platform_content(
         raise HTTPException(status_code=403, detail="Faqat super admin o'chira oladi")
     
     result = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
-    content = result.scalar_one_or_none()
+    content = result.scalars().first()
     
     if not content:
         raise HTTPException(status_code=404, detail="Kontent topilmadi")
@@ -1565,7 +1565,7 @@ async def create_subscription_plan(
     existing = await db.execute(
         select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.slug == data.slug)
     )
-    if existing.scalar_one_or_none():
+    if existing.scalars().first():
         raise HTTPException(status_code=400, detail=f"'{data.slug}' slug allaqachon mavjud")
 
     plan = SubscriptionPlanConfig(
@@ -1600,7 +1600,7 @@ async def update_subscription_plan(
     result = await db.execute(
         select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == plan_id)
     )
-    plan = result.scalar_one_or_none()
+    plan = result.scalars().first()
     if not plan:
         raise HTTPException(status_code=404, detail="Plan topilmadi")
 
@@ -1640,7 +1640,7 @@ async def delete_subscription_plan(
     result = await db.execute(
         select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == plan_id)
     )
-    plan = result.scalar_one_or_none()
+    plan = result.scalars().first()
     if not plan:
         raise HTTPException(status_code=404, detail="Plan topilmadi")
 
@@ -1702,12 +1702,12 @@ async def list_subscriptions(
     items = []
     for sub in subs:
         user_res = await db.execute(select(User).where(User.id == sub.user_id))
-        user = user_res.scalar_one_or_none()
+        user = user_res.scalars().first()
 
         plan_res = await db.execute(
             select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == sub.plan_config_id)
         )
-        plan = plan_res.scalar_one_or_none()
+        plan = plan_res.scalars().first()
 
         items.append({
             "id": sub.id,
@@ -1797,7 +1797,7 @@ async def assign_subscription(
 
     # User tekshirish
     user_res = await db.execute(select(User).where(User.id == user_id))
-    user = user_res.scalar_one_or_none()
+    user = user_res.scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
 
@@ -1805,7 +1805,7 @@ async def assign_subscription(
     plan_res = await db.execute(
         select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == data.plan_config_id)
     )
-    plan = plan_res.scalar_one_or_none()
+    plan = plan_res.scalars().first()
     if not plan:
         raise HTTPException(status_code=404, detail="Plan topilmadi")
 
@@ -1931,7 +1931,7 @@ async def create_promo_code(
     existing = await db.execute(
         select(PromoCode).where(PromoCode.code == data.code.upper())
     )
-    if existing.scalar_one_or_none():
+    if existing.scalars().first():
         raise HTTPException(status_code=400, detail=f"'{data.code}' promocode allaqachon mavjud")
 
     promo = PromoCode(
@@ -1976,7 +1976,7 @@ async def update_promo_code(
         raise HTTPException(status_code=403, detail="Faqat super admin")
 
     result = await db.execute(select(PromoCode).where(PromoCode.id == promo_id))
-    promo = result.scalar_one_or_none()
+    promo = result.scalars().first()
     if not promo:
         raise HTTPException(status_code=404, detail="Promocode topilmadi")
 
@@ -2022,7 +2022,7 @@ async def delete_promo_code(
         raise HTTPException(status_code=403, detail="Faqat super admin")
 
     result = await db.execute(select(PromoCode).where(PromoCode.id == promo_id))
-    promo = result.scalar_one_or_none()
+    promo = result.scalars().first()
     if not promo:
         raise HTTPException(status_code=404, detail="Promocode topilmadi")
 

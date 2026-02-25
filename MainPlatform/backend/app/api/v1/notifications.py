@@ -69,7 +69,7 @@ async def mark_read(
             InAppNotification.user_id == current_user.id,
         )
     )
-    notif = res.scalar_one_or_none()
+    notif = res.scalars().first()
     if not notif:
         raise HTTPException(status_code=404, detail="Xabarnoma topilmadi")
 
@@ -110,7 +110,7 @@ async def delete_notification(
             InAppNotification.user_id == current_user.id,
         )
     )
-    notif = res.scalar_one_or_none()
+    notif = res.scalars().first()
     if not notif:
         raise HTTPException(status_code=404, detail="Xabarnoma topilmadi")
 
