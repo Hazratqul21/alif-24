@@ -158,7 +158,7 @@ class StatsResponse(BaseModel):
 # DIRECT CONTENT MANAGEMENT - bypass Lessions API
 # ============================================================================
 
-from shared.database.models.lesson import Lesson
+from shared.database.models.lesson import Lesson, LessonStatus
 from shared.database.models.story import Story
 
 @router.get("/direct/lessons")
@@ -256,6 +256,7 @@ async def create_direct_lesson(
         language=data.language,
         video_url=data.video_url,
         attachments=data.attachments,
+        status=LessonStatus.published,
     )
     
     db.add(lesson)
