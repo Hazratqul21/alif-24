@@ -2,7 +2,7 @@
 MathKids Image Reader - Matematik masalalarni rasmdan o'qish
 """
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from openai import AsyncOpenAI, AsyncAzureOpenAI
+from openai import AsyncAzureOpenAI
 import base64
 import os
 import logging
@@ -11,8 +11,8 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# OpenAI configuration
-OPENAI_MODEL = settings.OPENAI_MODEL or "gpt-4o-mini"
+# Azure OpenAI configuration
+AZURE_DEPLOYMENT_NAME = settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-5-chat"
 
 def convert_ocr_to_math(text: str) -> str:
     """OCR natijasini matematik belgilarga o'zgartirish"""
@@ -88,38 +88,27 @@ async def read_math_image(image: UploadFile = File(...)):
         
         text_output = None
 
-        # 1) OpenAI primary
+        # Azure OpenAI
+        if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
+            raise HTTPException(status_code=500, detail="Azure OpenAI not configured")
+
         try:
-            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-            response = await client.chat.completions.create(
-                model=OPENAI_MODEL,
+            azure_client = AsyncAzureOpenAI(
+                azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+                api_key=settings.AZURE_OPENAI_KEY,
+                api_version=settings.AZURE_OPENAI_API_VERSION
+            )
+            response = await azure_client.chat.completions.create(
+                model=AZURE_DEPLOYMENT_NAME,
                 messages=vision_messages,
                 max_tokens=1200,
                 temperature=0.3
             )
             text_output = response.choices[0].message.content.strip()
-            logger.info("OpenAI math OCR success")
-        except Exception as openai_err:
-            logger.warning(f"OpenAI math OCR failed: {openai_err}")
-
-        # 2) Azure fallback (only if configured)
-        if not text_output and settings.AZURE_OPENAI_KEY and settings.AZURE_OPENAI_ENDPOINT:
-            try:
-                azure_client = AsyncAzureOpenAI(
-                    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-                    api_key=settings.AZURE_OPENAI_KEY,
-                    api_version=settings.AZURE_OPENAI_API_VERSION
-                )
-                response = await azure_client.chat.completions.create(
-                    model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
-                    messages=vision_messages,
-                    max_tokens=1200,
-                    temperature=0.3
-                )
-                text_output = response.choices[0].message.content.strip()
-                logger.info("Azure math OCR fallback success")
-            except Exception as azure_err:
-                logger.warning(f"Azure math OCR failed: {azure_err}")
+            logger.info("Azure math OCR success")
+        except Exception as azure_err:
+            logger.warning(f"Azure math OCR failed: {azure_err}")
+            raise HTTPException(status_code=500, detail=f"Azure math OCR failed: {azure_err}")
         
         # OCR natijasini matematik belgilarga o'zgartirish
         math_text = convert_ocr_to_math(text_output)

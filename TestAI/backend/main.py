@@ -39,7 +39,7 @@ from shared.database.models import (
     SavedTest, SavedTestStatus,
 )
 from shared.auth import verify_token
-import openai
+from openai import AsyncAzureOpenAI
 import json
 
 # Local imports
@@ -436,10 +436,14 @@ async def generate_test(
     db: AsyncSession = Depends(get_db),
 ):
     """AI orqali test yaratish va DB ga saqlash"""
-    if not settings.OPENAI_API_KEY:
-        raise HTTPException(503, "AI xizmati sozlanmagan (OpenAI kalit yo'q)")
+    if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
+        raise HTTPException(503, "AI xizmati sozlanmagan (Azure OpenAI kalit yo'q)")
 
-    client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    client = AsyncAzureOpenAI(
+        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+        api_key=settings.AZURE_OPENAI_KEY,
+        api_version=settings.AZURE_OPENAI_API_VERSION
+    )
 
     lang_map = {"uz": "o'zbek tilida", "ru": "на русском языке", "en": "in English"}
     lang_text = lang_map.get(data.language, "o'zbek tilida")
@@ -465,7 +469,7 @@ Faqat JSON formatda javob ber, boshqa hech narsa yozma:
 
     try:
         response = await client.chat.completions.create(
-            model=settings.OPENAI_MODEL,
+            model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
             messages=[
                 {"role": "system", "content": "Sen ta'lim sohasida mutaxassis AI san. Faqat valid JSON formatda javob ber."},
                 {"role": "user", "content": prompt}

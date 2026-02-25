@@ -9,7 +9,7 @@ FIX: Previously returned HTTP 200 with {"error": "..."} on failures.
      - 500: AI processing failure
 """
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from openai import AsyncOpenAI, AsyncAzureOpenAI
+from openai import AsyncAzureOpenAI
 import base64
 import os
 import logging
@@ -17,10 +17,6 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-def get_client():
-    """Create OpenAI async client from settings"""
-    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 def get_azure_client():
     """Create Azure OpenAI async client"""
@@ -80,38 +76,23 @@ async def read_image(file: UploadFile = File(...)):
         
         text_output = None
 
-        # 1) OpenAI primary
+        # Azure OpenAI only
+        if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
+            raise HTTPException(status_code=500, detail="Azure OpenAI not configured")
+
         try:
-            client = get_client()
-            response = await client.chat.completions.create(
-                model=settings.OPENAI_MODEL or "gpt-4o-mini",
+            azure_client = get_azure_client()
+            response = await azure_client.chat.completions.create(
+                model=settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-5-chat",
                 messages=vision_messages,
                 max_tokens=1200,
                 temperature=0.3
             )
             text_output = response.choices[0].message.content.strip()
-            logger.info("OpenAI OCR success")
-        except Exception as openai_err:
-            logger.warning(f"OpenAI OCR failed: {openai_err}")
-
-        # 2) Azure fallback (only if configured)
-        if not text_output and settings.AZURE_OPENAI_KEY and settings.AZURE_OPENAI_ENDPOINT:
-            try:
-                azure_client = get_azure_client()
-                response = await azure_client.chat.completions.create(
-                    model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
-                    messages=vision_messages,
-                    max_tokens=1200,
-                    temperature=0.3
-                )
-                text_output = response.choices[0].message.content.strip()
-                logger.info("Azure OCR fallback success")
-            except Exception as azure_err:
-                logger.warning(f"Azure OCR failed: {azure_err}")
-            client = get_client()
-            response = await client.chat.completions.create(
-                model=settings.OPENAI_MODEL or "gpt-4o-mini",
-                messages=vision_messages,
+            logger.info("Azure OCR success")
+        except Exception as azure_err:
+            logger.warning(f"Azure OCR failed: {azure_err}")
+            raise HTTPException(status_code=500, detail=f"Azure OCR failed: {azure_err}")
                 max_tokens=1200,
                 temperature=0.3
             )
