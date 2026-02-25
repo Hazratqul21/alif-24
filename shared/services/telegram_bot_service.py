@@ -181,11 +181,12 @@ class TelegramBotService:
             )
             tg_user = result.scalar_one_or_none()
             if tg_user:
+                notif_status = "Yoqilgan ✅" if tg_user.notifications_enabled else "O'chirilgan ❌"
                 profile_text = (
                     f"👤 *Sizning profilingiz:*\n\n"
                     f"📱 Telefon: {tg_user.phone or 'Ulashmagan'}\n"
                     f"🔗 Platform: {'Ulangan ✅' if tg_user.user_id else 'Ulanmagan ❌'}\n"
-                    f"🔔 Bildirishnomalar: {'Yoqilgan ✅' if tg_user.notifications_enabled else 'O\\'chirilgan ❌'}"
+                    f"🔔 Bildirishnomalar: {notif_status}"
                 )
             else:
                 profile_text = "Profilingiz topilmadi. /start ni bosing."
