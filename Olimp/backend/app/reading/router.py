@@ -67,7 +67,7 @@ async def get_current_student(
         raise HTTPException(status_code=401, detail="Token noto'g'ri")
 
     user_res = await db.execute(select(User).where(User.id == user_id))
-    user = user_res.scalar_one_or_none()
+    user = user_res.scalars().first()
     if not user:
         raise HTTPException(status_code=401, detail="Foydalanuvchi topilmadi")
         
@@ -76,7 +76,7 @@ async def get_current_student(
 
     # Auto-create student profile if missing (e.g., registered via bot)
     sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user.id))
-    sp = sp_res.scalar_one_or_none()
+    sp = sp_res.scalars().first()
     if not sp:
         sp = StudentProfile(user_id=user.id)
         db.add(sp)
@@ -227,7 +227,7 @@ async def get_competition_detail(
     comp_res = await db.execute(
         select(ReadingCompetition).where(ReadingCompetition.id == comp_id)
     )
-    comp = comp_res.scalar_one_or_none()
+    comp = comp_res.scalars().first()
     if not comp:
         raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
 
@@ -252,7 +252,7 @@ async def get_competition_detail(
     test_res = await db.execute(
         select(CompetitionTest).where(CompetitionTest.competition_id == comp_id)
     )
-    test = test_res.scalar_one_or_none()
+    test = test_res.scalars().first()
 
     task_items = []
     for t in tasks:
@@ -303,7 +303,7 @@ async def get_task_for_reading(
             ReadingTask.competition_id == comp_id,
         )
     )
-    task = task_res.scalar_one_or_none()
+    task = task_res.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Hikoya topilmadi")
 
@@ -314,7 +314,7 @@ async def get_task_for_reading(
             ReadingSession.task_id == task_id,
         )
     )
-    session = session_res.scalar_one_or_none()
+    session = session_res.scalars().first()
 
     return {
         "success": True,
@@ -353,7 +353,7 @@ async def get_task_tts(
     """Hikoyani TTS bilan eshittirish (Azure TTS)"""
     # Task ni olish
     task_res = await db.execute(select(ReadingTask).join(ReadingTask.competition).options(selectinload(ReadingTask.competition)).where(ReadingTask.id == task_id, ReadingTask.competition_id == comp_id))
-    task = task_res.scalar_one_or_none()
+    task = task_res.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Hikoya topilmadi")
 
@@ -387,7 +387,7 @@ async def start_reading(
     task_res = await db.execute(
         select(ReadingTask).where(ReadingTask.id == task_id, ReadingTask.competition_id == comp_id)
     )
-    task = task_res.scalar_one_or_none()
+    task = task_res.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Hikoya topilmadi")
 
@@ -398,7 +398,7 @@ async def start_reading(
             ReadingSession.task_id == task_id,
         )
     )
-    session = existing.scalar_one_or_none()
+    session = existing.scalars().first()
 
     if session and session.status == SessionStatus.completed:
         raise HTTPException(status_code=400, detail="Bu hikoyani allaqachon o'qib bo'lgansiz")
@@ -445,7 +445,7 @@ async def submit_reading(
             ReadingSession.task_id == task_id,
         )
     )
-    session = session_res.scalar_one_or_none()
+    session = session_res.scalars().first()
     if not session:
         raise HTTPException(status_code=400, detail="Avval o'qishni boshlang")
     if session.status == SessionStatus.completed:
@@ -453,7 +453,7 @@ async def submit_reading(
 
     # Task
     task_res = await db.execute(select(ReadingTask).where(ReadingTask.id == task_id))
-    task = task_res.scalar_one_or_none()
+    task = task_res.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Hikoya topilmadi")
 
@@ -525,7 +525,7 @@ async def submit_test(
     test_res = await db.execute(
         select(CompetitionTest).where(CompetitionTest.competition_id == comp_id)
     )
-    test = test_res.scalar_one_or_none()
+    test = test_res.scalars().first()
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
 
@@ -545,7 +545,7 @@ async def submit_test(
             CompetitionResult.competition_id == comp_id,
         )
     )
-    comp_result = result_res.scalar_one_or_none()
+    comp_result = result_res.scalars().first()
 
     # Daily scores yig'ish
     sessions_res = await db.execute(
@@ -560,7 +560,7 @@ async def submit_test(
     total_reading = 0
     for s in sessions:
         task_res = await db.execute(select(ReadingTask).where(ReadingTask.id == s.task_id))
-        task = task_res.scalar_one_or_none()
+        task = task_res.scalars().first()
         if task:
             day = task.day_of_week.value
             daily_scores[day] = {
@@ -649,7 +649,7 @@ async def get_my_results(
             CompetitionResult.competition_id == comp_id,
         )
     )
-    overall = result_res.scalar_one_or_none()
+    overall = result_res.scalars().first()
 
     return {
         "success": True,
@@ -824,7 +824,7 @@ async def upload_voice_recording(
             ReadingSession.student_id == student.id,
         )
     )
-    session = session_res.scalar_one_or_none()
+    session = session_res.scalars().first()
     if not session:
         raise HTTPException(status_code=404, detail="Sessiya topilmadi")
 
@@ -873,7 +873,7 @@ async def analyze_voice_recording(
             ReadingSession.student_id == student.id,
         )
     )
-    session = session_res.scalar_one_or_none()
+    session = session_res.scalars().first()
     if not session:
         raise HTTPException(status_code=404, detail="Sessiya topilmadi")
 
@@ -882,7 +882,7 @@ async def analyze_voice_recording(
 
     # Task va original matnni olish
     task_res = await db.execute(select(ReadingTask).where(ReadingTask.id == session.task_id))
-    task = task_res.scalar_one_or_none()
+    task = task_res.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Hikoya topilmadi")
 
@@ -1037,7 +1037,7 @@ async def get_session_audio(
         .join(ReadingTask, ReadingSession.task_id == ReadingTask.id)
         .where(ReadingSession.id == session_id)
     )
-    row = session_res.one_or_none()
+    row = session_res.first()
 
     if not row:
         raise HTTPException(status_code=404, detail="Sessiya topilmadi")

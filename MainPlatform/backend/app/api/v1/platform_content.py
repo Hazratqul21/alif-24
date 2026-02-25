@@ -25,7 +25,7 @@ async def get_all_content(db: AsyncSession = Depends(get_db)):
 @router.get("/public/content/{key}")
 async def get_single_content(key: str, db: AsyncSession = Depends(get_db)):
     res = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
-    content = res.scalar_one_or_none()
+    content = res.scalars().first()
     if not content:
         raise HTTPException(status_code=404, detail="Topilmadi")
     return {"success": True, "data": content.value}
@@ -41,7 +41,7 @@ async def update_content(
         raise HTTPException(status_code=403, detail="Faqat adminlar ruxsatga ega")
         
     res = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
-    content = res.scalar_one_or_none()
+    content = res.scalars().first()
     if not content:
         content = PlatformContent(key=key, value=data.value)
         db.add(content)

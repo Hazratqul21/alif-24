@@ -142,7 +142,7 @@ async def get_lesson(
 ):
     """Get lesson details"""
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
-    lesson = res.scalar_one_or_none()
+    lesson = res.scalars().first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Darslik topilmadi")
 
@@ -157,7 +157,7 @@ async def update_lesson(
 ):
     """Update lesson"""
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
-    lesson = res.scalar_one_or_none()
+    lesson = res.scalars().first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Darslik topilmadi")
 
@@ -177,7 +177,7 @@ async def publish_lesson(
 ):
     """Publish a lesson (No-op since status is removed from shared model)"""
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
-    lesson = res.scalar_one_or_none()
+    lesson = res.scalars().first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Darslik topilmadi")
 
@@ -191,7 +191,7 @@ async def delete_lesson(
 ):
     """Delete a lesson"""
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
-    lesson = res.scalar_one_or_none()
+    lesson = res.scalars().first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Darslik topilmadi")
 
@@ -210,7 +210,7 @@ async def update_progress(
 ):
     """Update student progress for a lesson"""
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
-    lesson = res.scalar_one_or_none()
+    lesson = res.scalars().first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Darslik topilmadi")
 
@@ -222,7 +222,7 @@ async def update_progress(
                 LessonProgressModel.student_id == data.student_id
             )
         )
-        progress = p_res.scalar_one_or_none()
+        progress = p_res.scalars().first()
 
     if progress:
         progress.progress_percent = data.progress_percent
@@ -269,7 +269,7 @@ async def get_progress(
             LessonProgressModel.student_id == student_id
         )
     )
-    progress = p_res.scalar_one_or_none()
+    progress = p_res.scalars().first()
 
     if not progress:
         return {
@@ -351,7 +351,7 @@ async def get_ertak(
 ):
     """Get ertak details"""
     res = await db.execute(select(Story).where(Story.id == ertak_id))
-    ertak = res.scalar_one_or_none()
+    ertak = res.scalars().first()
     if not ertak:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
 
@@ -367,7 +367,7 @@ async def delete_ertak(
 ):
     """Delete an ertak"""
     res = await db.execute(select(Story).where(Story.id == ertak_id))
-    ertak = res.scalar_one_or_none()
+    ertak = res.scalars().first()
     if not ertak:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
 
@@ -407,7 +407,7 @@ async def ertak_tts(
 ):
     """AI yordamida ertakni o'qib berish (Azure TTS)"""
     res = await db.execute(select(Story).where(Story.id == ertak_id))
-    ertak = res.scalar_one_or_none()
+    ertak = res.scalars().first()
     if not ertak:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
 

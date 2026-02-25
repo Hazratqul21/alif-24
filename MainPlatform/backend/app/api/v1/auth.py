@@ -177,7 +177,7 @@ async def get_me(
                     SubscriptionPlanConfig.id == active_sub.plan_config_id
                 )
             )
-            plan = plan_result.scalar_one_or_none()
+            plan = plan_result.scalars().first()
 
             subscription_data = {
                 "plan_name": plan.name if plan else None,
@@ -217,7 +217,7 @@ async def activate_promo_code(
 
     # 1. Promocode topish
     result = await db.execute(select(PromoCode).where(PromoCode.code == code))
-    promo = result.scalar_one_or_none()
+    promo = result.scalars().first()
     if not promo:
         raise HTTPException(status_code=404, detail="Promocode topilmadi")
 
@@ -288,7 +288,7 @@ async def activate_promo_code(
         plan_res = await db.execute(
             select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == promo.plan_config_id)
         )
-        plan = plan_res.scalar_one_or_none()
+        plan = plan_res.scalars().first()
         if plan:
             old_subs = await db.execute(
                 select(UserSubscription).where(
@@ -521,7 +521,7 @@ async def search_child(
             )
         )
     )
-    student = result.scalar_one_or_none()
+    student = result.scalars().first()
 
     if not student:
         raise HTTPException(status_code=404, detail="O'quvchi topilmadi. ID, email yoki telefon raqamini tekshiring.")
@@ -561,7 +561,7 @@ async def invite_child(
     result = await db.execute(
         select(User).where(User.id == data.student_id, User.role == UserRole.student)
     )
-    student = result.scalar_one_or_none()
+    student = result.scalars().first()
     if not student:
         raise HTTPException(status_code=404, detail="O'quvchi topilmadi")
 
@@ -580,7 +580,7 @@ async def invite_child(
             InAppNotification.is_read == False,
         )
     )
-    if existing.scalar_one_or_none():
+    if existing.scalars().first():
         raise HTTPException(status_code=400, detail="Taklif allaqachon yuborilgan. Farzandingiz javob berishini kuting.")
 
     # Notification yaratish — bolaga habar boradi
@@ -626,7 +626,7 @@ async def list_pending_invites(
     pending = []
     for inv in invites:
         stu = await db.execute(select(User).where(User.id == inv.user_id))
-        stu = stu.scalar_one_or_none()
+        stu = stu.scalars().first()
         if stu:
             pending.append({
                 "invite_id": inv.id,
@@ -687,7 +687,7 @@ async def get_child_details(
     result = await db.execute(
         select(User).options(selectinload(User.student_profile)).where(User.id == child_id, User.parent_id == current_user.id)
     )
-    child = result.scalar_one_or_none()
+    child = result.scalars().first()
     if not child:
         raise HTTPException(status_code=404, detail="Bola topilmadi")
         
@@ -720,7 +720,7 @@ async def regenerate_child_pin(
     result = await db.execute(
         sa_select(User).where(User.id == child_id, User.parent_id == current_user.id)
     )
-    child = result.scalar_one_or_none()
+    child = result.scalars().first()
     if not child:
         raise HTTPException(status_code=404, detail="Bola topilmadi")
 
@@ -758,7 +758,7 @@ async def accept_parent_invite(
             InAppNotification.notif_type == InAppNotifType.parent_invite,
         )
     )
-    notif = notif.scalar_one_or_none()
+    notif = notif.scalars().first()
     if not notif:
         raise HTTPException(status_code=404, detail="Taklif topilmadi")
 
@@ -772,7 +772,7 @@ async def accept_parent_invite(
 
     # Parent mavjudligini tekshirish
     parent = await db.execute(select(User).where(User.id == parent_id))
-    parent = parent.scalar_one_or_none()
+    parent = parent.scalars().first()
     if not parent:
         raise HTTPException(status_code=404, detail="Ota-ona topilmadi")
 
@@ -782,7 +782,7 @@ async def accept_parent_invite(
     # StudentProfile.parent_user_id ham yangilash
     from shared.database.models import StudentProfile
     sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == current_user.id))
-    sp = sp_res.scalar_one_or_none()
+    sp = sp_res.scalars().first()
     if sp:
         sp.parent_user_id = parent_id
 
@@ -826,7 +826,7 @@ async def decline_parent_invite(
             InAppNotification.notif_type == InAppNotifType.parent_invite,
         )
     )
-    notif = notif.scalar_one_or_none()
+    notif = notif.scalars().first()
     if not notif:
         raise HTTPException(status_code=404, detail="Taklif topilmadi")
 

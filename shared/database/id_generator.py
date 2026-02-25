@@ -110,7 +110,7 @@ async def generate_unique_id(db_session, model_class, max_attempts: int = 10) ->
         result = await db_session.execute(
             sa_select(model_class).where(model_class.id == new_id)
         )
-        existing = result.scalar_one_or_none()
+        existing = result.scalars().first()
         if existing is None:
             return new_id
     

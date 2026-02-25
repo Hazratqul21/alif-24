@@ -221,7 +221,7 @@ async def get_competition(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
 
     result = await db.execute(select(ReadingCompetition).where(ReadingCompetition.id == comp_id))
-    comp = result.scalar_one_or_none()
+    comp = result.scalars().first()
     if not comp:
         raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
 
@@ -235,7 +235,7 @@ async def get_competition(
     test_res = await db.execute(
         select(CompetitionTest).where(CompetitionTest.competition_id == comp_id)
     )
-    test_obj = test_res.scalar_one_or_none()
+    test_obj = test_res.scalars().first()
     test = _serialize_test(test_obj) if test_obj else None
 
     # Participants count
@@ -262,7 +262,7 @@ async def update_competition(
         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
 
     result = await db.execute(select(ReadingCompetition).where(ReadingCompetition.id == comp_id))
-    comp = result.scalar_one_or_none()
+    comp = result.scalars().first()
     if not comp:
         raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
 
@@ -296,7 +296,7 @@ async def delete_competition(
         raise HTTPException(status_code=403, detail="Faqat super admin o'chira oladi")
 
     result = await db.execute(select(ReadingCompetition).where(ReadingCompetition.id == comp_id))
-    comp = result.scalar_one_or_none()
+    comp = result.scalars().first()
     if not comp:
         raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
 
@@ -339,7 +339,7 @@ async def create_task(
 
     # Competition mavjudligini tekshirish
     comp_res = await db.execute(select(ReadingCompetition).where(ReadingCompetition.id == comp_id))
-    if not comp_res.scalar_one_or_none():
+    if not comp_res.scalars().first():
         raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
 
     # Shu kun uchun allaqachon hikoya bormi
@@ -349,7 +349,7 @@ async def create_task(
             ReadingTask.day_of_week == data.day_of_week
         )
     )
-    if existing.scalar_one_or_none():
+    if existing.scalars().first():
         raise HTTPException(status_code=400, detail=f"{data.day_of_week} kuni uchun hikoya allaqachon mavjud")
 
     # Day index for ordering
@@ -389,7 +389,7 @@ async def get_task(
     result = await db.execute(
         select(ReadingTask).where(ReadingTask.id == task_id, ReadingTask.competition_id == comp_id)
     )
-    task = result.scalar_one_or_none()
+    task = result.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Hikoya topilmadi")
 
@@ -427,7 +427,7 @@ async def update_task(
     result = await db.execute(
         select(ReadingTask).where(ReadingTask.id == task_id, ReadingTask.competition_id == comp_id)
     )
-    task = result.scalar_one_or_none()
+    task = result.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Hikoya topilmadi")
 
@@ -463,7 +463,7 @@ async def delete_task(
     result = await db.execute(
         select(ReadingTask).where(ReadingTask.id == task_id, ReadingTask.competition_id == comp_id)
     )
-    task = result.scalar_one_or_none()
+    task = result.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Hikoya topilmadi")
 
@@ -489,7 +489,7 @@ async def get_test(
     result = await db.execute(
         select(CompetitionTest).where(CompetitionTest.competition_id == comp_id)
     )
-    test = result.scalar_one_or_none()
+    test = result.scalars().first()
     if not test:
         return {"test": None}
 
@@ -509,14 +509,14 @@ async def create_or_update_test(
 
     # Competition mavjudligini tekshirish
     comp_res = await db.execute(select(ReadingCompetition).where(ReadingCompetition.id == comp_id))
-    if not comp_res.scalar_one_or_none():
+    if not comp_res.scalars().first():
         raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
 
     # Mavjud testni tekshirish
     result = await db.execute(
         select(CompetitionTest).where(CompetitionTest.competition_id == comp_id)
     )
-    test = result.scalar_one_or_none()
+    test = result.scalars().first()
 
     if test:
         test.title = data.title or test.title
@@ -552,7 +552,7 @@ async def delete_test(
     result = await db.execute(
         select(CompetitionTest).where(CompetitionTest.competition_id == comp_id)
     )
-    test = result.scalar_one_or_none()
+    test = result.scalars().first()
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
 
@@ -692,7 +692,7 @@ async def get_competition_stats(
 
     # Competition
     comp_res = await db.execute(select(ReadingCompetition).where(ReadingCompetition.id == comp_id))
-    comp = comp_res.scalar_one_or_none()
+    comp = comp_res.scalars().first()
     if not comp:
         raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
 
@@ -814,7 +814,7 @@ async def get_session_audio_details(
     )
 
     result = await db.execute(stmt)
-    row = result.one_or_none()
+    row = result.first()
 
     if not row:
         raise HTTPException(status_code=404, detail="Sessiya topilmadi")

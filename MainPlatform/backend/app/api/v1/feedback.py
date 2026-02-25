@@ -98,7 +98,7 @@ async def get_feedback_stats(
             user_name = None
             if fb.user_id:
                 user_res = await db.execute(select(User).where(User.id == fb.user_id))
-                user = user_res.scalar_one_or_none()
+                user = user_res.scalars().first()
                 if user:
                     user_name = f"{user.first_name} {user.last_name}"
 
@@ -148,7 +148,7 @@ async def list_feedback(
         user_name = None
         if fb.user_id:
             user_res = await db.execute(select(User).where(User.id == fb.user_id))
-            user = user_res.scalar_one_or_none()
+            user = user_res.scalars().first()
             if user:
                 user_name = f"{user.first_name} {user.last_name}"
 

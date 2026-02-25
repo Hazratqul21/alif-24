@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Response, UploadFile, File, Query
 from pydantic import BaseModel
 from typing import Optional
 
-from shared.services.azure_speech_service import speech_service, get_voice_for_language
+from shared.services.azure_speech_service import speech_service, VOICE_MAP
 
 router = APIRouter()
 
@@ -30,7 +30,8 @@ async def text_to_speech(request: TextToSpeechRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="Текст не введен.")
     
-    voice_name = request.voice or get_voice_for_language(request.language, request.gender or "female")
+    lang_code = "uz" if request.language.startswith("uz") else ("ru" if request.language.startswith("ru") else "en")
+    voice_name = request.voice or VOICE_MAP.get(lang_code, {}).get(request.gender or "female", "ru-RU-SvetlanaNeural")
     
     try:
         audio_data = await speech_service.generate_speech(

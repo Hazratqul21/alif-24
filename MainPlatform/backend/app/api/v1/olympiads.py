@@ -260,7 +260,7 @@ async def get_olympiad(
 ):
     """Get olympiad details (admin only)"""
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    o = res.scalar_one_or_none()
+    o = res.scalars().first()
     if not o:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
@@ -282,7 +282,7 @@ async def update_olympiad(
     """Update olympiad (admin only)"""
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    o = res.scalar_one_or_none()
+    o = res.scalars().first()
     if not o:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
@@ -309,7 +309,7 @@ async def delete_olympiad(
     """Delete olympiad (admin only)"""
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    o = res.scalar_one_or_none()
+    o = res.scalars().first()
     if not o:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
@@ -332,7 +332,7 @@ async def add_question(
     """Add test question to olympiad (admin only)"""
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    o = res.scalar_one_or_none()
+    o = res.scalars().first()
     if not o:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
@@ -397,7 +397,7 @@ async def delete_question(
             OlympiadQuestion.olympiad_id == olympiad_id
         )
     )
-    q = res.scalar_one_or_none()
+    q = res.scalars().first()
     if not q:
         raise HTTPException(status_code=404, detail="Savol topilmadi")
 
@@ -420,7 +420,7 @@ async def add_reading_task(
     """Add reading task to olympiad (admin only)"""
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    o = res.scalar_one_or_none()
+    o = res.scalars().first()
     if not o:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
@@ -488,7 +488,7 @@ async def delete_reading_task(
             OlympiadReadingTask.olympiad_id == olympiad_id
         )
     )
-    rt = res.scalar_one_or_none()
+    rt = res.scalars().first()
     if not rt:
         raise HTTPException(status_code=404, detail="Vazifa topilmadi")
 
@@ -682,7 +682,7 @@ async def grade_reading_submission(
     res = await db.execute(
         select(OlympiadReadingSubmission).where(OlympiadReadingSubmission.id == submission_id)
     )
-    sub = res.scalar_one_or_none()
+    sub = res.scalars().first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission topilmadi")
 
@@ -716,7 +716,7 @@ async def get_olympiad_stats(
     """Get olympiad statistics (admin only)"""
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    o = res.scalar_one_or_none()
+    o = res.scalars().first()
     if not o:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 

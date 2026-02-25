@@ -68,7 +68,7 @@ async def get_teacher_profile(user: User, db: AsyncSession) -> TeacherProfile:
     if user.role != UserRole.teacher:
         raise HTTPException(status_code=403, detail="Faqat o'qituvchilar uchun")
     res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == user.id))
-    profile = res.scalar_one_or_none()
+    profile = res.scalars().first()
     if not profile:
         profile = TeacherProfile(user_id=user.id)
         db.add(profile)
@@ -94,7 +94,7 @@ async def notify_telegram(db: AsyncSession, user_id: str, message: str):
         from shared.database.models import TelegramUser
         from app.core.config import settings
         tg_res = await db.execute(select(TelegramUser).where(TelegramUser.user_id == user_id))
-        tg_user = tg_res.scalar_one_or_none()
+        tg_user = tg_res.scalars().first()
         if tg_user and tg_user.telegram_chat_id and tg_user.notifications_enabled:
             import httpx
             token = settings.TELEGRAM_BOT_TOKEN
@@ -187,7 +187,7 @@ async def get_classroom_detail(
     res = await db.execute(
         select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id)
     )
-    classroom = res.scalar_one_or_none()
+    classroom = res.scalars().first()
     if not classroom:
         raise HTTPException(status_code=404, detail="Sinf topilmadi")
 
@@ -201,7 +201,7 @@ async def get_classroom_detail(
     students = []
     for m in members:
         u_res = await db.execute(select(User).where(User.id == m.student_user_id))
-        u = u_res.scalar_one_or_none()
+        u = u_res.scalars().first()
         if u:
             students.append({
                 "user_id": u.id, "first_name": u.first_name,
@@ -221,7 +221,7 @@ async def update_classroom(
     res = await db.execute(
         select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id)
     )
-    classroom = res.scalar_one_or_none()
+    classroom = res.scalars().first()
     if not classroom:
         raise HTTPException(status_code=404, detail="Sinf topilmadi")
     for k, v in data.model_dump(exclude_unset=True).items():
@@ -241,7 +241,7 @@ async def delete_classroom(
     res = await db.execute(
         select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id)
     )
-    classroom = res.scalar_one_or_none()
+    classroom = res.scalars().first()
     if not classroom:
         raise HTTPException(status_code=404, detail="Sinf topilmadi")
     await db.delete(classroom)
@@ -265,20 +265,20 @@ async def get_student_detail(
 
     # Get student user
     u_res = await db.execute(select(User).where(User.id == student_user_id))
-    student = u_res.scalar_one_or_none()
+    student = u_res.scalars().first()
     if not student or student.role != UserRole.student:
         raise HTTPException(status_code=404, detail="O'quvchi topilmadi")
 
     # Get student profile
     from shared.database.models import StudentProfile
     sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == student.id))
-    profile = sp_res.scalar_one_or_none()
+    profile = sp_res.scalars().first()
 
     # Find parent via StudentProfile.parent_user_id
     parent_info = None
     if profile and profile.parent_user_id:
         parent_res = await db.execute(select(User).where(User.id == profile.parent_user_id))
-        parent = parent_res.scalar_one_or_none()
+        parent = parent_res.scalars().first()
         if parent:
             parent_info = {
                 "id": parent.id,
@@ -293,7 +293,7 @@ async def get_student_detail(
     try:
         from shared.database.models.classroom import TeacherProfile as TP
         tp_res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == current_user.id))
-        tp = tp_res.scalar_one_or_none()
+        tp = tp_res.scalars().first()
         if tp:
             cls_res = await db.execute(
                 select(ClassroomStudent, Classroom)
@@ -370,7 +370,7 @@ async def invite_student(
     res = await db.execute(
         select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id)
     )
-    classroom = res.scalar_one_or_none()
+    classroom = res.scalars().first()
     if not classroom:
         raise HTTPException(status_code=404, detail="Sinf topilmadi")
 
@@ -382,13 +382,13 @@ async def invite_student(
     student_user = None
     if inv_type == InvitationType.phone:
         r = await db.execute(select(User).where(User.phone == data.identifier))
-        student_user = r.scalar_one_or_none()
+        student_user = r.scalars().first()
     elif inv_type == InvitationType.email:
         r = await db.execute(select(User).where(User.email == data.identifier.lower()))
-        student_user = r.scalar_one_or_none()
+        student_user = r.scalars().first()
     elif inv_type == InvitationType.user_id:
         r = await db.execute(select(User).where(User.id == data.identifier))
-        student_user = r.scalar_one_or_none()
+        student_user = r.scalars().first()
 
     if not student_user:
         raise HTTPException(status_code=404, detail=f"Foydalanuvchi topilmadi: {data.identifier}")
@@ -403,7 +403,7 @@ async def invite_student(
             ClassroomStudent.status == ClassroomStudentStatus.active,
         )
     )
-    if ex.scalar_one_or_none():
+    if ex.scalars().first():
         raise HTTPException(status_code=400, detail="Bu o'quvchi allaqachon sinfda")
 
     # Pending taklif bormi?
@@ -414,7 +414,7 @@ async def invite_student(
             ClassroomInvitation.status == InvitationStatus.pending,
         )
     )
-    if ex2.scalar_one_or_none():
+    if ex2.scalars().first():
         raise HTTPException(status_code=400, detail="Taklif allaqachon yuborilgan")
 
     invitation = ClassroomInvitation(
@@ -460,7 +460,7 @@ async def add_student_direct(
     res = await db.execute(
         select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id)
     )
-    classroom = res.scalar_one_or_none()
+    classroom = res.scalars().first()
     if not classroom:
         raise HTTPException(status_code=404, detail="Sinf topilmadi")
 
@@ -469,7 +469,7 @@ async def add_student_direct(
         raise HTTPException(status_code=400, detail="student_user_id kerak")
 
     u_res = await db.execute(select(User).where(User.id == student_user_id))
-    student = u_res.scalar_one_or_none()
+    student = u_res.scalars().first()
     if not student or student.role != UserRole.student:
         raise HTTPException(status_code=404, detail="O'quvchi topilmadi")
 
@@ -480,7 +480,7 @@ async def add_student_direct(
             ClassroomStudent.status == ClassroomStudentStatus.active,
         )
     )
-    if ex.scalar_one_or_none():
+    if ex.scalars().first():
         raise HTTPException(status_code=400, detail="Bu o'quvchi allaqachon sinfda")
 
     db.add(ClassroomStudent(
@@ -509,7 +509,7 @@ async def remove_student(
     res = await db.execute(
         select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id)
     )
-    if not res.scalar_one_or_none():
+    if not res.scalars().first():
         raise HTTPException(status_code=404, detail="Sinf topilmadi")
 
     m_res = await db.execute(
@@ -518,7 +518,7 @@ async def remove_student(
             ClassroomStudent.student_user_id == student_user_id,
         )
     )
-    member = m_res.scalar_one_or_none()
+    member = m_res.scalars().first()
     if not member:
         raise HTTPException(status_code=404, detail="O'quvchi sinfda topilmadi")
 
@@ -550,13 +550,13 @@ async def student_my_classrooms(
     result = []
     for m in memberships:
         cls_res = await db.execute(select(Classroom).where(Classroom.id == m.classroom_id))
-        cls = cls_res.scalar_one_or_none()
+        cls = cls_res.scalars().first()
         if cls:
             t_res = await db.execute(
                 select(User).join(TeacherProfile, TeacherProfile.user_id == User.id)
                 .where(TeacherProfile.id == cls.teacher_id)
             )
-            t = t_res.scalar_one_or_none()
+            t = t_res.scalars().first()
             result.append({
                 "classroom_id": cls.id, "name": cls.name, "subject": cls.subject,
                 "grade_level": cls.grade_level,
@@ -584,9 +584,9 @@ async def student_invitations(
     result = []
     for inv in invitations:
         cls_res = await db.execute(select(Classroom).where(Classroom.id == inv.classroom_id))
-        cls = cls_res.scalar_one_or_none()
+        cls = cls_res.scalars().first()
         inv_res = await db.execute(select(User).where(User.id == inv.invited_by))
-        inviter = inv_res.scalar_one_or_none()
+        inviter = inv_res.scalars().first()
         result.append({
             "invitation_id": inv.id, "classroom_id": inv.classroom_id,
             "classroom_name": cls.name if cls else None,
@@ -614,7 +614,7 @@ async def respond_invitation(
             ClassroomInvitation.student_user_id == current_user.id,
         )
     )
-    inv = res.scalar_one_or_none()
+    inv = res.scalars().first()
     if not inv:
         raise HTTPException(status_code=404, detail="Taklif topilmadi")
     if inv.status != InvitationStatus.pending:
@@ -633,20 +633,20 @@ async def respond_invitation(
                 ClassroomStudent.student_user_id == current_user.id,
             )
         )
-        if not ex.scalar_one_or_none():
+        if not ex.scalars().first():
             db.add(ClassroomStudent(
                 classroom_id=inv.classroom_id,
                 student_user_id=current_user.id,
                 status=ClassroomStudentStatus.active,
             ))
         cls_res = await db.execute(select(Classroom).where(Classroom.id == inv.classroom_id))
-        cls = cls_res.scalar_one_or_none()
+        cls = cls_res.scalars().first()
         if cls:
             t_res = await db.execute(
                 select(User).join(TeacherProfile, TeacherProfile.user_id == User.id)
                 .where(TeacherProfile.id == cls.teacher_id)
             )
-            t = t_res.scalar_one_or_none()
+            t = t_res.scalars().first()
             if t:
                 student_name = f"{current_user.first_name} {current_user.last_name}".strip()
                 await create_notification(
@@ -682,7 +682,7 @@ async def join_by_code(
             Classroom.is_active == True,
         )
     )
-    classroom = res.scalar_one_or_none()
+    classroom = res.scalars().first()
     if not classroom:
         raise HTTPException(status_code=404, detail="Noto'g'ri kod yoki sinf topilmadi")
 
@@ -693,7 +693,7 @@ async def join_by_code(
             ClassroomStudent.status == ClassroomStudentStatus.active,
         )
     )
-    if ex.scalar_one_or_none():
+    if ex.scalars().first():
         raise HTTPException(status_code=400, detail="Siz allaqachon bu sinfdasiz")
 
     db.add(ClassroomStudent(
@@ -725,7 +725,7 @@ async def get_child_teachers(
 
     # Verify this is parent's child (check User.parent_id OR StudentProfile.parent_user_id)
     child_res = await db.execute(select(User).where(User.id == child_id, User.parent_id == current_user.id))
-    child = child_res.scalar_one_or_none()
+    child = child_res.scalars().first()
     if not child:
         raise HTTPException(status_code=404, detail="Bola topilmadi yoki sizning bolangiz emas")
 

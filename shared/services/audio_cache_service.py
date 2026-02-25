@@ -45,7 +45,7 @@ class AudioCacheService:
         result = await self.db.execute(
             select(AudioCache).where(AudioCache.cache_key == cache_key)
         )
-        cached = result.scalar_one_or_none()
+        cached = result.scalars().first()
 
         if cached:
             # Hit count oshirish
@@ -81,7 +81,7 @@ class AudioCacheService:
         result = await self.db.execute(
             select(AudioCache).where(AudioCache.cache_key == cache_key)
         )
-        existing = result.scalar_one_or_none()
+        existing = result.scalars().first()
 
         if existing:
             # Yangilash

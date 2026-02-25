@@ -56,7 +56,7 @@ class CRMService:
         # FIX: Optimized single lead fetch too
         stmt = select(Lead).options(joinedload(Lead.activities)).filter(Lead.id == lead_id)
         result = await self.db.execute(stmt)
-        lead = result.unique().scalar_one_or_none()
+        lead = result.unique().scalars().first()
         
         if not lead:
             raise NotFoundError("Lead topilmadi")
@@ -100,7 +100,7 @@ class CRMService:
     async def update_activity(self, activity_id: str, activity_in: ActivityUpdate) -> Activity:
         stmt = select(Activity).filter(Activity.id == activity_id)
         result = await self.db.execute(stmt)
-        activity = result.scalar_one_or_none()
+        activity = result.scalars().first()
         
         if not activity:
             raise NotFoundError("Activity topilmadi")
@@ -116,7 +116,7 @@ class CRMService:
     async def delete_activity(self, activity_id: str):
         stmt = select(Activity).filter(Activity.id == activity_id)
         result = await self.db.execute(stmt)
-        activity = result.scalar_one_or_none()
+        activity = result.scalars().first()
         
         if not activity:
             raise NotFoundError("Activity topilmadi")

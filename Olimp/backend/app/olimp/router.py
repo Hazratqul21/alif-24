@@ -72,7 +72,7 @@ def _question_to_dict(q: OlympiadQuestion) -> dict:
 async def _resolve_student_profile(user_id: str, db: AsyncSession) -> Optional[StudentProfile]:
     """Lookup StudentProfile by user_id"""
     res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user_id))
-    return res.scalar_one_or_none()
+    return res.scalars().first()
 
 
 # ============= Student-facing: List & Get =============
@@ -125,7 +125,7 @@ async def get_olympiad(
 ):
     """Get olympiad details"""
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    olympiad = res.scalar_one_or_none()
+    olympiad = res.scalars().first()
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
@@ -148,7 +148,7 @@ async def list_questions(
 ):
     """Get all questions for an olympiad (for quiz UI)"""
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    olympiad = res.scalar_one_or_none()
+    olympiad = res.scalars().first()
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
@@ -177,7 +177,7 @@ async def register_for_olympiad(
 ):
     """Register a student for an olympiad"""
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    olympiad = res.scalar_one_or_none()
+    olympiad = res.scalars().first()
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
@@ -187,7 +187,7 @@ async def register_for_olympiad(
 
     # Check if real user exists and is a student
     user_res = await db.execute(select(User).where(User.id == data.student_id))
-    user = user_res.scalar_one_or_none()
+    user = user_res.scalars().first()
     
     if not user:
         raise HTTPException(status_code=400, detail="Foydalanuvchi topilmadi. Iltimos, ro'yxatdan o'ting.")
@@ -221,7 +221,7 @@ async def register_for_olympiad(
             OlympiadParticipant.student_id == sp.id
         )
     )
-    existing = exist_res.scalar_one_or_none()
+    existing = exist_res.scalars().first()
     if existing:
         raise HTTPException(status_code=400, detail="Siz allaqachon ro'yxatdan o'tgansiz")
 
@@ -256,7 +256,7 @@ async def submit_answers(
 ):
     """Submit answers for an olympiad"""
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    olympiad = res.scalar_one_or_none()
+    olympiad = res.scalars().first()
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
@@ -271,7 +271,7 @@ async def submit_answers(
                     OlympiadParticipant.student_id == sp.id,
                 )
             )
-            participant = p_res.scalar_one_or_none()
+            participant = p_res.scalars().first()
 
     total_score = 0
     correct_count = 0
@@ -281,7 +281,7 @@ async def submit_answers(
 
     for answer in answers:
         q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == answer.question_id))
-        question = q_res.scalar_one_or_none()
+        question = q_res.scalars().first()
         if not question:
             continue
 
@@ -343,7 +343,7 @@ async def get_leaderboard(
 ):
     """Get olympiad leaderboard with student names"""
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    olympiad = res.scalar_one_or_none()
+    olympiad = res.scalars().first()
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
@@ -362,10 +362,10 @@ async def get_leaderboard(
         student_name = f"O'quvchi #{idx}"
         try:
             sp_res = await db.execute(select(StudentProfile).where(StudentProfile.id == p.student_id))
-            sp = sp_res.scalar_one_or_none()
+            sp = sp_res.scalars().first()
             if sp:
                 u_res = await db.execute(select(User).where(User.id == sp.user_id))
-                u = u_res.scalar_one_or_none()
+                u = u_res.scalars().first()
                 if u:
                     student_name = f"{u.first_name} {u.last_name}".strip() or student_name
         except Exception as e:

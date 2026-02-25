@@ -130,7 +130,7 @@ class TelegramBotService:
         # Find Telegram user by phone
         stmt = select(TelegramUser).filter(TelegramUser.phone == phone)
         result = await self.db.execute(stmt)
-        tg_user = result.scalar_one_or_none()
+        tg_user = result.scalars().first()
         
         if not tg_user:
             return {
@@ -194,7 +194,7 @@ class TelegramBotService:
         ).order_by(desc(PhoneVerification.created_at)).limit(1)
         
         result = await self.db.execute(stmt)
-        verification = result.scalar_one_or_none()
+        verification = result.scalars().first()
         
         if not verification:
             return {"success": False, "message": "Tasdiqlash kodi topilmadi"}
@@ -211,12 +211,12 @@ class TelegramBotService:
             # Link Telegram user to platform user if exists
             stmt = select(TelegramUser).filter(TelegramUser.phone == phone)
             result = await self.db.execute(stmt)
-            tg_user = result.scalar_one_or_none()
+            tg_user = result.scalars().first()
             
             if tg_user:
                 stmt = select(User).filter(User.phone == phone)
                 result = await self.db.execute(stmt)
-                user = result.scalar_one_or_none()
+                user = result.scalars().first()
                 
                 if user:
                     user.phone_verified = True
@@ -291,7 +291,7 @@ Tabriklaymiz! 🎉
         # Check if already linked
         stmt = select(TelegramUser).filter(TelegramUser.telegram_chat_id == telegram_chat_id)
         result = await self.db.execute(stmt)
-        existing = result.scalar_one_or_none()
+        existing = result.scalars().first()
         
         if existing:
             # Update phone if changed
@@ -393,14 +393,14 @@ Tabriklaymiz! 🎉
         """Telegram chat_id orqali o'quvchi profilini olish"""
         stmt = select(TelegramUser).filter(TelegramUser.telegram_chat_id == chat_id)
         result = await self.db.execute(stmt)
-        tg_user = result.scalar_one_or_none()
+        tg_user = result.scalars().first()
         
         if not tg_user or not tg_user.user_id:
             return None
         
         stmt = select(StudentProfile).filter(StudentProfile.user_id == tg_user.user_id)
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
     
     async def handle_progress(self, chat_id: str) -> None:
         """O'quvchining o'quv progressini ko'rsatish"""
@@ -417,7 +417,7 @@ Tabriklaymiz! 🎉
         # Coin balansini olish
         stmt = select(StudentCoin).filter(StudentCoin.student_id == profile.id)
         result = await self.db.execute(stmt)
-        coin = result.scalar_one_or_none()
+        coin = result.scalars().first()
         coin_balance = coin.current_balance if coin else 0
         
         msg = (
@@ -476,7 +476,7 @@ Tabriklaymiz! 🎉
         """Foydalanuvchi sozlamalarini boshqarish"""
         stmt = select(TelegramUser).filter(TelegramUser.telegram_chat_id == chat_id)
         result = await self.db.execute(stmt)
-        tg_user = result.scalar_one_or_none()
+        tg_user = result.scalars().first()
         
         if not tg_user:
             await self._send_message(chat_id, "⚙️ Avval botni /start bilan ishga tushuring.")
@@ -541,7 +541,7 @@ Tabriklaymiz! 🎉
                 if tg_user.user_id:
                     user_stmt = select(User).filter(User.id == tg_user.user_id)
                     user_result = await self.db.execute(user_stmt)
-                    user = user_result.scalar_one_or_none()
+                    user = user_result.scalars().first()
                     if user and hasattr(user, 'role'):
                         role = str(user.role.value if hasattr(user.role, 'value') else user.role).lower()
                         if filter_type == "students" and role == "student":
@@ -664,7 +664,7 @@ Tabriklaymiz! 🎉
             # Update last interaction
             stmt = select(TelegramUser).filter(TelegramUser.telegram_chat_id == chat_id)
             result = await self.db.execute(stmt)
-            tg_user = result.scalar_one_or_none()
+            tg_user = result.scalars().first()
             
             if tg_user:
                 tg_user.last_interaction_at = datetime.now(timezone.utc)
@@ -908,7 +908,7 @@ Tabriklaymiz! 🎉
             # Get Telegram user
             stmt = select(TelegramUser).filter(TelegramUser.telegram_chat_id == chat_id)
             result = await self.db.execute(stmt)
-            tg_user = result.scalar_one_or_none()
+            tg_user = result.scalars().first()
             
             if not tg_user or not tg_user.user_id:
                 await self._send_message(
@@ -946,7 +946,7 @@ Tabriklaymiz! 🎉
                 # Get teacher name
                 teacher_stmt = select(User).filter(User.id == inv.invited_by)
                 teacher_result = await self.db.execute(teacher_stmt)
-                teacher = teacher_result.scalar_one_or_none()
+                teacher = teacher_result.scalars().first()
                 teacher_name = f"{teacher.first_name} {teacher.last_name}" if teacher else "Noma'lum o'qituvchi"
                 
                 message += (

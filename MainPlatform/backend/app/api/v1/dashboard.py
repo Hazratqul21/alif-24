@@ -30,7 +30,7 @@ async def get_student_dashboard(
     result = await db.execute(
         select(StudentProfile).where(StudentProfile.user_id == current_user.id)
     )
-    student = result.scalar_one_or_none()
+    student = result.scalars().first()
     
     stats = {
         "total_lessons": 0,

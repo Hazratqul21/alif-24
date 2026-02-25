@@ -19,7 +19,7 @@ async def get_or_create_coin_balance(db: AsyncSession, student_id: str) -> Stude
     """
     stmt = select(StudentCoin).filter_by(student_id=student_id)
     result = await db.execute(stmt)
-    coin_balance = result.scalar_one_or_none()
+    coin_balance = result.scalars().first()
     
     if not coin_balance:
         coin_balance = StudentCoin(
@@ -68,7 +68,7 @@ async def add_coins(
     # O'quvchi profilini yangilash
     stmt = select(StudentProfile).filter_by(id=student_id)
     result = await db.execute(stmt)
-    student = result.scalar_one_or_none()
+    student = result.scalars().first()
     
     if student:
         student.total_coins = coin_balance.current_balance
@@ -115,7 +115,7 @@ async def deduct_coins(
     # O'quvchi profilini yangilash
     stmt = select(StudentProfile).filter_by(id=student_id)
     result = await db.execute(stmt)
-    student = result.scalar_one_or_none()
+    student = result.scalars().first()
     
     if student:
         student.total_coins = coin_balance.current_balance
