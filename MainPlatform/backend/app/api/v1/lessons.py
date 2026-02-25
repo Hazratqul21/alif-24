@@ -317,7 +317,7 @@ async def story_tts(
     """AI yordamida ertakni o'qib berish (OpenAI TTS) — auth kerak emas"""
     if not OPENAI_API_KEY:
         logger.error("OPENAI_API_KEY is not set!")
-        raise HTTPException(status_code=500, detail="OpenAI API kaliti sozlanmagan")
+        raise HTTPException(status_code=503, detail="Tizimda ovoz sozlamalari mavjud emas (API kaliti yo'q)")
 
     res = await db.execute(select(Story).where(Story.id == story_id))
     story = res.scalar_one_or_none()
