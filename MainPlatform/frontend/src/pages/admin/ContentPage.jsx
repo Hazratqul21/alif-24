@@ -91,11 +91,7 @@ export default function ContentPage() {
             if (uploadFile) {
                 const upRes = await adminService.uploadFile(uploadFile);
                 if (upRes.data?.url) {
-                    payload.attachments = [{
-                        name: uploadFile.name,
-                        url: upRes.data.url,
-                        size: upRes.data.size || uploadFile.size
-                    }];
+                    payload.audio_url = upRes.data.url;
                 }
             }
 
