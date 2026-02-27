@@ -36,7 +36,7 @@ export default function ContentPage() {
                 setLessons(Array.isArray(ld) ? ld : []);
             }
             if (ertRes.status === 'fulfilled') {
-                const ed = ertRes.value.data?.ertaklar || ertRes.value.data;
+                const ed = ertRes.value.data?.ertaklar || ertRes.value.data?.stories || ertRes.value.data;
                 setErtaklar(Array.isArray(ed) ? ed : []);
             }
             if (pcRes.status === 'fulfilled') {
