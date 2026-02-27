@@ -90,7 +90,7 @@ async def init_db():
         from sqlalchemy import text
         try:
             # Ertaklar table modifications
-            await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS questions JSON DEFAULT '[]';"))
+            await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS questions JSON DEFAULT '[]'::json;"))
             await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS age_group VARCHAR(10) DEFAULT '6-8';"))
             await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS has_audio BOOLEAN DEFAULT false;"))
             await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS audio_url VARCHAR(500);"))
