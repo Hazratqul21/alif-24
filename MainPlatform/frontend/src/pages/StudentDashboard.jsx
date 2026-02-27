@@ -732,9 +732,15 @@ const StudentDashboard = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {realStories.map(story => (
                                 <div key={story.id} onClick={() => setSelectedStory(story)} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center mb-3 group-hover:from-purple-200 group-hover:to-pink-200 transition-all">
-                                        <Book size={24} className="text-purple-600" />
-                                    </div>
+                                    {story.image_url ? (
+                                        <div className="w-full h-32 mb-3 rounded-xl overflow-hidden">
+                                            <img src={story.image_url} alt={story.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center mb-3 group-hover:from-purple-200 group-hover:to-pink-200 transition-all">
+                                            <Book size={24} className="text-purple-600" />
+                                        </div>
+                                    )}
                                     <h3 className="font-bold text-gray-800 mb-1">{story.title}</h3>
                                     <p className="text-gray-500 text-sm line-clamp-2 mb-2">{story.content?.substring(0, 120)}...</p>
                                     <div className="flex items-center gap-3 text-xs text-gray-400">

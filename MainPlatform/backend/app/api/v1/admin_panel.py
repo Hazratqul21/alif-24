@@ -137,6 +137,7 @@ class StoryCreateRequest(BaseModel):
     language: str = "uz"
     age_group: Optional[str] = None
     audio_url: Optional[str] = None
+    image_url: Optional[str] = None
     questions: Optional[List[Dict[str, str]]] = None  # [{"question": "...", "answer": "..."}]
 
 class StoryUpdateRequest(BaseModel):
@@ -145,6 +146,8 @@ class StoryUpdateRequest(BaseModel):
     language: Optional[str] = None
     age_group: Optional[str] = None
     audio_url: Optional[str] = None
+    image_url: Optional[str] = None
+    questions: Optional[List[Dict[str, str]]] = None
 
 class StatsResponse(BaseModel):
     total_users: int
@@ -372,6 +375,7 @@ async def list_direct_stories(
                 "language": s.language,
                 "age_group": s.age_group,
                 "audio_url": s.audio_url,
+                "image_url": s.image_url,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
             }
             for s in stories
@@ -395,6 +399,7 @@ async def create_direct_story(
         language=data.language,
         age_group=data.age_group,
         audio_url=data.audio_url,
+        image_url=data.image_url,
         questions=data.questions or [],
     )
     
@@ -436,6 +441,13 @@ async def update_direct_story(
         story.age_group = data.age_group
     if data.audio_url is not None:
         story.audio_url = data.audio_url
+        story.has_audio = True if data.audio_url else False
+        
+    if data.image_url is not None:
+        story.image_url = data.image_url
+
+    if data.questions is not None:
+        story.questions = data.questions
     
     await db.commit()
     

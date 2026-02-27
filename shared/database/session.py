@@ -94,6 +94,7 @@ async def init_db():
             await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS age_group VARCHAR(10) DEFAULT '6-8';"))
             await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS has_audio BOOLEAN DEFAULT false;"))
             await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS audio_url VARCHAR(500);"))
+            await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS image_url VARCHAR(500);")) # Muqova rasmi
             await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0;"))
             
             # Lessons table modifications

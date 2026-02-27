@@ -448,7 +448,7 @@ function RecordingModal({ ertak, onClose }) {
 // ─── Card ──────────────────────────────────────────────────────────────────────
 function ErtakCard({ ertak, index, onClick }) {
     const [imgError, setImgError] = useState(false);
-    const hasImage = ertak.cover_image && !imgError;
+    const hasImage = ertak.image_url && !imgError;
     const dayNames = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
     const date = ertak.created_at ? new Date(ertak.created_at) : null;
     const dayLabel = date ? dayNames[date.getDay()] : '';
@@ -461,15 +461,15 @@ function ErtakCard({ ertak, index, onClick }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.06 }}
             onClick={onClick}
-            className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group"
+            className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group flex flex-col h-full"
         >
-            <div className="w-full aspect-[4/3] relative overflow-hidden">
+            <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-[#4b6ef5] to-[#9b59b6] flex items-center justify-center">
                 {hasImage ? (
-                    <img src={ertak.cover_image} alt={ertak.title}
+                    <img src={ertak.image_url} alt={ertak.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={() => setImgError(true)} />
                 ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-[#4b6ef5] to-[#9b59b6] flex items-center justify-center group-hover:opacity-90 transition-opacity">
+                    <div className="w-full h-full flex items-center justify-center group-hover:opacity-90 transition-opacity">
                         <BookOpen className="w-14 h-14 text-white/40" strokeWidth={1.5} />
                     </div>
                 )}
