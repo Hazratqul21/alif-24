@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2 } from 'lucide-react';
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import apiService from '../services/apiService';
+import { getSimilarity, extractWords } from '../utils/fuzzyMatch';
 
 let API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
@@ -324,14 +325,28 @@ function RecordingModal({ ertak, onClose }) {
     const [phase, setPhase] = useState('countdown');
     const [count, setCount] = useState(3);
     const [elapsed, setElapsed] = useState(0);
-    const [recordedUrl, setRecordedUrl] = useState(null);
+    // STT States
+    const [sttError, setSttError] = useState('');
+    const [transcript, setTranscript] = useState('');
     const [playing, setPlaying] = useState(false);
     const [showQuiz, setShowQuiz] = useState(false);
 
-    const mediaRecorderRef = useRef(null);
-    const chunksRef = useRef([]);
-    const playbackRef = useRef(null);
+    // Karaoke Highlighting logic
+    const [expectedWords, setExpectedWords] = useState([]);
+    const [currentWordIndex, setCurrentWordIndex] = useState(0);
+
+    const speechConfigRef = useRef(null);
+    const recognizerRef = useRef(null);
+    const transcriptRef = useRef('');
+    const wordIndexRef = useRef(0);
     const timerRef = useRef(null);
+
+    useEffect(() => {
+        // Initialize words
+        if (ertak.content) {
+            setExpectedWords(extractWords(ertak.content));
+        }
+    }, [ertak]);
 
     useEffect(() => {
         if (phase !== 'countdown') return;
@@ -340,44 +355,141 @@ function RecordingModal({ ertak, onClose }) {
         return () => clearTimeout(t);
     }, [phase, count]);
 
+    const ensureSpeechConfig = async () => {
+        if (speechConfigRef.current) return true;
+        try {
+            const resp = await fetch(`${API_URL}/smartkids/speech-token`);
+            if (!resp.ok) throw new Error(`speech-token failed`);
+            const data = await resp.json();
+            const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
+            cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
+            speechConfigRef.current = cfg;
+            return true;
+        } catch (e) {
+            console.error('Speech config init failed:', e);
+            setSttError("Ovozli tanishga ulanib bo'lmadi.");
+            return false;
+        }
+    };
+
     useEffect(() => {
         if (phase !== 'reading') return;
-        let stream;
-        (async () => {
+        let isCancelled = false;
+
+        const startStt = async () => {
+            setSttError('');
+            transcriptRef.current = '';
+            setTranscript('');
+            setCurrentWordIndex(0);
+            wordIndexRef.current = 0;
+
+            const ok = await ensureSpeechConfig();
+            if (!ok) return;
+
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const mr = new MediaRecorder(stream);
-                mediaRecorderRef.current = mr;
-                chunksRef.current = [];
-                mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-                mr.onstop = () => {
-                    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-                    setRecordedUrl(URL.createObjectURL(blob));
-                    stream.getTracks().forEach(t => t.stop());
-                    setPhase('done');
+                const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+                const recognizer = new SpeechSDK.SpeechRecognizer(speechConfigRef.current, audioConfig);
+                recognizerRef.current = recognizer;
+
+                recognizer.recognized = (s, e) => {
+                    if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+                        const newText = e.result.text;
+                        transcriptRef.current += (newText + " ");
+                        setTranscript(transcriptRef.current);
+
+                        const spokenWords = extractWords(newText);
+                        let currentIndex = wordIndexRef.current;
+                        const expected = expectedWords;
+
+                        for (let sw of spokenWords) {
+                            if (currentIndex >= expected.length) break;
+
+                            let matchedIndex = -1;
+                            let lookaheadLimit = Math.min(currentIndex + 3, expected.length);
+
+                            for (let k = currentIndex; k < lookaheadLimit; k++) {
+                                const similarity = getSimilarity(sw, expected[k]);
+                                if (similarity >= 0.70) {
+                                    matchedIndex = k;
+                                    break;
+                                }
+                            }
+
+                            if (matchedIndex !== -1) {
+                                currentIndex = matchedIndex + 1;
+                            }
+                        }
+
+                        wordIndexRef.current = currentIndex;
+                        setCurrentWordIndex(currentIndex);
+                    }
                 };
-                mr.start();
-            } catch {
-                alert('Mikrofonga ruxsat bering!');
-                onClose();
+
+                recognizer.startContinuousRecognitionAsync();
+            } catch (e) {
+                console.error('startStt failed:', e);
+                setSttError("Mikrofon ochilmadi. Ruxsatni tekshiring.");
             }
-        })();
+        };
+
+        startStt();
+
         timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
-        return () => clearInterval(timerRef.current);
+        return () => {
+            clearInterval(timerRef.current);
+            if (recognizerRef.current) {
+                try {
+                    recognizerRef.current.stopContinuousRecognitionAsync();
+                    recognizerRef.current.close();
+                } catch (_) { }
+            }
+        };
     }, [phase]);
 
     const stopRecording = () => {
         clearInterval(timerRef.current);
-        if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+        if (recognizerRef.current) {
+            const rec = recognizerRef.current;
+            recognizerRef.current = null;
+            rec.stopContinuousRecognitionAsync(() => {
+                try { rec.close(); } catch (_) { }
+                setPhase('done');
+            });
+        } else {
+            setPhase('done');
+        }
     };
 
-    const togglePlay = () => {
-        if (playing) { playbackRef.current?.pause(); setPlaying(false); }
-        else {
-            const a = new Audio(recordedUrl);
-            playbackRef.current = a;
-            a.onended = () => setPlaying(false);
-            a.play(); setPlaying(true);
+    const togglePlay = async () => {
+        if (playing) {
+            setPlaying(false);
+        } else {
+            // Azure TTS bilan qaytadan eshittiramiz (Playback) 
+            try {
+                setPlaying(true);
+                const baseUrl = 'https://alif24.uz/api/v1';
+                const text = transcriptRef.current || transcript || ertak.content;
+                const reqText = encodeURIComponent(text.substring(0, 1000));
+
+                const response = await fetch(
+                    `${baseUrl}/speech/tts?text=${reqText}&language=${ertak.language || 'uz'}&gender=female`,
+                    { credentials: 'include' }
+                );
+
+                if (!response.ok) throw new Error('TTS xato');
+
+                const blob = await response.blob();
+                const audioUrl = URL.createObjectURL(blob);
+                const audio = new Audio(audioUrl);
+                audio.onended = () => {
+                    URL.revokeObjectURL(audioUrl);
+                    setPlaying(false);
+                };
+                await audio.play();
+            } catch (err) {
+                console.error('Play reading err:', err);
+                setPlaying(false);
+            }
         }
     };
 
@@ -406,7 +518,23 @@ function RecordingModal({ ertak, onClose }) {
                 <p className="text-white/40 text-base mb-6">Matnni quyida o'zing o'qi 🎤</p>
 
                 <div className="bg-white/5 rounded-xl p-5 mb-6 max-h-[50vh] overflow-y-auto">
-                    <p className="text-white/90 text-lg leading-relaxed whitespace-pre-wrap">{ertak.content}</p>
+                    <p className="text-white/90 text-lg leading-relaxed whitespace-pre-wrap">
+                        {expectedWords.map((word, idx) => (
+                            <span key={idx} className={`inline-block mr-1 transition-colors duration-300 ${idx < currentWordIndex ? "text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+                                    : "text-white/90"
+                                }`}>
+                                {word}
+                            </span>
+                        ))}
+                    </p>
+
+                    {/* Live Highlight Helper */}
+                    {transcript && (
+                        <div className="mt-4 p-3 bg-black/30 rounded-lg border-l-2 border-[#4b30fb]">
+                            <p className="text-xs text-white/40 mb-1">Siz o'qiyapsiz:</p>
+                            <p className="text-[#4b30fb] text-sm font-medium leading-relaxed">{transcript}</p>
+                        </div>
+                    )}
                 </div>
 
                 {
@@ -424,14 +552,14 @@ function RecordingModal({ ertak, onClose }) {
                     phase === 'reading' && (
                         <div className="flex flex-col items-center gap-4">
                             <div className="relative w-20 h-20">
-                                <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" />
-                                <div className="w-20 h-20 rounded-full bg-red-500/30 border-2 border-red-500 flex items-center justify-center">
-                                    <Mic className="w-8 h-8 text-red-400" />
+                                <div className="absolute inset-0 rounded-full bg-[#4b30fb]/20 animate-ping" />
+                                <div className="w-20 h-20 rounded-full bg-[#4b30fb]/30 border-2 border-[#4b30fb] flex items-center justify-center">
+                                    <Mic className="w-8 h-8 text-[#4b30fb]" />
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                                <span className="text-red-400 font-mono text-lg font-bold">{fmt(elapsed)}</span>
+                                <span className="w-2 h-2 bg-[#4b30fb] rounded-full animate-pulse" />
+                                <span className="text-[#4b30fb] font-mono text-lg font-bold">{fmt(elapsed)}</span>
                                 <span className="text-white/40 text-sm">Yozilmoqda</span>
                             </div>
                             <button onClick={stopRecording}
@@ -460,7 +588,7 @@ function RecordingModal({ ertak, onClose }) {
                                     {playing ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                                     {playing ? "To'xtatish" : "Eshitish"}
                                 </button>
-                                <button onClick={() => { setPhase('countdown'); setCount(3); setElapsed(0); setRecordedUrl(null); setPlaying(false); }}
+                                <button onClick={() => { setPhase('countdown'); setCount(3); setElapsed(0); setPlaying(false); }}
                                     className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 text-white rounded-2xl font-medium hover:bg-white/20 transition-all">
                                     <Mic className="w-4 h-4" /> Qayta o'qi
                                 </button>
