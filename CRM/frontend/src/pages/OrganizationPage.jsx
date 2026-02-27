@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import Navbar from '../components/Common/Navbar';
 
@@ -18,7 +17,6 @@ import { useAuth } from '../context/AuthContext';
 
 const OrganizationPage = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -472,7 +470,7 @@ const OrganizationPage = () => {
                       <td><input type="checkbox" /></td>
                       <td>
                         <div className="user-cell">
-                          <div className="user-avatar-sm">{user.name.charAt(0)}</div>
+                          <div className="user-avatar-sm">{user.name?.charAt(0) || '?'}</div>
                           <span>{user.name}</span>
                         </div>
                       </td>
@@ -518,18 +516,18 @@ const OrganizationPage = () => {
                 </thead>
                 <tbody>
                   {pendingTeachers.map(pt => (
-                    <tr key={pt.profile.id}>
+                    <tr key={pt.profile?.id || pt.user?.id}>
                       <td>
                         <div className="user-cell">
-                          <div className="user-avatar-sm">{pt.user.first_name.charAt(0)}</div>
+                          <div className="user-avatar-sm">{pt.user?.first_name?.charAt(0) || '?'}</div>
                           <div>
                             <div className="font-medium">{pt.user.first_name} {pt.user.last_name}</div>
                             <div className="text-sm text-gray-500">{pt.user.email}</div>
                           </div>
                         </div>
                       </td>
-                      <td>{new Date(pt.profile.created_at).toLocaleDateString()}</td>
-                      <td>{pt.profile.qualification || "Kiritilmagan"}</td>
+                      <td>{pt.profile?.created_at ? new Date(pt.profile.created_at).toLocaleDateString() : '-'}</td>
+                      <td>{pt.profile?.qualification || "Kiritilmagan"}</td>
                       <td>
                         {pt.profile.diploma_url ? (
                           <a href={pt.profile.diploma_url} target="_blank" rel="noopener noreferrer" style={{ color: '#3B82F6', textDecoration: 'underline' }}>
