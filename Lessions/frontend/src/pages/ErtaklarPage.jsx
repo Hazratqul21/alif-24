@@ -358,84 +358,90 @@ function RecordingModal({ ertak, onClose }) {
                 initial={{ scale: 0.85, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.85, opacity: 0 }}
-                className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl"
+                className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-white/10 rounded-3xl p-8 w-full max-w-2xl shadow-2xl"
                 onClick={e => e.stopPropagation()}
             >
                 <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
                     <X className="w-5 h-5" />
                 </button>
-                <h2 className="text-white font-bold text-xl mb-1 pr-6">{ertak.title}</h2>
-                <p className="text-white/40 text-sm mb-6">Matnni quyida o'zing o'qi 🎤</p>
+                <h2 className="text-white font-bold text-2xl mb-1 pr-6">{ertak.title}</h2>
+                <p className="text-white/40 text-base mb-6">Matnni quyida o'zing o'qi 🎤</p>
 
-                <div className="bg-white/5 rounded-xl p-4 mb-6 max-h-40 overflow-y-auto">
-                    <p className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap">{ertak.content}</p>
+                <div className="bg-white/5 rounded-xl p-5 mb-6 max-h-[50vh] overflow-y-auto">
+                    <p className="text-white/90 text-lg leading-relaxed whitespace-pre-wrap">{ertak.content}</p>
                 </div>
 
-                {phase === 'countdown' && (
-                    <div className="flex flex-col items-center gap-4">
-                        <p className="text-white/60 text-sm">Tayyor bo'l, yozish boshlanmoqda...</p>
-                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#4b30fb] to-[#764ba2] flex items-center justify-center shadow-lg shadow-purple-500/30">
-                            <span className="text-white text-5xl font-black">{count}</span>
-                        </div>
-                    </div>
-                )}
-
-                {phase === 'reading' && (
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="relative w-20 h-20">
-                            <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" />
-                            <div className="w-20 h-20 rounded-full bg-red-500/30 border-2 border-red-500 flex items-center justify-center">
-                                <Mic className="w-8 h-8 text-red-400" />
+                {
+                    phase === 'countdown' && (
+                        <div className="flex flex-col items-center gap-4">
+                            <p className="text-white/60 text-sm">Tayyor bo'l, yozish boshlanmoqda...</p>
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#4b30fb] to-[#764ba2] flex items-center justify-center shadow-lg shadow-purple-500/30">
+                                <span className="text-white text-5xl font-black">{count}</span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                            <span className="text-red-400 font-mono text-lg font-bold">{fmt(elapsed)}</span>
-                            <span className="text-white/40 text-sm">Yozilmoqda</span>
-                        </div>
-                        <button onClick={stopRecording}
-                            className="flex items-center gap-2 px-6 py-3 bg-red-500/20 border border-red-500/40 text-red-400 rounded-2xl font-medium hover:bg-red-500/30 transition-all">
-                            <Square className="w-4 h-4" /> Tugatish
-                        </button>
-                    </div>
-                )}
+                    )
+                }
 
-                {phase === 'done' && (
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center">
-                            <span className="text-3xl">🌟</span>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-white font-bold text-lg">Barakalla!</p>
-                            <p className="text-white/50 text-sm">Juda yaxshi o'qiding!</p>
-                        </div>
-                        <div className="flex gap-3 w-full">
-                            <button onClick={togglePlay}
-                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-medium transition-all ${playing
-                                    ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
-                                    : 'bg-white/10 text-white hover:bg-white/20'}`}>
-                                {playing ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                                {playing ? "To'xtatish" : "Eshitish"}
-                            </button>
-                            <button onClick={() => { setPhase('countdown'); setCount(3); setElapsed(0); setRecordedUrl(null); setPlaying(false); }}
-                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 text-white rounded-2xl font-medium hover:bg-white/20 transition-all">
-                                <Mic className="w-4 h-4" /> Qayta o'qi
+                {
+                    phase === 'reading' && (
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="relative w-20 h-20">
+                                <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" />
+                                <div className="w-20 h-20 rounded-full bg-red-500/30 border-2 border-red-500 flex items-center justify-center">
+                                    <Mic className="w-8 h-8 text-red-400" />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                                <span className="text-red-400 font-mono text-lg font-bold">{fmt(elapsed)}</span>
+                                <span className="text-white/40 text-sm">Yozilmoqda</span>
+                            </div>
+                            <button onClick={stopRecording}
+                                className="flex items-center gap-2 px-6 py-3 bg-red-500/20 border border-red-500/40 text-red-400 rounded-2xl font-medium hover:bg-red-500/30 transition-all">
+                                <Square className="w-4 h-4" /> Tugatish
                             </button>
                         </div>
-                        {hasQuestions && (
-                            <button onClick={() => setShowQuiz(true)}
-                                className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold hover:scale-[1.02] transition-transform shadow-lg shadow-purple-500/20 mt-1">
-                                🧠 Savollarni boshlash
-                                <ChevronRight className="w-4 h-4" />
+                    )
+                }
+
+                {
+                    phase === 'done' && (
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center">
+                                <span className="text-3xl">🌟</span>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-white font-bold text-lg">Barakalla!</p>
+                                <p className="text-white/50 text-sm">Juda yaxshi o'qiding!</p>
+                            </div>
+                            <div className="flex gap-3 w-full">
+                                <button onClick={togglePlay}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-medium transition-all ${playing
+                                        ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
+                                        : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                                    {playing ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                                    {playing ? "To'xtatish" : "Eshitish"}
+                                </button>
+                                <button onClick={() => { setPhase('countdown'); setCount(3); setElapsed(0); setRecordedUrl(null); setPlaying(false); }}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 text-white rounded-2xl font-medium hover:bg-white/20 transition-all">
+                                    <Mic className="w-4 h-4" /> Qayta o'qi
+                                </button>
+                            </div>
+                            {hasQuestions && (
+                                <button onClick={() => setShowQuiz(true)}
+                                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold hover:scale-[1.02] transition-transform shadow-lg shadow-purple-500/20 mt-1">
+                                    🧠 Savollarni boshlash
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            )}
+                            <button onClick={onClose} className="text-white/40 text-sm hover:text-white/70 transition-colors">
+                                Yopish
                             </button>
-                        )}
-                        <button onClick={onClose} className="text-white/40 text-sm hover:text-white/70 transition-colors">
-                            Yopish
-                        </button>
-                    </div>
-                )}
-            </motion.div>
-        </div>
+                        </div>
+                    )
+                }
+            </motion.div >
+        </div >
     );
 }
 
