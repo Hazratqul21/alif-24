@@ -15,7 +15,7 @@
  */
 
 // FIX #2: Use the same env variable as apiService.js, with relative path fallback
-const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 
 // FIX #3: Maximum number of retries for session recreation
 const MAX_RETRIES = 3;

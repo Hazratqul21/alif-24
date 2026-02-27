@@ -16,8 +16,8 @@ export default function SmartReaderTTS() {
   const [age, setAge] = useState(7);
   
   const API_BASE_URL = import.meta.env.VITE_SMART_API_URL || 
-    (import.meta.env.VITE_API_URL 
-      ? `${import.meta.env.VITE_API_URL}/smartkids`
+    ((import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') 
+      ? `${(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')}/smartkids`
       : "/api/v1/smartkids");
   
   useEffect(() => {

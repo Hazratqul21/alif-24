@@ -3,7 +3,7 @@
  */
 
 // API URL
-export const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+export const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 
 // User roles
 export const ROLES = {

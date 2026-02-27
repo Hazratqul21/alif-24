@@ -277,7 +277,7 @@ export default function ReadingPlay() {
         try {
             const lang = task?.language || 'uz';
             const gender = 'female';
-            const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+            const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
             const baseUrl = API_URL.startsWith('http') ? API_URL : window.location.origin + API_URL;
 
             const response = await fetch(

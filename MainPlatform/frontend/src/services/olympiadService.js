@@ -6,7 +6,7 @@
  */
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 
 const getAdminHeaders = () => ({
     'X-Admin-Role': localStorage.getItem('adminRole') || '',
