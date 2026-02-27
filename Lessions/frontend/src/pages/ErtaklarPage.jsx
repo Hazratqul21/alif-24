@@ -39,6 +39,19 @@ function QuizModal({ ertak, onClose }) {
         playQuestionTTS();
     }, [qIndex, phase]);
 
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            clearInterval(timerRef.current);
+            if (recognizerRef.current) {
+                try { recognizerRef.current.stopContinuousRecognitionAsync(); recognizerRef.current.close(); } catch (_) { }
+            }
+            if (audioRef.current) {
+                try { audioRef.current.pause(); } catch (_) { }
+            }
+        };
+    }, []);
+
     const playQuestionTTS = async () => {
         try {
             setTtsPlaying(true);
@@ -467,34 +480,39 @@ function RecordingModal({ ertak, onClose }) {
 
     const togglePlay = async () => {
         if (playing) {
-            setPlaying(false);
-        } else {
-            // Azure TTS bilan qaytadan eshittiramiz (Playback) 
-            try {
-                setPlaying(true);
-                const baseUrl = 'https://alif24.uz/api/v1';
-                const text = transcriptRef.current || transcript || ertak.content;
-                const reqText = encodeURIComponent(text.substring(0, 1000));
-
-                const response = await fetch(
-                    `${baseUrl}/speech/tts?text=${reqText}&language=${ertak.language || 'uz'}&gender=female`,
-                    { credentials: 'include' }
-                );
-
-                if (!response.ok) throw new Error('TTS xato');
-
-                const blob = await response.blob();
-                const audioUrl = URL.createObjectURL(blob);
-                const audio = new Audio(audioUrl);
-                audio.onended = () => {
-                    URL.revokeObjectURL(audioUrl);
-                    setPlaying(false);
-                };
-                await audio.play();
-            } catch (err) {
-                console.error('Play reading err:', err);
-                setPlaying(false);
+            // Actually stop the audio
+            if (audioRef.current) {
+                try { audioRef.current.pause(); audioRef.current = null; } catch (_) { }
             }
+            setPlaying(false);
+            return;
+        }
+        try {
+            setPlaying(true);
+            const baseUrl = 'https://alif24.uz/api/v1';
+            const text = transcriptRef.current || transcript || ertak.content;
+            const reqText = encodeURIComponent(text.substring(0, 1000));
+
+            const response = await fetch(
+                `${baseUrl}/speech/tts?text=${reqText}&language=${ertak.language || 'uz'}&gender=female`,
+                { credentials: 'include' }
+            );
+
+            if (!response.ok) throw new Error('TTS xato');
+
+            const blob = await response.blob();
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            audioRef.current = audio;
+            audio.onended = () => {
+                URL.revokeObjectURL(audioUrl);
+                audioRef.current = null;
+                setPlaying(false);
+            };
+            await audio.play();
+        } catch (err) {
+            console.error('Play reading err:', err);
+            setPlaying(false);
         }
     };
 
