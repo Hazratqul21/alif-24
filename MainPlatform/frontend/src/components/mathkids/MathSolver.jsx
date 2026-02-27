@@ -33,12 +33,12 @@ export default function MathSolver() {
   const textareaRef = useRef(null);
 const API_BASE_URL = import.meta.env.VITE_MATH_API_URL 
   ? import.meta.env.VITE_MATH_API_URL
-  : (import.meta.env.VITE_API_URL 
-    ? `${import.meta.env.VITE_API_URL}/mathkids`
+  : ((import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') 
+    ? `${(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')}/mathkids`
     : "/api/v1/mathkids");
 
-const SPEECH_TOKEN_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/smartkids/speech-token` 
+const SPEECH_TOKEN_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') 
+  ? `${(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')}/smartkids/speech-token` 
   : "/api/v1/smartkids/speech-token";
 
   

@@ -49,8 +49,8 @@ const EharfModal = ({ isOpen, onClose, card, externalTranscript, onAskStateChang
     onTranscriptConsumedRef.current = onTranscriptConsumed;
   }, [onAskStateChange, onTranscriptConsumed]);
 
-  const SMARTKIDS_API_BASE = import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL}/smartkids`
+  const SMARTKIDS_API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
+    ? `${(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')}/smartkids`
     : "/api/v1/smartkids";
 
   const SPEECH_TOKEN_ENDPOINT = `${SMARTKIDS_API_BASE}/speech-token`;

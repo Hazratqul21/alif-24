@@ -5,12 +5,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useLocation } from "react-router-dom";
 
 
-const API_BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/smartkids`
+const API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
+  ? `${(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')}/smartkids`
   : "/api/v1/smartkids";
 
-const STORY_API_BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/smartkids`
+const STORY_API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
+  ? `${(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')}/smartkids`
   : "/api/v1/smartkids";
 
 function PlayCircleIcon({ size = 20 }) {
@@ -366,8 +366,8 @@ export default function StoryReader({ storyText, age = 7 }) {
           console.log('🎤 Fetching speech token from backend...');
 
           // Backend'dan token olish
-          const apiBase = import.meta.env.VITE_API_URL
-            ? `${import.meta.env.VITE_API_URL}/smartkids`
+          const apiBase = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
+            ? `${(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')}/smartkids`
             : "/api/v1/smartkids";
 
           const response = await fetch(`${apiBase}/speech-token`);

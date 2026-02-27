@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 
 const API_BASE_URL = import.meta.env.VITE_MATH_API_URL
   ? import.meta.env.VITE_MATH_API_URL
-  : (import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL}/mathkids`
+  : ((import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
+    ? `${(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')}/mathkids`
     : "/api/v1/mathkids");
 
 function ImageCropper({ onTextExtracted }) {

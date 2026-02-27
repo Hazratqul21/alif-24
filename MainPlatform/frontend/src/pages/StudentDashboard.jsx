@@ -19,8 +19,8 @@ import {
     School as SchoolIcon, UserPlus, LogIn
 } from 'lucide-react';
 
-const STORY_API_BASE = import.meta.env.VITE_API_URL
-    ? import.meta.env.VITE_API_URL + '/smartkids'
+const STORY_API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
+    ? (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') + '/smartkids'
     : "/api/v1/smartkids";
 
 const StudentDashboard = () => {
@@ -101,7 +101,7 @@ const StudentDashboard = () => {
     useEffect(() => {
         const fetchDashboard = async () => {
             try {
-                const apiBaseUrl = import.meta.env.VITE_API_URL || '/api/v1';
+                const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
                 const response = await fetch(`${apiBaseUrl}/dashboard/student`, {
                     credentials: 'include'
                 });
@@ -849,7 +849,7 @@ const StudentDashboard = () => {
                                         }
                                         try {
                                             setStoryTtsLoading(true);
-                                            const apiBase = import.meta.env.VITE_API_URL || '/api/v1';
+                                            const apiBase = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
                                             const resp = await fetch(`${apiBase}/public/stories/${selectedStory.id}/tts`, { method: 'POST', credentials: 'include' });
                                             if (!resp.ok) throw new Error('TTS xato');
                                             const blob = await resp.blob();

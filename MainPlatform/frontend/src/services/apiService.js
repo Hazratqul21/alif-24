@@ -1,5 +1,5 @@
 // Backend URL from environment variables or default to Vercel production
-const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 
 /**
  * API Service

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2 } from 'lucide-react';
 import apiService from '../services/apiService';
 
-let API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+let API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
     API_URL = API_URL.replace('http://', 'https://');
 }
