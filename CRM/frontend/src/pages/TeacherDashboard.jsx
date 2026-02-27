@@ -153,15 +153,6 @@ const TeacherDashboard = () => {
       alert("Iltimos, avval sinfni tanlang (Sinflar bo'limidan)");
       return;
     }
-    // Check if ID is UUID (simple check)
-    if (!selectedClass) {
-      alert("Iltimos, avval sinfni tanlang (Sinflar bo'limidan)");
-      return;
-    }
-    // Check if ID is UUID (simple check is just length, no need for complex regex here if we removed demo data)
-    // Removed demo check logic as we are removing demo data
-
-
     try {
       await teacherService.addStudentToClass(selectedClass.id, studentId);
       alert("O'quvchi sinfga qo'shildi!");
@@ -339,7 +330,7 @@ const TeacherDashboard = () => {
           <FileText size={20} />
           <span>🤖 TestAI</span>
         </button>
-        <button className={`nav-item`} onClick={() => navigate('/live-quiz/create')} style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white' }}>
+        <button className={`nav-item`} onClick={() => window.location.href = 'https://alif24.uz/livequiz-teacher'} style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white' }}>
           <Award size={20} />
           <span>🎯 Live Quiz</span>
         </button>
@@ -493,7 +484,7 @@ const TeacherDashboard = () => {
               <div key={assignment.id} className="assignment-item">
                 <div className="assignment-info">
                   <h4>{assignment.title}</h4>
-                  <p className="assignment-meta">{assignment.class} • Muddat: {new Date(assignment.dueDate).toLocaleDateString('uz-UZ')}</p>
+                  <p className="assignment-meta">{assignment.classroom_name || assignment.class} • Muddat: {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString('uz-UZ') : 'Muddatsiz'}</p>
                 </div>
                 <div className="assignment-progress">
                   <div className="progress-bar">
@@ -655,7 +646,7 @@ const TeacherDashboard = () => {
             <div className="search-results-dropdown" style={{
               position: 'absolute', top: '100%', left: 0, right: 0,
               background: 'white', border: '1px solid #ddd', borderRadius: '8px',
-              padding: '10px', index: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              padding: '10px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }}>
               <h4>Qidiruv natijalari:</h4>
               {searchResults.map(result => (
@@ -691,33 +682,33 @@ const TeacherDashboard = () => {
             </tr>
           </thead>
           <tbody>
-              {studentsList.length === 0 ? <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>O'quvchilar yo'q. Sinf tanlang yoki qo'shing.</td></tr> : studentsList.map(student => (
-                <tr key={student.id}>
-                  <td>
-                    <div className="student-cell">
-                      <div className="student-avatar">{student.first_name?.charAt(0)}</div>
-                      <span>{student.first_name} {student.last_name}</span>
-                    </div>
-                  </td>
-                  <td>{student.class_name || 'Noma\'lum'}</td>
-                  <td>
-                    <span className="grade-badge">{student.average_grade || '0'}</span>
-                  </td>
-                  <td>
-                    <div className="attendance-bar">
-                      <div className="attendance-fill" style={{ width: `${student.attendance || 0}%` }}></div>
-                      <span>{student.attendance || 0}%</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="action-buttons">
-                      <button className="icon-btn" title="Ko'rish" onClick={() => handleViewStudent(student)}><Eye size={16} /></button>
-                      <button className="icon-btn" title="Xabar" onClick={() => handleOpenMessage(student)}><MessageSquare size={16} /></button>
-                      <button className="icon-btn" title="Tahrirlash" onClick={() => handleViewStudent(student)}><Edit size={16} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+            {studentsList.length === 0 ? <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>O'quvchilar yo'q. Sinf tanlang yoki qo'shing.</td></tr> : studentsList.map(student => (
+              <tr key={student.id}>
+                <td>
+                  <div className="student-cell">
+                    <div className="student-avatar">{student.first_name?.charAt(0)}</div>
+                    <span>{student.first_name} {student.last_name}</span>
+                  </div>
+                </td>
+                <td>{student.class_name || 'Noma\'lum'}</td>
+                <td>
+                  <span className="grade-badge">{student.average_grade || '0'}</span>
+                </td>
+                <td>
+                  <div className="attendance-bar">
+                    <div className="attendance-fill" style={{ width: `${student.attendance || 0}%` }}></div>
+                    <span>{student.attendance || 0}%</span>
+                  </div>
+                </td>
+                <td>
+                  <div className="action-buttons">
+                    <button className="icon-btn" title="Ko'rish" onClick={() => handleViewStudent(student)}><Eye size={16} /></button>
+                    <button className="icon-btn" title="Xabar" onClick={() => handleOpenMessage(student)}><MessageSquare size={16} /></button>
+                    <button className="icon-btn" title="Tahrirlash" onClick={() => handleViewStudent(student)}><Edit size={16} /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
