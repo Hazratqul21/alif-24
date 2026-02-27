@@ -57,6 +57,7 @@ class ErtakCreate(BaseModel):
     age_group: str = Field(default="6-8")  # 4-6, 6-8, 8-10, 10-12
     has_audio: bool = False
     audio_url: Optional[str] = None
+    image_url: Optional[str] = None
     questions: List[QuizQuestion] = []  # Admin tomonidan qo'shilgan savollar
 
 
@@ -83,6 +84,7 @@ def _ertak_to_dict(ertak: Story) -> dict:
         "age_group": ertak.age_group,
         "has_audio": ertak.has_audio,
         "audio_url": ertak.audio_url,
+        "image_url": getattr(ertak, 'image_url', None),
         "view_count": ertak.view_count,
         "questions": ertak.questions or [],
         "created_at": ertak.created_at.isoformat() if ertak.created_at else None,

@@ -14,6 +14,7 @@ class Story(Base):
     age_group = Column(String(10), default="6-8")
     has_audio = Column(Boolean, default=False)
     audio_url = Column(String(500), nullable=True)
+    image_url = Column(String(500), nullable=True) # Rasm yuklanishi uchun qator
     view_count = Column(Integer, default=0)
     # Savollar: [{"question": "...", "answer": "..."}]
     questions = Column(JSON, nullable=True, default=list)

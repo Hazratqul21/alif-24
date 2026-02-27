@@ -17,6 +17,7 @@ export default function ContentPage() {
     const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
     const [ertakQuestions, setErtakQuestions] = useState([]); // [{question:'',answer:''}]
     const [uploadFile, setUploadFile] = useState(null);
+    const [uploadImage, setUploadImage] = useState(null);
     const [editLesson, setEditLesson] = useState(null); // lesson object to edit
     const [editForm, setEditForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
 
@@ -71,6 +72,7 @@ export default function ContentPage() {
             setCreateModal(null);
             setLessonForm({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
             setUploadFile(null);
+            setUploadImage(null);
             loadContent();
         } catch (err) {
             setError(err.response?.data?.detail || 'Xatolik');
@@ -94,12 +96,19 @@ export default function ContentPage() {
                     payload.audio_url = upRes.data.url;
                 }
             }
+            if (uploadImage) {
+                const imgRes = await adminService.uploadFile(uploadImage);
+                if (imgRes.data?.url) {
+                    payload.image_url = imgRes.data.url;
+                }
+            }
 
             await adminService.createErtak(payload);
             setCreateModal(null);
             setErtakForm({ title: '', content: '', language: 'uz', age_group: '6-8' });
             setErtakQuestions([]);
             setUploadFile(null);
+            setUploadImage(null);
             loadContent();
         } catch (err) {
             setError(err.response?.data?.detail || 'Xatolik');
@@ -462,12 +471,16 @@ export default function ContentPage() {
 
                         <div>
                             <label className="text-gray-400 text-xs mb-1 block">Audio / Fayl yuklash (Ixtiyoriy)</label>
-                            <input type="file" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                            <input type="file" accept="audio/*" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                        </div>
+                        <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Muqova rasmi (Cover Image - Ixtiyoriy)</label>
+                            <input type="file" accept="image/*" onChange={(e) => setUploadImage(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white" />
                         </div>
                     </div>
                     {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
                     <div className="flex justify-end gap-3 mt-6">
-                        <button onClick={() => setCreateModal(null)} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                        <button onClick={() => { setCreateModal(null); setUploadImage(null); setUploadFile(null); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
                         <button onClick={handleCreateErtak} disabled={saving || !ertakForm.title || !ertakForm.content} className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
                             {saving ? 'Yaratilmoqda...' : 'Yaratish'}
                         </button>

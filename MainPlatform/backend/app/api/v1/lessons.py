@@ -279,6 +279,7 @@ async def list_public_stories(
                 "age_group": s.age_group,
                 "has_audio": s.has_audio,
                 "audio_url": s.audio_url,
+                "image_url": s.image_url,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
             }
             for s in stories
