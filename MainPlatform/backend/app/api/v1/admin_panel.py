@@ -137,6 +137,7 @@ class StoryCreateRequest(BaseModel):
     language: str = "uz"
     age_group: Optional[str] = None
     audio_url: Optional[str] = None
+    questions: Optional[List[Dict[str, str]]] = None  # [{"question": "...", "answer": "..."}]
 
 class StoryUpdateRequest(BaseModel):
     title: Optional[str] = None
@@ -394,6 +395,7 @@ async def create_direct_story(
         language=data.language,
         age_group=data.age_group,
         audio_url=data.audio_url,
+        questions=data.questions or [],
     )
     
     db.add(story)
