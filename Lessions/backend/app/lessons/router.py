@@ -476,6 +476,60 @@ async def evaluate_quiz_answer(
     }
 
 
+from fastapi import Form
+
+@router.post("/ertaklar/{ertak_id}/quiz/evaluate-text")
+async def evaluate_quiz_answer_text(
+    ertak_id: str,
+    question_index: int,
+    recognized_text: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Frontend'dan tayyor matn (STT orqali olingan) qabul qilinib,
+    admin bergan to'g'ri javob bilan 100 ballik shkalada solishtiriladi.
+    """
+    res = await db.execute(select(Story).where(Story.id == ertak_id))
+    ertak = res.scalars().first()
+    if not ertak:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+
+    questions = ertak.questions or []
+    if question_index < 0 or question_index >= len(questions):
+        raise HTTPException(status_code=400, detail="Savol indeksi noto'g'ri")
+
+    correct_answer = questions[question_index].get("answer", "").strip().lower()
+    recognized_text = recognized_text.strip().lower()
+
+    # Keyword + fuzzy matching scoring (0-100)
+    score = 0
+    if recognized_text and correct_answer:
+        # Sequence matching (overall similarity)
+        ratio = difflib.SequenceMatcher(None, recognized_text, correct_answer).ratio()
+        score = int(ratio * 100)
+
+        # Bonus: har bir to'g'ri kalit so'z uchun qo'shimcha ball
+        correct_words = set(correct_answer.split())
+        recognized_words = set(recognized_text.split())
+        keyword_matches = len(correct_words & recognized_words)
+        if correct_words:
+            keyword_ratio = keyword_matches / len(correct_words)
+            # Keyword va sequence o'rtacha
+            score = int((ratio * 0.5 + keyword_ratio * 0.5) * 100)
+
+        score = min(100, max(0, score))
+
+    return {
+        "success": True,
+        "data": {
+            "recognized_text": recognized_text,
+            "correct_answer": questions[question_index].get("answer", ""),
+            "score": score,
+            "passed": score >= 60,
+        }
+    }
+
+
 # ============= TTS — Ertakni AI o'qib berish (OpenAI) =============
 
 from fastapi import Response as FastAPIResponse
