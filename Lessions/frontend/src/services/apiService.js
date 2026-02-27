@@ -1,4 +1,8 @@
-const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+// Har doim relative (/api/v1) port bilan aralashmasligi uchun host va https ta'minlanadi
+let API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
+    API_URL = API_URL.replace('http://', 'https://');
+}
 
 class ApiService {
     constructor() {
