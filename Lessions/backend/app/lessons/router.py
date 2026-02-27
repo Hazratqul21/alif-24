@@ -488,7 +488,9 @@ async def evaluate_quiz_answer_text(
     """
     Frontend'dan tayyor matn (STT orqali olingan) qabul qilinib,
     admin bergan to'g'ri javob bilan 100 ballik shkalada solishtiriladi.
+    OpenAI semantic baholash qo'llaniladi, xato bo'lsa difflib fallback.
     """
+    import httpx, os
     res = await db.execute(select(Story).where(Story.id == ertak_id))
     ertak = res.scalars().first()
     if not ertak:
@@ -498,34 +500,66 @@ async def evaluate_quiz_answer_text(
     if question_index < 0 or question_index >= len(questions):
         raise HTTPException(status_code=400, detail="Savol indeksi noto'g'ri")
 
-    correct_answer = questions[question_index].get("answer", "").strip().lower()
-    recognized_text = recognized_text.strip().lower()
+    correct_answer = questions[question_index].get("answer", "").strip()
+    question_text  = questions[question_index].get("question", "").strip()
+    recognized_clean = recognized_text.strip()
 
-    # Keyword + fuzzy matching scoring (0-100)
-    score = 0
-    if recognized_text and correct_answer:
-        # Sequence matching (overall similarity)
-        ratio = difflib.SequenceMatcher(None, recognized_text, correct_answer).ratio()
-        score = int(ratio * 100)
+    # ── 1. AI-based evaluation (semantic similarity) ──────────────────────────
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    score = None
+    ai_used = False
 
-        # Bonus: har bir to'g'ri kalit so'z uchun qo'shimcha ball
-        correct_words = set(correct_answer.split())
-        recognized_words = set(recognized_text.split())
-        keyword_matches = len(correct_words & recognized_words)
-        if correct_words:
-            keyword_ratio = keyword_matches / len(correct_words)
-            # Keyword va sequence o'rtacha
+    if api_key and recognized_clean and correct_answer:
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                prompt = (
+                    f"Savol: {question_text}\n"
+                    f"To'g'ri javob: {correct_answer}\n"
+                    f"Bola aytgan: {recognized_clean}\n\n"
+                    "Bolaning javobi ma'nosi jihatidan to'g'ri javobga qanchalik mos kelishini "
+                    "0 dan 100 gacha faqat bitta butun son bilan baholang. "
+                    "100 = to'liq mos, 0 = mutlaqo noto'g'ri. "
+                    "Faqat son qaytaring, boshqa hech narsa yozmang."
+                )
+                resp = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": "gpt-4o-mini",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.0,
+                        "max_tokens": 5,
+                    }
+                )
+                if resp.status_code == 200:
+                    raw = resp.json()["choices"][0]["message"]["content"].strip()
+                    digits = "".join(filter(str.isdigit, raw))[:3]
+                    score = max(0, min(100, int(digits or "0")))
+                    ai_used = True
+        except Exception as e:
+            logger.warning(f"AI evaluation failed, falling back to difflib: {e}")
+
+    # ── 2. Fallback: keyword + sequence matching ───────────────────────────────
+    if score is None:
+        score = 0
+        r_lower = recognized_clean.lower()
+        c_lower = correct_answer.lower()
+        if r_lower and c_lower:
+            ratio = difflib.SequenceMatcher(None, r_lower, c_lower).ratio()
+            correct_words  = set(c_lower.split())
+            recognized_words = set(r_lower.split())
+            keyword_ratio = len(correct_words & recognized_words) / len(correct_words) if correct_words else 0
             score = int((ratio * 0.5 + keyword_ratio * 0.5) * 100)
-
-        score = min(100, max(0, score))
+            score = min(100, max(0, score))
 
     return {
         "success": True,
         "data": {
-            "recognized_text": recognized_text,
-            "correct_answer": questions[question_index].get("answer", ""),
+            "recognized_text": recognized_clean,
+            "correct_answer": correct_answer,
             "score": score,
             "passed": score >= 60,
+            "ai_evaluated": ai_used,
         }
     }
 
