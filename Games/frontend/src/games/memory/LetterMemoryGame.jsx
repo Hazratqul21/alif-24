@@ -103,7 +103,7 @@ export default function MemoryGame() {
           const nm = [...matched, nf[0], nf[1]];
           setMatched(nm); setFlipped([]); setIsChecking(false);
           if (nm.length === cards.length) {
-            if (!bestScore || moves < bestScore) setBestScore(moves);
+            if (!bestScore || moves + 1 < bestScore) setBestScore(moves + 1);
             setShowWin(true);
             coinService.awardGameCoins('letter_memory', true, nm.length / 2).then(res => {
               if (res.coins_earned > 0) setEarnedCoins(res.coins_earned);
