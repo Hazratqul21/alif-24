@@ -75,7 +75,7 @@ export default function OlympiadDetail() {
             setSubmitted(true);
             loadLeaderboard();
         } catch (err) {
-            setRegError(err.message);
+            setError(err.message);
         }
     };
 
@@ -195,8 +195,8 @@ export default function OlympiadDetail() {
                                             key={oi}
                                             onClick={() => handleAnswer(q.id, oi)}
                                             className={`w-full text-left p-4 rounded-xl border transition-all ${answers[q.id] === oi
-                                                    ? 'bg-indigo-600/30 border-indigo-500 text-white'
-                                                    : 'bg-white/5 border-white/10 text-indigo-300 hover:bg-white/10'
+                                                ? 'bg-indigo-600/30 border-indigo-500 text-white'
+                                                : 'bg-white/5 border-white/10 text-indigo-300 hover:bg-white/10'
                                                 }`}
                                         >
                                             <span className="font-medium mr-2">{String.fromCharCode(65 + oi)}.</span>
@@ -272,10 +272,9 @@ export default function OlympiadDetail() {
                                     const medalColor = entry.rank === 1 ? 'text-yellow-400' : entry.rank === 2 ? 'text-gray-300' : entry.rank === 3 ? 'text-amber-600' : 'text-indigo-500';
                                     return (
                                         <div
-                                            key={entry.rank}
-                                            className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-                                                isMe ? 'bg-indigo-600/20 border border-indigo-500/30' : 'bg-white/5 hover:bg-white/10'
-                                            }`}
+                                            key={entry.student_id || `rank-${entry.rank}`}
+                                            className={`flex items-center gap-3 p-3 rounded-xl transition-all ${isMe ? 'bg-indigo-600/20 border border-indigo-500/30' : 'bg-white/5 hover:bg-white/10'
+                                                }`}
                                         >
                                             <div className={`w-8 h-8 flex items-center justify-center font-bold text-sm ${medalColor}`}>
                                                 {entry.rank <= 3 ? <Medal className="w-5 h-5" /> : `#${entry.rank}`}
