@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Mic, Square, X, ChevronRight, Volume2 } from 'lucide-react';
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import readingService from '../services/readingService';
+import { getSimilarity, extractWords } from '../utils/fuzzyMatch';
 
 const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 
@@ -46,6 +47,11 @@ export default function ReadingPlay() {
     const [currentQ, setCurrentQ] = useState(0);
     const [answers, setAnswers] = useState([]);
 
+    // Karaoke Highlighting logic
+    const [expectedWords, setExpectedWords] = useState([]);
+    const [currentWordIndex, setCurrentWordIndex] = useState(0);
+    const wordIndexRef = useRef(0); // Synchronize state and callback
+
     // ============ LOAD TASK ============
     useEffect(() => {
         loadTask();
@@ -64,6 +70,11 @@ export default function ReadingPlay() {
         try {
             const data = await readingService.getTask(compId, taskId);
             setTask(data.task);
+
+            // Build expected words for highlighting
+            if (data.task?.story_text) {
+                setExpectedWords(extractWords(data.task.story_text));
+            }
 
             if (data.session?.status === 'completed') {
                 setError("Bu hikoyani allaqachon o'qib bo'lgansiz");
@@ -101,6 +112,10 @@ export default function ReadingPlay() {
         transcriptRef.current = '';
         setTranscript('');
 
+        // Reset fuzzy match state
+        setCurrentWordIndex(0);
+        wordIndexRef.current = 0;
+
         const ok = await ensureSpeechConfig();
         if (!ok) return;
 
@@ -116,8 +131,39 @@ export default function ReadingPlay() {
 
             recognizer.recognized = (s, e) => {
                 if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
-                    transcriptRef.current += (e.result.text + " ");
+                    const newText = e.result.text;
+                    transcriptRef.current += (newText + " ");
                     setTranscript(transcriptRef.current);
+
+                    // --- Fuzzy Matching Logic (Karaoke Highlight) ---
+                    // Har qanday yangi so'zlarni arrayga o'giramiz
+                    const spokenWords = extractWords(newText);
+                    let currentIndex = wordIndexRef.current;
+                    const expected = expectedWords;
+
+                    // Aytilgan har bir so'zni kutilyotgan hikoya matni bilan solishtiramiz
+                    // Fuzzy match (>=70%) looks up to 3 following words to catch skipped words
+                    for (let sw of spokenWords) {
+                        if (currentIndex >= expected.length) break;
+
+                        let matchedIndex = -1;
+                        let lookaheadLimit = Math.min(currentIndex + 3, expected.length);
+
+                        for (let k = currentIndex; k < lookaheadLimit; k++) {
+                            const similarity = getSimilarity(sw, expected[k]);
+                            if (similarity >= 0.70) {
+                                matchedIndex = k;
+                                break;
+                            }
+                        }
+
+                        if (matchedIndex !== -1) {
+                            currentIndex = matchedIndex + 1; // move tracker ahead
+                        }
+                    }
+
+                    wordIndexRef.current = currentIndex;
+                    setCurrentWordIndex(currentIndex);
                 }
             };
 
@@ -319,7 +365,13 @@ export default function ReadingPlay() {
                         <div className="bg-gray-800/50 rounded-2xl p-5 mb-6 max-h-[40vh] overflow-y-auto">
                             <h2 className="text-white/60 text-xs mb-2 uppercase tracking-wide">{task?.title}</h2>
                             <p className="text-white text-lg leading-relaxed whitespace-pre-wrap font-serif">
-                                {task?.story_text}
+                                {expectedWords.map((word, idx) => (
+                                    <span key={idx} className={`inline-block mr-1 transition-colors duration-300 ${idx < currentWordIndex ? "text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+                                            : "text-white"
+                                        }`}>
+                                        {word}
+                                    </span>
+                                ))}
                             </p>
 
                             {/* LIVE MATCH Text if speaking */}
