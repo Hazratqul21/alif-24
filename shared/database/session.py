@@ -85,7 +85,24 @@ async def init_db():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    logger.info("[OK] Database tables created successfully (Async)")
+        
+        # Auto-migrate script to avoid 500 errors if columns are missing in existing tables
+        from sqlalchemy import text
+        try:
+            # Ertaklar table modifications
+            await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS questions JSON DEFAULT '[]';"))
+            await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS age_group VARCHAR(10) DEFAULT '6-8';"))
+            await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS has_audio BOOLEAN DEFAULT false;"))
+            await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS audio_url VARCHAR(500);"))
+            await conn.execute(text("ALTER TABLE ertaklar ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0;"))
+            
+            # Lessons table modifications
+            await conn.execute(text("ALTER TABLE lessons ADD COLUMN IF NOT EXISTS video_url VARCHAR(500);"))
+            await conn.execute(text("ALTER TABLE lessons ADD COLUMN IF NOT EXISTS attachments JSON;"))
+            await conn.execute(text("ALTER TABLE lessons ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT 'uz';"))
+        except Exception as e:
+            logger.error(f"Auto-migration missing columns failed: {e}")
 
+    logger.info("[OK] Database tables created/migrated successfully (Async)")
 
 __all__ = ["engine", "AsyncSessionLocal", "get_db", "init_db"]
