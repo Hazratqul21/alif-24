@@ -815,9 +815,9 @@ const StudentDashboard = () => {
                     setStoryRecording(false); setStoryRecordedUrl(null); setStoryPlayingRec(false);
                     setSelectedStory(null);
                 }}>
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-start mb-4">
-                            <h3 className="text-xl font-bold text-gray-800">{selectedStory.title}</h3>
+                            <h3 className="text-2xl font-bold text-gray-800">{selectedStory.title}</h3>
                             <button onClick={() => {
                                 if (storyAudioRef.current) { storyAudioRef.current.pause(); storyAudioRef.current = null; }
                                 if (storyMediaRecRef.current?.state === 'recording') storyMediaRecRef.current.stop();
@@ -833,7 +833,7 @@ const StudentDashboard = () => {
                         </div>
 
                         {/* Ertak matni */}
-                        <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed mb-5">{selectedStory.content}</div>
+                        <div className="prose prose-lg max-w-none text-gray-800 whitespace-pre-wrap leading-relaxed mb-6 bg-gray-50 p-6 rounded-2xl border border-gray-100">{selectedStory.content}</div>
 
                         {/* 1-qadam: AI o'qib bersin */}
                         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-3">
