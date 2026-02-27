@@ -21,12 +21,16 @@ export default function QuizPlayPage() {
         setStatus('waiting');
     }, [quizId]);
 
-    // Timer countdown
+    // Timer countdown — only depends on `status` to avoid re-creating interval every tick
     useEffect(() => {
-        if (status !== 'question' || timeLeft <= 0) return;
-        const timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
+        if (status !== 'question') return;
+        if (timeLeft <= 0) return;
+        const timer = setInterval(() => setTimeLeft(t => {
+            if (t <= 1) { clearInterval(timer); return 0; }
+            return t - 1;
+        }), 1000);
         return () => clearInterval(timer);
-    }, [status, timeLeft]);
+    }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleAnswer = (index) => {
         if (status !== 'question' || selectedAnswer !== null) return;
