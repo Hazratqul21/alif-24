@@ -160,18 +160,14 @@ const StudentDashboard = () => {
         }
     }, [activeTab, mySchool]);
 
-    // Timer logic
+    // Timer logic — only depends on isTimerRunning to avoid re-creating interval every tick
     useEffect(() => {
-        let interval;
-        if (isTimerRunning) {
-            interval = setInterval(() => {
-                setTimer((prev) => prev + 1);
-            }, 1000);
-        } else if (!isTimerRunning && timer !== 0) {
-            clearInterval(interval);
-        }
+        if (!isTimerRunning) return;
+        const interval = setInterval(() => {
+            setTimer((prev) => prev + 1);
+        }, 1000);
         return () => clearInterval(interval);
-    }, [isTimerRunning, timer]);
+    }, [isTimerRunning]);
 
     const handleDailyBonus = async () => {
         try {
@@ -518,7 +514,7 @@ const StudentDashboard = () => {
                             <p className="text-white/80 text-xs">Kod bilan qo'shiling</p>
                         </div>
                     </button>
-                    <button onClick={() => navigate('/dashboard')} className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
+                    <button onClick={() => window.location.href = 'https://olimp.alif24.uz'} className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
                         <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center"><Trophy size={24} /></div>
                         <div className="text-left">
                             <h3 className="font-bold text-lg">Olimpiada</h3>
