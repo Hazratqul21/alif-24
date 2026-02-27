@@ -42,12 +42,13 @@ function QuizModal({ ertak, onClose }) {
     const playQuestionTTS = async () => {
         try {
             setTtsPlaying(true);
-            const res = await fetch(`${API_URL}/tts`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ text: currentQ.question, language: ertak.language || 'uz' }),
-            });
+            // Force main platform URL so TTS works from lessions subdomain
+            const mainApi = 'https://alif24.uz/api/v1';
+            const lang = ertak.language || 'uz';
+            const res = await fetch(
+                `${mainApi}/speech/tts?text=${encodeURIComponent(currentQ.question)}&language=${lang}&gender=female`,
+                { credentials: 'include' }
+            );
             if (!res.ok) throw new Error('TTS error');
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
@@ -69,8 +70,10 @@ function QuizModal({ ertak, onClose }) {
     const ensureSpeechConfig = async () => {
         if (speechConfigRef.current) return true;
         try {
-            const resp = await fetch(`${API_URL}/smartkids/speech-token`);
-            if (!resp.ok) throw new Error(`speech-token failed`);
+            // Force main platform URL so token works across all subdomains
+            const mainApi = 'https://alif24.uz/api/v1';
+            const resp = await fetch(`${mainApi}/smartkids/speech-token`);
+            if (!resp.ok) throw new Error(`speech-token failed with status: ${resp.status}`);
             const data = await resp.json();
             const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
             cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
@@ -358,8 +361,10 @@ function RecordingModal({ ertak, onClose }) {
     const ensureSpeechConfig = async () => {
         if (speechConfigRef.current) return true;
         try {
-            const resp = await fetch(`${API_URL}/smartkids/speech-token`);
-            if (!resp.ok) throw new Error(`speech-token failed`);
+            // Force main platform URL so token works across all subdomains
+            const mainApi = 'https://alif24.uz/api/v1';
+            const resp = await fetch(`${mainApi}/smartkids/speech-token`);
+            if (!resp.ok) throw new Error(`speech-token failed with status: ${resp.status}`);
             const data = await resp.json();
             const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
             cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
@@ -521,7 +526,7 @@ function RecordingModal({ ertak, onClose }) {
                     <p className="text-white/90 text-lg leading-relaxed whitespace-pre-wrap">
                         {expectedWords.map((word, idx) => (
                             <span key={idx} className={`inline-block mr-1 transition-colors duration-300 ${idx < currentWordIndex ? "text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
-                                    : "text-white/90"
+                                : "text-white/90"
                                 }`}>
                                 {word}
                             </span>
