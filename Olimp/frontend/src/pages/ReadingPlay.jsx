@@ -49,6 +49,7 @@ export default function ReadingPlay() {
     // TTS
     const [isPlayingTTS, setIsPlayingTTS] = useState(false);
     const audioRef = useRef(null);
+    const questionAudioRef = useRef(null); // Savol TTS uchun alohida ref
 
     // ============ LOAD TASK ============
     useEffect(() => {
@@ -263,14 +264,56 @@ export default function ReadingPlay() {
         }
     };
 
-    // ============ TTS (browser) ============
-    const speakQuestion = (text) => {
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = task?.language === 'ru' ? 'ru-RU' : task?.language === 'en' ? 'en-US' : 'uz-UZ';
-            utterance.rate = 0.9;
-            window.speechSynthesis.speak(utterance);
+    // ============ TTS (Azure backend) ============
+    const speakQuestion = async (text) => {
+        if (!text) return;
+
+        // Avvalgi savolni to'xtatish
+        if (questionAudioRef.current) {
+            questionAudioRef.current.pause();
+            questionAudioRef.current = null;
+        }
+
+        try {
+            const lang = task?.language || 'uz';
+            const gender = 'female';
+            const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+            const baseUrl = API_URL.startsWith('http') ? API_URL : window.location.origin + API_URL;
+
+            const response = await fetch(
+                `${baseUrl}/speech/tts?text=${encodeURIComponent(text)}&language=${lang}&gender=${gender}`,
+                { credentials: 'include' }
+            );
+
+            if (!response.ok) {
+                // Fallback: brauzer TTS
+                console.warn('[TTS] Backend TTS ishlamadi, brauzer TTS ishlatilmoqda');
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = lang === 'ru' ? 'ru-RU' : lang === 'en' ? 'en-US' : 'uz-UZ';
+                    utterance.rate = 0.9;
+                    window.speechSynthesis.speak(utterance);
+                }
+                return;
+            }
+
+            const blob = await response.blob();
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            questionAudioRef.current = audio;
+            audio.onended = () => URL.revokeObjectURL(audioUrl);
+            await audio.play();
+        } catch (err) {
+            console.warn('[TTS] Azure TTS xatoligi, brauzer TTS ishlatilmoqda:', err.message);
+            // Fallback: brauzer TTS
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = task?.language === 'ru' ? 'ru-RU' : task?.language === 'en' ? 'en-US' : 'uz-UZ';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            }
         }
     };
 
@@ -411,11 +454,10 @@ export default function ReadingPlay() {
                     <button
                         onClick={playTTS}
                         disabled={isPlayingTTS}
-                        className={`mb-4 px-6 py-2 rounded-xl font-bold transition-all ${
-                            isPlayingTTS
+                        className={`mb-4 px-6 py-2 rounded-xl font-bold transition-all ${isPlayingTTS
                                 ? 'bg-amber-500 text-white animate-pulse'
                                 : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        }`}
+                            }`}
                     >
                         {isPlayingTTS ? '⏸ To\'xtatish' : '🔊 Hikoyani eshittirish'}
                     </button>
@@ -575,14 +617,12 @@ export default function ReadingPlay() {
                         <div className="space-y-3">
                             {q.options?.map((opt, j) => (
                                 <button key={j} onClick={() => selectAnswer(currentQ, j)}
-                                    className={`w-full text-left px-5 py-4 rounded-xl border transition-all ${
-                                        answers[currentQ] === j
+                                    className={`w-full text-left px-5 py-4 rounded-xl border transition-all ${answers[currentQ] === j
                                             ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
                                             : 'border-gray-800 bg-gray-800/50 text-gray-300 hover:border-gray-600'
-                                    }`}>
-                                    <span className={`inline-flex w-7 h-7 rounded-lg items-center justify-center text-sm font-bold mr-3 ${
-                                        answers[currentQ] === j ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-gray-400'
-                                    }`}>{String.fromCharCode(65 + j)}</span>
+                                        }`}>
+                                    <span className={`inline-flex w-7 h-7 rounded-lg items-center justify-center text-sm font-bold mr-3 ${answers[currentQ] === j ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-gray-400'
+                                        }`}>{String.fromCharCode(65 + j)}</span>
                                     {opt}
                                 </button>
                             ))}
