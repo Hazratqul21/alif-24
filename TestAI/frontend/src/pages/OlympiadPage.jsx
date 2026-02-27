@@ -36,6 +36,7 @@ const OlympiadPage = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [olympiadId, setOlympiadId] = useState(null);
   const timerRef = useRef(null);
+  const olympiadIdRef = useRef(null); // ref to avoid stale closure in timer interval
 
   // Results
   const [results, setResults] = useState(null);
@@ -76,6 +77,7 @@ const OlympiadPage = () => {
     setLoading(true);
     setError('');
     setOlympiadId(id);
+    olympiadIdRef.current = id; // keep ref in sync for the timer interval
     try {
       const data = await olympiadService.begin(id);
       setExamData(data);
@@ -90,7 +92,10 @@ const OlympiadPage = () => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timerRef.current);
-            handleFinish();
+            // Use ref so we don't capture a stale olympiadId
+            olympiadService.complete(olympiadIdRef.current)
+              .then(res => { setResults(res); setPhase('results'); })
+              .catch(err => setError(err.message || 'Tugatishda xatolik'));
             return 0;
           }
           return prev - 1;
