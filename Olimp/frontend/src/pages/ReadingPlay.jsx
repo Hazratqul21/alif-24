@@ -79,9 +79,10 @@ export default function ReadingPlay() {
     const ensureSpeechConfig = async () => {
         if (speechConfigRef.current) return true;
         try {
-            const baseUrl = API_URL.startsWith('http') ? API_URL : window.location.origin + API_URL;
+            // Force use the main platform API for token fetching to avoid CORS or proxy issues on Olimp sub-domain
+            const baseUrl = 'https://alif24.uz/api/v1';
             const resp = await fetch(`${baseUrl}/smartkids/speech-token`);
-            if (!resp.ok) throw new Error(`speech-token failed`);
+            if (!resp.ok) throw new Error(`speech-token failed with status: ${resp.status}`);
             const data = await resp.json();
             const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
             cfg.speechRecognitionLanguage = task?.language === 'ru' ? 'ru-RU' : task?.language === 'en' ? 'en-US' : 'uz-UZ';
@@ -193,7 +194,8 @@ export default function ReadingPlay() {
         try {
             const lang = task?.language || 'uz';
             const gender = 'female';
-            const baseUrl = API_URL.startsWith('http') ? API_URL : window.location.origin + API_URL;
+            // Use main platform URL to ensure TTS works smoothly across domains
+            const baseUrl = 'https://alif24.uz/api/v1';
 
             const response = await fetch(
                 `${baseUrl}/speech/tts?text=${encodeURIComponent(text)}&language=${lang}&gender=${gender}`,
