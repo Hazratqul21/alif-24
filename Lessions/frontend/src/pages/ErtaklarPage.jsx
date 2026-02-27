@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2 } from 'lucide-react';
+import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import apiService from '../services/apiService';
 
 let API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
@@ -19,11 +20,13 @@ function QuizModal({ ertak, onClose }) {
     const [evaluating, setEvaluating] = useState(false);
     const [elapsed, setElapsed] = useState(0);
     const [ttsPlaying, setTtsPlaying] = useState(false);
+    const [sttError, setSttError] = useState('');
 
-    const mediaRecorderRef = useRef(null);
-    const chunksRef = useRef([]);
     const timerRef = useRef(null);
     const audioRef = useRef(null);
+    const speechConfigRef = useRef(null);
+    const recognizerRef = useRef(null);
+    const recognizedTextRef = useRef('');
 
     const currentQ = questions[qIndex];
     const totalScore = scores.length ? Math.round(scores.reduce((a, b) => a + b.score, 0) / scores.length) : 0;
@@ -62,41 +65,32 @@ function QuizModal({ ertak, onClose }) {
         }
     };
 
-    const startRecording = async () => {
+    const ensureSpeechConfig = async () => {
+        if (speechConfigRef.current) return true;
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mr = new MediaRecorder(stream);
-            mediaRecorderRef.current = mr;
-            chunksRef.current = [];
-            mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-            mr.onstop = () => { stream.getTracks().forEach(t => t.stop()); };
-            mr.start();
-            setRecording(true);
-            setElapsed(0);
-            timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
-        } catch {
-            alert('Mikrofonga ruxsat bering!');
+            const resp = await fetch(`${API_URL}/smartkids/speech-token`);
+            if (!resp.ok) throw new Error(`speech-token failed`);
+            const data = await resp.json();
+            const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
+            cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
+            speechConfigRef.current = cfg;
+            return true;
+        } catch (e) {
+            console.error('Speech config init failed:', e);
+            setSttError("Ovozli tanishga ulanib bo'lmadi.");
+            return false;
         }
     };
 
-    const stopAndEvaluate = async () => {
-        clearInterval(timerRef.current);
+    const evaluateText = async (text) => {
         setRecording(false);
-        if (mediaRecorderRef.current?.state === 'recording') {
-            mediaRecorderRef.current.stop();
-        }
         setEvaluating(true);
-
-        // Wait for chunks to be populated
-        await new Promise(r => setTimeout(r, 300));
-
         try {
-            const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
             const formData = new FormData();
-            formData.append('audio', blob, 'answer.webm');
+            formData.append('recognized_text', text);
 
             const res = await fetch(
-                `${API_URL}/ertaklar/${ertak.id}/quiz/evaluate?question_index=${qIndex}`,
+                `${API_URL}/ertaklar/${ertak.id}/quiz/evaluate-text?question_index=${qIndex}`,
                 { method: 'POST', body: formData, credentials: 'include' }
             );
             const json = await res.json();
@@ -108,10 +102,53 @@ function QuizModal({ ertak, onClose }) {
                 passed: d.passed ?? false,
             }]);
         } catch {
-            setScores(prev => [...prev, { score: 0, recognized: '', correct: currentQ.answer, passed: false }]);
+            setScores(prev => [...prev, { score: 0, recognized: text, correct: currentQ.answer, passed: false }]);
         } finally {
             setEvaluating(false);
             setPhase('result');
+        }
+    };
+
+    const startRecording = async () => {
+        setSttError('');
+        recognizedTextRef.current = '';
+        const ok = await ensureSpeechConfig();
+        if (!ok) return;
+
+        try {
+            setRecording(true);
+            setElapsed(0);
+            timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
+
+            const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+            const recognizer = new SpeechSDK.SpeechRecognizer(speechConfigRef.current, audioConfig);
+            recognizerRef.current = recognizer;
+
+            recognizer.recognized = (s, e) => {
+                if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+                    recognizedTextRef.current += (e.result.text + " ");
+                }
+            };
+
+            recognizer.startContinuousRecognitionAsync();
+        } catch (e) {
+            console.error('startRecording failed:', e);
+            setRecording(false);
+            setSttError("Mikrofon ochilmadi. Ruxsatni tekshiring.");
+        }
+    };
+
+    const stopAndEvaluate = () => {
+        clearInterval(timerRef.current);
+        if (recognizerRef.current) {
+            const rec = recognizerRef.current;
+            recognizerRef.current = null;
+            rec.stopContinuousRecognitionAsync(() => {
+                try { rec.close(); } catch (_) { }
+                evaluateText(recognizedTextRef.current.trim());
+            });
+        } else {
+            evaluateText(recognizedTextRef.current.trim());
         }
     };
 
@@ -237,6 +274,7 @@ function QuizModal({ ertak, onClose }) {
                                     </>
                                 ) : (
                                     <>
+                                        {sttError && <p className="text-red-400 text-xs text-center mb-2">{sttError}</p>}
                                         <p className="text-white/60 text-sm text-center">Mikrofonni bosib javob bering</p>
                                         <button onClick={startRecording}
                                             className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-base hover:scale-105 transition-transform shadow-lg shadow-purple-500/30">
