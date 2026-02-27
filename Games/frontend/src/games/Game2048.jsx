@@ -27,16 +27,16 @@ const addRandom = (grid) => {
 
 const slideRow = (row) => {
     let arr = row.filter(v => v);
-    let merged = false;
+    let score = 0;
     for (let i = 0; i < arr.length - 1; i++) {
         if (arr[i] === arr[i + 1]) {
             arr[i] *= 2;
+            score += arr[i]; // only add merged value
             arr.splice(i + 1, 1);
-            merged = true;
         }
     }
     while (arr.length < SIZE) arr.push(0);
-    return { row: arr, moved: arr.some((v, i) => v !== row[i]), merged };
+    return { row: arr, moved: arr.some((v, i) => v !== row[i]), score };
 };
 
 const move = (grid, dir) => {
@@ -48,12 +48,14 @@ const move = (grid, dir) => {
         g = g.map(row => {
             const res = slideRow(row);
             if (res.moved) moved = true;
+            score += res.score;
             return res.row;
         });
     } else if (dir === 'right') {
         g = g.map(row => {
             const res = slideRow([...row].reverse());
             if (res.moved) moved = true;
+            score += res.score;
             return res.row.reverse();
         });
     } else if (dir === 'up') {
@@ -61,6 +63,7 @@ const move = (grid, dir) => {
             const col = g.map(r => r[c]);
             const res = slideRow(col);
             if (res.moved) moved = true;
+            score += res.score;
             res.row.forEach((v, r) => g[r][c] = v);
         }
     } else if (dir === 'down') {
@@ -68,12 +71,10 @@ const move = (grid, dir) => {
             const col = g.map(r => r[c]).reverse();
             const res = slideRow(col);
             if (res.moved) moved = true;
+            score += res.score;
             res.row.reverse().forEach((v, r) => g[r][c] = v);
         }
     }
-
-    // Calculate score from current grid
-    g.forEach(r => r.forEach(v => { score += v; }));
 
     return { grid: g, moved, score };
 };
@@ -105,7 +106,7 @@ const Game2048 = () => {
         if (result.moved) {
             const newGrid = addRandom(result.grid);
             setGrid(newGrid);
-            const newScore = result.score;
+            const newScore = score + result.score; // add only merged values
             setScore(newScore);
             if (newScore > best) {
                 setBest(newScore);
