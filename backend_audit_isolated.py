@@ -3,7 +3,7 @@ import subprocess
 import py_compile
 
 repo_root = "/Users/hazratqul/Desktop/alif24-platform"
-backends_to_audit = ["Olimp", "Harf", "CRM", "Games", "TestAI"]
+backends_to_audit = ["Olimp", "Harf", "CRM", "Games", "TestAI", "MainPlatform", "Lessions"]
 
 issues_found = []
 

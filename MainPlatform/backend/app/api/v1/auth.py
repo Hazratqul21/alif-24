@@ -56,7 +56,7 @@ async def register(request: Request, data: RegisterRequest, response: Response, 
         secure=not settings.DEBUG,
         samesite="lax",
         domain=domain,
-        max_age=15 * 60  # 15 minutes
+        max_age=8 * 60 * 60  # 8 hours
     )
     response.set_cookie(
         key="refresh_token",
@@ -65,7 +65,7 @@ async def register(request: Request, data: RegisterRequest, response: Response, 
         secure=not settings.DEBUG,
         samesite="lax",
         domain=domain,
-        max_age=7 * 24 * 60 * 60  # 7 days
+        max_age=30 * 24 * 60 * 60  # 30 days
     )
     
     return {
@@ -89,7 +89,7 @@ async def login(request: Request, data: LoginRequest, response: Response, db: As
         secure=not settings.DEBUG,
         samesite="lax",
         domain=domain,
-        max_age=15 * 60
+        max_age=8 * 60 * 60  # 8 hours
     )
     response.set_cookie(
         key="refresh_token",
@@ -98,7 +98,7 @@ async def login(request: Request, data: LoginRequest, response: Response, db: As
         secure=not settings.DEBUG,
         samesite="lax",
         domain=domain,
-        max_age=7 * 24 * 60 * 60
+        max_age=30 * 24 * 60 * 60  # 30 days
     )
     
     return {
@@ -131,7 +131,7 @@ async def refresh_token(request: Request, response: Response, data: RefreshToken
         secure=not settings.DEBUG,
         samesite="lax",
         domain=domain,
-        max_age=15 * 60
+        max_age=8 * 60 * 60  # 8 hours
     )
     response.set_cookie(
         key="refresh_token",
@@ -140,7 +140,7 @@ async def refresh_token(request: Request, response: Response, data: RefreshToken
         secure=not settings.DEBUG,
         samesite="lax",
         domain=domain,
-        max_age=7 * 24 * 60 * 60
+        max_age=30 * 24 * 60 * 60  # 30 days
     )
     
     return {
@@ -428,7 +428,7 @@ async def child_login(
         secure=not settings.DEBUG,
         samesite="lax",
         domain=domain,
-        max_age=15 * 60
+        max_age=8 * 60 * 60  # 8 hours
     )
     response.set_cookie(
         key="refresh_token",
@@ -437,7 +437,7 @@ async def child_login(
         secure=not settings.DEBUG,
         samesite="lax",
         domain=domain,
-        max_age=7 * 24 * 60 * 60
+        max_age=30 * 24 * 60 * 60  # 30 days
     )
     
     return {
