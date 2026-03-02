@@ -423,11 +423,11 @@ function RecordingModal({ ertak, onClose }) {
                             if (currentIndex >= expected.length) break;
 
                             let matchedIndex = -1;
-                            let lookaheadLimit = Math.min(currentIndex + 3, expected.length);
+                            let lookaheadLimit = Math.min(currentIndex + 5, expected.length);
 
                             for (let k = currentIndex; k < lookaheadLimit; k++) {
                                 const similarity = getSimilarity(sw, expected[k]);
-                                if (similarity >= 0.70) {
+                                if (similarity >= 0.55) {
                                     matchedIndex = k;
                                     break;
                                 }
@@ -543,21 +543,13 @@ function RecordingModal({ ertak, onClose }) {
                 <div className="bg-white/5 rounded-xl p-5 mb-6 max-h-[50vh] overflow-y-auto">
                     <p className="text-white/90 text-lg leading-relaxed whitespace-pre-wrap">
                         {expectedWords.map((word, idx) => (
-                            <span key={idx} className={`inline-block mr-1 transition-colors duration-300 ${idx < currentWordIndex ? "text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+                            <span key={idx} className={`inline-block mr-1 transition-colors duration-150 ${idx < currentWordIndex ? "text-emerald-400 font-bold drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]"
                                 : "text-white/90"
                                 }`}>
                                 {word}
                             </span>
                         ))}
                     </p>
-
-                    {/* Live Highlight Helper */}
-                    {transcript && (
-                        <div className="mt-4 p-3 bg-black/30 rounded-lg border-l-2 border-[#4b30fb]">
-                            <p className="text-xs text-white/40 mb-1">Siz o'qiyapsiz:</p>
-                            <p className="text-[#4b30fb] text-sm font-medium leading-relaxed">{transcript}</p>
-                        </div>
-                    )}
                 </div>
 
                 {
@@ -594,40 +586,85 @@ function RecordingModal({ ertak, onClose }) {
                 }
 
                 {
-                    phase === 'done' && (
-                        <div className="flex flex-col items-center gap-4">
-                            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center">
-                                <span className="text-3xl">🌟</span>
-                            </div>
-                            <div className="text-center">
-                                <p className="text-white font-bold text-lg">Barakalla!</p>
-                                <p className="text-white/50 text-sm">Juda yaxshi o'qiding!</p>
-                            </div>
-                            <div className="flex gap-3 w-full">
-                                <button onClick={togglePlay}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-medium transition-all ${playing
-                                        ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
-                                        : 'bg-white/10 text-white hover:bg-white/20'}`}>
-                                    {playing ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                                    {playing ? "To'xtatish" : "Eshitish"}
+                    phase === 'done' && (() => {
+                        const totalWords = expectedWords.length;
+                        const wordsRead = currentWordIndex;
+                        const readPercent = totalWords > 0 ? Math.round((wordsRead / totalWords) * 100) : 0;
+                        const minutes = elapsed / 60;
+                        const wpm = minutes > 0 ? Math.round(wordsRead / minutes) : 0;
+                        const coinEarned = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
+                        const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
+                        const wpmBg = wpm >= 60 ? 'from-emerald-500/20 to-emerald-600/10' : wpm >= 40 ? 'from-amber-500/20 to-amber-600/10' : 'from-red-500/20 to-red-600/10';
+                        const emoji = wpm >= 60 ? '🏆' : wpm >= 40 ? '⭐' : '💪';
+                        const fmtTime = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
+
+                        return (
+                            <div className="flex flex-col items-center gap-5">
+                                {/* Hero */}
+                                <div className="text-5xl">{emoji}</div>
+                                <div className="text-center">
+                                    <p className="text-white font-bold text-2xl">O'qish natijasi</p>
+                                    <p className="text-white/40 text-sm mt-1">{ertak.title}</p>
+                                </div>
+
+                                {/* Stats grid */}
+                                <div className="grid grid-cols-2 gap-3 w-full">
+                                    <div className={`bg-gradient-to-br ${wpmBg} border border-white/10 rounded-2xl p-4 text-center`}>
+                                        <p className={`text-3xl font-black ${wpmColor}`}>{wpm}</p>
+                                        <p className="text-white/40 text-xs mt-1">so'z / daqiqa</p>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-white/10 rounded-2xl p-4 text-center">
+                                        <p className="text-3xl font-black text-blue-400">{readPercent}%</p>
+                                        <p className="text-white/40 text-xs mt-1">o'qilgan</p>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-white/10 rounded-2xl p-4 text-center">
+                                        <p className="text-3xl font-black text-purple-400">{fmtTime}</p>
+                                        <p className="text-white/40 text-xs mt-1">vaqt</p>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 border border-white/10 rounded-2xl p-4 text-center">
+                                        <p className="text-3xl font-black text-yellow-400">+{coinEarned}</p>
+                                        <p className="text-white/40 text-xs mt-1">coin 🪙</p>
+                                    </div>
+                                </div>
+
+                                {/* Words read detail */}
+                                <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-white/50 text-xs">O'qilgan so'zlar</span>
+                                        <span className="text-white font-bold text-sm">{wordsRead} / {totalWords}</span>
+                                    </div>
+                                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500" style={{ width: `${readPercent}%` }} />
+                                    </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex gap-3 w-full">
+                                    <button onClick={togglePlay}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-medium transition-all ${playing
+                                            ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
+                                            : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                                        {playing ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                                        {playing ? "To'xtatish" : "Eshitish"}
+                                    </button>
+                                    <button onClick={() => { setPhase('countdown'); setCount(3); setElapsed(0); setPlaying(false); setCurrentWordIndex(0); wordIndexRef.current = 0; setTranscript(''); transcriptRef.current = ''; }}
+                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 text-white rounded-2xl font-medium hover:bg-white/20 transition-all">
+                                        <Mic className="w-4 h-4" /> Qayta o'qi
+                                    </button>
+                                </div>
+                                {hasQuestions && (
+                                    <button onClick={() => setShowQuiz(true)}
+                                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold hover:scale-[1.02] transition-transform shadow-lg shadow-purple-500/20 mt-1">
+                                        🧠 Savollarni boshlash ({(ertak.questions || []).length} ta savol)
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                )}
+                                <button onClick={onClose} className="text-white/40 text-sm hover:text-white/70 transition-colors">
+                                    Yopish
                                 </button>
-                                <button onClick={() => { setPhase('countdown'); setCount(3); setElapsed(0); setPlaying(false); }}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/10 text-white rounded-2xl font-medium hover:bg-white/20 transition-all">
-                                    <Mic className="w-4 h-4" /> Qayta o'qi
-                                </button>
                             </div>
-                            {hasQuestions && (
-                                <button onClick={() => setShowQuiz(true)}
-                                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold hover:scale-[1.02] transition-transform shadow-lg shadow-purple-500/20 mt-1">
-                                    🧠 Savollarni boshlash
-                                    <ChevronRight className="w-4 h-4" />
-                                </button>
-                            )}
-                            <button onClick={onClose} className="text-white/40 text-sm hover:text-white/70 transition-colors">
-                                Yopish
-                            </button>
-                        </div>
-                    )
+                        );
+                    })()
                 }
             </motion.div >
         </div >

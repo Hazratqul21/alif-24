@@ -13,6 +13,7 @@ export default function OlympiadDetail() {
     const [registering, setRegistering] = useState(false);
     const [registered, setRegistered] = useState(false);
     const [regError, setRegError] = useState(null);
+    const [currentUserId, setCurrentUserId] = useState(null);
 
     // Quiz state
     const [quizStarted, setQuizStarted] = useState(false);
@@ -25,6 +26,14 @@ export default function OlympiadDetail() {
 
     useEffect(() => {
         loadOlympiad();
+        // Fetch current user from cookie-based auth
+        apiService.get('/auth/me').then(data => {
+            const user = data.data || data;
+            if (user?.id) {
+                setCurrentUserId(user.id);
+                localStorage.setItem('userId', user.id);
+            }
+        }).catch(() => { });
     }, [id]);
 
     const loadOlympiad = async () => {
@@ -40,10 +49,14 @@ export default function OlympiadDetail() {
     };
 
     const handleRegister = async () => {
+        const studentId = currentUserId || localStorage.getItem('userId');
+        if (!studentId) {
+            setRegError("Iltimos, avval ro'yxatdan o'ting yoki tizimga kiring. alif24.uz ga o'ting.");
+            return;
+        }
         try {
             setRegistering(true);
             setRegError(null);
-            const studentId = localStorage.getItem('userId') || `guest_${Date.now()}`;
             await apiService.post(`/olympiad/${id}/register`, { student_id: studentId });
             setRegistered(true);
 
@@ -69,7 +82,7 @@ export default function OlympiadDetail() {
                 question_id: qId,
                 answer_index: aIdx,
             }));
-            const studentId = localStorage.getItem('userId') || `guest_${Date.now()}`;
+            const studentId = currentUserId || localStorage.getItem('userId');
             const data = await apiService.post(`/olympiad/${id}/submit?student_id=${studentId}`, answerList);
             setResult(data.data || data.result || data);
             setSubmitted(true);

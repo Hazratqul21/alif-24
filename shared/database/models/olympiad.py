@@ -85,7 +85,7 @@ class Olympiad(Base):
     duration_minutes = Column(Integer, default=30)  # Har bir qatnashchi uchun
     
     # Sozlamalar
-    max_participants = Column(Integer, default=500)
+    max_participants = Column(Integer, default=5000)
     questions_count = Column(Integer, default=20)
     status = Column(SQLEnum(OlympiadStatus), default=OlympiadStatus.draft)
     results_public = Column(Boolean, default=True)  # Natijalar ochiq

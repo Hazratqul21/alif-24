@@ -18,7 +18,7 @@ const App = () => {
 
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <AuthSync enforceLogin={false}>
+      <AuthSync enforceLogin={true}>
         <Routes>
           {/* Home - Olympiad List */}
           <Route path="/" element={<OlimpHome />} />

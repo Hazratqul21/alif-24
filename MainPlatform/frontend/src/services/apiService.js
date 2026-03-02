@@ -45,26 +45,33 @@ class ApiService {
     const data = await response.json();
 
     if (!response.ok) {
-      // Handle token expiration with automatic retry
-      if (response.status === 401) {
-        const isTokenExpired = data.error?.code === 'TOKEN_EXPIRED' || data.detail === 'Not authenticated' || data.detail === 'Could not validate credentials';
-        if (isTokenExpired && !this._isRetrying) {
-          this._isRetrying = true;
-          try {
-            const refreshed = await this.refreshToken();
-            if (refreshed && retryFn) {
-              return await retryFn();
-            }
-            if (!refreshed) {
-              window.dispatchEvent(new CustomEvent('showLoginModal', {
-                detail: { message: 'Sessiya muddati tugadi. Iltimos, qayta kiring.' }
-              }));
-              window.location.href = '/';
-              throw new Error('Session expired');
-            }
-          } finally {
-            this._isRetrying = false;
+      // Handle token expiration — parallel-safe refresh with promise queue
+      if (response.status === 401 && retryFn) {
+        const isTokenExpired =
+          data.error?.code === 'TOKEN_EXPIRED' ||
+          data.detail === 'Not authenticated' ||
+          data.detail === 'Could not validate credentials';
+
+        if (isTokenExpired) {
+          // If refresh is already in progress, wait for it then retry
+          if (this._refreshPromise) {
+            const refreshed = await this._refreshPromise;
+            if (refreshed) return await retryFn();
+          } else {
+            // Start a single refresh, share it with any parallel waiters
+            this._refreshPromise = this.refreshToken().finally(() => {
+              this._refreshPromise = null;
+            });
+            const refreshed = await this._refreshPromise;
+            if (refreshed) return await retryFn();
           }
+
+          // Refresh failed — redirect to login
+          window.dispatchEvent(new CustomEvent('showLoginModal', {
+            detail: { message: 'Sessiya muddati tugadi. Iltimos, qayta kiring.' }
+          }));
+          window.location.href = '/';
+          throw new Error('Session expired');
         }
       }
 
@@ -75,7 +82,7 @@ class ApiService {
   }
 
   /**
-   * Refresh access token
+   * Refresh access token using HttpOnly cookie
    * @returns {Promise<boolean>} Success status
    */
   async refreshToken() {

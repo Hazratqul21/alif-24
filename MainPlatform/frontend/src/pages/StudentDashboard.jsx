@@ -15,8 +15,8 @@ import {
     Video, Phone, Mail, MapPin, GraduationCap, FileText, BarChart3,
     ChevronRight, Plus, X, Eye, Lock, Globe, Palette, Moon, Sun,
     Image, Flag, Gift, Zap, Shield, HelpCircle, MessageCircle,
-    Home, Book, ClipboardList, Medal, School, Activity, TrendingDown, Bot, Coins, Flame, Languages, Laptop, Mic,
-    School as SchoolIcon, UserPlus, LogIn
+    Home, Book, ClipboardList, Medal, Activity, TrendingDown, Bot, Coins, Flame, Languages, Laptop, Mic,
+    School, School as SchoolIcon, UserPlus, LogIn
 } from 'lucide-react';
 
 const STORY_API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
@@ -425,6 +425,7 @@ const StudentDashboard = () => {
             id: a.id || assign.id,
             assignment_id: assign.id,
             title: assign.title,
+            description: assign.description || assign.content || '',
             deadline: assign.due_date ? new Date(assign.due_date).toLocaleDateString('uz') : 'Muddatsiz',
             xp: assign.max_score || 50,
             status: (subStatus === 'submitted' || subStatus === 'graded') ? 'completed' : 'pending',
@@ -461,7 +462,7 @@ const StudentDashboard = () => {
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <h2 className="text-xl md:text-3xl font-bold">{t.welcome}, {user.name}!</h2>
                             <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">Lvl {user.level}</span>
-                            {authUser?.id && <span className="bg-white/15 px-2 py-0.5 rounded-full text-[10px] font-mono opacity-70 cursor-pointer hover:opacity-100" onClick={() => { navigator.clipboard.writeText(authUser.id); setNotification({ type: 'success', text: 'ID nusxalandi!' }); }} title="ID nusxalash">ID: {authUser.id}</span>}
+                            {authUser?.id && <span className="bg-white/15 px-2 py-0.5 rounded-full text-[10px] font-mono opacity-70 cursor-pointer hover:opacity-100" onClick={() => { navigator.clipboard.writeText(authUser.id); setNotification({ type: 'success', message: 'ID nusxalandi!' }); }} title="ID nusxalash">ID: {authUser.id}</span>}
                         </div>
                         <p className="opacity-90 mb-6 flex items-center gap-2">
                             {user.parent ? <>Ota-onangiz sizni kuzatib bormoqda <Shield size={16} /></> : (displayTasks.filter(t => t.status === 'pending').length > 0 ? `Sizda ${displayTasks.filter(t => t.status === 'pending').length} ta bajarilmagan vazifa bor.` : "Barcha vazifalar bajarilgan!")}
