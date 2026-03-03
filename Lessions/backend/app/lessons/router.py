@@ -651,3 +651,33 @@ async def general_tts(data: TTSRequest):
         raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
 
 
+# ============= GET /speech/tts — Frontend frontenddan chaqiriladigan TTS =============
+
+from fastapi import Query
+
+@router.get("/speech/tts")
+async def speech_tts_get(
+    text: str = Query(..., description="O'qiladigan matn"),
+    language: str = Query("uz", description="Til: uz, ru, en"),
+    gender: str = Query("female", description="Ovoz jinsi: male, female"),
+):
+    """
+    GET /speech/tts?text=...&language=uz&gender=female
+    Azure Speech Service yordamida matnni ovozga aylantirish.
+    Frontend RecordingModal va QuizModal shu endpointni ishlatadi.
+    """
+    if not text or not text.strip():
+        raise HTTPException(status_code=400, detail="Matn kiritilmadi")
+
+    try:
+        audio_content = await speech_service.text_to_speech(
+            text=text[:4096],
+            language=language,
+            gender=gender,
+        )
+        return FastAPIResponse(content=audio_content, media_type="audio/mpeg")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Speech TTS error: {e}")
+        raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
