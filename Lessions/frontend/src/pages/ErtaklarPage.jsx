@@ -11,7 +11,7 @@ if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
     API_URL = API_URL.replace('http://', 'https://');
 }
 // ─── Quiz Modal ────────────────────────────────────────────────────────────────
-function QuizModal({ ertak, onClose }) {
+function QuizModal({ ertak, onClose, readingStats = {} }) {
     const questions = ertak.questions || [];
     const [qIndex, setQIndex] = useState(0);
     // phase per question: 'tts' | 'record' | 'result'
@@ -215,34 +215,78 @@ function QuizModal({ ertak, onClose }) {
                     </div>
                 )}
 
-                {/* All done — final score */}
-                {allDone ? (
-                    <div className="flex flex-col items-center gap-5">
-                        <div className="text-5xl">{totalScore >= 80 ? '🏆' : totalScore >= 50 ? '⭐' : '💪'}</div>
-                        <div className="text-center">
-                            <p className="text-white font-bold text-2xl">Natijangiz</p>
-                            <p className={`text-5xl font-black mt-2 ${scoreColor(totalScore)}`}>{totalScore}</p>
-                            <p className="text-white/40 text-sm mt-1">100 ball dan</p>
-                        </div>
-                        <div className="w-full space-y-2 max-h-48 overflow-y-auto">
-                            {scores.map((s, i) => (
-                                <div key={i} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-2.5">
-                                    <span className="text-white/60 text-xs">{i + 1}-savol</span>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                            <div className={`h-full rounded-full ${scoreBg(s.score)}`} style={{ width: `${s.score}%` }} />
-                                        </div>
-                                        <span className={`text-xs font-bold ${scoreColor(s.score)}`}>{s.score}</span>
+                {/* All done — COMBINED final results (reading + quiz) */}
+                {allDone ? (() => {
+                    const wpm = readingStats.wpm || 0;
+                    const readPercent = readingStats.readPercent || 0;
+                    const readElapsed = readingStats.elapsed || 0;
+                    const fmtTime = `${String(Math.floor(readElapsed / 60)).padStart(2, '0')}:${String(readElapsed % 60).padStart(2, '0')}`;
+                    const readingCoin = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
+                    const quizCoin = totalScore >= 80 ? 15 : totalScore >= 50 ? 8 : 3;
+                    const totalCoin = readingCoin + quizCoin;
+                    const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
+                    const overallEmoji = (totalScore >= 80 && wpm >= 40) ? '🏆' : totalScore >= 50 ? '⭐' : '💪';
+
+                    return (
+                        <div className="flex flex-col items-center gap-4 max-h-[70vh] overflow-y-auto pr-1">
+                            <div className="text-5xl">{overallEmoji}</div>
+                            <p className="text-white font-bold text-2xl">Umumiy natija</p>
+                            <p className="text-white/40 text-sm -mt-2">{ertak.title}</p>
+
+                            {/* Reading stats */}
+                            <div className="w-full">
+                                <p className="text-white/50 text-xs uppercase tracking-wide mb-2">📖 O'qish</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                        <p className={`text-xl font-black ${wpmColor}`}>{wpm}</p>
+                                        <p className="text-white/40 text-[10px]">so'z/daq</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                        <p className="text-xl font-black text-blue-400">{readPercent}%</p>
+                                        <p className="text-white/40 text-[10px]">o'qilgan</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                        <p className="text-xl font-black text-purple-400">{fmtTime}</p>
+                                        <p className="text-white/40 text-[10px]">vaqt</p>
                                     </div>
                                 </div>
-                            ))}
+                            </div>
+
+                            {/* Quiz score */}
+                            <div className="w-full">
+                                <p className="text-white/50 text-xs uppercase tracking-wide mb-2">🧠 Savol-javob</p>
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center mb-2">
+                                    <p className={`text-4xl font-black ${scoreColor(totalScore)}`}>{totalScore}</p>
+                                    <p className="text-white/40 text-xs mt-1">100 ball dan</p>
+                                </div>
+                                <div className="space-y-1.5">
+                                    {scores.map((s, i) => (
+                                        <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                                            <span className="text-white/60 text-xs">{i + 1}-savol</span>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                                    <div className={`h-full rounded-full ${scoreBg(s.score)}`} style={{ width: `${s.score}%` }} />
+                                                </div>
+                                                <span className={`text-xs font-bold min-w-[24px] text-right ${scoreColor(s.score)}`}>{s.score}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Total coins */}
+                            <div className="w-full bg-gradient-to-r from-yellow-500/20 to-amber-500/10 border border-yellow-500/30 rounded-2xl p-4 text-center">
+                                <p className="text-3xl font-black text-yellow-400">+{totalCoin} 🪙</p>
+                                <p className="text-white/40 text-xs mt-1">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
+                            </div>
+
+                            <button onClick={onClose}
+                                className="w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform">
+                                Yopish
+                            </button>
                         </div>
-                        <button onClick={onClose}
-                            className="w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform">
-                            Yopish
-                        </button>
-                    </div>
-                ) : (
+                    );
+                })() : (
                     <>
                         {/* Question text */}
                         <div className="bg-white/5 rounded-2xl p-5 mb-6">
@@ -356,12 +400,16 @@ function RecordingModal({ ertak, onClose }) {
     const transcriptRef = useRef('');
     const wordIndexRef = useRef(0);
     const timerRef = useRef(null);
+    const autoQuizTimerRef = useRef(null);
 
     useEffect(() => {
         // Initialize words
         if (ertak.content) {
             setExpectedWords(extractWords(ertak.content));
         }
+        return () => {
+            clearTimeout(autoQuizTimerRef.current);
+        };
     }, [ertak]);
 
     useEffect(() => {
@@ -479,9 +527,20 @@ function RecordingModal({ ertak, onClose }) {
             rec.stopContinuousRecognitionAsync(() => {
                 try { rec.close(); } catch (_) { }
                 setPhase('done');
+                // Auto-start quiz after 2 seconds if questions exist
+                if ((ertak.questions || []).length > 0) {
+                    autoQuizTimerRef.current = setTimeout(() => {
+                        setShowQuiz(true);
+                    }, 2000);
+                }
             });
         } else {
             setPhase('done');
+            if ((ertak.questions || []).length > 0) {
+                autoQuizTimerRef.current = setTimeout(() => {
+                    setShowQuiz(true);
+                }, 2000);
+            }
         }
     };
 
@@ -527,7 +586,14 @@ function RecordingModal({ ertak, onClose }) {
     const hasQuestions = (ertak.questions || []).length > 0;
 
     if (showQuiz) {
-        return <QuizModal ertak={ertak} onClose={onClose} />;
+        const readingStats = {
+            wpm: expectedWords.length > 0 && elapsed > 0 ? Math.round(currentWordIndex / (elapsed / 60)) : 0,
+            readPercent: expectedWords.length > 0 ? Math.round((currentWordIndex / expectedWords.length) * 100) : 0,
+            elapsed: elapsed,
+            wordsRead: currentWordIndex,
+            totalWords: expectedWords.length,
+        };
+        return <QuizModal ertak={ertak} onClose={onClose} readingStats={readingStats} />;
     }
 
     return (
