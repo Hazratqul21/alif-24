@@ -90,10 +90,11 @@ export default function ReadingPlay() {
     const ensureSpeechConfig = async () => {
         if (speechConfigRef.current) return true;
         try {
-            // Force use the main platform API for token fetching to avoid CORS or proxy issues on Olimp sub-domain
-            const baseUrl = 'https://alif24.uz/api/v1';
-            const resp = await fetch(`${baseUrl}/smartkids/speech-token`);
-            if (!resp.ok) throw new Error(`speech-token failed with status: ${resp.status}`);
+            let resp = await fetch(`${API_URL}/smartkids/speech-token`, { credentials: 'include' });
+            if (!resp.ok) {
+                resp = await fetch('https://alif24.uz/api/v1/smartkids/speech-token', { credentials: 'include' });
+            }
+            if (!resp.ok) throw new Error(`speech-token failed`);
             const data = await resp.json();
             const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
             cfg.speechRecognitionLanguage = task?.language === 'ru' ? 'ru-RU' : task?.language === 'en' ? 'en-US' : 'uz-UZ';
@@ -141,24 +142,22 @@ export default function ReadingPlay() {
                     let currentIndex = wordIndexRef.current;
                     const expected = expectedWords;
 
-                    // Aytilgan har bir so'zni kutilyotgan hikoya matni bilan solishtiramiz
-                    // Fuzzy match (>=70%) looks up to 3 following words to catch skipped words
                     for (let sw of spokenWords) {
                         if (currentIndex >= expected.length) break;
 
                         let matchedIndex = -1;
-                        let lookaheadLimit = Math.min(currentIndex + 3, expected.length);
+                        let lookaheadLimit = Math.min(currentIndex + 5, expected.length);
 
                         for (let k = currentIndex; k < lookaheadLimit; k++) {
                             const similarity = getSimilarity(sw, expected[k]);
-                            if (similarity >= 0.70) {
+                            if (similarity >= 0.55) {
                                 matchedIndex = k;
                                 break;
                             }
                         }
 
                         if (matchedIndex !== -1) {
-                            currentIndex = matchedIndex + 1; // move tracker ahead
+                            currentIndex = matchedIndex + 1;
                         }
                     }
 
@@ -240,13 +239,18 @@ export default function ReadingPlay() {
         try {
             const lang = task?.language || 'uz';
             const gender = 'female';
-            // Use main platform URL to ensure TTS works smoothly across domains
-            const baseUrl = 'https://alif24.uz/api/v1';
 
-            const response = await fetch(
-                `${baseUrl}/speech/tts?text=${encodeURIComponent(text)}&language=${lang}&gender=${gender}`,
+            let response = await fetch(
+                `${API_URL}/speech/tts?text=${encodeURIComponent(text)}&language=${lang}&gender=${gender}`,
                 { credentials: 'include' }
             );
+            if (!response.ok) {
+                // Fallback to main platform
+                response = await fetch(
+                    `https://alif24.uz/api/v1/speech/tts?text=${encodeURIComponent(text)}&language=${lang}&gender=${gender}`,
+                    { credentials: 'include' }
+                );
+            }
 
             if (!response.ok) return;
 
@@ -366,21 +370,13 @@ export default function ReadingPlay() {
                             <h2 className="text-white/60 text-xs mb-2 uppercase tracking-wide">{task?.title}</h2>
                             <p className="text-white text-lg leading-relaxed whitespace-pre-wrap font-serif">
                                 {expectedWords.map((word, idx) => (
-                                    <span key={idx} className={`inline-block mr-1 transition-colors duration-300 ${idx < currentWordIndex ? "text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
-                                            : "text-white"
+                                    <span key={idx} className={`inline-block mr-1 transition-colors duration-150 ${idx < currentWordIndex ? "text-emerald-400 font-bold drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]"
+                                        : "text-white"
                                         }`}>
                                         {word}
                                     </span>
                                 ))}
                             </p>
-
-                            {/* LIVE MATCH Text if speaking */}
-                            {transcript && (
-                                <div className="mt-4 p-3 bg-black/30 rounded-lg border-l-2 border-emerald-500">
-                                    <p className="text-xs text-gray-400 mb-1">Siz o'qiyapsiz:</p>
-                                    <p className="text-emerald-400 text-sm font-medium leading-relaxed">{transcript}</p>
-                                </div>
-                            )}
                         </div>
 
                         {phase === PHASE.TTS && (
@@ -472,34 +468,71 @@ export default function ReadingPlay() {
                 )}
 
                 {/* 5. RESULT */}
-                {phase === PHASE.RESULT && result && (
-                    <div className="flex flex-col items-center gap-5">
-                        <div className="text-5xl">{result.total_score >= 80 ? '🏆' : result.total_score >= 50 ? '⭐' : '💪'}</div>
-                        <div className="text-center">
-                            <p className="text-white font-bold text-2xl">Umumiy Natijangiz</p>
-                            <p className={`text-6xl font-black mt-2 ${scoreColor(result.total_score)}`}>{result.total_score?.toFixed(0)}</p>
-                            <p className="text-white/40 text-sm mt-1">100 ball dan</p>
-                        </div>
+                {phase === PHASE.RESULT && result && (() => {
+                    const wpm = elapsed > 0 && currentWordIndex > 0 ? Math.round(currentWordIndex / (elapsed / 60)) : (result.words_per_minute || 0);
+                    const readPct = result.completion_percentage?.toFixed(0) || 0;
+                    const fmtTime = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
+                    const readingCoin = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
+                    const quizCoin = (result.score_questions || 0) >= 80 ? 15 : (result.score_questions || 0) >= 50 ? 8 : 3;
+                    const totalCoin = readingCoin + quizCoin;
+                    const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
+                    const emoji = result.total_score >= 80 ? '🏆' : result.total_score >= 50 ? '⭐' : '💪';
 
-                        <div className="grid grid-cols-2 gap-3 w-full mb-2">
-                            <div className="bg-white/5 border border-white/5 rounded-xl p-3 text-center">
-                                <div className="text-lg">📖</div>
-                                <div className={`text-lg font-bold ${scoreColor(result.score_completion)}`}>{result.completion_percentage?.toFixed(0)}%</div>
-                                <div className="text-gray-500 text-xs mt-1">O'qilganlik (matn)</div>
-                            </div>
-                            <div className="bg-white/5 border border-white/5 rounded-xl p-3 text-center">
-                                <div className="text-lg">❓</div>
-                                <div className={`text-lg font-bold ${scoreColor(result.score_questions)}`}>{result.questions_correct}/{result.questions_total}</div>
-                                <div className="text-gray-500 text-xs mt-1">To'g'ri Savollar</div>
-                            </div>
-                        </div>
+                    return (
+                        <div className="flex flex-col items-center gap-4 max-h-[75vh] overflow-y-auto">
+                            <div className="text-5xl">{emoji}</div>
+                            <p className="text-white font-bold text-2xl">Umumiy natija</p>
+                            <p className="text-white/40 text-sm -mt-2">{task?.title}</p>
 
-                        <button onClick={() => navigate(-1)}
-                            className="w-full py-4 mt-2 bg-gradient-to-r from-emerald-600 to-emerald-800 text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform">
-                            Musobaqa Ro'yxatiga Qaytish
-                        </button>
-                    </div>
-                )}
+                            {/* Reading stats */}
+                            <div className="w-full">
+                                <p className="text-white/50 text-xs uppercase tracking-wide mb-2">📖 O'qish</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                        <p className={`text-xl font-black ${wpmColor}`}>{wpm}</p>
+                                        <p className="text-white/40 text-[10px]">so'z/daq</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                        <p className="text-xl font-black text-blue-400">{readPct}%</p>
+                                        <p className="text-white/40 text-[10px]">o'qilgan</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                        <p className="text-xl font-black text-purple-400">{fmtTime}</p>
+                                        <p className="text-white/40 text-[10px]">vaqt</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Quiz stats */}
+                            {result.questions_total > 0 && (
+                                <div className="w-full">
+                                    <p className="text-white/50 text-xs uppercase tracking-wide mb-2">❓ Savollar</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                            <p className={`text-xl font-black ${scoreColor(result.score_questions)}`}>{result.questions_correct}/{result.questions_total}</p>
+                                            <p className="text-white/40 text-[10px]">to'g'ri</p>
+                                        </div>
+                                        <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                            <p className={`text-xl font-black ${scoreColor(result.total_score)}`}>{result.total_score?.toFixed(0)}</p>
+                                            <p className="text-white/40 text-[10px]">umumiy ball</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Coin */}
+                            <div className="w-full bg-gradient-to-r from-yellow-500/20 to-amber-500/10 border border-yellow-500/30 rounded-2xl p-4 text-center">
+                                <p className="text-3xl font-black text-yellow-400">+{totalCoin} 🪙</p>
+                                <p className="text-white/40 text-xs mt-1">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
+                            </div>
+
+                            <button onClick={() => navigate(-1)}
+                                className="w-full py-4 mt-2 bg-gradient-to-r from-emerald-600 to-emerald-800 text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform">
+                                Musobaqa Ro'yxatiga Qaytish
+                            </button>
+                        </div>
+                    );
+                })()}
 
             </motion.div>
         </div>

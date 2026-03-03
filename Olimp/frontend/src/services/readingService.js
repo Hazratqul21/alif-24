@@ -22,9 +22,7 @@ const readingService = {
 
     // TTS - Hikoyani eshittirish
     getTaskTTSUrl: (compId, taskId) => {
-        // Force use the main platform API for TTS to avoid missing routes on Olimp sub-domain
-        const baseUrl = 'https://alif24.uz/api/v1';
-        return `${baseUrl}/reading/competitions/${compId}/tasks/${taskId}/tts`;
+        return `${API_URL}/reading/competitions/${compId}/tasks/${taskId}/tts`;
     },
 };
 
