@@ -16,6 +16,7 @@ import SmartKidsAI from './pages/SmartKidsAI';
 import MathKidsAI from './pages/MathKidsAI';
 import LiveQuizStudent from './pages/LiveQuizStudent';
 import LiveQuizTeacher from './pages/LiveQuizTeacher';
+import LeaderboardPage from './pages/LeaderboardPage';
 
 // Admin Panel
 import AdminLogin from './pages/admin/AdminLogin';
@@ -171,6 +172,9 @@ const AppRoutes = () => {
       {/* About & Partners */}
       <Route path="/about" element={<AboutPage />} />
       <Route path="/partners" element={<PartnersPage />} />
+
+      {/* Global Leaderboard */}
+      <Route path="/leaderboard" element={<LeaderboardPage />} />
 
       {/* Teacher Dashboard */}
       <Route

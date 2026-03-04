@@ -46,7 +46,7 @@ const HomePage = () => {
     { id: 4, title: t.game_en_alphabet, rating: 87, image: '/texno.jpg', category: 'letters', type: 'lessons' },
     { id: 5, title: t.game_ru_alphabet, rating: 66, image: '/bukv.jpg', category: 'harflar', type: 'lessons' },
     { id: 6, title: t.game_memory_game, rating: 74, image: '/xotira.jpg', category: 'letters', type: 'games' },
-    { id: 7, title: t.game_math_monster, rating: 78, image: '/matem.jpg', category: 'math', type: 'games' },
+    // { id: 7, title: t.game_math_monster, rating: 78, image: '/matem.jpg', category: 'math', type: 'games' },
 
 
     /*
