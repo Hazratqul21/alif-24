@@ -163,6 +163,14 @@ from shared.database.models.analytics import (
     AdminNotification,
 )
 
+# Payment System
+from shared.database.models.payment import (
+    PaymentProvider,
+    TransactionStatus,
+    PaymentGatewayConfig,
+    PaymentTransaction,
+)
+
 __all__ = [
     # User Models
     "User",
@@ -306,4 +314,10 @@ __all__ = [
     "UserGeoLog",
     "AuditLog",
     "AdminNotification",
+
+    # Payment Models
+    "PaymentProvider",
+    "TransactionStatus",
+    "PaymentGatewayConfig",
+    "PaymentTransaction",
 ]

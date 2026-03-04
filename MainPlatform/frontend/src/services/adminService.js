@@ -172,6 +172,14 @@ const adminService = {
     getSubscriptionHealth: () => adminApi.get('/analytics/subscription-health'),
     autoExpireSubscriptions: () => adminApi.post('/analytics/expire-subscriptions'),
     getRecentLogins: (limit = 30) => adminApi.get('/analytics/recent-logins', { params: { limit } }),
+
+    // ============ PAYMENT GATEWAY MANAGEMENT ============
+    getPaymentGateways: () => adminApi.get('/payments/admin/gateways'),
+    createPaymentGateway: (data) => adminApi.post('/payments/admin/gateways', data),
+    updatePaymentGateway: (id, data) => adminApi.put(`/payments/admin/gateways/${id}`, data),
+    deletePaymentGateway: (id) => adminApi.delete(`/payments/admin/gateways/${id}`),
+    getPaymentTransactions: (params) => adminApi.get('/payments/admin/transactions', { params }),
+    getPaymentStats: () => adminApi.get('/payments/admin/payments-stats'),
 };
 
 export default adminService;

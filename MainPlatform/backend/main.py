@@ -136,6 +136,7 @@ from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedb
 from app.api.v1 import classrooms, assignments, notifications, lessons, platform_content, aiops, uploads, coins, organizations, olympiads
 from app.api.v1 import reading_competition
 from app.api.v1 import admin_analytics
+from app.api.v1 import payments
 from app.smartkids import story_router, image_reader_router, file_reader_router, speech_token_router
 from app.mathkids import math_solver_router, math_image_router
 
@@ -184,6 +185,8 @@ app.include_router(organizations.router, prefix=f"{settings.API_PREFIX}/organiza
 app.include_router(olympiads.router, prefix=f"{settings.API_PREFIX}/olympiads", tags=["olympiads"])
 # Reading Competition
 app.include_router(reading_competition.router, prefix=f"{settings.API_PREFIX}/admin/reading", tags=["reading-competition"])
+# Payments
+app.include_router(payments.router, prefix=f"{settings.API_PREFIX}/payments", tags=["payments"])
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
