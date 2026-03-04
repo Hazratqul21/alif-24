@@ -258,3 +258,71 @@ async def get_my_rank(
         }
     }
 
+
+# ============================================================
+# STUDENT SUBSCRIPTION ENDPOINTS
+# ============================================================
+
+@router.get("/subscription/plans")
+async def get_subscription_plans(
+    db: AsyncSession = Depends(get_db),
+):
+    """Faol obuna planlarini olish (ochiq — hamma ko'ra oladi)"""
+    from shared.database.models.subscription import SubscriptionPlanConfig
+
+    res = await db.execute(
+        select(SubscriptionPlanConfig)
+        .where(SubscriptionPlanConfig.is_active == True)
+        .order_by(SubscriptionPlanConfig.sort_order)
+    )
+    plans = res.scalars().all()
+
+    return {
+        "success": True,
+        "plans": [p.to_dict() for p in plans]
+    }
+
+
+@router.get("/subscription/my")
+async def get_my_subscription(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """O'quvchining hozirgi obuna holatini olish"""
+    from shared.database.models.subscription import UserSubscription, SubscriptionPlanConfig, SubscriptionStatus
+
+    res = await db.execute(
+        select(UserSubscription)
+        .where(
+            UserSubscription.user_id == current_user.id,
+            UserSubscription.status == SubscriptionStatus.active.value,
+        )
+        .order_by(UserSubscription.created_at.desc())
+        .limit(1)
+    )
+    sub = res.scalars().first()
+
+    if not sub:
+        return {"success": True, "has_subscription": False, "subscription": None}
+
+    # Get plan info
+    plan_res = await db.execute(
+        select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == sub.plan_config_id)
+    )
+    plan = plan_res.scalars().first()
+
+    return {
+        "success": True,
+        "has_subscription": True,
+        "subscription": {
+            "id": sub.id,
+            "plan_name": plan.name if plan else "Noma'lum",
+            "plan_price": plan.price if plan else 0,
+            "status": sub.status,
+            "started_at": sub.started_at.isoformat() if sub.started_at else None,
+            "expires_at": sub.expires_at.isoformat() if sub.expires_at else None,
+            "amount_paid": sub.amount_paid,
+        }
+    }
+
+

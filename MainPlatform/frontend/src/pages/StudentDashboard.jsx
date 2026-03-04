@@ -56,6 +56,12 @@ const StudentDashboard = () => {
     const [selectedLesson, setSelectedLesson] = useState(null);
     const [selectedStory, setSelectedStory] = useState(null);
 
+    // Subscription states
+    const [showSubModal, setShowSubModal] = useState(false);
+    const [subPlans, setSubPlans] = useState([]);
+    const [mySub, setMySub] = useState(null);
+    const [subLoading, setSubLoading] = useState(false);
+
     // TTS + Recording states for story modal
     const [storyPlaying, setStoryPlaying] = useState(false);
     const [storyTtsLoading, setStoryTtsLoading] = useState(false);
@@ -122,6 +128,11 @@ const StudentDashboard = () => {
         coinService.getBalance().then(data => {
             setCoinBalance(data);
         }).catch(() => { });
+
+        // Fetch subscription info
+        const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
+        fetch(`${apiBaseUrl}/coins/subscription/my`, { credentials: 'include' })
+            .then(r => r.json()).then(d => setMySub(d)).catch(() => { });
 
         // Notification polling har 30 sek
         const notifInterval = setInterval(async () => {
@@ -460,8 +471,31 @@ const StudentDashboard = () => {
                 <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl md:rounded-3xl p-5 md:p-8 text-white flex justify-between items-center relative overflow-hidden">
                     <div className="z-10 flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <h2 className="text-xl md:text-3xl font-bold">{t.welcome}, {user.name}!</h2>
+                            <h2 className="text-xl md:text-3xl font-bold cursor-pointer hover:underline" onClick={() => {
+                                setShowSubModal(true);
+                                if (subPlans.length === 0) {
+                                    setSubLoading(true);
+                                    const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
+                                    fetch(`${apiBaseUrl}/coins/subscription/plans`, { credentials: 'include' })
+                                        .then(r => r.json()).then(d => setSubPlans(d.plans || [])).catch(() => { })
+                                        .finally(() => setSubLoading(false));
+                                }
+                            }}>{t.welcome}, {user.name}! </h2>
                             <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">Lvl {user.level}</span>
+                            {mySub?.has_subscription ? (
+                                <span className="bg-emerald-400/30 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => setShowSubModal(true)}>✅ {mySub.subscription?.plan_name || 'Obuna'}</span>
+                            ) : (
+                                <span className="bg-yellow-400/30 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => {
+                                    setShowSubModal(true);
+                                    if (subPlans.length === 0) {
+                                        setSubLoading(true);
+                                        const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
+                                        fetch(`${apiBaseUrl}/coins/subscription/plans`, { credentials: 'include' })
+                                            .then(r => r.json()).then(d => setSubPlans(d.plans || [])).catch(() => { })
+                                            .finally(() => setSubLoading(false));
+                                    }
+                                }}>⭐ Obuna bo'lish</span>
+                            )}
                             {authUser?.id && <span className="bg-white/15 px-2 py-0.5 rounded-full text-[10px] font-mono opacity-70 cursor-pointer hover:opacity-100" onClick={() => { navigator.clipboard.writeText(authUser.id); setNotification({ type: 'success', message: 'ID nusxalandi!' }); }} title="ID nusxalash">ID: {authUser.id}</span>}
                         </div>
                         <p className="opacity-90 mb-6 flex items-center gap-2">
@@ -984,6 +1018,90 @@ const StudentDashboard = () => {
     return (
         <>
             <Navbar />
+
+            {/* Subscription Modal */}
+            {showSubModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => setShowSubModal(false)}>
+                    <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                ⭐ Obuna rejalar
+                            </h3>
+                            <button onClick={() => setShowSubModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full">
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            {/* Current sub status */}
+                            {mySub?.has_subscription ? (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <CheckCircle size={18} className="text-emerald-600" />
+                                        <span className="font-bold text-emerald-700">Faol obuna</span>
+                                    </div>
+                                    <p className="text-sm text-emerald-600">Plan: <span className="font-bold">{mySub.subscription?.plan_name}</span></p>
+                                    {mySub.subscription?.expires_at && (
+                                        <p className="text-xs text-emerald-500 mt-1">Tugash: {new Date(mySub.subscription.expires_at).toLocaleDateString('uz')}</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Gift size={18} className="text-yellow-600" />
+                                        <span className="font-bold text-yellow-700">Obuna yo'q</span>
+                                    </div>
+                                    <p className="text-xs text-yellow-600">Quyidagi planlardan birini tanlang</p>
+                                </div>
+                            )}
+
+                            {/* Plans */}
+                            {subLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                                </div>
+                            ) : subPlans.length === 0 ? (
+                                <div className="text-center py-8 text-gray-400">
+                                    <p>Hozircha planlar mavjud emas</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {subPlans.map(plan => (
+                                        <div key={plan.id} className="border border-gray-200 rounded-xl p-4 hover:border-indigo-300 transition-all">
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div>
+                                                    <h4 className="font-bold text-gray-800">{plan.name}</h4>
+                                                    {plan.description && <p className="text-xs text-gray-500 mt-0.5">{plan.description}</p>}
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xl font-black text-indigo-600">
+                                                        {plan.price ? `${plan.price.toLocaleString()} UZS` : 'Bepul'}
+                                                    </p>
+                                                    <p className="text-[10px] text-gray-400">{plan.duration_days} kun</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md text-[10px] font-medium">{plan.max_children} bola</span>
+                                                <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md text-[10px] font-medium">{plan.duration_days} kunlik</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Contact for payment */}
+                            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4 text-center">
+                                <p className="text-sm text-gray-700 font-medium mb-2">Obuna sotib olish uchun:</p>
+                                <a href="https://t.me/alif24_support" target="_blank" rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:from-blue-600 hover:to-blue-700 transition-all shadow-md no-underline">
+                                    💬 Telegram orqali bog'lanish
+                                </a>
+                                <p className="text-[10px] text-gray-400 mt-2">Yoki ID ni adminga yuboring: <span className="font-mono font-bold">{authUser?.id}</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Notification Toast */}
             {notification && (
