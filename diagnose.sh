@@ -728,15 +728,20 @@ cmd_db() {
     [ -n "$redis_info" ] && info "  Xotira: $redis_info"
     
     local redis_frag=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "mem_fragmentation_ratio" | cut -d: -f2 | tr -d '\r')
+    local redis_mem_b=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "^used_memory:" | cut -d: -f2 | tr -d '\r')
     if [ -n "$redis_frag" ]; then
-        local frag_crit=$(echo "$redis_frag > 5.0" | bc -l 2>/dev/null || echo 0)
-        local frag_warn=$(echo "$redis_frag > 1.5" | bc -l 2>/dev/null || echo 0)
-        if [ "$frag_crit" = "1" ]; then
-            fail "  Fragmentatsiya: $redis_frag (XAVFLI! 'bash diagnose.sh heal' yoki restart qiling)"
-        elif [ "$frag_warn" = "1" ]; then
-            warn "  Fragmentatsiya: $redis_frag (Yuqori, kuzatib boring)"
+        if [ -n "$redis_mem_b" ] && [ "$redis_mem_b" -lt 10485760 ] 2>/dev/null; then
+            ok "  Fragmentatsiya: $redis_frag (Xotira kichik bo'lgani uchun e'tiborga olinmaydi)"
         else
-            ok "  Fragmentatsiya: $redis_frag (Normal)"
+            local frag_crit=$(echo "$redis_frag > 5.0" | bc -l 2>/dev/null || echo 0)
+            local frag_warn=$(echo "$redis_frag > 1.5" | bc -l 2>/dev/null || echo 0)
+            if [ "$frag_crit" = "1" ]; then
+                fail "  Fragmentatsiya: $redis_frag (XAVFLI! 'bash diagnose.sh heal' yoki restart qiling)"
+            elif [ "$frag_warn" = "1" ]; then
+                warn "  Fragmentatsiya: $redis_frag (Yuqori, kuzatib boring)"
+            else
+                ok "  Fragmentatsiya: $redis_frag (Normal)"
+            fi
         fi
     fi
 
@@ -960,9 +965,9 @@ cmd_heal() {
     fi
     steps_done=$((steps_done + 1))
 
-    echo -e "  ${YELLOW}5/${total_steps} Docker build cache tozalash (30 kundan eski)...${NC}"
-    docker builder prune --filter "until=720h" -f 2>/dev/null | tail -1
-    ok "Eski build cache tozalandi!"
+    echo -e "  ${YELLOW}5/${total_steps} Docker barcha qoldiq build cache ni tozalash...${NC}"
+    docker builder prune --all -f 2>/dev/null | tail -1
+    ok "Build cache to'q tozalandi!"
     steps_done=$((steps_done + 1))
 
     echo -e "  ${YELLOW}6/${total_steps} PostgreSQL VACUUM ANALYZE (bazani optimallashtirish)...${NC}"
@@ -992,15 +997,20 @@ cmd_heal() {
 
     echo -e "  ${YELLOW}9/${total_steps} Redis fragmentatsiya tekshiruvi va restart...${NC}"
     local redis_frag=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "mem_fragmentation_ratio" | cut -d: -f2 | tr -d '\r')
+    local redis_mem_b=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "^used_memory:" | cut -d: -f2 | tr -d '\r')
     if [ -n "$redis_frag" ]; then
-        local frag_high=$(echo "$redis_frag > 5" | bc -l 2>/dev/null || echo 0)
-        if [ "$frag_high" = "1" ]; then
-            warn "Redis fragmentatsiya yuqori ($redis_frag) — restart qilinmoqda..."
-            docker restart alif24-redis &>/dev/null
-            sleep 2
-            ok "Redis restart qilindi! Yangi fragmentatsiya tekshiring: bash diagnose.sh db"
+        if [ -n "$redis_mem_b" ] && [ "$redis_mem_b" -lt 10485760 ] 2>/dev/null; then
+            ok "Redis fragmentatsiya normal (Xotira hajmi kichik, ignor qilinmoqda)"
         else
-            ok "Redis fragmentatsiya normal ($redis_frag)"
+            local frag_high=$(echo "$redis_frag > 5" | bc -l 2>/dev/null || echo 0)
+            if [ "$frag_high" = "1" ]; then
+                warn "Redis fragmentatsiya yuqori ($redis_frag) — restart qilinmoqda..."
+                docker restart alif24-redis &>/dev/null
+                sleep 2
+                ok "Redis restart qilindi! Yangi fragmentatsiya tekshiring: bash diagnose.sh db"
+            else
+                ok "Redis fragmentatsiya normal ($redis_frag)"
+            fi
         fi
     else
         ok "Redis fragmentatsiya tekshirib bo'lmadi"
@@ -1469,9 +1479,14 @@ cmd_score() {
 
     # Redis fragmentation
     local redis_frag=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "mem_fragmentation_ratio" | cut -d: -f2 | tr -d '\r')
+    local redis_mem_b=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "^used_memory:" | cut -d: -f2 | tr -d '\r')
     if [ -n "$redis_frag" ]; then
-        local frag_ok=$(echo "$redis_frag < 5.0" | bc -l 2>/dev/null || echo 1)
-        [ "$frag_ok" = "1" ] && ok "Redis fragmentatsiya: $redis_frag" || fail "Redis fragmentatsiya yuqori: $redis_frag"
+        if [ -n "$redis_mem_b" ] && [ "$redis_mem_b" -lt 10485760 ] 2>/dev/null; then
+            ok "Redis fragmentatsiya: $redis_frag (Xotira kichik, ignor qilinmoqda)"
+        else
+            local frag_ok=$(echo "$redis_frag < 5.0" | bc -l 2>/dev/null || echo 1)
+            [ "$frag_ok" = "1" ] && ok "Redis fragmentatsiya: $redis_frag" || fail "Redis fragmentatsiya yuqori: $redis_frag"
+        fi
     fi
     
     # 4. Resources
