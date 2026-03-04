@@ -143,22 +143,22 @@ const adminService = {
     // ============ SUBSCRIPTION MANAGEMENT ============
 
     // Plan Config CRUD
-    getSubscriptionPlans: () => request('GET', '/subscription-plans'),
-    createSubscriptionPlan: (data) => request('POST', '/subscription-plans', data),
-    updateSubscriptionPlan: (planId, data) => request('PUT', `/subscription-plans/${planId}`, data),
-    deleteSubscriptionPlan: (planId) => request('DELETE', `/subscription-plans/${planId}`),
+    getSubscriptionPlans: () => adminApi.get('/subscription-plans'),
+    createSubscriptionPlan: (data) => adminApi.post('/subscription-plans', data),
+    updateSubscriptionPlan: (planId, data) => adminApi.put(`/subscription-plans/${planId}`, data),
+    deleteSubscriptionPlan: (planId) => adminApi.delete(`/subscription-plans/${planId}`),
 
     // User Subscriptions
-    getSubscriptions: (params) => request('GET', '/subscriptions', null, params),
-    getSubscriptionStats: () => request('GET', '/subscriptions/stats'),
-    assignSubscription: (userId, data) => request('POST', `/subscriptions/${userId}`, data),
-    cancelSubscription: (userId) => request('DELETE', `/subscriptions/${userId}`),
+    getSubscriptions: (params) => adminApi.get('/subscriptions', { params }),
+    getSubscriptionStats: () => adminApi.get('/subscriptions/stats'),
+    assignSubscription: (userId, data) => adminApi.post(`/subscriptions/${userId}`, data),
+    cancelSubscription: (userId) => adminApi.delete(`/subscriptions/${userId}`),
 
     // ============ PROMO CODE MANAGEMENT ============
-    getPromoCodes: () => request('GET', '/promo-codes'),
-    createPromoCode: (data) => request('POST', '/promo-codes', data),
-    updatePromoCode: (promoId, data) => request('PUT', `/promo-codes/${promoId}`, data),
-    deletePromoCode: (promoId) => request('DELETE', `/promo-codes/${promoId}`),
+    getPromoCodes: () => adminApi.get('/promo-codes'),
+    createPromoCode: (data) => adminApi.post('/promo-codes', data),
+    updatePromoCode: (promoId, data) => adminApi.put(`/promo-codes/${promoId}`, data),
+    deletePromoCode: (promoId) => adminApi.delete(`/promo-codes/${promoId}`),
 };
 
 export default adminService;
