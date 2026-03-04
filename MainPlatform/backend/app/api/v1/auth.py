@@ -3,20 +3,24 @@ Auth Router - MainPlatform
 Authentication endpoints using shared modules
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
 from datetime import datetime, timezone
+import logging
 
 from shared.database import get_db
-from shared.database.models import User
+from shared.database.models import User, UserGeoLog
 from shared.auth import create_access_token, create_refresh_token
 from ...core.config import settings
 from ...middleware.auth import get_current_user
 from ...services.auth_service import AuthService
 from ...schemas.auth import LoginRequest, RegisterRequest, TokenResponse
 from ...schemas.rbac import ChildLoginRequest
+from ...utils.geoip import get_geo_from_ip, get_client_ip, parse_device_type, parse_browser, parse_os
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -75,10 +79,18 @@ async def register(request: Request, data: RegisterRequest, response: Response, 
     }
 
 @router.post("/login")
-async def login(request: Request, data: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
+async def login(request: Request, data: LoginRequest, response: Response, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
     """Login user"""
     service = AuthService(db)
     result = await service.login(data.email, data.password)
+    
+    # Background: Geolokatsiya yozish
+    user_data = result.get("user", {})
+    user_id = user_data.get("id")
+    if user_id:
+        background_tasks.add_task(
+            _track_geo, user_id, request
+        )
     
     # Set HttpOnly Cookies
     domain = ".alif24.uz" if request and request.url.hostname and "alif24.uz" in request.url.hostname else None
@@ -106,6 +118,38 @@ async def login(request: Request, data: LoginRequest, response: Response, db: As
         "message": "Login successful",
         "data": {"user": result["user"]}
     }
+
+
+async def _track_geo(user_id: str, request: Request):
+    """Background task: IP dan geo aniqlash va saqlash"""
+    try:
+        from shared.database import AsyncSessionLocal as async_session_factory
+        ip = get_client_ip(request)
+        ua = request.headers.get("user-agent", "")
+        geo = await get_geo_from_ip(ip)
+        
+        async with async_session_factory() as session:
+            geo_log = UserGeoLog(
+                user_id=user_id,
+                ip_address=ip,
+                country=geo.get("country"),
+                country_code=geo.get("country_code"),
+                region=geo.get("region"),
+                city=geo.get("city"),
+                latitude=geo.get("latitude"),
+                longitude=geo.get("longitude"),
+                isp=geo.get("isp"),
+                user_agent=ua[:500] if ua else None,
+                device_type=parse_device_type(ua),
+                browser=parse_browser(ua),
+                os=parse_os(ua),
+                action="login",
+            )
+            session.add(geo_log)
+            await session.commit()
+    except Exception as e:
+        logger.warning(f"Geo tracking failed for user {user_id}: {e}")
+
 
 @router.post("/refresh")
 async def refresh_token(request: Request, response: Response, data: RefreshTokenRequest = None, db: AsyncSession = Depends(get_db)):
