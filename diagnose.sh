@@ -559,23 +559,22 @@ cmd_db() {
     # Cache Hit Ratio (DBA Expert)
     echo ""
     echo -e "  ${BOLD}DBA Ekspert (Cache Hit Ratio):${NC}"
-    docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+    local hit_ratio=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
         SELECT 
-            sum(blks_hit)*100/sum(blks_hit+blks_read) AS hit_ratio 
+            ROUND(sum(blks_hit)*100.0/NULLIF(sum(blks_hit+blks_read),0), 2) AS hit_ratio 
         FROM pg_stat_database 
         WHERE blks_read > 0;
-    " 2>/dev/null | while read ratio; do
-        ratio=$(echo $ratio | xargs)
-        if [ -n "$ratio" ]; then
-            if [ "$ratio" -ge 99 ] 2>/dev/null; then
-                ok "  Cache Hit Ratio: ${ratio}% (MUKAMMAL, tezlik zo'r)"
-            elif [ "$ratio" -ge 95 ] 2>/dev/null; then
-                warn "  Cache Hit Ratio: ${ratio}% (YAXSHI, lekin kamida 99% bo'lishi kerak)"
-            else
-                fail "  Cache Hit Ratio: ${ratio}% (YOMON: Baza sekin disklardan qidiryapti. Index kerak yoki RAM yetarli emas)"
-            fi
+    " 2>/dev/null | xargs)
+    if [ -n "$hit_ratio" ]; then
+        local ratio_int=$(echo "$hit_ratio" | cut -d. -f1)
+        if [ "$ratio_int" -ge 99 ] 2>/dev/null; then
+            ok "  Cache Hit Ratio: ${hit_ratio}% (MUKAMMAL, tezlik zo'r)"
+        elif [ "$ratio_int" -ge 95 ] 2>/dev/null; then
+            warn "  Cache Hit Ratio: ${hit_ratio}% (YAXSHI, lekin kamida 99% bo'lishi kerak)"
+        else
+            fail "  Cache Hit Ratio: ${hit_ratio}% (YOMON: Baza sekin disklardan qidiryapti. Index kerak yoki RAM yetarli emas)"
         fi
-    done
+    fi
 
     # Unused Indexes (O'lik Indekslar)
     echo ""
@@ -599,7 +598,9 @@ cmd_db() {
         FROM pg_stat_activity
         WHERE datname = 'alif24';
     " 2>/dev/null | while IFS='|' read total active idle; do
-        info "  Jami: $(echo $total | xargs) | Active: $(echo $active | xargs) | Idle: $(echo $idle | xargs)"
+        total=$(echo $total | xargs)
+        [ -z "$total" ] && continue
+        info "  Jami: $total | Active: $(echo $active | xargs) | Idle: $(echo $idle | xargs)"
     done
 
     # Idle in Transaction so'rovlarini alohida tekshirish uzoq kutib turganlarini
