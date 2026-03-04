@@ -1,7 +1,7 @@
 #!/bin/bash
 # ================================================================
 #  ALIF24 PLATFORM — Professional Monitoring & Diagnostika Tool
-#  Version: 6.0
+#  Version: 7.0 (Senior Level)
 #  Ishlatish:
 #    bash diagnose.sh              — To'liq diagnostika
 #    bash diagnose.sh heal         — O'z-o'zini davolash (Auto-fix)
@@ -31,9 +31,21 @@
 #    bash diagnose.sh audit        — NPM / PIP paketlaridagi xavfsizlik va eskirishni tekshirish
 #    bash diagnose.sh storm        — Log Tsunami ushlagichi (Log Rate limit)
 #    bash diagnose.sh upgrade      — Skriptni (diagnose.sh) o'zini eng yangi versiyaga yangilash
+#  V7.0 yangi:
+#    bash diagnose.sh benchmark [N]     — API Endpoint tezlik benchmark (P95)
+#    bash diagnose.sh memleak           — Memory leak aniqlash (10s)
+#    bash diagnose.sh envcheck          — .env konfiguratsiya validatsiyasi
+#    bash diagnose.sh restartloop       — Crash loop / restart tuzog'i
+#    bash diagnose.sh forensics [svc]   — Container chuqur tahlili
+#    bash diagnose.sh dbtables          — DB jadval bloat va index tahlili
+#    bash diagnose.sh latency           — Cross-service latency matritsasi
+#    bash diagnose.sh capacity          — Server sig'imi va tavsiyalar
+#    bash diagnose.sh firewall          — Firewall va port xavfsizligi
+#    bash diagnose.sh endpoints         — Barcha API endpointlarni tekshirish
+#    bash diagnose.sh cron              — Cron jobs va avtomatik vazifalar
 # ================================================================
 
-VERSION="6.0"
+VERSION="7.0"
 
 # Ranglar
 RED='\033[0;31m'
@@ -1640,13 +1652,374 @@ cmd_upgrade() {
 }
 
 # ================================================================
-# FULL DIAGNOSTIKA
+# V7.0 YANGI MODULLAR
+# ================================================================
+
+# ================================================================
+# BENCHMARK — API Endpoint tezlik benchmark
+# ================================================================
+cmd_benchmark() {
+    header "API ENDPOINT BENCHMARK (Stress Test)"
+    echo ""
+    
+    local iterations="${1:-10}"
+    local endpoints=(
+        "8000:/api/v1/health/ping:MainPlatform"
+        "8001:/health:Harf"
+        "8002:/health:TestAI"
+        "8003:/health:CRM"
+        "8004:/health:Games"
+        "8005:/health:Olimp"
+        "8006:/health:Lessions"
+    )
+
+    printf "  ${BOLD}%-20s %-8s %-8s %-8s %-8s %-8s${NC}\n" "SERVICE" "MIN" "AVG" "MAX" "P95" "STATUS"
+    separator
+
+    for ep in "${endpoints[@]}"; do
+        IFS=':' read -r port path label <<< "$ep"
+        local times=() success=0 total=0
+        for ((j=1; j<=iterations; j++)); do
+            local t=$(curl -s --max-time 5 -o /dev/null -w "%{time_total}" "http://localhost:$port$path" 2>/dev/null)
+            local code=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" "http://localhost:$port$path" 2>/dev/null)
+            [ "$code" = "200" ] && success=$((success + 1))
+            total=$((total + 1))
+            times+=("$t")
+        done
+        if [ ${#times[@]} -gt 0 ]; then
+            local sorted=($(printf '%s\n' "${times[@]}" | sort -n))
+            local min_t="${sorted[0]}" max_t="${sorted[$((${#sorted[@]}-1))]}"
+            local p95_idx=$(( ${#sorted[@]} * 95 / 100 ))
+            local p95_t="${sorted[$p95_idx]}"
+            local avg_t=$(printf '%s\n' "${times[@]}" | awk '{sum+=$1} END {printf "%.3f", sum/NR}')
+            local color=$GREEN
+            (( $(echo "$avg_t > 0.5" | bc -l 2>/dev/null || echo 0) )) && color=$YELLOW
+            (( $(echo "$avg_t > 1.0" | bc -l 2>/dev/null || echo 0) )) && color=$RED
+            local rate=$((success * 100 / total))
+            printf "  ${color}%-20s %-8s %-8s %-8s %-8s %s%%${NC}\n" "$label" "${min_t}s" "${avg_t}s" "${max_t}s" "${p95_t}s" "$rate"
+        fi
+    done
+}
+
+# ================================================================
+# MEMLEAK — Container Memory Leak Detector
+# ================================================================
+cmd_memleak() {
+    header "MEMORY LEAK DETECTOR"
+    echo ""
+    echo -e "  ${DIM}10 sekund davomida xotira o'sishini kuzatish...${NC}"
+    echo ""
+    printf "  ${BOLD}%-25s %-12s %-12s %-10s${NC}\n" "KONTEYNER" "BOSHLANISHI" "HOZIR" "O'SISH"
+    separator
+
+    declare -A mem_start
+    while IFS=$'\t' read -r name mem; do
+        mem_start["$name"]=$(echo "$mem" | grep -oE '[0-9.]+' | head -1)
+    done < <(docker stats --no-stream --format "{{.Name}}\t{{.MemUsage}}" 2>/dev/null)
+    sleep 10
+    while IFS=$'\t' read -r name mem; do
+        local now=$(echo "$mem" | grep -oE '[0-9.]+' | head -1)
+        local start="${mem_start[$name]}"
+        if [ -n "$start" ] && [ -n "$now" ]; then
+            local diff=$(echo "$now - $start" | bc -l 2>/dev/null || echo "0")
+            local pct="0"
+            [ "$(echo "$start > 0" | bc -l 2>/dev/null)" = "1" ] && pct=$(echo "scale=1; $diff * 100 / $start" | bc -l 2>/dev/null || echo "0")
+            local color=$GREEN
+            (( $(echo "$pct > 5" | bc -l 2>/dev/null || echo 0) )) && color=$YELLOW
+            (( $(echo "$pct > 15" | bc -l 2>/dev/null || echo 0) )) && color=$RED
+            printf "  ${color}%-25s %-12s %-12s %s%%${NC}\n" "$name" "${start}MiB" "${now}MiB" "$pct"
+            (( $(echo "$pct > 15" | bc -l 2>/dev/null || echo 0) )) && fail "$name MEMORY LEAK SHUBHASI (${pct}% o'sish 10s da)!"
+        fi
+    done < <(docker stats --no-stream --format "{{.Name}}\t{{.MemUsage}}" 2>/dev/null)
+}
+
+# ================================================================
+# ENVCHECK — .env Konfiguratsiya Validatori
+# ================================================================
+cmd_envcheck() {
+    header "ENVIRONMENT KONFIGURATSIYA TEKSHIRUVI"
+    echo ""
+    local env_path="$(cd "$(dirname "$0")" && pwd)/.env"
+    if [ ! -f "$env_path" ]; then fail ".env fayl topilmadi!"; return 1; fi
+
+    echo -e "  ${BOLD}1. Zaruriy o'zgaruvchilar:${NC}"
+    local required_keys=("POSTGRES_USER" "POSTGRES_PASSWORD" "POSTGRES_DB" "JWT_SECRET" "JWT_REFRESH_SECRET" "PGADMIN_EMAIL" "PGADMIN_PASSWORD")
+    for key in "${required_keys[@]}"; do
+        if grep -qE "^${key}=" "$env_path"; then
+            local val=$(grep -E "^${key}=" "$env_path" | head -1 | cut -d= -f2-)
+            [ -z "$val" ] || [ "$val" = '""' ] && fail "$key — BO'SH!" || ok "$key — ✓"
+        else
+            fail "$key — TOPILMADI!"
+        fi
+    done
+
+    separator
+    echo -e "  ${BOLD}2. Xavfsizlik tekshiruvi:${NC}"
+    local jwt=$(grep -E "^JWT_SECRET=" "$env_path" | cut -d= -f2-)
+    [ -n "$jwt" ] && { [ ${#jwt} -lt 32 ] && fail "JWT_SECRET juda qisqa (${#jwt})" || ok "JWT_SECRET uzunligi yetarli (${#jwt})"; }
+    local pg_pass=$(grep -E "^POSTGRES_PASSWORD=" "$env_path" | cut -d= -f2-)
+    [ -n "$pg_pass" ] && { echo "$pg_pass" | grep -qE "^(postgres|admin|password|123456)$" && fail "POSTGRES_PASSWORD juda oddiy!" || ok "POSTGRES_PASSWORD murakkab"; }
+
+    separator
+    echo -e "  ${BOLD}3. Takroriy kalitlar:${NC}"
+    local dupes=$(grep -E "^[A-Z_]+=" "$env_path" | cut -d= -f1 | sort | uniq -d)
+    [ -n "$dupes" ] && echo "$dupes" | while read k; do fail "Takroriy: $k"; done || ok "Takroriy kalitlar yo'q"
+
+    separator
+    echo -e "  ${BOLD}4. To'lov tizimi kalitlari:${NC}"
+    for key in PAYME_MERCHANT_ID PAYME_KEY CLICK_MERCHANT_ID CLICK_SECRET_KEY; do
+        grep -qE "^${key}=" "$env_path" && ok "$key — sozlangan" || info "$key — admin paneldan sozlash mumkin"
+    done
+}
+
+# ================================================================
+# RESTARTLOOP — Container Restart Loop Detector
+# ================================================================
+cmd_restartloop() {
+    header "RESTART LOOP DETECTOR"
+    echo ""
+    printf "  ${BOLD}%-25s %-10s %-12s %-10s %s${NC}\n" "KONTEYNER" "RESTART" "HOLAT" "UPTIME" "XULOSA"
+    separator
+    local crash_found=0
+    while IFS= read -r name; do
+        [ -z "$name" ] && continue
+        local restarts=$(docker inspect --format='{{.RestartCount}}' "$name" 2>/dev/null || echo "0")
+        local state=$(docker inspect --format='{{.State.Status}}' "$name" 2>/dev/null)
+        local started=$(docker inspect --format='{{.State.StartedAt}}' "$name" 2>/dev/null)
+        local uptime_sec=0
+        if [ -n "$started" ] && [ "$started" != "0001-01-01T00:00:00Z" ]; then
+            local start_epoch=$(date -d "$started" +%s 2>/dev/null)
+            [ -n "$start_epoch" ] && uptime_sec=$(( $(date +%s) - start_epoch ))
+        fi
+        local uptime_str=$(human_duration $uptime_sec)
+        local color=$GREEN verdict="SOGLOM"
+        [ "$restarts" -gt 10 ] && { color=$RED; verdict="CRASH LOOP!"; crash_found=1; }
+        [ "$restarts" -gt 3 ] && [ "$restarts" -le 10 ] && { color=$YELLOW; verdict="BEQAROR"; }
+        [ "$state" != "running" ] && { color=$RED; verdict="TO'XTAGAN"; crash_found=1; }
+        [ "$uptime_sec" -lt 300 ] && [ "$restarts" -gt 5 ] 2>/dev/null && { color=$RED; verdict="CRASH LOOP!"; crash_found=1; }
+        printf "  ${color}%-25s %-10s %-12s %-10s %s${NC}\n" "$name" "$restarts" "$state" "$uptime_str" "$verdict"
+        if [ "$restarts" -gt 5 ] || [ "$state" != "running" ]; then
+            local last_err=$($DC logs --tail=5 "$name" 2>&1 | grep -iE "error|fatal|exception" | tail -1)
+            [ -n "$last_err" ] && echo -e "    ${DIM}└─ ${last_err:0:100}${NC}"
+        fi
+    done < <(docker ps -a --format '{{.Names}}' 2>/dev/null)
+    echo ""
+    [ "$crash_found" -eq 0 ] && ok "Restart loop topilmadi!" || fail "CRASH LOOP aniqlandi! 'bash diagnose.sh logs [service]' bilan tekshiring"
+}
+
+# ================================================================
+# FORENSICS — Container Forensics (chuqur tahlil)
+# ================================================================
+cmd_forensics() {
+    local svc="${1:-main-backend}"
+    header "CONTAINER FORENSICS: $svc"
+    echo ""
+    echo -e "  ${BOLD}1. Asosiy ma'lumotlar:${NC}"
+    info "  Image: $(docker inspect --format='{{.Config.Image}}' "$svc" 2>/dev/null)"
+    info "  PID: $(docker inspect --format='{{.State.Pid}}' "$svc" 2>/dev/null)"
+    info "  Restart: $(docker inspect --format='{{.RestartCount}}' "$svc" 2>/dev/null)"
+
+    separator
+    echo -e "  ${BOLD}2. Environment (maxfiy yashirilgan):${NC}"
+    docker inspect --format='{{range .Config.Env}}{{println .}}{{end}}' "$svc" 2>/dev/null | while read line; do
+        local key=$(echo "$line" | cut -d= -f1)
+        echo "$key" | grep -qiE "secret|password|key|token" && info "  $key=***YASHIRILGAN***" || info "  $key=$(echo "$line" | cut -d= -f2-)"
+    done
+
+    separator
+    echo -e "  ${BOLD}3. Volumes:${NC}"
+    docker inspect --format='{{range .Mounts}}{{.Source}} → {{.Destination}}{{"\n"}}{{end}}' "$svc" 2>/dev/null | while read l; do [ -n "$l" ] && info "  $l"; done
+
+    separator
+    echo -e "  ${BOLD}4. Tarmoq:${NC}"
+    docker inspect --format='{{range $n,$c := .NetworkSettings.Networks}}{{$n}}: {{$c.IPAddress}}{{"\n"}}{{end}}' "$svc" 2>/dev/null | while read l; do [ -n "$l" ] && info "  $l"; done
+
+    separator
+    echo -e "  ${BOLD}5. Jarayonlar:${NC}"
+    docker top "$svc" 2>/dev/null | head -10
+
+    separator
+    echo -e "  ${BOLD}6. Resurs limitlari:${NC}"
+    local mem_l=$(docker inspect --format='{{.HostConfig.Memory}}' "$svc" 2>/dev/null)
+    [ "$mem_l" = "0" ] || [ -z "$mem_l" ] && warn "  Memory limit: CHEKLANMAGAN" || info "  Memory limit: $((mem_l / 1048576)) MB"
+
+    separator
+    echo -e "  ${BOLD}7. Oxirgi xatoliklar:${NC}"
+    $DC logs --tail=100 "$svc" 2>&1 | grep -iE "error|exception|traceback" | tail -5 | while read l; do echo -e "  ${RED}${l:0:120}${NC}"; done
+}
+
+# ================================================================
+# DBTABLES — Database Table Bloat Analysis
+# ================================================================
+cmd_dbtables() {
+    header "DATABASE TABLE BLOAT & INDEX ANALYSIS"
+    echo ""
+    echo -e "  ${BOLD}1. Jadvallar hajmi va bloat:${NC}"
+    printf "  %-30s %-10s %-10s %-10s %-8s\n" "JADVAL" "YOZUV" "HAJM" "O'LIK" "BLOAT%"
+    separator
+    docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT relname, n_live_tup, pg_size_pretty(pg_total_relation_size(relid)), n_dead_tup,
+               CASE WHEN n_live_tup > 0 THEN round(n_dead_tup::numeric*100/n_live_tup,1) ELSE 0 END
+        FROM pg_stat_user_tables ORDER BY pg_total_relation_size(relid) DESC LIMIT 15;
+    " 2>/dev/null | while IFS='|' read t l s d b; do
+        t=$(echo "$t"|xargs); l=$(echo "$l"|xargs); s=$(echo "$s"|xargs); d=$(echo "$d"|xargs); b=$(echo "$b"|xargs)
+        [ -n "$t" ] && printf "  %-30s %-10s %-10s %-10s %s%%\n" "$t" "$l" "$s" "$d" "$b"
+    done
+
+    echo ""
+    echo -e "  ${BOLD}2. INDEX kerak bo'lishi mumkin:${NC}"
+    docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT relname, seq_scan, idx_scan FROM pg_stat_user_tables
+        WHERE seq_scan > 50 AND n_live_tup > 1000 ORDER BY seq_scan DESC LIMIT 5;
+    " 2>/dev/null | while IFS='|' read t s i; do
+        t=$(echo "$t"|xargs); s=$(echo "$s"|xargs); i=$(echo "$i"|xargs)
+        [ -n "$t" ] && warn "  $t — $s sequential scan vs $i index scan"
+    done
+}
+
+# ================================================================
+# LATENCY — Cross-Service Latency Matrix
+# ================================================================
+cmd_latency() {
+    header "CROSS-SERVICE LATENCY MATRIX"
+    echo ""
+    printf "  ${BOLD}%-18s → %-18s %-10s${NC}\n" "MANBA" "MAQSAD" "VAQT"
+    separator
+    for target in postgres:5432 redis:6379; do
+        local tname=$(echo "$target" | cut -d: -f1) tport=$(echo "$target" | cut -d: -f2)
+        local lat=$(docker exec main-backend python3 -c "
+import socket,time; s=socket.socket(); s.settimeout(3); t=time.time()
+try: s.connect(('$tname',$tport)); print(f'{round((time.time()-t)*1000,1)}ms')
+except: print('FAIL')
+finally: s.close()" 2>/dev/null)
+        local color=$GREEN; echo "$lat" | grep -q "FAIL" && color=$RED
+        printf "  ${color}%-18s → %-18s %s${NC}\n" "main-backend" "$target" "${lat:-N/A}"
+    done
+    echo ""
+    echo -e "  ${BOLD}Backend javob vaqtlari:${NC}"
+    for i in "${!BACKENDS[@]}"; do
+        local t=$(curl -s --max-time 3 -o /dev/null -w "%{time_total}" "http://localhost:${BACKEND_PORTS[$i]}/health" 2>/dev/null)
+        local ms=$(echo "scale=0; $t * 1000 / 1" | bc 2>/dev/null || echo "?")
+        local color=$GREEN; [ "$ms" -gt 200 ] 2>/dev/null && color=$YELLOW; [ "$ms" -gt 1000 ] 2>/dev/null && color=$RED
+        printf "  ${color}  %-20s %sms${NC}\n" "${SERVICE_NAMES[$i]}" "$ms"
+    done
+}
+
+# ================================================================
+# CAPACITY — Server Capacity Planning
+# ================================================================
+cmd_capacity() {
+    header "SERVER CAPACITY PLANNING"
+    echo ""
+    echo -e "  ${BOLD}1. Hozirgi holat:${NC}"
+    local total_mem=$(free -m 2>/dev/null | awk '/Mem:/ {print $2}')
+    local used_mem=$(free -m 2>/dev/null | awk '/Mem:/ {print $3}')
+    local cores=$(nproc 2>/dev/null || echo "?")
+    local total_disk=$(df -BG / 2>/dev/null | tail -1 | awk '{print $2}' | tr -d 'G')
+    info "  CPU: $cores core | RAM: ${used_mem}/${total_mem}MB | Disk: ${total_disk}GB"
+
+    separator
+    echo -e "  ${BOLD}2. Docker xotira:${NC}"
+    docker stats --no-stream --format "    {{.Name}}\t{{.MemUsage}}" 2>/dev/null | column -t | head -18
+
+    separator
+    echo -e "  ${BOLD}3. Tavsiyalar:${NC}"
+    [ -n "$total_mem" ] && { [ "$total_mem" -lt 4096 ] 2>/dev/null && fail "  RAM 4GB dan kam — 8GB+ kerak" || ok "  RAM yetarli ($total_mem MB)"; }
+    [ -n "$total_disk" ] && { [ "$total_disk" -lt 40 ] 2>/dev/null && fail "  Disk 40GB dan kam — 80GB+ kerak" || ok "  Disk yetarli (${total_disk}GB)"; }
+    [ "$cores" -lt 2 ] 2>/dev/null && fail "  CPU 2 core dan kam!" || ok "  CPU yetarli ($cores core)"
+}
+
+# ================================================================
+# FIREWALL — Firewall & Port Security
+# ================================================================
+cmd_firewall() {
+    header "FIREWALL & PORT XAVFSIZLIK"
+    echo ""
+    echo -e "  ${BOLD}1. UFW holati:${NC}"
+    if command -v ufw &>/dev/null; then
+        ufw status 2>/dev/null | head -1 | grep -q "active" && ok "UFW faol" || fail "UFW FAOL EMAS!"
+        ufw status numbered 2>/dev/null | head -15 | while read l; do info "  $l"; done
+    else
+        warn "UFW o'rnatilmagan"
+    fi
+
+    separator
+    echo -e "  ${BOLD}2. Xavfli ochiq portlar:${NC}"
+    for item in "5432:PostgreSQL" "6379:Redis" "5050:pgAdmin"; do
+        local p="${item%%:*}" s="${item##*:}"
+        if ss -tlnp 2>/dev/null | grep -q ":$p "; then
+            local bind=$(ss -tlnp 2>/dev/null | grep ":$p " | awk '{print $4}' | head -1)
+            echo "$bind" | grep -qE "0.0.0.0|:::" && fail "$s (port $p) HAMMA GA OCHIQ!" || ok "$s ($p) himoyalangan"
+        fi
+    done
+
+    separator
+    echo -e "  ${BOLD}3. Fail2ban:${NC}"
+    command -v fail2ban-client &>/dev/null && ok "Fail2ban o'rnatilgan" || warn "Fail2ban yo'q — 'apt install fail2ban'"
+}
+
+# ================================================================
+# ENDPOINTS — Barcha API endpointlarni tekshirish
+# ================================================================
+cmd_endpoints() {
+    header "BARCHA API ENDPOINTS TEKSHIRUVI"
+    echo ""
+    local eps=(
+        "8000:/api/v1/health/ping:Main Health"
+        "8000:/api/v1/subscription/plans:Sub Plans"
+        "8000:/api/v1/payments/gateways/available:Gateways"
+        "8001:/health:Harf" "8002:/health:TestAI" "8003:/health:CRM"
+        "8004:/health:Games" "8005:/health:Olimp" "8006:/health:Lessions"
+    )
+    printf "  ${BOLD}%-25s %-6s %-8s %-8s${NC}\n" "ENDPOINT" "CODE" "VAQT" "HOLAT"
+    separator
+    local total=0 pass=0
+    for ep in "${eps[@]}"; do
+        IFS=':' read -r port path label <<< "$ep"
+        total=$((total + 1))
+        local resp=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}|%{time_total}" "http://localhost:$port$path" 2>/dev/null)
+        local code=$(echo "$resp" | cut -d'|' -f1) t=$(echo "$resp" | cut -d'|' -f2)
+        local ms=$(echo "scale=0; ${t:-0} * 1000 / 1" | bc 2>/dev/null || echo "?")
+        local color=$GREEN st="OK"
+        case "$code" in
+            200) pass=$((pass+1)); [ "$ms" -gt 1000 ] 2>/dev/null && { color=$YELLOW; st="SEKIN"; } ;;
+            401|403) pass=$((pass+1)); color=$CYAN; st="AUTH" ;;
+            000) color=$RED; st="DOWN!" ;;
+            *) color=$YELLOW; st="HTTP $code" ;;
+        esac
+        printf "  ${color}%-25s %-6s %-8s %s${NC}\n" "$label" "$code" "${ms}ms" "$st"
+    done
+    echo ""
+    local rate=$((pass * 100 / total))
+    [ "$rate" -ge 90 ] && ok "API: ${rate}% ($pass/$total)" || fail "API: ${rate}% ($pass/$total)"
+}
+
+# ================================================================
+# CRON — Cron Jobs tekshiruvi
+# ================================================================
+cmd_cron() {
+    header "CRON JOBS & AVTOMATIK VAZIFALAR"
+    echo ""
+    echo -e "  ${BOLD}1. Root crontab:${NC}"
+    local ct=$(crontab -l 2>/dev/null | grep -v "^#" | grep -v "^$")
+    [ -n "$ct" ] && echo "$ct" | while read l; do info "  $l"; done || warn "Cron job yo'q. Tavsiya: 0 3 * * * bash diagnose.sh backup"
+
+    separator
+    echo -e "  ${BOLD}2. SSL auto-renew:${NC}"
+    if crontab -l 2>/dev/null | grep -q "certbot" || systemctl list-timers 2>/dev/null | grep -q "certbot"; then
+        ok "Certbot auto-renew mavjud"
+    else
+        warn "SSL auto-renew topilmadi!"
+    fi
+}
+
+# ================================================================
+# FULL DIAGNOSTIKA (V7.0)
 # ================================================================
 cmd_full() {
-    # Reset score for full run
     SCORE_TOTAL=0
     SCORE_PASS=0
-    
+
     echo ""
     echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${BOLD}${CYAN}║     ALIF24 PLATFORM — TO'LIQ DIAGNOSTIKA v${VERSION}         ║${NC}"
@@ -1654,19 +2027,19 @@ cmd_full() {
     echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
 
     cmd_status
+    cmd_restartloop
     cmd_security
     cmd_health
     cmd_ssl
     cmd_errors 30
     cmd_perf
+    cmd_envcheck
 
     # Final score
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     local score=0
-    if [ "$SCORE_TOTAL" -gt 0 ]; then
-        score=$((SCORE_PASS * 100 / SCORE_TOTAL))
-    fi
+    [ "$SCORE_TOTAL" -gt 0 ] && score=$((SCORE_PASS * 100 / SCORE_TOTAL))
     local grade_color=$RED grade="F"
     [ "$score" -ge 95 ] && grade_color=$GREEN && grade="A+"
     [ "$score" -ge 90 ] && [ "$score" -lt 95 ] && grade_color=$GREEN && grade="A"
@@ -1677,74 +2050,60 @@ cmd_full() {
     echo -e "  ${BOLD}UMUMIY BAL: ${grade_color}${score}% — $grade${NC}  ${DIM}($SCORE_PASS/$SCORE_TOTAL tekshiruv)${NC}"
     progress_bar $score
 
-    header "TEZKOR BUYRUQLAR"
+    if [ "$score" -lt 70 ]; then
+        echo ""
+        echo -e "  ${YELLOW}Tavsiya: bash diagnose.sh heal${NC}"
+    fi
+    
     echo ""
-    echo -e "  ${BOLD}${UNDERLINE}Monitoring:${NC}"
-    echo -e "    ${BOLD}bash diagnose.sh watch${NC}         — Live dashboard (auto-refresh)"
-    echo -e "    ${BOLD}bash diagnose.sh score${NC}         — Sog'liq bali"
-    echo -e "    ${BOLD}bash diagnose.sh top${NC}           — Resurs reytingi"
-    echo -e "    ${BOLD}bash diagnose.sh status${NC}        — Container holatlari"
-    echo -e "    ${BOLD}bash diagnose.sh health${NC}        — Health check"
-    echo ""
-    echo -e "  ${BOLD}${UNDERLINE}Loglar:${NC}"
-    echo -e "    ${BOLD}bash diagnose.sh errors 100${NC}    — Oxirgi 100 xatolik"
-    echo -e "    ${BOLD}bash diagnose.sh requests 50${NC}   — So'rovlar"
-    echo -e "    ${BOLD}bash diagnose.sh logs main-backend 50${NC} — Loglar"
-    echo -e "    ${BOLD}bash diagnose.sh follow nginx${NC}  — Real-time log"
-    echo ""
-    echo -e "  ${BOLD}${UNDERLINE}Baza & Xavfsizlik:${NC}"
-    echo -e "    ${BOLD}bash diagnose.sh db${NC}            — Database holati"
-    echo -e "    ${BOLD}bash diagnose.sh backup${NC}        — DB backup"
-    echo -e "    ${BOLD}bash diagnose.sh restore [file]   — Database restore (backup fayldan)"
-    echo -e "    ${BOLD}bash diagnose.sh ssl${NC}           — SSL tekshiruvi"
-    echo -e "    ${BOLD}bash diagnose.sh network${NC}       — Tarmoq diagnostika"
-    echo -e "    ${BOLD}bash diagnose.sh slow${NC}          — DB Sekin So'rovlari"
-    echo -e "    ${BOLD}bash diagnose.sh traffic${NC}       — Nginx Max Trafik hajmi"
-    echo -e "    ${BOLD}bash diagnose.sh storm${NC}         — Log rate tekshirish"
-    echo -e "    ${BOLD}bash diagnose.sh audit${NC}         — Kutubxonalar auditi"
-    echo ""
-    echo -e "  ${BOLD}${UNDERLINE}Amallar:${NC}"
-    echo -e "    ${BOLD}bash diagnose.sh deploy${NC}        — Tezkor deploy (git pull + rebuild)"
-    echo -e "    ${BOLD}bash diagnose.sh heal${NC}          — Auto-fix (tozalash)"
-    echo -e "    ${BOLD}bash diagnose.sh upgrade${NC}       — Skriptni (diagnose.sh) o'zini eng yangi versiyaga yangilash"
-    echo -e "    ${BOLD}bash diagnose.sh rebuild olimp-backend${NC} — Qayta build"
-    echo -e "    ${BOLD}bash diagnose.sh report${NC}        — Hisobotni faylga saqlash"
-    echo ""
+    echo -e "  ${DIM}Chuqur tahlil: benchmark | memleak | forensics [svc] | dbtables | latency | capacity | firewall${NC}"
 }
 
 # ================================================================
-# MAIN — Command router
+# MAIN — Command router (V7.0)
 # ================================================================
 case "${1:-full}" in
-    status)   cmd_status ;;
-    security) cmd_security ;;
-    health)   cmd_health ;;
-    logs)     cmd_logs "$2" "$3" ;;
-    errors)   cmd_errors "$2" ;;
-    requests) cmd_requests "$2" ;;
-    db)       cmd_db ;;
-    perf)     cmd_perf ;;
-    api)      cmd_api "$2" "$3" ;;
-    heal)     cmd_heal ;;
-    backup)   cmd_backup ;;
-    restore)  cmd_restore "$2" ;;
-    watch)    cmd_watch "$2" ;;
-    network)  cmd_network ;;
-    deploy)   cmd_deploy ;;
-    report)   cmd_report ;;
-    diff)     cmd_diff "$2" ;;
-    score)    cmd_score ;;
-    top)      cmd_top ;;
-    ssl)      cmd_ssl ;;
-    slow)     cmd_slow ;;
-    traffic)  cmd_traffic ;;
-    audit)    cmd_audit ;;
-    storm)    cmd_storm ;;
-    upgrade)  cmd_upgrade ;;
-    restart)  cmd_restart "$2" ;;
-    rebuild)  cmd_rebuild "$2" ;;
-    follow)   cmd_follow "$2" ;;
-    full)     cmd_full ;;
+    status)      cmd_status ;;
+    security)    cmd_security ;;
+    health)      cmd_health ;;
+    logs)        cmd_logs "$2" "$3" ;;
+    errors)      cmd_errors "$2" ;;
+    requests)    cmd_requests "$2" ;;
+    db)          cmd_db ;;
+    perf)        cmd_perf ;;
+    api)         cmd_api "$2" "$3" ;;
+    heal)        cmd_heal ;;
+    backup)      cmd_backup ;;
+    restore)     cmd_restore "$2" ;;
+    watch)       cmd_watch "$2" ;;
+    network)     cmd_network ;;
+    deploy)      cmd_deploy ;;
+    report)      cmd_report ;;
+    diff)        cmd_diff "$2" ;;
+    score)       cmd_score ;;
+    top)         cmd_top ;;
+    ssl)         cmd_ssl ;;
+    slow)        cmd_slow ;;
+    traffic)     cmd_traffic ;;
+    audit)       cmd_audit ;;
+    storm)       cmd_storm ;;
+    upgrade)     cmd_upgrade ;;
+    restart)     cmd_restart "$2" ;;
+    rebuild)     cmd_rebuild "$2" ;;
+    follow)      cmd_follow "$2" ;;
+    # V7.0 yangi komandalar
+    benchmark)   cmd_benchmark "$2" ;;
+    memleak)     cmd_memleak ;;
+    envcheck)    cmd_envcheck ;;
+    restartloop) cmd_restartloop ;;
+    forensics)   cmd_forensics "$2" ;;
+    dbtables)    cmd_dbtables ;;
+    latency)     cmd_latency ;;
+    capacity)    cmd_capacity ;;
+    firewall)    cmd_firewall ;;
+    endpoints)   cmd_endpoints ;;
+    cron)        cmd_cron ;;
+    full)        cmd_full ;;
     help|--help|-h)
         echo ""
         echo -e "${BOLD}${CYAN}  ALIF24 Diagnostika Tool v${VERSION}${NC}"
@@ -1752,45 +2111,56 @@ case "${1:-full}" in
         echo -e "  ${BOLD}Ishlatish:${NC} bash diagnose.sh [command] [args]"
         echo ""
         echo -e "  ${BOLD}${UNDERLINE}Monitoring:${NC}"
-        echo "    (bo'sh)          To'liq diagnostika + baho"
-        echo "    status           Container holatlari + restart count + uptime"
-        echo "    health           Backend/Frontend health check"
-        echo "    score            Umumiy sog'liq bali (0-100, A-F baho)"
-        echo "    top              Konteyner resurs reytingi (CPU/RAM)"
-        echo "    watch [N]        Live dashboard, har N sekundda yangilanadi (default: 5)"
+        echo "    (bo'sh)           To'liq diagnostika + baho"
+        echo "    status            Container holatlari + restart count"
+        echo "    health            Backend/Frontend health check"
+        echo "    score             Sog'liq bali (0-100, A-F)"
+        echo "    top               Resurs reytingi (CPU/RAM)"
+        echo "    watch [N]         Live dashboard (har N sekundda)"
+        echo "    endpoints         Barcha API endpointlarni tekshirish"
+        echo ""
+        echo -e "  ${BOLD}${UNDERLINE}V7.0 — Pro Diagnostika:${NC}"
+        echo "    benchmark [N]     API tezlik benchmark (N marta, P95)"
+        echo "    memleak           Memory leak aniqlash (10s monitoring)"
+        echo "    restartloop       Crash loop / restart tuzog'i aniqlash"
+        echo "    forensics [svc]   Container chuqur tahlili"
+        echo "    latency           Cross-service latency matritsasi"
+        echo "    capacity          Server sig'imi va tavsiyalar"
+        echo "    dbtables          DB jadval bloat va index tahlili"
+        echo "    envcheck          .env konfiguratsiya validatsiyasi"
+        echo "    firewall          Firewall, port va xavfsizlik"
+        echo "    cron              Cron va avtomatik vazifalar"
         echo ""
         echo -e "  ${BOLD}${UNDERLINE}Loglar & So'rovlar:${NC}"
-        echo "    logs [svc] [N]   Loglar (default: all, 30)"
-        echo "    errors [N]       Faqat xatoliklar"
-        echo "    requests [N]     Nginx so'rovlar"
-        echo "    follow [svc]     Real-time log (Ctrl+C bilan to'xtatish)"
+        echo "    logs [svc] [N]    Service loglari"
+        echo "    errors [N]        Faqat xatoliklar"
+        echo "    requests [N]      Nginx so'rovlar"
+        echo "    follow [svc]      Real-time log"
         echo ""
         echo -e "  ${BOLD}${UNDERLINE}Baza & Infra:${NC}"
-        echo "    db               Database holati + statistika"
-        echo "    backup           Database backup (/root/backups/)"
-        echo "    restore [file]   Database restore (backup fayldan)"
-        echo "    network          Docker network diagnostika"
+        echo "    db                Database holati"
+        echo "    backup            DB backup"
+        echo "    restore [file]    DB restore"
+        echo "    network           Docker tarmoq diagnostika"
+        echo "    slow              Sekin DB so'rovlar"
         echo ""
         echo -e "  ${BOLD}${UNDERLINE}Xavfsizlik:${NC}"
-        echo "    security         Xavfsizlik auditi (portlar, brute-force, scannerlar)"
-        echo "    ssl              SSL sertifikat tekshiruvi (barcha domenlar)"
-        echo "    audit            NPM / PIP paketlaridagi xavfsizlik tekshiruvi"
-        echo "    storm            Log Tsunami ushlagichi (Infinite Loop)"
-        echo "    traffic          Nginx Bandwidth (Trafik) sarfini aniqlash"
+        echo "    security          Xavfsizlik auditi"
+        echo "    ssl               SSL sertifikat tekshiruvi"
+        echo "    audit             Paketlar auditi"
+        echo "    storm             Log Tsunami aniqlash"
+        echo "    traffic           Nginx trafik hajmi"
         echo ""
         echo -e "  ${BOLD}${UNDERLINE}Amallar:${NC}"
-        echo "    deploy           Tezkor deploy (git pull + aqlli rebuild + AUTO-ROLLBACK)"
-        echo "    heal             Auto-fix (tozalash, optimize, chopish, qayta ishga tushirish)"
-        echo "    upgrade          Skriptni (diagnose.sh) o'zini eng yangi versiyaga yangilash"
-        echo "    restart [svc]    Service restart"
-        echo "    rebuild [svc]    Build + restart"
-        echo "    perf             CPU, RAM, Disk, Docker stats"
-        echo ""
-        echo -e "  ${BOLD}${UNDERLINE}Boshqa:${NC}"
+        echo "    deploy            Tezkor deploy (+ auto-rollback)"
+        echo "    heal              Auto-fix va tozalash"
+        echo "    upgrade           diagnose.sh ni yangilash"
+        echo "    restart [svc]     Service restart"
+        echo "    rebuild [svc]     Build + restart"
+        echo "    perf              CPU, RAM, Disk stats"
         echo "    api [path] [port] API endpoint test"
-        echo "    diff [N]          Oxirgi N ta git commit (default: 5)"
-        echo "    report            To'liq diagnostikani faylga saqlash"
-        echo "    help              Shu yordam"
+        echo "    diff [N]          Oxirgi git o'zgarishlar"
+        echo "    report            Hisobotni faylga saqlash"
         echo ""
         ;;
     *)
@@ -1798,3 +2168,4 @@ case "${1:-full}" in
         echo "bash diagnose.sh help — yordam"
         ;;
 esac
+
