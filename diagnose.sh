@@ -475,7 +475,7 @@ cmd_errors() {
     done
 
     # Nginx errors
-    local nginx_errs=$($DC logs --tail=$lines nginx 2>/dev/null | grep -iE "error|failed|502|503|504" | grep -v "healthcheck" | tail -10)
+    local nginx_errs=$($DC logs --tail=$lines nginx 2>/dev/null | grep -iE 'error|failed|" 500 |" 502 |" 503 |" 504 ' | grep -v "healthcheck" | tail -10)
     if [ -n "$nginx_errs" ]; then
         found=$((found + 1))
         echo ""
