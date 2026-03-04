@@ -170,11 +170,19 @@ const Navbar = () => {
               >
                 {t('home') || 'Bosh sahifa'}
               </button>
+              {!(isAuthenticated && user?.role === 'student') && (
+                <button
+                  onClick={() => navigate('/partners')}
+                  className="text-[#dcdcdc] text-lg transition-colors hover:text-white bg-transparent border-none cursor-pointer"
+                >
+                  {t('partner') || 'Hamkorlar'}
+                </button>
+              )}
               <button
-                onClick={() => navigate('/partners')}
-                className="text-[#dcdcdc] text-lg transition-colors hover:text-white bg-transparent border-none cursor-pointer"
+                onClick={() => navigate('/leaderboard')}
+                className="text-[#dcdcdc] text-lg transition-colors hover:text-white bg-transparent border-none cursor-pointer flex items-center gap-1"
               >
-                {t('partner') || 'Hamkorlar'}
+                🏆 {t('leaderboard') || 'Reyting'}
               </button>
               <button
                 onClick={handleProfileClick}
@@ -349,11 +357,17 @@ const Navbar = () => {
               path: "/dashboard",
             },
             {
+              key: "leaderboard",
+              icon: Trophy,
+              label: t("leaderboard") || "Reyting",
+              path: "/leaderboard",
+            },
+            ...((isAuthenticated && user?.role === 'student') ? [] : [{
               key: "games",
               icon: HandshakeIcon,
               label: t("partner") || "Hamkorlar",
               path: "/partners",
-            },
+            }]),
             {
               key: "profile",
               icon: User,
@@ -367,8 +381,8 @@ const Navbar = () => {
               <button
                 key={tab.key}
                 className={`relative flex flex-col items-center bg-transparent border-none text-[10px] gap-0.5 cursor-pointer px-3 py-1.5 transition-all duration-200 ${isActive
-                    ? "text-[#4b30fb]"
-                    : "text-gray-500 active:scale-95"
+                  ? "text-[#4b30fb]"
+                  : "text-gray-500 active:scale-95"
                   }`}
                 onClick={() =>
                   tab.path

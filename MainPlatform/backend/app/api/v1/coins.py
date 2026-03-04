@@ -186,3 +186,75 @@ async def get_transactions(
             for tx in transactions
         ]
     }
+
+
+@router.get("/leaderboard")
+async def get_leaderboard(
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    """Umumiy reyting — barcha o'quvchilar coin bo'yicha"""
+    from sqlalchemy.orm import selectinload
+
+    res = await db.execute(
+        select(StudentCoin, StudentProfile, User)
+        .join(StudentProfile, StudentCoin.student_id == StudentProfile.id)
+        .join(User, StudentProfile.user_id == User.id)
+        .where(User.role == UserRole.student)
+        .where(StudentCoin.total_earned > 0)
+        .order_by(StudentCoin.total_earned.desc())
+        .limit(limit)
+    )
+    rows = res.all()
+
+    leaderboard = []
+    for rank, (coin, profile, user) in enumerate(rows, 1):
+        leaderboard.append({
+            "rank": rank,
+            "student_name": f"{user.first_name or ''} {user.last_name or ''}".strip() or "O'quvchi",
+            "avatar_initial": (user.first_name or "O")[0].upper(),
+            "total_earned": coin.total_earned,
+            "current_balance": coin.current_balance,
+            "grade": getattr(profile, 'grade', None),
+        })
+
+    return {"success": True, "leaderboard": leaderboard, "total": len(leaderboard)}
+
+
+@router.get("/my-rank")
+async def get_my_rank(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """O'quvchining reytingdagi o'rnini olish"""
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
+
+    coin = await get_or_create_coin_balance(db, current_user)
+    await db.commit()
+
+    # Count how many students have more coins
+    from sqlalchemy import func as sqlfunc
+    higher_count = await db.execute(
+        select(sqlfunc.count(StudentCoin.id))
+        .where(StudentCoin.total_earned > coin.total_earned)
+    )
+    rank = (higher_count.scalar() or 0) + 1
+
+    total_students = await db.execute(
+        select(sqlfunc.count(StudentCoin.id))
+        .where(StudentCoin.total_earned > 0)
+    )
+    total = total_students.scalar() or 0
+
+    return {
+        "success": True,
+        "data": {
+            "rank": rank,
+            "total_students": total,
+            "total_earned": coin.total_earned,
+            "current_balance": coin.current_balance,
+            "student_name": f"{current_user.first_name or ''} {current_user.last_name or ''}".strip(),
+        }
+    }
+
