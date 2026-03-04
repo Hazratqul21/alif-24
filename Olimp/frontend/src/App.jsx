@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 // Pages
 import OlimpHome from './pages/OlimpHome';
 import OlympiadDetail from './pages/OlympiadDetail';
+import OlympiadAdmin from './pages/OlympiadAdmin';
 import ReadingHome from './pages/ReadingHome';
 import ReadingPlay from './pages/ReadingPlay';
 
@@ -25,6 +26,9 @@ const App = () => {
 
           {/* Olympiad Detail */}
           <Route path="/olympiad/:id" element={<OlympiadDetail />} />
+
+          {/* Olympiad Admin — Participants */}
+          <Route path="/olympiad/:olympiadId/participants" element={<OlympiadAdmin />} />
 
           {/* Reading Competition */}
           <Route path="/reading" element={<ReadingHome />} />

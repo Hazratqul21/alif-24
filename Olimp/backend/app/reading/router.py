@@ -34,6 +34,7 @@ from shared.database.models.reading_competition import (
     ReadingSession, CompetitionResult,
     CompetitionStatus, TaskDay, SessionStatus, ResultGroup,
 )
+from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
 from shared.auth import verify_token
 from shared.services.storage_service import get_storage_service
 from shared.services.azure_speech_service import speech_service
@@ -496,6 +497,46 @@ async def submit_reading(
     session.score_questions = scores["score_questions"]
     session.total_score = scores["total_score"]
 
+    # Calculate and award coins
+    wpm = 0
+    if data.reading_time_seconds > 0 and similarity["words_read"] > 0:
+        wpm = round(similarity["words_read"] / (data.reading_time_seconds / 60))
+
+    reading_coin = 10 if wpm >= 60 else (5 if wpm >= 40 else 2)
+    quiz_coin = 0
+    if questions_total > 0:
+        quiz_pct = (questions_correct / questions_total) * 100
+        quiz_coin = 15 if quiz_pct >= 80 else (8 if quiz_pct >= 50 else 3)
+    coins_total = reading_coin + quiz_coin
+
+    # Get student profile
+    sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == student.id))
+    sp = sp_res.scalars().first()
+    if sp:
+        try:
+            sc_res = await db.execute(select(StudentCoin).where(StudentCoin.student_id == sp.id))
+            student_coin = sc_res.scalars().first()
+            if not student_coin:
+                student_coin = StudentCoin(student_id=sp.id)
+                db.add(student_coin)
+                await db.flush()
+
+            student_coin.add_coins(coins_total)
+
+            tx = CoinTransaction(
+                student_coin_id=student_coin.id,
+                type=TransactionType.olympiad_participation,
+                amount=coins_total,
+                description=f"O'qish: {wpm} WPM, Quiz: {questions_correct}/{questions_total}",
+                reference_id=task_id,
+                reference_type="reading_task",
+            )
+            db.add(tx)
+
+            sp.total_coins = (sp.total_coins or 0) + coins_total
+        except Exception as e:
+            logger.error(f"Reading coin award error: {e}")
+
     await db.commit()
 
     return {
@@ -506,8 +547,12 @@ async def submit_reading(
             "words_read": similarity["words_read"],
             "total_words": similarity["total_words"],
             "reading_time_seconds": data.reading_time_seconds,
+            "words_per_minute": wpm,
             "questions_correct": questions_correct,
             "questions_total": questions_total,
+            "coins_earned": coins_total,
+            "coins_reading": reading_coin,
+            "coins_quiz": quiz_coin,
             **scores,
         }
     }
