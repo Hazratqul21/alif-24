@@ -135,6 +135,7 @@ async def add_security_headers(request, call_next):
 from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback, telegram
 from app.api.v1 import classrooms, assignments, notifications, lessons, platform_content, aiops, uploads, coins, organizations, olympiads
 from app.api.v1 import reading_competition
+from app.api.v1 import admin_analytics
 from app.smartkids import story_router, image_reader_router, file_reader_router, speech_token_router
 from app.mathkids import math_solver_router, math_image_router
 
@@ -146,6 +147,8 @@ app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["aut
 app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["dashboard"])
 # Admin Panel
 app.include_router(admin_panel.router, prefix=f"{settings.API_PREFIX}/admin", tags=["admin"])
+# Admin Analytics (Smart Dashboard)
+app.include_router(admin_analytics.router, prefix=f"{settings.API_PREFIX}/admin", tags=["admin-analytics"])
 
 # Platform Content
 app.include_router(platform_content.router, prefix=f"{settings.API_PREFIX}", tags=["content"])

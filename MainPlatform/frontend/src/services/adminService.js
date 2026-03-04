@@ -159,6 +159,19 @@ const adminService = {
     createPromoCode: (data) => adminApi.post('/promo-codes', data),
     updatePromoCode: (promoId, data) => adminApi.put(`/promo-codes/${promoId}`, data),
     deletePromoCode: (promoId) => adminApi.delete(`/promo-codes/${promoId}`),
+
+    // ============ ANALYTICS (Smart Dashboard) ============
+    getAnalyticsOverview: () => adminApi.get('/analytics/overview'),
+    getAnalyticsTrends: (period = '30d') => adminApi.get('/analytics/trends', { params: { period } }),
+    getAnalyticsGeo: (period = '30d') => adminApi.get('/analytics/geo', { params: { period } }),
+    getAuditLog: (params) => adminApi.get('/analytics/audit-log', { params }),
+    getAdminNotifications: (unreadOnly = false) => adminApi.get('/analytics/notifications', { params: { unread_only: unreadOnly } }),
+    markNotificationRead: (notifId) => adminApi.post(`/analytics/notifications/${notifId}/read`),
+    markAllNotificationsRead: () => adminApi.post('/analytics/notifications/read-all'),
+    getUserSegments: () => adminApi.get('/analytics/segments'),
+    getSubscriptionHealth: () => adminApi.get('/analytics/subscription-health'),
+    autoExpireSubscriptions: () => adminApi.post('/analytics/expire-subscriptions'),
+    getRecentLogins: (limit = 30) => adminApi.get('/analytics/recent-logins', { params: { limit } }),
 };
 
 export default adminService;

@@ -156,6 +156,13 @@ from shared.database.models.subscription import (
     PromoCodeUsage,
 )
 
+# Analytics System
+from shared.database.models.analytics import (
+    UserGeoLog,
+    AuditLog,
+    AdminNotification,
+)
+
 __all__ = [
     # User Models
     "User",
@@ -294,4 +301,9 @@ __all__ = [
     # PromoCode Models
     "PromoCode",
     "PromoCodeUsage",
+
+    # Analytics Models
+    "UserGeoLog",
+    "AuditLog",
+    "AdminNotification",
 ]

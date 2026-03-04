@@ -34,6 +34,21 @@ security = HTTPBearer()
 
 router = APIRouter(tags=["admin"])
 
+# Import audit log helper (defined in admin_analytics.py)
+_audit_log_fn = None
+async def _log_audit(db, role, action, **kwargs):
+    global _audit_log_fn
+    if _audit_log_fn is None:
+        try:
+            from .admin_analytics import write_audit_log
+            _audit_log_fn = write_audit_log
+        except Exception:
+            return
+    try:
+        await _audit_log_fn(db, role, action, **kwargs)
+    except Exception:
+        pass
+
 # Admin Secret Keys from environment
 ADMIN_KEYS = {
     "hazratqul": "alif24_rahbariyat26!",
@@ -704,6 +719,8 @@ async def create_user(
     await db.commit()
     await db.refresh(user)
     
+    await _log_audit(db, admin["role"], "user.create", target_type="user", target_id=user.id, target_name=f"{data.first_name} {data.last_name}")
+    
     return {"message": "Foydalanuvchi yaratildi", "user_id": user.id}
 
 
@@ -745,6 +762,8 @@ async def update_user(
     user.updated_at = datetime.now(timezone.utc)
     await db.commit()
     
+    await _log_audit(db, admin["role"], "user.update", target_type="user", target_id=user_id, target_name=f"{user.first_name} {user.last_name}")
+    
     return {"message": "Foydalanuvchi yangilandi", "user_id": user_id}
 
 
@@ -775,6 +794,8 @@ async def delete_user(
     user.deleted_at = datetime.now(timezone.utc)
     user.updated_at = datetime.now(timezone.utc)
     await db.commit()
+    
+    await _log_audit(db, admin["role"], "user.delete", target_type="user", target_id=user_id, target_name=f"{user.first_name} {user.last_name}", action_type="danger")
     
     return {
         "message": "Foydalanuvchi o'chirildi" + (" (Telegram ham uzildi)" if telegram_unlinked else ""),
@@ -1851,6 +1872,8 @@ async def assign_subscription(
     db.add(subscription)
     await db.commit()
     await db.refresh(subscription)
+
+    await _log_audit(db, admin["role"], "subscription.assign", target_type="subscription", target_id=str(subscription.id), target_name=f"{user.first_name} {user.last_name} -> {plan.name}")
 
     return {
         "message": f"{user.first_name} {user.last_name} ga '{plan.name}' obuna berildi",
