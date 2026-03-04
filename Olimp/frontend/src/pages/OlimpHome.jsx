@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, Calendar, Users, ChevronRight, Search, Filter, BookOpen } from 'lucide-react';
+import { Trophy, Calendar, Users, ChevronRight, Search, Filter, BookOpen, User, Coins } from 'lucide-react';
 import apiService from '../services/apiService';
+import ProfileSection from '../components/ProfileSection';
 
 const statusColors = {
     draft: 'bg-gray-100 text-gray-600',
@@ -34,6 +35,7 @@ export default function OlimpHome() {
     const [error, setError] = useState(null);
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
+    const [showProfile, setShowProfile] = useState(false);
 
     useEffect(() => {
         loadOlympiads();
@@ -61,6 +63,9 @@ export default function OlimpHome() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+            {/* Profile Modal */}
+            <ProfileSection isOpen={showProfile} onClose={() => setShowProfile(false)} />
+
             {/* Header */}
             <header className="border-b border-white/10 backdrop-blur-md bg-white/5">
                 <div className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
@@ -73,12 +78,21 @@ export default function OlimpHome() {
                             <p className="text-xs text-indigo-300">alif24 • Olimpiadalar</p>
                         </div>
                     </div>
-                    <a
-                        href="https://alif24.uz"
-                        className="text-sm text-indigo-300 hover:text-white transition-colors"
-                    >
-                        ← Bosh sahifaga
-                    </a>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setShowProfile(true)}
+                            className="flex items-center gap-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 hover:bg-yellow-500/20 transition-colors text-sm"
+                        >
+                            <Coins className="w-4 h-4" />
+                            <span className="hidden sm:inline">Profil</span>
+                        </button>
+                        <a
+                            href="https://alif24.uz"
+                            className="text-sm text-indigo-300 hover:text-white transition-colors"
+                        >
+                            ← Bosh sahifaga
+                        </a>
+                    </div>
                 </div>
             </header>
 
@@ -140,8 +154,8 @@ export default function OlimpHome() {
                                 key={value}
                                 onClick={() => setFilter(value)}
                                 className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${filter === value
-                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                                        : 'bg-white/10 text-indigo-300 hover:bg-white/20'
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                                    : 'bg-white/10 text-indigo-300 hover:bg-white/20'
                                     }`}
                             >
                                 {label}

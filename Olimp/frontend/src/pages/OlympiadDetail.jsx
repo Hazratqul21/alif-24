@@ -253,6 +253,12 @@ export default function OlympiadDetail() {
                                 <BarChart3 className="w-5 h-5" /> {showLeaderboard ? 'Reytingni yashirish' : 'Reytingni ko\'rish'}
                             </button>
                             <Link
+                                to={`/olympiad/${id}/participants`}
+                                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
+                            >
+                                <Users className="w-5 h-5" /> Ishtirokchilar
+                            </Link>
+                            <Link
                                 to="/"
                                 className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
                             >
