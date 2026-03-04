@@ -1080,23 +1080,46 @@ const StudentDashboard = () => {
                                                     <p className="text-[10px] text-gray-400">{plan.duration_days} kun</p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2 flex-wrap">
+                                            <div className="flex items-center gap-2 flex-wrap mb-3">
                                                 <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md text-[10px] font-medium">{plan.max_children} bola</span>
                                                 <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md text-[10px] font-medium">{plan.duration_days} kunlik</span>
                                             </div>
+                                            {plan.price > 0 && (
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            const res = await fetch(`${apiBaseUrl}/payments/checkout`, {
+                                                                method: 'POST',
+                                                                credentials: 'include',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({
+                                                                    plan_config_id: plan.id,
+                                                                    return_url: window.location.origin + '/student-dashboard?payment=success'
+                                                                })
+                                                            });
+                                                            const data = await res.json();
+                                                            if (data.checkout_url) {
+                                                                window.location.href = data.checkout_url;
+                                                            } else {
+                                                                showNotification('error', data.detail || "To'lov tizimi hozir ishlamayapti");
+                                                            }
+                                                        } catch (e) {
+                                                            showNotification('error', "To'lov tizimi bilan bog'lanib bo'lmadi");
+                                                        }
+                                                    }}
+                                                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2.5 rounded-xl font-bold text-sm hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md flex items-center justify-center gap-2"
+                                                >
+                                                    💳 To'lov qilish — {plan.price.toLocaleString()} UZS
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
                             )}
 
-                            {/* Contact for payment */}
-                            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4 text-center">
-                                <p className="text-sm text-gray-700 font-medium mb-2">Obuna sotib olish uchun:</p>
-                                <a href="https://t.me/alif24_support" target="_blank" rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:from-blue-600 hover:to-blue-700 transition-all shadow-md no-underline">
-                                    💬 Telegram orqali bog'lanish
-                                </a>
-                                <p className="text-[10px] text-gray-400 mt-2">Yoki ID ni adminga yuboring: <span className="font-mono font-bold">{authUser?.id}</span></p>
+                            {/* Fallback Telegram contact */}
+                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center mt-3">
+                                <p className="text-[11px] text-gray-500">Muammo bo'lsa: <a href="https://t.me/alif24_support" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">Telegram orqali bog'lanish</a></p>
                             </div>
                         </div>
                     </div>
