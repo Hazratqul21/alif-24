@@ -45,7 +45,7 @@
 #    bash diagnose.sh cron              — Cron jobs va avtomatik vazifalar
 # ================================================================
 
-VERSION="7.0"
+VERSION="8.0"
 
 # Ranglar
 RED='\033[0;31m'
@@ -78,6 +78,51 @@ REPORT_DIR="/root/reports"
 # Global health score counter
 SCORE_TOTAL=0
 SCORE_PASS=0
+
+# ================================================================
+# CONFIG FILE — .diagnose.conf (.env dan alohida sozlamalar)
+# ================================================================
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONF_FILE="$SCRIPT_DIR/.diagnose.conf"
+if [ -f "$CONF_FILE" ]; then
+    source "$CONF_FILE"
+fi
+# .env dan ham o'qish (Telegram token va boshqa kalitlar uchun)
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    # Faqat TELEGRAM_ va ALERT_ kalitlarini o'qish
+    eval $(grep -E '^(TELEGRAM_|ALERT_)' "$SCRIPT_DIR/.env" | sed 's/^/export /')
+fi
+
+# ================================================================
+# LOCKFILE — Parallel ishlatishdan himoya
+# ================================================================
+LOCKFILE="/tmp/alif24_diagnose.lock"
+if [ "${1:-}" != "help" ] && [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
+    if [ -f "$LOCKFILE" ]; then
+        local_pid=$(cat "$LOCKFILE" 2>/dev/null)
+        if kill -0 "$local_pid" 2>/dev/null; then
+            echo -e "${YELLOW}⚠ Diagnostika allaqachon ishlamoqda (PID: $local_pid). Kutib turing yoki o'chiring: rm $LOCKFILE${NC}"
+            exit 1
+        fi
+    fi
+    echo $$ > "$LOCKFILE"
+    trap "rm -f $LOCKFILE" EXIT INT TERM
+fi
+
+# ================================================================
+# DOCKER VERSION CHECK
+# ================================================================
+check_docker_version() {
+    if ! command -v docker &>/dev/null; then
+        echo -e "${RED}❌ Docker topilmadi! O'rnating: https://docs.docker.com/install/${NC}"
+        exit 1
+    fi
+    local dv=$(docker version --format '{{.Server.Version}}' 2>/dev/null | cut -d. -f1)
+    if [ -n "$dv" ] && [ "$dv" -lt 20 ] 2>/dev/null; then
+        echo -e "${YELLOW}⚠ Docker versiyasi eski ($dv). 20+ tavsiya qilinadi.${NC}"
+    fi
+}
+check_docker_version
 
 # ================================================================
 # UTILITY FUNCTIONS
@@ -330,6 +375,31 @@ cmd_security() {
             echo "$current_hash" > "$stored_hash_file"
             info ".env konfiguratsiyasi hisobga olindi va himoyalandi."
         fi
+    fi
+
+    # 8. SSH brute-force urinishlar
+    separator
+    echo -e "  ${BOLD}8. SSH Brute-force urinishlar (oxirgi 1 soat):${NC}"
+    local auth_log="/var/log/auth.log"
+    [ ! -f "$auth_log" ] && auth_log="/var/log/secure"
+    if [ -f "$auth_log" ]; then
+        local ssh_fails=$(grep "Failed password" "$auth_log" 2>/dev/null | awk -v d="$(date '+%b %e %H' -d '1 hour ago' 2>/dev/null || date '+%b %e %H')" '$0 ~ d' | wc -l)
+        if [ "$ssh_fails" -gt 50 ] 2>/dev/null; then
+            fail "SSH brute-force: $ssh_fails marta parol xatosi! fail2ban o'rnating"
+        elif [ "$ssh_fails" -gt 10 ] 2>/dev/null; then
+            warn "SSH parol xatolari: $ssh_fails ta (oxirgi 1 soatda)"
+        else
+            ok "SSH brute-force urinishlar kam ($ssh_fails)"
+        fi
+        # Eng faol hujumchilar
+        local top_attackers=$(grep "Failed password" "$auth_log" 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort | uniq -c | sort -rn | head -3)
+        if [ -n "$top_attackers" ]; then
+            echo "$top_attackers" | while read count ip; do
+                [ "$count" -gt 20 ] 2>/dev/null && fail "    Hujumchi IP: $ip — $count marta" || info "    IP: $ip — $count marta"
+            done
+        fi
+    else
+        info "  SSH log topilmadi (auth.log/secure)"
     fi
 }
 
@@ -630,6 +700,27 @@ cmd_db() {
         ok "Sekin so'rovlar yo'q"
     fi
 
+    # Long-running transactions
+    echo ""
+    echo -e "  ${BOLD}Uzoq davom etgan tranzaksiyalar (30s+):${NC}"
+    local long_tx=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT pid, state, now() - xact_start AS duration, substring(query,1,80) AS query
+        FROM pg_stat_activity
+        WHERE xact_start IS NOT NULL
+        AND (now() - xact_start) > interval '30 seconds'
+        AND state != 'idle'
+        AND query NOT ILIKE '%pg_stat%'
+        ORDER BY xact_start LIMIT 5;
+    " 2>/dev/null)
+    if [ -n "$(echo $long_tx | xargs)" ]; then
+        echo "$long_tx" | while IFS='|' read pid state dur q; do
+            pid=$(echo $pid | xargs); dur=$(echo $dur | xargs); q=$(echo $q | xargs)
+            [ -n "$pid" ] && warn "  PID: $pid | Davomiyligi: $dur | $q"
+        done
+    else
+        ok "Uzoq tranzaksiyalar yo'q"
+    fi
+
     # Redis
     header "REDIS HOLATI"
     docker exec alif24-redis redis-cli ping &>/dev/null && ok "Redis — PONG" || fail "Redis — UNREACHABLE"
@@ -638,15 +729,23 @@ cmd_db() {
     
     local redis_frag=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "mem_fragmentation_ratio" | cut -d: -f2 | tr -d '\r')
     if [ -n "$redis_frag" ]; then
-        if (( $(echo "$redis_frag > 1.5" | bc -l 2>/dev/null || echo 0) )); then
-            fail "  Fragmentatsiya: $redis_frag (XAVFLI: redisni restart qiling)"
+        local frag_crit=$(echo "$redis_frag > 5.0" | bc -l 2>/dev/null || echo 0)
+        local frag_warn=$(echo "$redis_frag > 1.5" | bc -l 2>/dev/null || echo 0)
+        if [ "$frag_crit" = "1" ]; then
+            fail "  Fragmentatsiya: $redis_frag (XAVFLI! 'bash diagnose.sh heal' yoki restart qiling)"
+        elif [ "$frag_warn" = "1" ]; then
+            warn "  Fragmentatsiya: $redis_frag (Yuqori, kuzatib boring)"
         else
-            info "  Fragmentatsiya: $redis_frag"
+            ok "  Fragmentatsiya: $redis_frag (Normal)"
         fi
     fi
 
     local redis_keys=$(docker exec alif24-redis redis-cli dbsize 2>/dev/null | awk '{print $2}')
     [ -n "$redis_keys" ] && info "  Kalitlar soni: $redis_keys"
+    local redis_clients=$(docker exec alif24-redis redis-cli info clients 2>/dev/null | grep "connected_clients" | cut -d: -f2 | tr -d '\r')
+    [ -n "$redis_clients" ] && info "  Ulangan klientlar: $redis_clients"
+    local redis_uptime=$(docker exec alif24-redis redis-cli info server 2>/dev/null | grep "uptime_in_days" | cut -d: -f2 | tr -d '\r')
+    [ -n "$redis_uptime" ] && info "  Uptime: ${redis_uptime} kun"
 }
 
 # ================================================================
@@ -825,18 +924,19 @@ cmd_heal() {
     header "AUTO-FIX (O'z-o'zini davolash) BOSHLANDI..."
     echo ""
     local steps_done=0
-    
-    echo -e "  ${YELLOW}1/6 Docker keraksiz (exited/dangling) konteynerlarni tozalash...${NC}"
+    local total_steps=9
+
+    echo -e "  ${YELLOW}1/${total_steps} Docker keraksiz (exited/dangling) konteynerlarni tozalash...${NC}"
     docker system prune -f 2>/dev/null | tail -1
     ok "Docker tozalandi!"
     steps_done=$((steps_done + 1))
 
-    echo -e "  ${YELLOW}2/6 Eski Docker imagelarni tozalash (dangling)...${NC}"
+    echo -e "  ${YELLOW}2/${total_steps} Eski Docker imagelarni tozalash (dangling)...${NC}"
     local removed=$(docker image prune -f 2>/dev/null | tail -1)
     ok "Eski imagelar: $removed"
     steps_done=$((steps_done + 1))
 
-    echo -e "  ${YELLOW}3/6 Bazadagi osilgan (idle in transaction) ulanishlarni uzish...${NC}"
+    echo -e "  ${YELLOW}3/${total_steps} Bazadagi osilgan (idle in transaction) ulanishlarni uzish...${NC}"
     local killed=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
         SELECT count(*) FROM (
             SELECT pg_terminate_backend(pid)
@@ -847,7 +947,7 @@ cmd_heal() {
     ok "Osilgan tranzaksiyalar uzildi: ${killed:-0} ta"
     steps_done=$((steps_done + 1))
 
-    echo -e "  ${YELLOW}4/6 Unhealthy konteynerlarni restart qilish...${NC}"
+    echo -e "  ${YELLOW}4/${total_steps} Unhealthy konteynerlarni restart qilish...${NC}"
     local unhealthy_list=$(docker ps --filter "health=unhealthy" --format '{{.Names}}' 2>/dev/null)
     if [ -n "$unhealthy_list" ]; then
         for uc in $unhealthy_list; do
@@ -860,34 +960,55 @@ cmd_heal() {
     fi
     steps_done=$((steps_done + 1))
 
-    echo -e "  ${YELLOW}5/6 Docker build cache tozalash (30 kundan eski)...${NC}"
+    echo -e "  ${YELLOW}5/${total_steps} Docker build cache tozalash (30 kundan eski)...${NC}"
     docker builder prune --filter "until=720h" -f 2>/dev/null | tail -1
     ok "Eski build cache tozalandi!"
     steps_done=$((steps_done + 1))
 
-    echo -e "  ${YELLOW}6/7 PostgreSQL VACUUM ANALYZE (bazani optimallashtirish)...${NC}"
+    echo -e "  ${YELLOW}6/${total_steps} PostgreSQL VACUUM ANALYZE (bazani optimallashtirish)...${NC}"
     docker exec alif24-postgres psql -U postgres -d alif24 -c "VACUUM ANALYZE;" 2>/dev/null
     ok "Baza optimallashtirildi (VACUUM ANALYZE)!"
     steps_done=$((steps_done + 1))
 
-    echo -e "  ${YELLOW}7/7 Docker konteyner "Semiz Loglari"ni (Obesity Logs) qirqib tashlash...${NC}"
+    echo -e "  ${YELLOW}7/${total_steps} Docker konteyner semiz loglarini qirqib tashlash...${NC}"
     local truncated=0
     for cid in $(docker ps -qa 2>/dev/null); do
         local logpath=$(docker inspect --format='{{.LogPath}}' "$cid" 2>/dev/null)
         if [ -f "$logpath" ]; then
             local size_mb=$(du -m "$logpath" 2>/dev/null | awk '{print $1}')
-            # 100MB dan kattalarini truncate qilamiz
             if [ "$size_mb" -gt 100 ] 2>/dev/null; then
                 truncate -s 0 "$logpath" 2>/dev/null
                 truncated=$((truncated + 1))
             fi
         fi
     done
-    ok "$truncated ta katta log fayli tozalandi (0 qilib qirqildi)!"
+    ok "$truncated ta katta log fayli tozalandi!"
+    steps_done=$((steps_done + 1))
+
+    echo -e "  ${YELLOW}8/${total_steps} Redis MEMORY PURGE (fragmentatsiyani kamaytirish)...${NC}"
+    docker exec alif24-redis redis-cli MEMORY PURGE &>/dev/null
+    ok "Redis xotira tozalandi (MEMORY PURGE)!"
+    steps_done=$((steps_done + 1))
+
+    echo -e "  ${YELLOW}9/${total_steps} Redis fragmentatsiya tekshiruvi va restart...${NC}"
+    local redis_frag=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "mem_fragmentation_ratio" | cut -d: -f2 | tr -d '\r')
+    if [ -n "$redis_frag" ]; then
+        local frag_high=$(echo "$redis_frag > 5" | bc -l 2>/dev/null || echo 0)
+        if [ "$frag_high" = "1" ]; then
+            warn "Redis fragmentatsiya yuqori ($redis_frag) — restart qilinmoqda..."
+            docker restart alif24-redis &>/dev/null
+            sleep 2
+            ok "Redis restart qilindi! Yangi fragmentatsiya tekshiring: bash diagnose.sh db"
+        else
+            ok "Redis fragmentatsiya normal ($redis_frag)"
+        fi
+    else
+        ok "Redis fragmentatsiya tekshirib bo'lmadi"
+    fi
     steps_done=$((steps_done + 1))
 
     echo ""
-    echo -e "  ${GREEN}${BOLD}Davolash yakunlandi! $steps_done/7 qadam bajarildi.${NC}"
+    echo -e "  ${GREEN}${BOLD}Davolash yakunlandi! $steps_done/${total_steps} qadam bajarildi.${NC}"
     echo -e "  ${DIM}Holatni ko'rish: bash diagnose.sh score${NC}"
 }
 
@@ -1336,6 +1457,23 @@ cmd_score() {
     " 2>/dev/null | xargs)
     [ "$idle_tx" = "0" ] || [ -z "$idle_tx" ] && ok "Osilgan tranzaksiyalar yo'q" || fail "$idle_tx ta osilgan tranzaksiya"
     
+    # Cache Hit Ratio
+    local hit_ratio=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c "
+        SELECT ROUND(sum(blks_hit)*100.0/NULLIF(sum(blks_hit+blks_read),0), 2)
+        FROM pg_stat_database WHERE blks_read > 0;
+    " 2>/dev/null | xargs)
+    if [ -n "$hit_ratio" ]; then
+        local ratio_int=$(echo "$hit_ratio" | cut -d. -f1)
+        [ "$ratio_int" -ge 95 ] 2>/dev/null && ok "Cache Hit Ratio: ${hit_ratio}%" || fail "Cache Hit Ratio past: ${hit_ratio}%"
+    fi
+
+    # Redis fragmentation
+    local redis_frag=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "mem_fragmentation_ratio" | cut -d: -f2 | tr -d '\r')
+    if [ -n "$redis_frag" ]; then
+        local frag_ok=$(echo "$redis_frag < 5.0" | bc -l 2>/dev/null || echo 1)
+        [ "$frag_ok" = "1" ] && ok "Redis fragmentatsiya: $redis_frag" || fail "Redis fragmentatsiya yuqori: $redis_frag"
+    fi
+    
     # 4. Resources
     separator
     echo -e "  ${BOLD}Server resurslari:${NC}"
@@ -1466,7 +1604,8 @@ cmd_top() {
     separator
     echo -e "  ${BOLD}Semiz Log Fayllar (Obesity Logs):${NC}"
     local huge_logs=0
-    docker ps -qa 2>/dev/null | while read cid; do
+    while read cid; do
+        [ -z "$cid" ] && continue
         local cname=$(docker inspect --format='{{.Name}}' "$cid" 2>/dev/null | tr -d '/')
         local logpath=$(docker inspect --format='{{.LogPath}}' "$cid" 2>/dev/null)
         if [ -f "$logpath" ]; then
@@ -1479,11 +1618,11 @@ cmd_top() {
                 huge_logs=$((huge_logs + 1))
             fi
         fi
-    done
+    done < <(docker ps -qa 2>/dev/null)
     if [ "$huge_logs" -eq 0 ]; then
         ok "Hech qanday semiz (OBESITY) log topilmadi."
     else
-        warn "Katta loglar aniqlandi! Tozalash uchun: bash diagnose.sh heal"
+        warn "$huge_logs ta katta log aniqlandi! Tozalash uchun: bash diagnose.sh heal"
     fi
 }
 
@@ -1603,20 +1742,44 @@ cmd_traffic() {
 }
 
 cmd_audit() {
-    header "DEPENDENCY VULNERABILITY SCANNER (BETA)"
+    header "DEPENDENCY VULNERABILITY SCANNER"
     echo ""
     
-    echo -e "  ${YELLOW}Qidiruv boshlanmoqda (Backend python packages)...${NC}"
-    local outdated=$(docker exec main-backend pip list --outdated 2>/dev/null | tail -n +3 | head -5)
-    
-    if [ -n "$outdated" ]; then
-        echo "$outdated" | while read -r line; do
-            warn "Eskirgan paket: $line"
-        done
-        fail "Python kutubxonalari eskirdi va xavfsizlik yangilanishi talab etiladi!"
-    else
-        ok "Kutubxonalar (backend) xavfsiz holatda."
-    fi
+    # Python packages
+    echo -e "  ${BOLD}1. Backend Python paketlar (pip):${NC}"
+    local pip_issues=0
+    for svc in "${BACKENDS[@]}"; do
+        local outdated=$(docker exec "$svc" pip list --outdated --format=columns 2>/dev/null | tail -n +3 | head -3)
+        if [ -n "$outdated" ]; then
+            warn "  $svc da eskirgan paketlar:"
+            echo "$outdated" | while read -r line; do
+                info "    $line"
+            done
+            pip_issues=$((pip_issues + 1))
+        fi
+        # pip check (broken dependencies)
+        local broken=$(docker exec "$svc" pip check 2>/dev/null | grep -c "has requirement" || echo 0)
+        if [ "$broken" -gt 0 ] 2>/dev/null; then
+            fail "  $svc da $broken ta buzilgan dependency!"
+            pip_issues=$((pip_issues + 1))
+        fi
+    done
+    [ "$pip_issues" -eq 0 ] && ok "Python paketlar sog'lom"
+
+    separator
+    echo -e "  ${BOLD}2. Frontend Node paketlar (npm audit):${NC}"
+    local npm_issues=0
+    for svc in "${FRONTENDS[@]}"; do
+        local audit_out=$(docker exec "$svc" npm audit --json 2>/dev/null)
+        if [ -n "$audit_out" ]; then
+            local vulns=$(echo "$audit_out" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('metadata',{}).get('vulnerabilities',{}).get('high',0) + d.get('metadata',{}).get('vulnerabilities',{}).get('critical',0))" 2>/dev/null || echo "0")
+            if [ "$vulns" -gt 0 ] 2>/dev/null; then
+                fail "  $svc — $vulns ta yuqori/kritik zaiflik!"
+                npm_issues=$((npm_issues + 1))
+            fi
+        fi
+    done
+    [ "$npm_issues" -eq 0 ] && ok "Frontend paketlar xavfsiz (yoki tekshirib bo'lmadi)"
 }
 
 cmd_storm() {
@@ -1681,8 +1844,9 @@ cmd_benchmark() {
         IFS=':' read -r port path label <<< "$ep"
         local times=() success=0 total=0
         for ((j=1; j<=iterations; j++)); do
-            local t=$(curl -s --max-time 5 -o /dev/null -w "%{time_total}" "http://localhost:$port$path" 2>/dev/null)
-            local code=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" "http://localhost:$port$path" 2>/dev/null)
+            local result=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}|%{time_total}" "http://localhost:$port$path" 2>/dev/null)
+            local code=$(echo "$result" | cut -d'|' -f1)
+            local t=$(echo "$result" | cut -d'|' -f2)
             [ "$code" = "200" ] && success=$((success + 1))
             total=$((total + 1))
             times+=("$t")
@@ -2015,7 +2179,341 @@ cmd_cron() {
 }
 
 # ================================================================
-# FULL DIAGNOSTIKA (V7.0)
+# V8.0 YANGI MODULLAR: ALERTS, MIGRATION, DEPS, SNAPSHOT, COMPARE
+# ================================================================
+
+# ================================================================
+# ALERTS — Telegram webhook orqali xabar yuborish
+# ================================================================
+cmd_alerts() {
+    header "TELEGRAM ALERT TIZIMI"
+    echo ""
+
+    # Config dan Telegram tokenlarni olish
+    local tg_token="${TELEGRAM_BOT_TOKEN:-}"
+    local tg_chat="${TELEGRAM_CHAT_ID:-}"
+
+    if [ -z "$tg_token" ] || [ -z "$tg_chat" ]; then
+        warn "Telegram alert sozlanmagan!"
+        echo ""
+        echo -e "  ${BOLD}Sozlash uchun .env yoki .diagnose.conf ga qo'shing:${NC}"
+        echo -e "    TELEGRAM_BOT_TOKEN=your_bot_token"
+        echo -e "    TELEGRAM_CHAT_ID=your_chat_id"
+        echo ""
+        echo -e "  ${DIM}Bot yarating: https://t.me/BotFather${NC}"
+        echo -e "  ${DIM}Chat ID: https://t.me/userinfobot${NC}"
+        return 1
+    fi
+
+    # Score hisoblash
+    SCORE_TOTAL=0; SCORE_PASS=0
+    # Quick checks
+    local total_c=$(docker ps -a --format '{{.Names}}' 2>/dev/null | wc -l)
+    local running_c=$(docker ps --format '{{.Names}}' 2>/dev/null | wc -l)
+    [ "$total_c" -eq "$running_c" ] && SCORE_PASS=$((SCORE_PASS+1)); SCORE_TOTAL=$((SCORE_TOTAL+1))
+    docker exec alif24-postgres pg_isready -U postgres &>/dev/null && SCORE_PASS=$((SCORE_PASS+1)); SCORE_TOTAL=$((SCORE_TOTAL+1))
+    docker exec alif24-redis redis-cli ping &>/dev/null && SCORE_PASS=$((SCORE_PASS+1)); SCORE_TOTAL=$((SCORE_TOTAL+1))
+    for i in "${!BACKENDS[@]}"; do
+        local code=$(curl -s --max-time 3 -o /dev/null -w "%{http_code}" "http://localhost:${BACKEND_PORTS[$i]}/health" 2>/dev/null)
+        [ "$code" = "200" ] && SCORE_PASS=$((SCORE_PASS+1)); SCORE_TOTAL=$((SCORE_TOTAL+1))
+    done
+
+    local score=0
+    [ "$SCORE_TOTAL" -gt 0 ] && score=$((SCORE_PASS * 100 / SCORE_TOTAL))
+
+    local alert_threshold="${ALERT_THRESHOLD:-70}"
+    local hostname_str=$(hostname 2>/dev/null || echo "server")
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+    if [ "$score" -lt "$alert_threshold" ]; then
+        local msg="🚨 *ALIF24 ALERT*%0A%0A"
+        msg+="⚠️ Sog'liq bali: *${score}%* (chegaradan past: ${alert_threshold}%)%0A"
+        msg+="🖥 Server: \`${hostname_str}\`%0A"
+        msg+="🕐 Vaqt: ${timestamp}%0A%0A"
+        msg+="📊 Konteynerlar: ${running_c}/${total_c} ishlayapti%0A"
+        msg+="🔧 Tuzatish: \`bash diagnose.sh heal\`"
+
+        local result=$(curl -s --max-time 10 "https://api.telegram.org/bot${tg_token}/sendMessage" \
+            -d "chat_id=${tg_chat}" \
+            -d "text=${msg}" \
+            -d "parse_mode=Markdown" 2>/dev/null)
+
+        if echo "$result" | grep -q '"ok":true'; then
+            ok "Alert yuborildi! (Score: ${score}%)"
+        else
+            fail "Telegram ga yuborib bo'lmadi! Token yoki Chat ID ni tekshiring"
+            info "  Javob: ${result:0:100}"
+        fi
+    else
+        ok "Score yaxshi: ${score}% (>= ${alert_threshold}%). Alert kerak emas."
+    fi
+
+    echo ""
+    echo -e "  ${DIM}Cron da avtomatik ishlatish: */5 * * * * bash $(cd "$(dirname "$0")" && pwd)/diagnose.sh alerts${NC}"
+}
+
+# ================================================================
+# MIGRATION — Alembic migration holati
+# ================================================================
+cmd_migration() {
+    header "DATABASE MIGRATION HOLATI"
+    echo ""
+
+    echo -e "  ${BOLD}1. Alembic Migration Head tekshiruvi:${NC}"
+    local migration_issues=0
+    for svc in "${BACKENDS[@]}"; do
+        local current=$(docker exec "$svc" alembic current 2>/dev/null | head -1)
+        local head=$(docker exec "$svc" alembic heads 2>/dev/null | head -1)
+        if [ -n "$current" ] && [ -n "$head" ]; then
+            if echo "$current" | grep -q "(head)"; then
+                ok "  $svc — migrationlar sinxronda"
+            else
+                fail "  $svc — migration orqada! (current: $current, head: $head)"
+                migration_issues=$((migration_issues + 1))
+            fi
+        fi
+    done
+
+    separator
+    echo -e "  ${BOLD}2. Pending migrationlar:${NC}"
+    for svc in "${BACKENDS[@]}"; do
+        local pending=$(docker exec "$svc" alembic history -r current:head 2>/dev/null | grep -c "Rev:" || echo "0")
+        if [ "$pending" -gt 0 ] 2>/dev/null; then
+            warn "  $svc — $pending ta kutayotgan migration bor"
+            docker exec "$svc" alembic history -r current:head 2>/dev/null | head -3 | while read line; do
+                info "    $line"
+            done
+        fi
+    done
+
+    separator
+    echo -e "  ${BOLD}3. Database schema tekshiruvi:${NC}"
+    local table_count=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c \
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null | xargs)
+    info "  Jami jadvallar soni: ${table_count:-0}"
+    local fk_count=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c \
+        "SELECT count(*) FROM information_schema.table_constraints WHERE constraint_type='FOREIGN KEY';" 2>/dev/null | xargs)
+    info "  Foreign Key lar: ${fk_count:-0}"
+    local idx_count=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c \
+        "SELECT count(*) FROM pg_indexes WHERE schemaname='public';" 2>/dev/null | xargs)
+    info "  Indekslar soni: ${idx_count:-0}"
+
+    [ "$migration_issues" -eq 0 ] && ok "Barcha migrationlar sinxronda" || fail "$migration_issues ta service da migration muammosi"
+}
+
+# ================================================================
+# DEPS — pip check + npm audit (kengaytirilgan)
+# ================================================================
+cmd_deps() {
+    header "DEPENDENCY HEALTH CHECK (PIP + NPM)"
+    echo ""
+
+    echo -e "  ${BOLD}1. Python Backend — pip check (buzilgan bog'liqliklar):${NC}"
+    local total_issues=0
+    for svc in "${BACKENDS[@]}"; do
+        local check_out=$(docker exec "$svc" pip check 2>/dev/null)
+        local broken=$(echo "$check_out" | grep -c "has requirement" || echo 0)
+        if [ "$broken" -gt 0 ] 2>/dev/null; then
+            fail "  $svc — $broken ta buzilgan dependency"
+            echo "$check_out" | head -3 | while read l; do info "    $l"; done
+            total_issues=$((total_issues + broken))
+        else
+            ok "  $svc — sog'lom"
+        fi
+    done
+
+    separator
+    echo -e "  ${BOLD}2. Python Backend — eskirgan paketlar:${NC}"
+    for svc in "${BACKENDS[@]}"; do
+        local outdated=$(docker exec "$svc" pip list --outdated --format=columns 2>/dev/null | tail -n +3 | wc -l)
+        if [ "$outdated" -gt 10 ] 2>/dev/null; then
+            warn "  $svc — $outdated ta eskirgan paket"
+        elif [ "$outdated" -gt 0 ] 2>/dev/null; then
+            info "  $svc — $outdated ta eskirgan paket"
+        else
+            ok "  $svc — hammasi yangi"
+        fi
+    done
+
+    separator
+    echo -e "  ${BOLD}3. Frontend Node — npm audit:${NC}"
+    for svc in "${FRONTENDS[@]}"; do
+        local audit_out=$(docker exec "$svc" sh -c 'cd /app && npm audit --json 2>/dev/null' 2>/dev/null)
+        if [ -n "$audit_out" ] && echo "$audit_out" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+            local critical=$(echo "$audit_out" | python3 -c "import sys,json; d=json.load(sys.stdin); m=d.get('metadata',{}).get('vulnerabilities',{}); print(m.get('critical',0))" 2>/dev/null || echo 0)
+            local high=$(echo "$audit_out" | python3 -c "import sys,json; d=json.load(sys.stdin); m=d.get('metadata',{}).get('vulnerabilities',{}); print(m.get('high',0))" 2>/dev/null || echo 0)
+            if [ "$critical" -gt 0 ] 2>/dev/null; then
+                fail "  $svc — $critical ta KRITIK zaiflik!"
+                total_issues=$((total_issues + critical))
+            elif [ "$high" -gt 0 ] 2>/dev/null; then
+                warn "  $svc — $high ta yuqori darajali zaiflik"
+            else
+                ok "  $svc — xavfsiz"
+            fi
+        else
+            info "  $svc — npm audit ishlamadi (konteynerda npm yo'q yoki node_modules yo'q)"
+        fi
+    done
+
+    echo ""
+    [ "$total_issues" -eq 0 ] && ok "Umumiy: Barcha bog'liqliklar sog'lom!" || fail "Umumiy: $total_issues ta muammo topildi!"
+}
+
+# ================================================================
+# SNAPSHOT — JSON formatda server metrikalarini saqlash
+# ================================================================
+cmd_snapshot() {
+    header "SERVER SNAPSHOT (JSON)"
+    echo ""
+
+    local snapshot_dir="${REPORT_DIR:-/root/reports}/snapshots"
+    mkdir -p "$snapshot_dir"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local snapshot_file="$snapshot_dir/snapshot_${timestamp}.json"
+
+    # Metrikalarni yig'ish
+    local total_c=$(docker ps -a --format '{{.Names}}' 2>/dev/null | wc -l | xargs)
+    local running_c=$(docker ps --format '{{.Names}}' 2>/dev/null | wc -l | xargs)
+    local mem_total=$(free -m 2>/dev/null | awk '/Mem:/ {print $2}')
+    local mem_used=$(free -m 2>/dev/null | awk '/Mem:/ {print $3}')
+    local mem_pct=$(free 2>/dev/null | awk '/Mem:/ {printf "%.1f", $3/$2*100}')
+    local disk_pct=$(df / 2>/dev/null | tail -1 | awk '{print $5}' | tr -d '%')
+    local load=$(cat /proc/loadavg 2>/dev/null | awk '{print $1}' || uptime | awk -F'load average:' '{print $2}' | awk -F',' '{print $1}' | xargs)
+    local pg_ok=$(docker exec alif24-postgres pg_isready -U postgres &>/dev/null && echo "true" || echo "false")
+    local redis_ok=$(docker exec alif24-redis redis-cli ping &>/dev/null && echo "true" || echo "false")
+    local redis_mem=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "used_memory_human" | cut -d: -f2 | tr -d '\\r' | xargs)
+    local redis_frag=$(docker exec alif24-redis redis-cli info memory 2>/dev/null | grep "mem_fragmentation_ratio" | cut -d: -f2 | tr -d '\\r' | xargs)
+    local hit_ratio=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c \
+        "SELECT ROUND(sum(blks_hit)*100.0/NULLIF(sum(blks_hit+blks_read),0),2) FROM pg_stat_database WHERE blks_read > 0;" 2>/dev/null | xargs)
+    local db_size=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c \
+        "SELECT pg_size_pretty(pg_database_size('alif24'));" 2>/dev/null | xargs)
+    local pg_conns=$(docker exec alif24-postgres psql -U postgres -d alif24 -t -c \
+        "SELECT count(*) FROM pg_stat_activity WHERE datname='alif24';" 2>/dev/null | xargs)
+
+    # Backend health
+    local backends_json="["
+    for i in "${!BACKENDS[@]}"; do
+        local code=$(curl -s --max-time 3 -o /dev/null -w "%{http_code}" "http://localhost:${BACKEND_PORTS[$i]}/health" 2>/dev/null)
+        [ $i -gt 0 ] && backends_json+=","
+        backends_json+="{\"name\":\"${SERVICE_NAMES[$i]}\",\"port\":${BACKEND_PORTS[$i]},\"status\":$code}"
+    done
+    backends_json+="]"
+
+    # Error count in last hour
+    local err_count=$($DC logs --since=1h 2>/dev/null | grep -ciE "error|exception|fatal" || echo "0")
+    err_count=$(echo "$err_count" | tail -1 | tr -d ' ')
+    [ -z "$err_count" ] && err_count=0
+
+    # JSON yozish
+    cat > "$snapshot_file" << SNAPSHOT_EOF
+{
+    "timestamp": "$timestamp",
+    "datetime": "$(date '+%Y-%m-%d %H:%M:%S %Z')",
+    "hostname": "$(hostname 2>/dev/null)",
+    "containers": {"total": $total_c, "running": $running_c},
+    "memory": {"total_mb": ${mem_total:-0}, "used_mb": ${mem_used:-0}, "percent": ${mem_pct:-0}},
+    "disk_percent": ${disk_pct:-0},
+    "load_average": "${load:-0}",
+    "postgres": {"healthy": $pg_ok, "cache_hit_ratio": ${hit_ratio:-0}, "db_size": "$db_size", "connections": ${pg_conns:-0}},
+    "redis": {"healthy": $redis_ok, "memory": "$redis_mem", "fragmentation": ${redis_frag:-0}},
+    "backends": $backends_json,
+    "errors_last_hour": $err_count
+}
+SNAPSHOT_EOF
+
+    ok "Snapshot saqlandi: $snapshot_file"
+    info "  Hajm: $(du -sh "$snapshot_file" | awk '{print $1}')"
+
+    echo ""
+    echo -e "  ${BOLD}Mavjud snapshotlar:${NC}"
+    ls -lt "$snapshot_dir"/snapshot_*.json 2>/dev/null | head -5 | awk '{printf "    %s — %s\n", $NF, $5}'
+
+    echo ""
+    echo -e "  ${DIM}Solishtirish: bash diagnose.sh compare $snapshot_file [eski_fayl]${NC}"
+}
+
+# ================================================================
+# COMPARE — Ikki snapshotni solishtirish
+# ================================================================
+cmd_compare() {
+    local file1="$1"
+    local file2="$2"
+    header "SNAPSHOT SOLISHTIRISH"
+    echo ""
+
+    local snapshot_dir="${REPORT_DIR:-/root/reports}/snapshots"
+
+    if [ -z "$file1" ]; then
+        echo -e "  ${BOLD}Mavjud snapshotlar:${NC}"
+        ls -lt "$snapshot_dir"/snapshot_*.json 2>/dev/null | head -10 | awk '{printf "    %s — %s\n", $NF, $5}'
+        echo ""
+        echo -e "  ${YELLOW}Ishlatish: bash diagnose.sh compare [yangi_fayl] [eski_fayl]${NC}"
+        echo -e "  ${DIM}Yoki eng oxirgi 2 tani solishtirish: bash diagnose.sh compare auto${NC}"
+        return 1
+    fi
+
+    # Auto rejimi — oxirgi 2 tani solishtirish
+    if [ "$file1" = "auto" ]; then
+        local files=($(ls -t "$snapshot_dir"/snapshot_*.json 2>/dev/null | head -2))
+        if [ ${#files[@]} -lt 2 ]; then
+            fail "Kamida 2 ta snapshot kerak! Avval: bash diagnose.sh snapshot"
+            return 1
+        fi
+        file1="${files[0]}"
+        file2="${files[1]}"
+    fi
+
+    if [ ! -f "$file1" ] || [ ! -f "$file2" ]; then
+        fail "Fayllar topilmadi: $file1 yoki $file2"
+        return 1
+    fi
+
+    info "  Yangi: $file1"
+    info "  Eski:  $file2"
+    echo ""
+
+    printf "  ${BOLD}%-25s %-15s %-15s %-10s${NC}\n" "METRIKA" "ESKI" "YANGI" "O'ZGARISH"
+    separator
+
+    # Python bilan solishtirish
+    python3 - "$file2" "$file1" << 'COMPARE_PY'
+import json, sys
+try:
+    with open(sys.argv[1]) as f: old = json.load(f)
+    with open(sys.argv[2]) as f: new = json.load(f)
+except Exception as e:
+    print(f"  Xatolik: {e}")
+    sys.exit(1)
+
+def cmp(name, old_val, new_val, fmt="{}", reverse=False):
+    try:
+        ov = float(old_val); nv = float(new_val)
+        diff = nv - ov
+        arrow = "↑" if diff > 0 else ("↓" if diff < 0 else "=")
+        color = ""
+        if diff != 0:
+            bad = (diff > 0) if not reverse else (diff < 0)
+            color = "\033[0;31m" if bad else "\033[0;32m"
+        reset = "\033[0m"
+        print(f"  {name:<25s} {fmt.format(ov):<15s} {fmt.format(nv):<15s} {color}{arrow} {abs(diff):.1f}{reset}")
+    except:
+        print(f"  {name:<25s} {str(old_val):<15s} {str(new_val):<15s}")
+
+cmp("Konteynerlar (running)", old['containers']['running'], new['containers']['running'], "{:.0f}", reverse=True)
+cmp("RAM %", old['memory']['percent'], new['memory']['percent'], "{:.1f}%")
+cmp("Disk %", old['disk_percent'], new['disk_percent'], "{:.0f}%")
+cmp("Cache Hit Ratio", old['postgres']['cache_hit_ratio'], new['postgres']['cache_hit_ratio'], "{:.2f}%", reverse=True)
+cmp("Redis Fragmentatsiya", old['redis']['fragmentation'], new['redis']['fragmentation'], "{:.2f}")
+cmp("DB Ulanishlar", old['postgres']['connections'], new['postgres']['connections'], "{:.0f}")
+cmp("Xatoliklar (1h)", old['errors_last_hour'], new['errors_last_hour'], "{:.0f}")
+COMPARE_PY
+
+    echo ""
+    ok "Solishtirish yakunlandi"
+}
+
+# ================================================================
+# FULL DIAGNOSTIKA (V8.0)
 # ================================================================
 cmd_full() {
     SCORE_TOTAL=0
@@ -2033,6 +2531,7 @@ cmd_full() {
     cmd_health
     cmd_ssl
     cmd_errors 30
+    cmd_db
     cmd_perf
     cmd_envcheck
 
@@ -2103,7 +2602,12 @@ case "${1:-full}" in
     capacity)    cmd_capacity ;;
     firewall)    cmd_firewall ;;
     endpoints)   cmd_endpoints ;;
-    cron)        cmd_cron ;;
+    # V8.0 yangi komandalar
+    alerts)      cmd_alerts ;;
+    migration)   cmd_migration ;;
+    deps)        cmd_deps ;;
+    snapshot)    cmd_snapshot ;;
+    compare)     cmd_compare "$2" "$3" ;;
     full)        cmd_full ;;
     help|--help|-h)
         echo ""
@@ -2131,6 +2635,12 @@ case "${1:-full}" in
         echo "    envcheck          .env konfiguratsiya validatsiyasi"
         echo "    firewall          Firewall, port va xavfsizlik"
         echo "    cron              Cron va avtomatik vazifalar"
+    echo -e "  ${BOLD}${UNDERLINE}V8.0 — Kengaytirilgan Diagnostika:${NC}"
+        echo "    alerts            Telegram webhook orqali xabar yuborish"
+        echo "    migration         Alembic migration holati tekshiruvi"
+        echo "    deps              pip check va npm audit"
+        echo "    snapshot          Server metrikalarini JSON sifatida saqlash"
+        echo "    compare [f1] [f2] Ikki snapshotni solishtirish (yoki 'auto')"
         echo ""
         echo -e "  ${BOLD}${UNDERLINE}Loglar & So'rovlar:${NC}"
         echo "    logs [svc] [N]    Service loglari"
