@@ -81,6 +81,7 @@ const adminService = {
 
     // Content
     getPublicContent: () => axios.get(`${API_URL}/public/content`),
+    getPlatformContent: (key) => adminApi.get(`/platform-content/${key}`),
     updatePlatformContent: (key, data) => adminApi.put(`/platform-content/${key}`, data),
     getLessons: (params) => adminApi.get('/direct/lessons', { params }),
     createLesson: (data) => adminApi.post('/direct/lessons', data),
