@@ -11,5 +11,13 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
+  },
+  optimizeDeps: {
+    include: ['microsoft-cognitiveservices-speech-sdk']
+  },
+  build: {
+    commonjsOptions: {
+      include: [/microsoft-cognitiveservices-speech-sdk/, /node_modules/]
+    }
   }
 })
