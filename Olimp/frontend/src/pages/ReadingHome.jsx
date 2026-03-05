@@ -25,13 +25,18 @@ export default function ReadingHome() {
 
     // HttpOnly cookie bilan auth tekshirish — localStorage emas
     const [hasToken, setHasToken] = useState(false);
+    const [authChecked, setAuthChecked] = useState(false);
     useEffect(() => {
-        apiService.get('/auth/me').then(() => setHasToken(true)).catch(() => setHasToken(false));
+        apiService.get('/auth/me')
+            .then(() => setHasToken(true))
+            .catch(() => setHasToken(false))
+            .finally(() => setAuthChecked(true));
     }, []);
 
     useEffect(() => {
+        if (!authChecked) return;
         loadCompetitions();
-    }, []);
+    }, [authChecked]);
 
     const loadCompetitions = async () => {
         try {

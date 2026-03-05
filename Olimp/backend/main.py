@@ -130,18 +130,6 @@ app.include_router(
 # Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    if isinstance(exc, HTTPException):
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "success": False,
-                "error": {
-                    "code": f"HTTP_{exc.status_code}",
-                    "message": exc.detail
-                }
-            }
-        )
-    
     if isinstance(exc, RequestValidationError):
         return JSONResponse(
             status_code=422,

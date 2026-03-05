@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 
 export default function VoiceRecorder({
     onRecordingComplete,
@@ -122,9 +122,18 @@ export default function VoiceRecorder({
         );
     }
 
+    // Stable ObjectURL — revoke on change/unmount to prevent memory leak
+    const audioUrl = useMemo(() => {
+        if (audioBlob) return URL.createObjectURL(audioBlob);
+        return null;
+    }, [audioBlob]);
+
+    useEffect(() => {
+        return () => { if (audioUrl) URL.revokeObjectURL(audioUrl); };
+    }, [audioUrl]);
+
     // Audio recorded, ready to upload
-    if (audioBlob) {
-        const audioUrl = URL.createObjectURL(audioBlob);
+    if (audioBlob && audioUrl) {
 
         return (
             <div className={`space-y-3 ${className}`}>

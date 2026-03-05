@@ -3,7 +3,7 @@ Olimp Platform Backend - Olympiad Router
 Student-facing endpoints reading from shared `olympiads` tables.
 Admin creates olympiads via MainPlatform admin panel.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func as sql_func, select
 from pydantic import BaseModel, Field
@@ -18,10 +18,20 @@ from shared.database.models.olympiad import (
     OlympiadStatus, ParticipationStatus,
 )
 from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
+from app.core.config import settings
 
 logger = logging.getLogger("olimp")
 
 router = APIRouter()
+
+
+# ============= Admin Auth =============
+
+async def verify_admin_key(x_admin_key: str = Header(..., alias="X-Admin-Key")):
+    """Admin key tekshirish"""
+    if x_admin_key != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Admin emas")
+    return True
 
 
 # ============= Pydantic Schemas =============
@@ -64,7 +74,6 @@ def _question_to_dict(q: OlympiadQuestion) -> dict:
         "olympiad_id": q.olympiad_id,
         "question_text": q.question_text,
         "options": q.options,
-        "correct_answer": q.correct_answer,
         "points": q.points,
         "order_index": q.order if q.order else 0,
     }
@@ -444,6 +453,14 @@ async def submit_answers(
     if correct_count == len(answers) and len(answers) > 0:
         coins += 20  # Perfect score bonus
 
+    # Calculate time spent
+    if participant:
+        if participant.registered_at:
+            delta = datetime.now(timezone.utc) - participant.registered_at
+            participant.time_spent_seconds = int(delta.total_seconds())
+        else:
+            participant.time_spent_seconds = 0
+
     # Update participant totals
     if participant:
         participant.status = ParticipationStatus.completed
@@ -546,7 +563,8 @@ async def get_leaderboard(
 @router.get("/{olympiad_id}/participants")
 async def get_participants(
     olympiad_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
 ):
     """Admin: Get all participants with detailed stats"""
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
@@ -608,7 +626,8 @@ async def get_participants(
 async def get_participant_detail(
     olympiad_id: str,
     participant_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
 ):
     """Admin: Get single participant with all answer details"""
     p_res = await db.execute(
