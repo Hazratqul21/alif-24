@@ -287,6 +287,9 @@ export default function ReadingPlay() {
     const startPlayTTS = async () => {
         setPhase(PHASE.TTS);
         try {
+            // Session yaratish — backend'da submit ishlashi uchun kerak
+            await readingService.startReading(compId, taskId);
+
             const ttsUrl = readingService.getTaskTTSUrl(compId, taskId);
             const response = await fetch(ttsUrl, { credentials: 'include' });
             if (!response.ok) throw new Error('TTS xato');
@@ -472,10 +475,10 @@ export default function ReadingPlay() {
                 {phase === PHASE.RESULT && result && (() => {
                     const wpm = elapsed > 0 && currentWordIndex > 0 ? Math.round(currentWordIndex / (elapsed / 60)) : (result.words_per_minute || 0);
                     const readPct = result.completion_percentage?.toFixed(0) || 0;
-                    const fmtTime = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
-                    const readingCoin = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
-                    const quizCoin = (result.score_questions || 0) >= 80 ? 15 : (result.score_questions || 0) >= 50 ? 8 : 3;
-                    const totalCoin = readingCoin + quizCoin;
+                    const fmtResult = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
+                    const totalCoin = result.coins_earned || 0;
+                    const readingCoin = result.coins_reading || 0;
+                    const quizCoin = result.coins_quiz || 0;
                     const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
                     const emoji = result.total_score >= 80 ? '🏆' : result.total_score >= 50 ? '⭐' : '💪';
 
@@ -498,7 +501,7 @@ export default function ReadingPlay() {
                                         <p className="text-white/40 text-[10px]">o'qilgan</p>
                                     </div>
                                     <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-                                        <p className="text-xl font-black text-purple-400">{fmtTime}</p>
+                                        <p className="text-xl font-black text-purple-400">{fmtResult}</p>
                                         <p className="text-white/40 text-[10px]">vaqt</p>
                                     </div>
                                 </div>

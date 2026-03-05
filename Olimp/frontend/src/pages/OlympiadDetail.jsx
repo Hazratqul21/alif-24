@@ -311,7 +311,7 @@ export default function OlympiadDetail() {
                         ) : (
                             <div className="space-y-2">
                                 {leaderboard.map((entry) => {
-                                    const isMe = entry.student_id === localStorage.getItem('studentProfileId');
+                                    const isMe = entry.student_id === (currentUserId || localStorage.getItem('userId'));
                                     const medalColor = entry.rank === 1 ? 'text-yellow-400' : entry.rank === 2 ? 'text-gray-300' : entry.rank === 3 ? 'text-amber-600' : 'text-indigo-500';
                                     return (
                                         <div

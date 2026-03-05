@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, Calendar, Users, ChevronRight, Search, Filter, BookOpen, User, Coins } from 'lucide-react';
+import { Trophy, Calendar, Users, ChevronRight, Search, BookOpen, User, Coins } from 'lucide-react';
 import apiService from '../services/apiService';
 import ProfileSection from '../components/ProfileSection';
 

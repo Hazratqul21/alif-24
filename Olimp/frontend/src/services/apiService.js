@@ -35,7 +35,10 @@ class ApiService {
     }
 
     async post(endpoint, data = {}) {
-        const resp = await fetch(`${this.baseUrl}${endpoint}`, {
+        const baseUrl = this.baseUrl.startsWith('http')
+            ? this.baseUrl
+            : `${window.location.origin}${this.baseUrl}`;
+        const resp = await fetch(`${baseUrl}${endpoint}`, {
             method: "POST", credentials: "include",
             headers: this.getHeaders(),
             body: JSON.stringify(data)

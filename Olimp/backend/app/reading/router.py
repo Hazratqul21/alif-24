@@ -16,6 +16,7 @@ import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Response as FastAPIResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
@@ -339,8 +340,6 @@ async def get_task_for_reading(
 # TTS ENDPOINT — Hikoyani eshittirish
 # ============================================================
 
-import os
-import httpx
 
 from shared.services.azure_speech_service import speech_service
 
