@@ -32,6 +32,7 @@ import ReadingCompetitionPage from './pages/admin/ReadingCompetitionPage';
 import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import AdminPromoCodes from './pages/admin/AdminPromoCodes';
 import AdminPayments from './pages/admin/AdminPayments';
+import PublicOfferPage from './pages/admin/PublicOfferPage';
 
 // Sub-platform redirect helper (Harf, Games, etc. now live on their own subdomains)
 const PlatformRedirect = ({ baseUrl, path = '' }) => {
@@ -260,6 +261,7 @@ const AppRoutes = () => {
         <Route path="subscriptions" element={<AdminSubscriptions />} />
         <Route path="promo-codes" element={<AdminPromoCodes />} />
         <Route path="payments" element={<AdminPayments />} />
+        <Route path="public-offer" element={<PublicOfferPage />} />
       </Route>
 
       {/* Fallback - Redirect to home */}

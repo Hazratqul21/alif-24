@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { authService } from '../../services/authService';
-import { Eye, EyeOff, Mail, Phone, User, Lock, Shield, GraduationCap, Users, BookOpen, Building, ArrowLeft, ArrowRight, Send, Calendar, MapPin, Briefcase, ChevronRight, Check } from 'lucide-react';
+import axios from 'axios';
+import { Eye, EyeOff, Mail, Phone, User, Lock, Shield, GraduationCap, Users, BookOpen, Building, ArrowLeft, ArrowRight, Send, Calendar, MapPin, Briefcase, ChevronRight, Check, ChevronDown, FileText, X } from 'lucide-react';
+
+const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 
 const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
   const navigate = useNavigate();
@@ -38,6 +41,46 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
   const [verificationCode, setVerificationCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Ommaviy Oferta
+  const [offerAccepted, setOfferAccepted] = useState(false);
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [offerText, setOfferText] = useState('');
+  const [offerLoading, setOfferLoading] = useState(false);
+  const offerScrollRef = useRef(null);
+
+  // Fetch offer text
+  useEffect(() => {
+    const fetchOffer = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/public/content/public_offer`);
+        const data = res?.data?.data;
+        if (data && typeof data === 'object' && data.text) {
+          setOfferText(data.text);
+        } else if (typeof data === 'string') {
+          setOfferText(data);
+        }
+      } catch (err) {
+        // Offer not set yet — allow registration without it
+        setOfferText('');
+      }
+    };
+    fetchOffer();
+  }, []);
+
+  const scrollOfferToBottom = useCallback(() => {
+    if (offerScrollRef.current) {
+      offerScrollRef.current.scrollTo({
+        top: offerScrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, []);
+
+  const handleOfferAccept = useCallback(() => {
+    setOfferAccepted(true);
+    setShowOfferModal(false);
+  }, []);
   const [loginType, setLoginType] = useState('phone');
 
   const roles = [
@@ -259,8 +302,8 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
         return (
           <div key={i} className="flex items-center gap-2">
             <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${isActive ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-300' :
-                isDone ? 'bg-green-100 text-green-700' :
-                  'bg-gray-100 text-gray-400'
+              isDone ? 'bg-green-100 text-green-700' :
+                'bg-gray-100 text-gray-400'
               }`}>
               {isDone ? <Check className="w-3 h-3" /> : <span>{i + 1}</span>}
               <span>{label}</span>
@@ -441,8 +484,8 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
             <label
               key={role.value}
               className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer transition-all ${formData.role === role.value
-                  ? 'border-indigo-500 bg-indigo-50 shadow-sm'
-                  : 'border-gray-200 hover:border-gray-300'
+                ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                : 'border-gray-200 hover:border-gray-300'
                 }`}
             >
               <input
@@ -680,6 +723,30 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
         </>
       )}
 
+      {/* Ommaviy Oferta Checkbox */}
+      {offerText && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={offerAccepted}
+              onChange={(e) => setOfferAccepted(e.target.checked)}
+              className="mt-0.5 w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer flex-shrink-0"
+            />
+            <span className="text-sm text-gray-700 leading-relaxed">
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); setShowOfferModal(true); }}
+                className="text-indigo-600 hover:text-indigo-800 font-semibold underline underline-offset-2 decoration-indigo-300 hover:decoration-indigo-500 transition-colors"
+              >
+                Ommaviy oferta
+              </button>
+              {' '}shartlarini o'qib chiqdim va qabul qilaman
+            </span>
+          </label>
+        </div>
+      )}
+
       {/* Action buttons */}
       <div className="flex gap-3 pt-2">
         <button
@@ -693,7 +760,7 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
         <button
           type="button"
           onClick={goToVerifyOrRegister}
-          disabled={loading}
+          disabled={loading || (offerText && !offerAccepted)}
           className="flex-[2] bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {loading ? (
@@ -711,6 +778,9 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
           )}
         </button>
       </div>
+      {(offerText && !offerAccepted) && (
+        <p className="text-xs text-amber-600 text-center">Davom etish uchun ommaviy ofertani qabul qiling</p>
+      )}
     </div>
   );
 
@@ -807,6 +877,62 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
           {step === 'verify' && renderVerifyStep()}
         </div>
       </div>
+
+      {/* Ommaviy Oferta Modal */}
+      {showOfferModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl relative animate-in fade-in">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-indigo-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Ommaviy Oferta</h3>
+              </div>
+              <button
+                onClick={() => setShowOfferModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition p-1.5 rounded-full hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div
+              ref={offerScrollRef}
+              className="flex-1 overflow-y-auto px-6 py-4 scroll-smooth"
+              style={{ maxHeight: 'calc(85vh - 160px)' }}
+            >
+              {offerText.split('\n').map((line, i) => (
+                <p key={i} className="text-gray-700 text-sm leading-relaxed mb-2">
+                  {line || '\u00A0'}
+                </p>
+              ))}
+            </div>
+
+            {/* Scroll-to-bottom arrow */}
+            <button
+              onClick={scrollOfferToBottom}
+              className="absolute bottom-24 right-6 w-10 h-10 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition flex items-center justify-center hover:scale-110 active:scale-95"
+              title="Pastga tushish"
+            >
+              <ChevronDown className="w-5 h-5" />
+            </button>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200">
+              <button
+                onClick={handleOfferAccept}
+                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
+              >
+                <Check className="w-5 h-5" />
+                Tushundim
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
