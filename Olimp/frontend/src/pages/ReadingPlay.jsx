@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mic, Square, X, ChevronRight, Volume2 } from 'lucide-react';
-import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import readingService from '../services/readingService';
 import { getSimilarity, extractWords } from '../utils/fuzzyMatch';
 
@@ -96,6 +95,7 @@ export default function ReadingPlay() {
             }
             if (!resp.ok) throw new Error(`speech-token failed`);
             const data = await resp.json();
+            const SpeechSDK = await import("microsoft-cognitiveservices-speech-sdk");
             const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
             cfg.speechRecognitionLanguage = task?.language === 'ru' ? 'ru-RU' : task?.language === 'en' ? 'en-US' : 'uz-UZ';
             speechConfigRef.current = cfg;
@@ -126,6 +126,7 @@ export default function ReadingPlay() {
             startTimeRef.current = Date.now();
             timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
 
+            const SpeechSDK = await import("microsoft-cognitiveservices-speech-sdk");
             const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
             const recognizer = new SpeechSDK.SpeechRecognizer(speechConfigRef.current, audioConfig);
             recognizerRef.current = recognizer;

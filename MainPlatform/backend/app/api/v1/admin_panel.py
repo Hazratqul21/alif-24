@@ -1387,8 +1387,8 @@ async def get_platform_content(
         "id": item.id,
         "key": item.key,
         "value": item.value,
-        "created_at": item.created_at.isoformat() if item.created_at else None,
-        "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+        "created_at": getattr(item, "created_at", None).isoformat() if getattr(item, "created_at", None) else None,
+        "updated_at": item.updated_at.isoformat() if getattr(item, "updated_at", None) else None,
     }
 
 

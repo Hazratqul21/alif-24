@@ -9,4 +9,5 @@ class PlatformContent(Base):
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
     key = Column(String(100), unique=True, index=True, nullable=False)
     value = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
