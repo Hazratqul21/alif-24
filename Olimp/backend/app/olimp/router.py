@@ -3,11 +3,11 @@ Olimp Platform Backend - Olympiad Router
 Student-facing endpoints reading from shared `olympiads` tables.
 Admin creates olympiads via MainPlatform admin panel.
 """
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func as sql_func, select
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Any
 from datetime import datetime, timezone
 import logging
 
@@ -19,11 +19,29 @@ from shared.database.models.olympiad import (
 )
 from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
 from app.core.config import settings
+from app.olimp.websocket import manager
 
 logger = logging.getLogger("olimp")
 
 router = APIRouter()
 
+
+class BuilderQuestionItem(BaseModel):
+    question_text: str
+    options: List[str]
+    correct_option_index: int
+    points: int = 5
+    order_index: int = 0
+    
+class BuilderPayload(BaseModel):
+    title: str
+    description: Optional[str] = None
+    start_date: datetime
+    end_date: datetime
+    time_limit_minutes: int = 30
+    difficulty: str = "medium"
+    total_point: int
+    questions: List[BuilderQuestionItem]
 
 # ============= Admin Auth =============
 
@@ -485,6 +503,12 @@ async def submit_answers(
             logger.error(f"Coin award error: {e}")
 
         await db.commit()
+        
+        # SOC-3: Broadcast update to all clients watching this olympiad's live leaderboard
+        try:
+            await manager.broadcast(olympiad.id, {"type": "leaderboard_update"})
+        except Exception as e:
+            logger.error(f"WS Broadcast error: {e}")
 
     return {
         "success": True,
@@ -556,6 +580,21 @@ async def get_leaderboard(
             "total_participants": len(leaderboard)
         }
     }
+
+@router.websocket("/{olympiad_id}/ws/leaderboard")
+async def websocket_leaderboard(websocket: WebSocket, olympiad_id: str):
+    """WebSocket for Real-time Leaderboard Updates"""
+    await manager.connect(websocket, olympiad_id)
+    try:
+        while True:
+            # Client doesn't need to send anything, 
+            # we just keep the connection alive to receive broadcast events.
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, olympiad_id)
+    except Exception as e:
+        logger.error(f"WebSocket Error: {e}")
+        manager.disconnect(websocket, olympiad_id)
 
 
 # ============= Admin: Participants List =============
@@ -695,4 +734,248 @@ async def get_participant_detail(
             "answers": answer_details,
         }
     }
+
+
+# ============= SMT-1: AI Evaluation & Analytics =============
+
+@router.get("/my-analytics/insights")
+async def get_my_analytics(
+    student_id: str = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get AI evaluation and analytics of a student's olympiad history"""
+    if not student_id:
+        raise HTTPException(status_code=400, detail="student_id kerak")
+
+    sp = await _resolve_student_profile(student_id, db)
+    if not sp:
+        raise HTTPException(status_code=404, detail="Profil topilmadi")
+
+    # Fetch user's completed participations
+    p_res = await db.execute(
+        select(OlympiadParticipant)
+        .where(
+            OlympiadParticipant.student_id == sp.id, 
+            OlympiadParticipant.status == ParticipationStatus.completed
+        )
+        .order_by(OlympiadParticipant.completed_at.asc())
+    )
+    participations = p_res.scalars().all()
+    
+    if not participations:
+        return {
+            "success": True,
+            "data": {
+                "has_data": False,
+                "message": "Sizda hali olimpiada natijalari yo'q. Tahlil qilish uchun ko'proq ishtirok eting!"
+            }
+        }
+    
+    total_quizzes = len(participations)
+    total_score = sum(p.total_score for p in participations)
+    average_score = total_score / total_quizzes
+    
+    progress_data = []
+    for p in participations:
+        o_res = await db.execute(select(Olympiad).where(Olympiad.id == p.olympiad_id))
+        olympiad = o_res.scalars().first()
+        total_questions = p.correct_answers + p.wrong_answers
+        percentage = (p.correct_answers / total_questions * 100) if total_questions > 0 else 0
+        progress_data.append({
+            "date": p.completed_at.strftime("%Y-%m-%d") if p.completed_at else "",
+            "score": p.total_score,
+            "percentage": percentage,
+            "title": olympiad.title if olympiad else "Olimpiada"
+        })
+        
+    recent_participation = participations[-1]
+    recent_total_questions = recent_participation.correct_answers + recent_participation.wrong_answers
+    recent_percentage = (recent_participation.correct_answers / recent_total_questions * 100) if recent_total_questions > 0 else 0
+    
+    insights = []
+    if recent_percentage >= 80:
+        insights.append("Sizning oxirgi natijangiz juda yaxshi! Shu tarzda davom eting. 🌟")
+        insights.append("Murakkabroq (Qiyin) olimpiadalarda o'zingizni sinab ko'rishni tavsiya qilamiz.")
+    elif recent_percentage >= 50:
+        insights.append("O'rtacha natija ko'rsatdingiz. Ba'zi mavzularni takrorlash foydali bo'ladi. 📚")
+    else:
+        insights.append("Natijalarni yaxshilash ustida izchil ishlash kerak. Oldingi xatolaringizni ko'rib chiqing. 💡")
+        
+    if total_quizzes >= 3:
+        mid_point = total_quizzes // 2
+        first_half_avg = sum(p.total_score for p in participations[:mid_point]) / mid_point
+        second_half_avg = sum(p.total_score for p in participations[mid_point:]) / (total_quizzes - mid_point)
+        
+        if second_half_avg > first_half_avg:
+            insights.append("Trend tahlili: Sizning natijalaringiz vaqt o'tishi bilan o'sib bormoqda! 📈")
+        elif second_half_avg < first_half_avg:
+            insights.append("Trend tahlili: So'nggi paytlarda natijalaringiz biroz pasaygan. Diqqatni jamlang! 📉")
+            
+    total_time = sum(p.time_spent_seconds for p in participations)
+    total_qs = sum(p.correct_answers + p.wrong_answers for p in participations)
+    avg_time_per_q = total_time / total_qs if total_qs > 0 else 0
+    
+    return {
+        "success": True,
+        "data": {
+            "has_data": True,
+            "total_participations": total_quizzes,
+            "average_score": round(average_score, 1),
+            "avg_time_per_question": round(avg_time_per_q, 1),
+            "insights": insights,
+            "progress_chart": progress_data[-10:] # Return last 10 entries for chart
+        }
+    }
+
+
+# ============= Admin: Analytics Dashboard =============
+
+@router.get("/admin/analytics/overview")
+async def admin_analytics_overview(
+    db: AsyncSession = Depends(get_db),
+    admin_key: str = Header(None, alias="X-Admin-Key")
+):
+    """ADM-1: Aggregated analytics for admin dashboard"""
+    if admin_key != settings.ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # Total students
+    total_students = (await db.execute(
+        select(sql_func.count(StudentProfile.id))
+    )).scalar() or 0
+
+    # Total olympiads
+    total_olympiads = (await db.execute(
+        select(sql_func.count(Olympiad.id))
+    )).scalar() or 0
+
+    # Active olympiads
+    active_olympiads = (await db.execute(
+        select(sql_func.count(Olympiad.id)).where(Olympiad.status == OlympiadStatus.active)
+    )).scalar() or 0
+
+    # Total participations
+    total_participations = (await db.execute(
+        select(sql_func.count(OlympiadParticipant.id))
+    )).scalar() or 0
+
+    # Completed participations
+    completed_participations = (await db.execute(
+        select(sql_func.count(OlympiadParticipant.id)).where(
+            OlympiadParticipant.status == ParticipationStatus.completed
+        )
+    )).scalar() or 0
+
+    completion_rate = round((completed_participations / total_participations * 100), 1) if total_participations > 0 else 0
+
+    # Average score
+    avg_score_result = (await db.execute(
+        select(sql_func.avg(OlympiadParticipant.total_score)).where(
+            OlympiadParticipant.status == ParticipationStatus.completed
+        )
+    )).scalar()
+    avg_score = round(float(avg_score_result), 1) if avg_score_result else 0
+
+    # Score distribution (0-25, 25-50, 50-75, 75-100)
+    all_completed = (await db.execute(
+        select(OlympiadParticipant.total_score).where(
+            OlympiadParticipant.status == ParticipationStatus.completed
+        )
+    )).scalars().all()
+
+    score_distribution = {"0-25": 0, "25-50": 0, "50-75": 0, "75-100": 0}
+    for score in all_completed:
+        if score is None:
+            continue
+        pct = score  # Assume score is already a percentage or adjust as needed
+        if pct < 25:
+            score_distribution["0-25"] += 1
+        elif pct < 50:
+            score_distribution["25-50"] += 1
+        elif pct < 75:
+            score_distribution["50-75"] += 1
+        else:
+            score_distribution["75-100"] += 1
+
+    # Top 5 olympiads by participation
+    top_olympiads_query = (
+        select(
+            Olympiad.title,
+            sql_func.count(OlympiadParticipant.id).label("participants_count")
+        )
+        .join(OlympiadParticipant, OlympiadParticipant.olympiad_id == Olympiad.id)
+        .group_by(Olympiad.id, Olympiad.title)
+        .order_by(sql_func.count(OlympiadParticipant.id).desc())
+        .limit(5)
+    )
+    top_olympiads = (await db.execute(top_olympiads_query)).all()
+
+    return {
+        "success": True,
+        "data": {
+            "total_students": total_students,
+            "total_olympiads": total_olympiads,
+            "active_olympiads": active_olympiads,
+            "total_participations": total_participations,
+            "completed_participations": completed_participations,
+            "completion_rate": completion_rate,
+            "average_score": avg_score,
+            "score_distribution": score_distribution,
+            "top_olympiads": [
+                {"title": t[0], "participants": t[1]} for t in top_olympiads
+            ]
+        }
+    }
+
+
+@router.post("/admin/build")
+async def admin_build_olympiad(
+    payload: BuilderPayload,
+    db: AsyncSession = Depends(get_db),
+    admin_key: str = Header(None, alias="X-Admin-Key")
+):
+    """ADM-4: Backend endpoint for new Olympiad Builder"""
+    if admin_key != settings.ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # Determine status
+    now = datetime.now(timezone.utc)
+    # Be flexible with naive vs aware datetimes
+    start = payload.start_date.replace(tzinfo=timezone.utc) if payload.start_date.tzinfo is None else payload.start_date    
+    
+    status = OlympiadStatus.draft
+    if start <= now:
+        status = OlympiadStatus.active
+    else:
+        status = OlympiadStatus.upcoming
+
+    # 1. Create Olympiad
+    new_olympiad = Olympiad(
+        title=payload.title,
+        description=payload.description,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        time_limit_minutes=payload.time_limit_minutes,
+        total_point=payload.total_point,
+        status=status,
+        difficulty=payload.difficulty
+    )
+    db.add(new_olympiad)
+    await db.flush() # get ID
+
+    # 2. Add Questions
+    for q_item in payload.questions:
+        q = OlympiadQuestion(
+            olympiad_id=new_olympiad.id,
+            question_text=q_item.question_text,
+            options=q_item.options,
+            correct_option_index=q_item.correct_option_index,
+            points=q_item.points,
+            order_index=q_item.order_index
+        )
+        db.add(q)
+        
+    await db.commit()
+    
+    return {"success": True, "olympiad_id": new_olympiad.id, "message": "Olympiad built successfully"}
 

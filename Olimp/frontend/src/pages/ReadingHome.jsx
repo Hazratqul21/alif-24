@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import readingService from '../services/readingService';
 import apiService from '../services/apiService';
+import SpeedChart from '../components/SpeedChart';
 
 const DAYS = {
     monday: { label: 'Dushanba', short: 'Du', num: 1 },
@@ -286,6 +287,8 @@ export default function ReadingHome() {
                                                 )}
                                             </div>
                                         )}
+
+                                        <SpeedChart dailyResults={results.daily} />
                                     </div>
                                 ) : (
                                     <div className="text-center py-12 text-gray-500">Natijalar hali yo'q</div>

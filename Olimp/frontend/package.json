@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "axios": "^1.7.9",
+    "canvas-confetti": "^1.9.4",
     "framer-motion": "^11.0.3",
+    "howler": "^2.2.4",
     "lucide-react": "^0.356.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.48.0",
     "react": "18.2.0",

@@ -25,6 +25,17 @@ export default function VoiceRecorder({
         };
     }, []);
 
+    // Stable ObjectURL — revoke on change/unmount to prevent memory leak
+    // MOVED BEFORE any conditional returns to comply with Rules of Hooks
+    const audioUrl = useMemo(() => {
+        if (audioBlob) return URL.createObjectURL(audioBlob);
+        return null;
+    }, [audioBlob]);
+
+    useEffect(() => {
+        return () => { if (audioUrl) URL.revokeObjectURL(audioUrl); };
+    }, [audioUrl]);
+
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -121,16 +132,6 @@ export default function VoiceRecorder({
             </div>
         );
     }
-
-    // Stable ObjectURL — revoke on change/unmount to prevent memory leak
-    const audioUrl = useMemo(() => {
-        if (audioBlob) return URL.createObjectURL(audioBlob);
-        return null;
-    }, [audioBlob]);
-
-    useEffect(() => {
-        return () => { if (audioUrl) URL.revokeObjectURL(audioUrl); };
-    }, [audioUrl]);
 
     // Audio recorded, ready to upload
     if (audioBlob && audioUrl) {
