@@ -220,6 +220,7 @@ async def get_my_profile(
 @router.get("/{olympiad_id}")
 async def get_olympiad(
     olympiad_id: str,
+    student_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Get olympiad details"""
@@ -234,6 +235,31 @@ async def get_olympiad(
         .where(OlympiadParticipant.olympiad_id == olympiad.id)
     )
     d["participant_count"] = cnt_res.scalar() or 0
+    
+    # Check if this student already participated
+    d["my_participation"] = None
+    if student_id:
+        sp = await _resolve_student_profile(student_id, db)
+        if sp:
+            p_res = await db.execute(
+                select(OlympiadParticipant).where(
+                    OlympiadParticipant.olympiad_id == olympiad.id,
+                    OlympiadParticipant.student_id == sp.id
+                )
+            )
+            participant = p_res.scalars().first()
+            if participant:
+                d["my_participation"] = {
+                    "id": participant.id,
+                    "status": participant.status.value if participant.status else "registered",
+                    "score": participant.total_score,
+                    "correct_answers": participant.correct_answers,
+                    "wrong_answers": participant.wrong_answers,
+                    "coins_earned": participant.coins_earned,
+                    "rank": participant.rank,
+                    "registered_at": participant.registered_at.isoformat() if participant.registered_at else None,
+                    "completed_at": participant.completed_at.isoformat() if participant.completed_at else None,
+                }
 
     return {"success": True, "data": d}
 
