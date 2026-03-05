@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
+// Lazy-loaded: microsoft-cognitiveservices-speech-sdk (~30MB)
+let SpeechSDK = null;
+const loadSpeechSDK = async () => {
+  if (!SpeechSDK) {
+    SpeechSDK = await import("microsoft-cognitiveservices-speech-sdk");
+  }
+  return SpeechSDK;
+};
 import { Mic, StopCircle, BookOpen, CheckCircle, AlertTriangle, RefreshCw, HelpCircle, BarChart3, Type, MessageCircle, FileText, Users, Scale, ArrowRight, PartyPopper, FileUp } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from "react-router-dom";
@@ -363,6 +370,7 @@ export default function StoryReader({ storyText, age = 7 }) {
 
       if (!speechConfigRef.current) {
         try {
+          await loadSpeechSDK();
           console.log('🎤 Fetching speech token from backend...');
 
           // Backend'dan token olish
@@ -611,6 +619,7 @@ export default function StoryReader({ storyText, age = 7 }) {
   const speakText = useCallback(async (text) => {
     if (!speechConfigRef.current || isSpeakingRef.current || isPausedRef.current) return;
 
+    await loadSpeechSDK();
     isSpeakingRef.current = true;
     setIsSpeaking(true);
 
@@ -782,7 +791,7 @@ export default function StoryReader({ storyText, age = 7 }) {
 
   // --- Self Reading Functions ---
 
-  const startSelfReadingListener = () => {
+  const startSelfReadingListener = async () => {
     if (!speechConfigRef.current) {
       window.appAlert("Ovozli aloqa sozlanmagan. Iltimos sahifani yangilang.");
       return;
@@ -809,6 +818,7 @@ export default function StoryReader({ storyText, age = 7 }) {
       recognizerRef.current = null;
     }
 
+    await loadSpeechSDK();
     const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
     const recognizer = new SpeechSDK.SpeechRecognizer(speechConfigRef.current, audioConfig);
     recognizerRef.current = recognizer;
@@ -916,7 +926,7 @@ export default function StoryReader({ storyText, age = 7 }) {
   };
 
   // STT - Mikrofondan eshitishni boshlash (mousedown/touchstart)
-  const startListening = () => {
+  const startListening = async () => {
     // Agar ruxsatlar yo'q bo'lsa
     if (!speechConfigRef.current) {
       window.appAlert("Ovozli aloqa sozlanmagan. Iltimos sahifani yangilang.");
@@ -937,6 +947,7 @@ export default function StoryReader({ storyText, age = 7 }) {
     setChildAnswer("");
     setChildAudioText("");
 
+    await loadSpeechSDK();
     const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
     const recognizer = new SpeechSDK.SpeechRecognizer(speechConfigRef.current, audioConfig);
     recognizerRef.current = recognizer;
