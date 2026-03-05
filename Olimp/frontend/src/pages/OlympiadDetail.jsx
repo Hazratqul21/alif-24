@@ -25,22 +25,46 @@ export default function OlympiadDetail() {
     const [lbLoading, setLbLoading] = useState(false);
 
     useEffect(() => {
-        loadOlympiad();
-        // Fetch current user from cookie-based auth
+        // Fetch current user from cookie-based auth first
         apiService.get('/auth/me').then(data => {
             const user = data.data || data;
             if (user?.id) {
                 setCurrentUserId(user.id);
                 localStorage.setItem('userId', user.id);
+                loadOlympiad(user.id);
+            } else {
+                loadOlympiad(null);
             }
-        }).catch(() => { });
+        }).catch(() => {
+            loadOlympiad(localStorage.getItem('userId'));
+        });
     }, [id]);
 
-    const loadOlympiad = async () => {
+    const loadOlympiad = async (userId = null) => {
         try {
             setLoading(true);
-            const data = await apiService.get(`/olympiad/${id}`);
-            setOlympiad(data.data || data.olympiad || data);
+            const studentId = userId || currentUserId || localStorage.getItem('userId');
+            const url = studentId ? `/olympiad/${id}?student_id=${studentId}` : `/olympiad/${id}`;
+            const data = await apiService.get(url);
+            const olympiadData = data.data || data.olympiad || data;
+            setOlympiad(olympiadData);
+
+            // Check existing participation
+            if (olympiadData.my_participation) {
+                const part = olympiadData.my_participation;
+                if (part.status === 'completed') {
+                    setResult(part);
+                    setSubmitted(true);
+                    setRegistered(true);
+                    loadLeaderboard();
+                } else if (part.status === 'registered' || part.status === 'started') {
+                    setRegistered(true);
+                    // Load questions so they can resume
+                    const qData = await apiService.get(`/olympiad/${id}/questions`);
+                    const qs = qData.data?.questions || qData.data || qData.questions || [];
+                    setQuestions(Array.isArray(qs) ? qs : []);
+                }
+            }
         } catch (err) {
             setError(err.message);
         } finally {
