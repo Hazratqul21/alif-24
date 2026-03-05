@@ -6,6 +6,14 @@ UUID o'rniga 8 xonalik ID ishlatiladi
 from sqlalchemy import Column, String, event
 from sqlalchemy.ext.declarative import declarative_base
 from shared.database.id_generator import generate_8_digit_id
+from .models.student import StudentProfile
+try:
+    from app.olimp.models import Olympiad, OlympiadQuestion, OlympiadRegistration, OlympiadResult
+    from app.reading.models import ReadingCompetition, ReadingTask, ReadingSubmission, ReadingComment
+    from app.gamification.models import Badge, UserBadge, DailyActivity, ShopItem, UserPurchase
+    from app.social.models import Friendship
+except ImportError:
+    pass
 
 # Base class - Barcha modellar shu class'dan meros oladi
 Base = declarative_base()

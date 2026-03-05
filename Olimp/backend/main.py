@@ -38,6 +38,7 @@ from app.core.logging import logger
 from app.olimp import router as olimp_router
 from app.reading import router as reading_router
 from app.speech import router as speech_router
+from app.gamification import router as gamification_router
 
 
 @asynccontextmanager
@@ -124,6 +125,21 @@ app.include_router(
     speech_router,
     prefix="/api/v1/speech",
     tags=["Speech"]
+)
+
+# Include Gamification router
+app.include_router(
+    gamification_router.router,
+    prefix="/api/v1",
+    tags=["Gamification"]
+)
+
+# Include Social router
+from app.social import router as social_router
+app.include_router(
+    social_router.router,
+    prefix="/api/v1",
+    tags=["Social"]
 )
 
 

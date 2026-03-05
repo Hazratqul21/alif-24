@@ -22,35 +22,54 @@ class ApiService {
         return response.json();
     }
 
-    async get(endpoint, params = {}) {
+    _buildUrl(endpoint) {
         const baseUrl = this.baseUrl.startsWith('http')
             ? this.baseUrl
             : `${window.location.origin}${this.baseUrl}`;
-        const url = new URL(`${baseUrl}${endpoint}`);
+        return `${baseUrl}${endpoint}`;
+    }
+
+    async get(endpoint, params = {}, options = {}) {
+        const url = new URL(this._buildUrl(endpoint));
         Object.entries(params).forEach(([key, val]) => {
             if (val !== undefined && val !== null) url.searchParams.append(key, val);
         });
-        const resp = await fetch(url, { method: "GET", credentials: "include", headers: this.getHeaders() });
+        const headers = { ...this.getHeaders(), ...(options.headers || {}) };
+        const resp = await fetch(url, { method: "GET", credentials: "include", headers });
         return this.handleResponse(resp);
     }
 
-    async post(endpoint, data = {}) {
-        const baseUrl = this.baseUrl.startsWith('http')
-            ? this.baseUrl
-            : `${window.location.origin}${this.baseUrl}`;
-        const resp = await fetch(`${baseUrl}${endpoint}`, {
+    async post(endpoint, data = {}, options = {}) {
+        const headers = { ...this.getHeaders(), ...(options.headers || {}) };
+        const resp = await fetch(this._buildUrl(endpoint), {
             method: "POST", credentials: "include",
-            headers: this.getHeaders(),
+            headers,
             body: JSON.stringify(data)
         });
         return this.handleResponse(resp);
     }
 
+    async put(endpoint, data = {}, options = {}) {
+        const headers = { ...this.getHeaders(), ...(options.headers || {}) };
+        const resp = await fetch(this._buildUrl(endpoint), {
+            method: "PUT", credentials: "include",
+            headers,
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(resp);
+    }
+
+    async delete(endpoint, options = {}) {
+        const headers = { ...this.getHeaders(), ...(options.headers || {}) };
+        const resp = await fetch(this._buildUrl(endpoint), {
+            method: "DELETE", credentials: "include",
+            headers
+        });
+        return this.handleResponse(resp);
+    }
+
     async postForm(endpoint, formData) {
-        const baseUrl = this.baseUrl.startsWith('http')
-            ? this.baseUrl
-            : `${window.location.origin}${this.baseUrl}`;
-        const resp = await fetch(`${baseUrl}${endpoint}`, {
+        const resp = await fetch(this._buildUrl(endpoint), {
             method: "POST",
             credentials: "include",
             body: formData,

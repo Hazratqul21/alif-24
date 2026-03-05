@@ -1013,8 +1013,9 @@ async def analyze_voice_recording(
 # ADMIN ENDPOINTS
 # ============================================================
 
-from fastapi import Header
+from fastapi import Header, Form
 from app.core.config import settings
+import httpx
 
 
 async def verify_admin_key(x_admin_key: str = Header(..., alias="X-Admin-Key")):
@@ -1023,6 +1024,357 @@ async def verify_admin_key(x_admin_key: str = Header(..., alias="X-Admin-Key")):
         raise HTTPException(status_code=403, detail="Admin emas")
     return True
 
+
+# ---------- Schemas ----------
+
+class CompetitionCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    week_number: int
+    year: int
+    grade_level: Optional[str] = None
+    language: str = "uz"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+class CompetitionUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    week_number: Optional[int] = None
+    year: Optional[int] = None
+    grade_level: Optional[str] = None
+    language: Optional[str] = None
+    status: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+class TaskCreate(BaseModel):
+    day_of_week: str  # monday, tuesday, ...
+    title: str
+    story_text: str
+    image_url: Optional[str] = None
+    questions: Optional[List[Dict[str, Any]]] = None  # [{question, answer}]
+    time_limit_seconds: Optional[int] = None
+    order_index: int = 0
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    story_text: Optional[str] = None
+    image_url: Optional[str] = None
+    questions: Optional[List[Dict[str, Any]]] = None
+    time_limit_seconds: Optional[int] = None
+    order_index: Optional[int] = None
+
+
+# ---------- Competition CRUD ----------
+
+@router.post("/admin/competitions")
+async def create_competition(
+    data: CompetitionCreate,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: yangi musobaqa yaratish"""
+    from datetime import date as date_type
+    comp = ReadingCompetition(
+        title=data.title,
+        description=data.description,
+        week_number=data.week_number,
+        year=data.year,
+        grade_level=data.grade_level,
+        language=data.language,
+        status=CompetitionStatus.draft,
+    )
+    if data.start_date:
+        comp.start_date = date_type.fromisoformat(data.start_date)
+    if data.end_date:
+        comp.end_date = date_type.fromisoformat(data.end_date)
+
+    db.add(comp)
+    await db.commit()
+    await db.refresh(comp)
+
+    logger.info(f"Competition created: {data.title} (ID: {comp.id})")
+    return {
+        "success": True,
+        "data": {
+            "id": comp.id,
+            "title": comp.title,
+            "week_number": comp.week_number,
+            "year": comp.year,
+            "status": comp.status.value,
+        }
+    }
+
+
+@router.get("/admin/competitions")
+async def list_all_competitions(
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: barcha musobaqalar ro'yxati"""
+    result = await db.execute(
+        select(ReadingCompetition).order_by(ReadingCompetition.created_at.desc())
+    )
+    competitions = result.scalars().all()
+
+    items = []
+    for c in competitions:
+        tasks_count = (await db.execute(
+            select(func.count(ReadingTask.id)).where(ReadingTask.competition_id == c.id)
+        )).scalar() or 0
+
+        items.append({
+            "id": c.id,
+            "title": c.title,
+            "description": c.description,
+            "week_number": c.week_number,
+            "year": c.year,
+            "grade_level": c.grade_level,
+            "language": c.language,
+            "status": c.status.value,
+            "start_date": c.start_date.isoformat() if c.start_date else None,
+            "end_date": c.end_date.isoformat() if c.end_date else None,
+            "tasks_count": tasks_count,
+        })
+
+    return {"success": True, "competitions": items, "total": len(items)}
+
+
+@router.put("/admin/competitions/{comp_id}")
+async def update_competition(
+    comp_id: str,
+    data: CompetitionUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: musobaqani yangilash"""
+    from datetime import date as date_type
+    res = await db.execute(select(ReadingCompetition).where(ReadingCompetition.id == comp_id))
+    comp = res.scalars().first()
+    if not comp:
+        raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
+
+    update_fields = data.model_dump(exclude_unset=True)
+    for key, value in update_fields.items():
+        if key == "status" and value:
+            setattr(comp, key, CompetitionStatus(value))
+        elif key in ("start_date", "end_date") and value:
+            setattr(comp, key, date_type.fromisoformat(value))
+        else:
+            setattr(comp, key, value)
+
+    await db.commit()
+    await db.refresh(comp)
+    return {"success": True, "message": "Musobaqa yangilandi", "id": comp.id}
+
+
+@router.delete("/admin/competitions/{comp_id}")
+async def delete_competition(
+    comp_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: musobaqani o'chirish"""
+    res = await db.execute(select(ReadingCompetition).where(ReadingCompetition.id == comp_id))
+    comp = res.scalars().first()
+    if not comp:
+        raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
+
+    await db.delete(comp)
+    await db.commit()
+    return {"success": True, "message": "Musobaqa o'chirildi"}
+
+
+# ---------- Task CRUD ----------
+
+@router.post("/admin/competitions/{comp_id}/tasks")
+async def create_task(
+    comp_id: str,
+    data: TaskCreate,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: musobaqaga task/hikoya qo'shish"""
+    # Musobaqa mavjudligini tekshirish
+    comp_res = await db.execute(select(ReadingCompetition).where(ReadingCompetition.id == comp_id))
+    comp = comp_res.scalars().first()
+    if not comp:
+        raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
+
+    # So'zlar sonini hisoblash
+    total_words = len(re.findall(r'\w+', data.story_text)) if data.story_text else 0
+
+    task = ReadingTask(
+        competition_id=comp_id,
+        day_of_week=TaskDay(data.day_of_week),
+        title=data.title,
+        story_text=data.story_text,
+        image_url=data.image_url,
+        total_words=total_words,
+        questions=data.questions,  # [{question, answer}] format
+        time_limit_seconds=data.time_limit_seconds,
+        order_index=data.order_index,
+    )
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+
+    logger.info(f"Task created: {data.title} for competition {comp_id}")
+    return {
+        "success": True,
+        "data": {
+            "id": task.id,
+            "title": task.title,
+            "day_of_week": task.day_of_week.value,
+            "total_words": total_words,
+            "questions_count": len(data.questions) if data.questions else 0,
+        }
+    }
+
+
+@router.put("/admin/tasks/{task_id}")
+async def update_task(
+    task_id: str,
+    data: TaskUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: taskni yangilash"""
+    res = await db.execute(select(ReadingTask).where(ReadingTask.id == task_id))
+    task = res.scalars().first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task topilmadi")
+
+    update_fields = data.model_dump(exclude_unset=True)
+    for key, value in update_fields.items():
+        setattr(task, key, value)
+
+    # So'zlar sonini qayta hisoblash
+    if data.story_text:
+        task.total_words = len(re.findall(r'\w+', data.story_text))
+
+    await db.commit()
+    await db.refresh(task)
+    return {"success": True, "message": "Task yangilandi", "id": task.id}
+
+
+@router.delete("/admin/tasks/{task_id}")
+async def delete_task(
+    task_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: taskni o'chirish"""
+    res = await db.execute(select(ReadingTask).where(ReadingTask.id == task_id))
+    task = res.scalars().first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task topilmadi")
+
+    await db.delete(task)
+    await db.commit()
+    return {"success": True, "message": "Task o'chirildi"}
+
+
+# ============================================================
+# VOICE QUIZ EVALUATION — Ertaklar kabi AI baholash
+# ============================================================
+
+@router.post("/competitions/{comp_id}/tasks/{task_id}/quiz/evaluate-text")
+async def evaluate_quiz_answer_text(
+    comp_id: str,
+    task_id: str,
+    question_index: int = Query(...),
+    recognized_text: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    student: User = Depends(get_current_student),
+):
+    """
+    Frontend'dan tayyor matn (STT orqali olingan) qabul qilinib,
+    admin bergan to'g'ri javob bilan 100 ballik shkalada solishtiriladi.
+    GPT-4o-mini semantic baholash qo'llaniladi, xato bo'lsa difflib fallback.
+    """
+    import os
+
+    # Task olish
+    task_res = await db.execute(
+        select(ReadingTask).where(ReadingTask.id == task_id, ReadingTask.competition_id == comp_id)
+    )
+    task = task_res.scalars().first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Hikoya topilmadi")
+
+    questions = task.questions or []
+    if question_index < 0 or question_index >= len(questions):
+        raise HTTPException(status_code=400, detail="Savol indeksi noto'g'ri")
+
+    correct_answer = questions[question_index].get("answer", "").strip()
+    question_text = questions[question_index].get("question", "").strip()
+    recognized_clean = recognized_text.strip()
+
+    # ── 1. AI-based evaluation (semantic similarity) ──
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    score = None
+    ai_used = False
+
+    if api_key and recognized_clean and correct_answer:
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                prompt = (
+                    f"Savol: {question_text}\n"
+                    f"To'g'ri javob: {correct_answer}\n"
+                    f"Bola aytgan: {recognized_clean}\n\n"
+                    "Bolaning javobi ma'nosi jihatidan to'g'ri javobga qanchalik mos kelishini "
+                    "0 dan 100 gacha faqat bitta butun son bilan baholang. "
+                    "100 = to'liq mos, 0 = mutlaqo noto'g'ri. "
+                    "Faqat son qaytaring, boshqa hech narsa yozmang."
+                )
+                resp = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": "gpt-4o-mini",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.0,
+                        "max_tokens": 5,
+                    }
+                )
+                if resp.status_code == 200:
+                    raw = resp.json()["choices"][0]["message"]["content"].strip()
+                    digits = "".join(filter(str.isdigit, raw))[:3]
+                    score = max(0, min(100, int(digits or "0")))
+                    ai_used = True
+        except Exception as e:
+            logger.warning(f"AI evaluation failed, falling back to difflib: {e}")
+
+    # ── 2. Fallback: keyword + sequence matching ──
+    if score is None:
+        score = 0
+        r_lower = recognized_clean.lower()
+        c_lower = correct_answer.lower()
+        if r_lower and c_lower:
+            ratio = difflib.SequenceMatcher(None, r_lower, c_lower).ratio()
+            correct_words = set(c_lower.split())
+            recognized_words = set(r_lower.split())
+            keyword_ratio = len(correct_words & recognized_words) / len(correct_words) if correct_words else 0
+            score = int((ratio * 0.5 + keyword_ratio * 0.5) * 100)
+            score = min(100, max(0, score))
+
+    return {
+        "success": True,
+        "data": {
+            "recognized_text": recognized_clean,
+            "correct_answer": correct_answer,
+            "score": score,
+            "passed": score >= 60,
+            "ai_evaluated": ai_used,
+        }
+    }
+
+
+# ============================================================
+# EXISTING ADMIN — Sessions with audio
+# ============================================================
 
 @router.get("/admin/sessions-with-audio")
 async def get_sessions_with_audio(
@@ -1113,3 +1465,4 @@ async def get_session_audio(
             "created_at": session.created_at.isoformat() if session.created_at else None,
         }
     }
+

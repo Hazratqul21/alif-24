@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, Users, Clock, Trophy, CheckCircle, AlertCircle, Medal, BarChart3 } from 'lucide-react';
 import apiService from '../services/apiService';
+import { useConfetti } from '../hooks/useConfetti';
+import { useSoundFx } from '../hooks/useSoundFx';
+import ShareCard from '../components/ShareCard';
+import { SkeletonLeaderboard } from '../components/Skeleton';
 
 export default function OlympiadDetail() {
     const { id } = useParams();
@@ -14,6 +18,9 @@ export default function OlympiadDetail() {
     const [registered, setRegistered] = useState(false);
     const [regError, setRegError] = useState(null);
     const [currentUserId, setCurrentUserId] = useState(null);
+
+    const { triggerConfetti } = useConfetti();
+    const { playSuccess, playLevelUp } = useSoundFx();
 
     // Quiz state
     const [quizStarted, setQuizStarted] = useState(false);
@@ -39,6 +46,30 @@ export default function OlympiadDetail() {
             loadOlympiad(localStorage.getItem('userId'));
         });
     }, [id]);
+
+    useEffect(() => {
+        // Set up WebSocket for real-time leaderboard
+        if (!id || !showLeaderboard) return;
+
+        const wsBase = (import.meta.env.VITE_API_URL || 'http://localhost:8005/api/v1').replace(/^http/, 'ws');
+        const wsUrl = `${wsBase}/olympiads/${id}/ws/leaderboard`;
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => console.log('Connected to live leaderboard WS');
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'leaderboard_update') {
+                    console.log('Live leaderboard updated! Fetching new data...');
+                    loadLeaderboard();
+                }
+            } catch (err) { }
+        };
+
+        return () => {
+            ws.close();
+        };
+    }, [id, showLeaderboard]);
 
     const loadOlympiad = async (userId = null) => {
         try {
@@ -108,7 +139,20 @@ export default function OlympiadDetail() {
             }));
             const studentId = currentUserId || localStorage.getItem('userId');
             const data = await apiService.post(`/olympiad/${id}/submit?student_id=${studentId}`, answerList);
-            setResult(data.data || data.result || data);
+            const resData = data.data || data.result || data;
+            setResult(resData);
+
+            // Trigger effects based on score percentage
+            const totalPoints = questions.reduce((s, q) => s + (q.points || 10), 0);
+            const scorePct = (resData.total_score || resData.score || 0) / totalPoints;
+
+            if (scorePct >= 0.8) {
+                triggerConfetti();
+                playLevelUp();
+            } else if (scorePct >= 0.5) {
+                playSuccess();
+            }
+
             setSubmitted(true);
             loadLeaderboard();
         } catch (err) {
@@ -116,7 +160,7 @@ export default function OlympiadDetail() {
         }
     };
 
-    const loadLeaderboard = async () => {
+    const loadLeaderboard = useCallback(async () => {
         try {
             setLbLoading(true);
             const data = await apiService.get(`/olympiad/${id}/leaderboard`);
@@ -127,7 +171,7 @@ export default function OlympiadDetail() {
         } finally {
             setLbLoading(false);
         }
-    };
+    }, [id]);
 
     if (loading) {
         return (
@@ -289,6 +333,8 @@ export default function OlympiadDetail() {
                                 Bosh sahifaga qaytish
                             </Link>
                         </div>
+
+                        <ShareCard olympiad={olympiad} result={result} />
                     </motion.div>
                 )}
 
@@ -303,9 +349,7 @@ export default function OlympiadDetail() {
                             <Trophy className="w-5 h-5 text-amber-400" /> Reyting jadvali
                         </h3>
                         {lbLoading ? (
-                            <div className="text-center py-8">
-                                <div className="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto" />
-                            </div>
+                            <SkeletonLeaderboard rows={5} />
                         ) : leaderboard.length === 0 ? (
                             <p className="text-center py-8 text-indigo-400">Hali natijalar yo'q</p>
                         ) : (
