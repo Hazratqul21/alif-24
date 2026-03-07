@@ -126,9 +126,9 @@ class OlympiadCreate(BaseModel):
     max_age: int = 18
     grade_level: Optional[str] = None
     registration_start: datetime
-    registration_end: datetime
+    registration_end: Optional[datetime] = None
     start_time: datetime
-    end_time: datetime
+    end_time: Optional[datetime] = None
     duration_minutes: int = 30
     max_participants: int = 500
     questions_count: int = 20
@@ -188,6 +188,10 @@ async def create_olympiad(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new olympiad (admin only)"""
+    # registration_end va end_time bo'sh bo'lsa, avtomatik hisoblash
+    reg_end = data.registration_end or data.registration_start
+    end = data.end_time or data.start_time
+
     olympiad = Olympiad(
         title=data.title,
         description=data.description,
@@ -197,19 +201,24 @@ async def create_olympiad(
         max_age=data.max_age,
         grade_level=data.grade_level,
         registration_start=data.registration_start,
-        registration_end=data.registration_end,
+        registration_end=reg_end,
         start_time=data.start_time,
-        end_time=data.end_time,
+        end_time=end,
         duration_minutes=data.duration_minutes,
         max_participants=data.max_participants,
         questions_count=data.questions_count,
         results_public=data.results_public,
         status=OlympiadStatus.draft,
-        created_by=None,
+        created_by=admin["role"],
     )
     db.add(olympiad)
-    await db.commit()
-    await db.refresh(olympiad)
+    try:
+        await db.commit()
+        await db.refresh(olympiad)
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Olimpiada yaratishda xatolik: {e}")
+        raise HTTPException(status_code=500, detail=f"Olimpiada yaratishda xatolik: {str(e)}")
 
     return {"success": True, "olympiad": olympiad_to_dict(olympiad), "message": "Olimpiada yaratildi"}
 
