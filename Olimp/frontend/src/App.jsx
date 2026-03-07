@@ -51,11 +51,11 @@ const App = () => {
               <Route path="/reading" element={<ReadingHome />} />
               <Route path="/reading/:compId" element={<ReadingHome />} />
 
-              {/* Student Content Pages */}
-              <Route path="/content" element={<OlympiadContent />} />
-              <Route path="/content/lessons" element={<LessionsHome />} />
-              <Route path="/content/lesson/:id" element={<LessonDetail />} />
-              <Route path="/content/ertaklar" element={<ErtaklarPage />} />
+              {/* Student Content Pages (scoped per olympiad) */}
+              <Route path="/olympiad/:olympiadId/content" element={<OlympiadContent />} />
+              <Route path="/olympiad/:olympiadId/content/lessons" element={<LessionsHome />} />
+              <Route path="/olympiad/:olympiadId/content/lesson/:id" element={<LessonDetail />} />
+              <Route path="/olympiad/:olympiadId/content/ertaklar" element={<ErtaklarPage />} />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />

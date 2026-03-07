@@ -507,18 +507,19 @@ export default function OlympiadsPage() {
     };
     // ======================== CONTENT FUNCTIONS ========================
     const loadContentData = async () => {
+        if (!selectedOlympiad) return;
         try {
             setContentLoading(true);
             const [lessRes, ertRes] = await Promise.allSettled([
-                adminService.getLessons(),
-                adminService.getErtaklar()
+                olympiadService.getOlympiadLessons(selectedOlympiad.id),
+                olympiadService.getOlympiadStories(selectedOlympiad.id)
             ]);
             if (lessRes.status === 'fulfilled') {
-                const ld = lessRes.value.data?.lessons || lessRes.value.data;
+                const ld = lessRes.value.data || [];
                 setContentLessons(Array.isArray(ld) ? ld : []);
             }
             if (ertRes.status === 'fulfilled') {
-                const ed = ertRes.value.data?.ertaklar || ertRes.value.data?.stories || ertRes.value.data;
+                const ed = ertRes.value.data?.ertaklar || ertRes.value.data || [];
                 setContentErtaklar(Array.isArray(ed) ? ed : []);
             }
         } catch (e) { console.error(e); }
@@ -526,6 +527,7 @@ export default function OlympiadsPage() {
     };
 
     const handleCreateContentLesson = async () => {
+        if (!selectedOlympiad) return;
         try {
             setSaving(true); setError('');
             const payload = { ...lessonForm };
@@ -533,7 +535,7 @@ export default function OlympiadsPage() {
                 const upRes = await adminService.uploadFile(contentUploadFile);
                 if (upRes.data?.url) payload.attachments = [{ name: contentUploadFile.name, url: upRes.data.url, size: upRes.data.size || contentUploadFile.size }];
             }
-            await adminService.createLesson(payload);
+            await olympiadService.createOlympiadLesson(selectedOlympiad.id, payload);
             notify('success', 'Dars yaratildi!');
             setContentModal(null);
             setLessonForm({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
@@ -544,6 +546,7 @@ export default function OlympiadsPage() {
     };
 
     const handleCreateContentErtak = async () => {
+        if (!selectedOlympiad) return;
         try {
             setSaving(true); setError('');
             const payload = { ...ertakForm, questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim()) };
@@ -555,7 +558,7 @@ export default function OlympiadsPage() {
                 const imgRes = await adminService.uploadFile(contentUploadImage);
                 if (imgRes.data?.url) payload.image_url = imgRes.data.url;
             }
-            await adminService.createErtak(payload);
+            await olympiadService.createOlympiadStory(selectedOlympiad.id, payload);
             notify('success', 'Ertak yaratildi!');
             setContentModal(null);
             setErtakForm({ title: '', content: '', language: 'uz', age_group: '6-8' });
@@ -573,7 +576,7 @@ export default function OlympiadsPage() {
     };
 
     const handleUpdateContentLesson = async () => {
-        if (!editLesson) return;
+        if (!editLesson || !selectedOlympiad) return;
         try {
             setSaving(true); setError('');
             const payload = { ...editLessonForm };
@@ -581,7 +584,7 @@ export default function OlympiadsPage() {
                 const upRes = await adminService.uploadFile(contentUploadFile);
                 if (upRes.data?.url) payload.attachments = [...(editLesson.attachments || []), { name: contentUploadFile.name, url: upRes.data.url, size: upRes.data.size || contentUploadFile.size }];
             }
-            await adminService.updateLesson(editLesson.id, payload);
+            await olympiadService.updateOlympiadLesson(selectedOlympiad.id, editLesson.id, payload);
             notify('success', 'Dars yangilandi!');
             setEditLesson(null);
             setContentUploadFile(null);
@@ -591,13 +594,13 @@ export default function OlympiadsPage() {
     };
 
     const handleDeleteContentLesson = async (id) => {
-        if (!confirm("Darsni o'chirmoqchimisiz?")) return;
-        try { await adminService.deleteLesson(id); loadContentData(); notify('success', "O'chirildi"); } catch (e) { notify('error', 'Xatolik'); }
+        if (!confirm("Darsni o'chirmoqchimisiz?") || !selectedOlympiad) return;
+        try { await olympiadService.deleteOlympiadLesson(selectedOlympiad.id, id); loadContentData(); notify('success', "O'chirildi"); } catch (e) { notify('error', 'Xatolik'); }
     };
 
     const handleDeleteContentErtak = async (id) => {
-        if (!confirm("Ertakni o'chirmoqchimisiz?")) return;
-        try { await adminService.deleteErtak(id); loadContentData(); notify('success', "O'chirildi"); } catch (e) { notify('error', 'Xatolik'); }
+        if (!confirm("Ertakni o'chirmoqchimisiz?") || !selectedOlympiad) return;
+        try { await olympiadService.deleteOlympiadStory(selectedOlympiad.id, id); loadContentData(); notify('success', "O'chirildi"); } catch (e) { notify('error', 'Xatolik'); }
     };
 
     const addContentQuestion = () => setErtakQuestions(prev => [...prev, { question: '', answer: '' }]);

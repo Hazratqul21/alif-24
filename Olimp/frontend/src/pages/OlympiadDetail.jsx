@@ -243,12 +243,20 @@ export default function OlympiadDetail() {
                         <div className="text-center">
                             <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
                             <p className="text-green-400 font-medium mb-4">Ro'yxatdan muvaffaqiyatli o'tdingiz!</p>
-                            <button
-                                onClick={() => setQuizStarted(true)}
-                                className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all"
-                            >
-                                Testni boshlash ({questions.length} savol)
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                <button
+                                    onClick={() => setQuizStarted(true)}
+                                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all"
+                                >
+                                    Testni boshlash ({questions.length} savol)
+                                </button>
+                                <Link
+                                    to={`/olympiad/${id}/content`}
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all"
+                                >
+                                    📚 Kontentlar
+                                </Link>
+                            </div>
                         </div>
                     )}
                 </motion.div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Clock, GraduationCap, Search, BookMarked } from 'lucide-react';
 import apiService from '../services/apiService';
@@ -17,6 +17,7 @@ const difficultyLabel = {
 };
 
 export default function LessionsHome() {
+    const { olympiadId } = useParams();
     const [lessons, setLessons] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -30,7 +31,7 @@ export default function LessionsHome() {
             setLoading(true);
             const params = {};
             if (subjectFilter) params.subject = subjectFilter;
-            const data = await apiService.get('/lessons', params);
+            const data = await apiService.get(`/olympiads/${olympiadId}/content/lessons`, params);
             setLessons(data.data || data || []);
         } catch (err) { setError(err.message); }
         finally { setLoading(false); }
@@ -62,8 +63,8 @@ export default function LessionsHome() {
                         <div><h1 className="text-xl font-bold text-white">Darsliklar</h1><p className="text-xs text-white/50">olimp.alif24.uz</p></div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Link to="/content/ertaklar" className="flex items-center gap-2 px-4 py-2 bg-[#4b30fb]/20 border border-[#4b30fb]/30 rounded-xl text-white/70 hover:bg-[#4b30fb]/30 transition-colors text-sm"><BookMarked className="w-4 h-4" />Ertaklar</Link>
-                        <Link to="/content" className="text-sm text-white/60 hover:text-white transition-colors">← Kontentlar</Link>
+                        <Link to={`/olympiad/${olympiadId}/content/ertaklar`} className="flex items-center gap-2 px-4 py-2 bg-[#4b30fb]/20 border border-[#4b30fb]/30 rounded-xl text-white/70 hover:bg-[#4b30fb]/30 transition-colors text-sm"><BookMarked className="w-4 h-4" />Ertaklar</Link>
+                        <Link to={`/olympiad/${olympiadId}/content`} className="text-sm text-white/60 hover:text-white transition-colors">← Kontentlar</Link>
                     </div>
                 </div>
             </header>
@@ -102,7 +103,7 @@ export default function LessionsHome() {
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {filtered.map((lesson, i) => (
                             <motion.div key={lesson.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                                <Link to={`/content/lesson/${lesson.id}`} className="block bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-[#4b30fb]/30 transition-all group">
+                                <Link to={`/olympiad/${olympiadId}/content/lesson/${lesson.id}`} className="block bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-[#4b30fb]/30 transition-all group">
                                     <div className="flex items-start justify-between mb-3">
                                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${difficultyBadge[lesson.difficulty] || difficultyBadge.medium}`}>{difficultyLabel[lesson.difficulty] || lesson.difficulty}</span>
                                         {lesson.language && <span className="text-xs text-[#4b30fb] uppercase">{lesson.language}</span>}
