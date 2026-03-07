@@ -95,7 +95,7 @@ async def get_current_student(
 class ReadingSubmit(BaseModel):
     stt_transcript: str
     reading_time_seconds: float
-    question_answers: Optional[List[int]] = None  # [0, 2, 1, 3] — variant indexlari
+    questions_correct: Optional[int] = 0
 
 class TestSubmit(BaseModel):
     answers: List[int]  # [0, 2, 1, 3, ...] — har bir savol uchun tanlangan variant
@@ -460,14 +460,9 @@ async def submit_reading(
     # Matn taqqoslash
     similarity = calculate_text_similarity(task.story_text, data.stt_transcript)
 
-    # Savollar tekshirish
-    questions_correct = 0
+    # Savollar tekshirish (Voice Quiz)
+    questions_correct = data.questions_correct or 0
     questions_total = len(task.questions) if task.questions else 0
-    if data.question_answers and task.questions:
-        for i, answer_idx in enumerate(data.question_answers):
-            if i < len(task.questions):
-                if answer_idx == task.questions[i].get("correct"):
-                    questions_correct += 1
 
     # Ballarni hisoblash
     scores = calculate_scores(
@@ -487,7 +482,6 @@ async def submit_reading(
     session.words_read = similarity["words_read"]
     session.total_words = similarity["total_words"]
     session.completion_percentage = similarity["completion_percentage"]
-    session.question_answers = data.question_answers
     session.questions_correct = questions_correct
     session.questions_total = questions_total
     session.score_completion = scores["score_completion"]

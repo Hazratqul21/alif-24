@@ -24,6 +24,36 @@ const readingService = {
     getTaskTTSUrl: (compId, taskId) => {
         return `${API_URL}/reading/competitions/${compId}/tasks/${taskId}/tts`;
     },
+
+    // ─── ADMIN ENDPOINTS ───
+    createCompetition: (data) => apiService.post('/reading/admin/competitions', data, {
+        headers: { 'X-Admin-Key': localStorage.getItem('adminKey') || '' }
+    }),
+    getAdminCompetitions: () => apiService.get('/reading/admin/competitions', {}, {
+        headers: { 'X-Admin-Key': localStorage.getItem('adminKey') || '' }
+    }),
+    updateCompetition: (id, data) => apiService.put(`/reading/admin/competitions/${id}`, data, {
+        headers: { 'X-Admin-Key': localStorage.getItem('adminKey') || '' }
+    }),
+    deleteCompetition: (id) => apiService.delete(`/reading/admin/competitions/${id}`, {
+        headers: { 'X-Admin-Key': localStorage.getItem('adminKey') || '' }
+    }),
+    createTask: (compId, data) => apiService.post(`/reading/admin/competitions/${compId}/tasks`, data, {
+        headers: { 'X-Admin-Key': localStorage.getItem('adminKey') || '' }
+    }),
+    updateTask: (taskId, data) => apiService.put(`/reading/admin/tasks/${taskId}`, data, {
+        headers: { 'X-Admin-Key': localStorage.getItem('adminKey') || '' }
+    }),
+    deleteTask: (taskId) => apiService.delete(`/reading/admin/tasks/${taskId}`, {
+        headers: { 'X-Admin-Key': localStorage.getItem('adminKey') || '' }
+    }),
+    uploadFile: async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return apiService.postForm('/upload/admin-file', formData, {
+            headers: { 'X-Admin-Key': localStorage.getItem('adminKey') || '' }
+        });
+    },
 };
 
 export default readingService;

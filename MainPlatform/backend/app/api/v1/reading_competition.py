@@ -9,6 +9,7 @@ Endpoints:
 - Natijalar ko'rish
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -23,6 +24,8 @@ from shared.database.models.reading_competition import (
     CompetitionStatus, TaskDay, SessionStatus, ResultGroup,
 )
 from app.api.v1.admin_panel import verify_admin, has_permission
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["reading-competition"])
 
@@ -204,8 +207,13 @@ async def create_competition(
         comp.end_date = date.fromisoformat(data.end_date)
 
     db.add(comp)
-    await db.commit()
-    await db.refresh(comp)
+    try:
+        await db.commit()
+        await db.refresh(comp)
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Musobaqa yaratishda xatolik: {e}")
+        raise HTTPException(status_code=500, detail=f"Musobaqa yaratishda xatolik: {str(e)}")
 
     return {"message": "Musobaqa yaratildi", "competition": _serialize_competition(comp)}
 
@@ -343,10 +351,11 @@ async def create_task(
         raise HTTPException(status_code=404, detail="Musobaqa topilmadi")
 
     # Shu kun uchun allaqachon hikoya bormi
+    target_day = TaskDay(data.day_of_week)
     existing = await db.execute(
         select(ReadingTask).where(
             ReadingTask.competition_id == comp_id,
-            ReadingTask.day_of_week == data.day_of_week
+            ReadingTask.day_of_week == target_day
         )
     )
     if existing.scalars().first():
@@ -369,8 +378,13 @@ async def create_task(
     )
 
     db.add(task)
-    await db.commit()
-    await db.refresh(task)
+    try:
+        await db.commit()
+        await db.refresh(task)
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Hikoya qo'shishda xatolik: {e}")
+        raise HTTPException(status_code=500, detail=f"Hikoya qo'shishda xatolik: {str(e)}")
 
     return {"message": "Hikoya qo'shildi", "task": _serialize_task(task)}
 

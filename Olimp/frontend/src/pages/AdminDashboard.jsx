@@ -83,7 +83,13 @@ export default function AdminDashboard() {
                             to="/admin/build"
                             className="px-4 py-2 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
                         >
-                            <Plus className="w-4 h-4" /> Yangi yaratish
+                            <Plus className="w-4 h-4" /> Olympiada
+                        </Link>
+                        <Link
+                            to="/admin/reading"
+                            className="px-4 py-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                        >
+                            <Plus className="w-4 h-4" /> O'qish musob.
                         </Link>
                         <button
                             onClick={loadAnalytics}

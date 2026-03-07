@@ -1,31 +1,12 @@
-import { Howl } from 'howler';
-
-// Asosiy ovozlar uchun oldindan tayyorlangan howler instansiyalari
-// production'da bu fayllarni public/sounds/ papkasiga qo'yish kerak
-const sounds = {
-    success: new Howl({
-        src: ['https://actions.google.com/sounds/v1/cartoon/cartoon_cowbell.ogg'],
-        volume: 0.5
-    }),
-    levelUp: new Howl({
-        src: ['https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg'],
-        volume: 0.6
-    }),
-    click: new Howl({
-        src: ['https://actions.google.com/sounds/v1/interfaces/button_click.ogg'],
-        volume: 0.3
-    }),
-    wrong: new Howl({
-        src: ['https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg'],
-        volume: 0.4
-    })
-};
+// Keling asabga tegmasligi uchun va 404 xatosi chiqmasligi uchun ovozlarni o'chirib turamiz
+// Google Actions sound URL lari endi ishlamayapti (404 Not Found qaytaradi).
+// Production'da public/sounds/ papkasiga o'zimizning .mp3 fayllarimizni qo'ysak bo'ladi.
 
 export function useSoundFx() {
-    const playSuccess = () => sounds.success.play();
-    const playLevelUp = () => sounds.levelUp.play();
-    const playClick = () => sounds.click.play();
-    const playError = () => sounds.wrong.play();
+    const playSuccess = () => { /* console.log('playSuccess'); */ };
+    const playLevelUp = () => { /* console.log('playLevelUp'); */ };
+    const playClick = () => { /* console.log('playClick'); */ };
+    const playError = () => { /* console.log('playError'); */ };
 
     return {
         playSuccess,
@@ -34,3 +15,4 @@ export function useSoundFx() {
         playError
     };
 }
+
