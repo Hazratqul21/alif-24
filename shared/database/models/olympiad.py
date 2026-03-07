@@ -90,15 +90,14 @@ class Olympiad(Base):
     status = Column(SQLEnum(OlympiadStatus), default=OlympiadStatus.draft)
     results_public = Column(Boolean, default=True)  # Natijalar ochiq
     
-    # Tashkilotchi (moderator)
-    created_by = Column(String(8), ForeignKey("users.id"), nullable=True)
+    # Tashkilotchi (moderator) — FK emas, admin role string saqlanadi
+    created_by = Column(String(50), nullable=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
-    creator = relationship("User", backref="created_olympiads", foreign_keys=[created_by])
     questions = relationship("OlympiadQuestion", back_populates="olympiad", cascade="all, delete-orphan")
     participants = relationship("OlympiadParticipant", back_populates="olympiad", cascade="all, delete-orphan")
     reading_tasks = relationship("OlympiadReadingTask", back_populates="olympiad", cascade="all, delete-orphan")
@@ -282,7 +281,7 @@ class OlympiadReadingSubmission(Base):
     admin_accuracy_score = Column(Integer, nullable=True)        # Aniqlik (0-10)
     admin_total_score = Column(Integer, nullable=True)           # Umumiy (0-30)
     admin_notes = Column(Text, nullable=True)                    # Admin izohi
-    graded_by = Column(String(8), ForeignKey("users.id"), nullable=True)
+    graded_by = Column(String(50), nullable=True)                 # Admin role string
     graded_at = Column(DateTime(timezone=True), nullable=True)
     
     # Hisoblangan umumiy ball (test + o'qish + admin)
@@ -293,7 +292,6 @@ class OlympiadReadingSubmission(Base):
     # Relationships
     participant = relationship("OlympiadParticipant", backref="reading_submissions")
     reading_task = relationship("OlympiadReadingTask", back_populates="submissions")
-    grader = relationship("User", foreign_keys=[graded_by])
     
     def __repr__(self):
         return f"<OlympiadReadingSubmission wpm={self.words_per_minute}>"

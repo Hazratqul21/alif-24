@@ -74,7 +74,13 @@ export default function OlympiadsPage() {
             return notify('error', 'Sarlavha, ro\'yxatdan o\'tish va boshlanish sanasi kerak');
         }
         try {
-            await olympiadService.createOlympiad(createForm);
+            const payload = {
+                ...createForm,
+                // Bo'sh bo'lsa default qiymat berish
+                registration_end: createForm.registration_end || createForm.registration_start,
+                end_time: createForm.end_time || createForm.start_time,
+            };
+            await olympiadService.createOlympiad(payload);
             notify('success', 'Olimpiada yaratildi!');
             setActiveView('list');
             fetchOlympiads();
@@ -216,16 +222,16 @@ export default function OlympiadsPage() {
             <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6 space-y-4">
                 <div>
                     <label className="text-sm text-gray-400 mb-1 block">Sarlavha *</label>
-                    <input value={createForm.title} onChange={e => setCreateForm({...createForm, title: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Matematika Olimpiadasi 2026" />
+                    <input value={createForm.title} onChange={e => setCreateForm({ ...createForm, title: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Matematika Olimpiadasi 2026" />
                 </div>
                 <div>
                     <label className="text-sm text-gray-400 mb-1 block">Tavsif</label>
-                    <textarea value={createForm.description} onChange={e => setCreateForm({...createForm, description: e.target.value})} rows={3} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none resize-none" />
+                    <textarea value={createForm.description} onChange={e => setCreateForm({ ...createForm, description: e.target.value })} rows={3} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none resize-none" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Turi</label>
-                        <select value={createForm.type} onChange={e => setCreateForm({...createForm, type: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <select value={createForm.type} onChange={e => setCreateForm({ ...createForm, type: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
                             <option value="test">Test</option>
                             <option value="reading">O'qish tezligi</option>
                             <option value="mixed">Aralash</option>
@@ -233,7 +239,7 @@ export default function OlympiadsPage() {
                     </div>
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Fan</label>
-                        <select value={createForm.subject} onChange={e => setCreateForm({...createForm, subject: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <select value={createForm.subject} onChange={e => setCreateForm({ ...createForm, subject: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
                             <option value="general">Umumiy</option>
                             <option value="math">Matematika</option>
                             <option value="uzbek">O'zbek tili</option>
@@ -246,35 +252,35 @@ export default function OlympiadsPage() {
                 <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Sinf</label>
-                        <input value={createForm.grade_level} onChange={e => setCreateForm({...createForm, grade_level: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" placeholder="2-sinf" />
+                        <input value={createForm.grade_level} onChange={e => setCreateForm({ ...createForm, grade_level: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" placeholder="2-sinf" />
                     </div>
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Davomiyligi (min)</label>
-                        <input type="number" value={createForm.duration_minutes} onChange={e => setCreateForm({...createForm, duration_minutes: parseInt(e.target.value) || 30})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
+                        <input type="number" value={createForm.duration_minutes} onChange={e => setCreateForm({ ...createForm, duration_minutes: parseInt(e.target.value) || 30 })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
                     </div>
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Max ishtirokchilar</label>
-                        <input type="number" value={createForm.max_participants} onChange={e => setCreateForm({...createForm, max_participants: parseInt(e.target.value) || 500})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
+                        <input type="number" value={createForm.max_participants} onChange={e => setCreateForm({ ...createForm, max_participants: parseInt(e.target.value) || 500 })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Ro'yxatdan o'tish boshlanishi *</label>
-                        <input type="datetime-local" value={createForm.registration_start} onChange={e => setCreateForm({...createForm, registration_start: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
+                        <input type="datetime-local" value={createForm.registration_start} onChange={e => setCreateForm({ ...createForm, registration_start: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
                     </div>
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Ro'yxatdan o'tish tugashi</label>
-                        <input type="datetime-local" value={createForm.registration_end} onChange={e => setCreateForm({...createForm, registration_end: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
+                        <input type="datetime-local" value={createForm.registration_end} onChange={e => setCreateForm({ ...createForm, registration_end: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Olimpiada boshlanishi *</label>
-                        <input type="datetime-local" value={createForm.start_time} onChange={e => setCreateForm({...createForm, start_time: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
+                        <input type="datetime-local" value={createForm.start_time} onChange={e => setCreateForm({ ...createForm, start_time: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
                     </div>
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Olimpiada tugashi</label>
-                        <input type="datetime-local" value={createForm.end_time} onChange={e => setCreateForm({...createForm, end_time: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
+                        <input type="datetime-local" value={createForm.end_time} onChange={e => setCreateForm({ ...createForm, end_time: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
                     </div>
                 </div>
 
@@ -507,15 +513,15 @@ export default function OlympiadsPage() {
             {/* Add Question Modal */}
             {renderModal(showAddQuestion, () => setShowAddQuestion(false), 'Savol qo\'shish', (
                 <div className="space-y-4">
-                    <textarea value={qForm.question_text} onChange={e => setQForm({...qForm, question_text: e.target.value})} placeholder="Savol matni..." rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none" />
+                    <textarea value={qForm.question_text} onChange={e => setQForm({ ...qForm, question_text: e.target.value })} placeholder="Savol matni..." rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none" />
                     {qForm.options.map((opt, i) => (
                         <div key={i} className="flex items-center gap-2">
-                            <input type="radio" name="correct" checked={qForm.correct_answer === i} onChange={() => setQForm({...qForm, correct_answer: i})} className="accent-emerald-500" />
-                            <input value={opt} onChange={e => { const opts = [...qForm.options]; opts[i] = e.target.value; setQForm({...qForm, options: opts}); }} placeholder={`${String.fromCharCode(65 + i)} variant`} className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
+                            <input type="radio" name="correct" checked={qForm.correct_answer === i} onChange={() => setQForm({ ...qForm, correct_answer: i })} className="accent-emerald-500" />
+                            <input value={opt} onChange={e => { const opts = [...qForm.options]; opts[i] = e.target.value; setQForm({ ...qForm, options: opts }); }} placeholder={`${String.fromCharCode(65 + i)} variant`} className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
                         </div>
                     ))}
                     <div className="flex gap-3">
-                        <input type="number" value={qForm.points} onChange={e => setQForm({...qForm, points: parseInt(e.target.value) || 5})} className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
+                        <input type="number" value={qForm.points} onChange={e => setQForm({ ...qForm, points: parseInt(e.target.value) || 5 })} className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
                         <span className="text-gray-500 text-sm self-center">ball</span>
                     </div>
                     <button onClick={handleAddQuestion} className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-medium">Qo'shish</button>
@@ -525,15 +531,15 @@ export default function OlympiadsPage() {
             {/* Add Reading Task Modal */}
             {renderModal(showAddReading, () => setShowAddReading(false), 'O\'qish vazifasi qo\'shish', (
                 <div className="space-y-4">
-                    <input value={rtForm.title} onChange={e => setRtForm({...rtForm, title: e.target.value})} placeholder="Sarlavha: Hikoya nomi" className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
-                    <textarea value={rtForm.text_content} onChange={e => setRtForm({...rtForm, text_content: e.target.value})} placeholder="O'qiladigan matn..." rows={6} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none" />
+                    <input value={rtForm.title} onChange={e => setRtForm({ ...rtForm, title: e.target.value })} placeholder="Sarlavha: Hikoya nomi" className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
+                    <textarea value={rtForm.text_content} onChange={e => setRtForm({ ...rtForm, text_content: e.target.value })} placeholder="O'qiladigan matn..." rows={6} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none" />
                     <div className="flex gap-3">
-                        <select value={rtForm.difficulty} onChange={e => setRtForm({...rtForm, difficulty: e.target.value})} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none">
+                        <select value={rtForm.difficulty} onChange={e => setRtForm({ ...rtForm, difficulty: e.target.value })} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none">
                             <option value="easy">Oson</option>
                             <option value="medium">O'rta</option>
                             <option value="hard">Qiyin</option>
                         </select>
-                        <input type="number" value={rtForm.time_limit_seconds} onChange={e => setRtForm({...rtForm, time_limit_seconds: parseInt(e.target.value) || 300})} className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
+                        <input type="number" value={rtForm.time_limit_seconds} onChange={e => setRtForm({ ...rtForm, time_limit_seconds: parseInt(e.target.value) || 300 })} className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
                         <span className="text-gray-500 text-sm self-center">soniya</span>
                     </div>
 
@@ -546,18 +552,18 @@ export default function OlympiadsPage() {
                             </div>
                         ))}
                         <div className="space-y-2 bg-gray-800/30 rounded-xl p-3">
-                            <input value={compQ.question} onChange={e => setCompQ({...compQ, question: e.target.value})} placeholder="Savol..." className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
+                            <input value={compQ.question} onChange={e => setCompQ({ ...compQ, question: e.target.value })} placeholder="Savol..." className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
                             <div className="grid grid-cols-2 gap-2">
                                 {compQ.options.map((opt, i) => (
                                     <div key={i} className="flex items-center gap-1">
-                                        <input type="radio" name="comp_correct" checked={compQ.correct === i} onChange={() => setCompQ({...compQ, correct: i})} className="accent-emerald-500" />
-                                        <input value={opt} onChange={e => { const o = [...compQ.options]; o[i] = e.target.value; setCompQ({...compQ, options: o}); }} placeholder={`${String.fromCharCode(65+i)}`} className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-xs outline-none" />
+                                        <input type="radio" name="comp_correct" checked={compQ.correct === i} onChange={() => setCompQ({ ...compQ, correct: i })} className="accent-emerald-500" />
+                                        <input value={opt} onChange={e => { const o = [...compQ.options]; o[i] = e.target.value; setCompQ({ ...compQ, options: o }); }} placeholder={`${String.fromCharCode(65 + i)}`} className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-xs outline-none" />
                                     </div>
                                 ))}
                             </div>
                             <button onClick={() => {
                                 if (!compQ.question) return;
-                                setRtForm({...rtForm, comprehension_questions: [...rtForm.comprehension_questions, {...compQ, options: compQ.options.filter(o => o)}]});
+                                setRtForm({ ...rtForm, comprehension_questions: [...rtForm.comprehension_questions, { ...compQ, options: compQ.options.filter(o => o) }] });
                                 setCompQ({ question: '', options: ['', '', '', ''], correct: 0 });
                             }} className="text-xs text-indigo-400 hover:underline">+ Savolni qo'shish</button>
                         </div>
@@ -588,14 +594,14 @@ export default function OlympiadsPage() {
                     ].map(item => (
                         <div key={item.key}>
                             <label className="text-sm text-gray-400 mb-1 block flex items-center gap-1.5"><item.Icon size={14} /> {item.label}</label>
-                            <input type="range" min={0} max={10} value={gradeForm[item.key]} onChange={e => setGradeForm({...gradeForm, [item.key]: parseInt(e.target.value)})} className="w-full accent-emerald-500" />
+                            <input type="range" min={0} max={10} value={gradeForm[item.key]} onChange={e => setGradeForm({ ...gradeForm, [item.key]: parseInt(e.target.value) })} className="w-full accent-emerald-500" />
                             <div className="text-right text-emerald-400 font-bold text-sm">{gradeForm[item.key]}/10</div>
                         </div>
                     ))}
                     <div className="text-center py-2">
                         <span className="text-2xl font-bold text-white">{gradeForm.pronunciation_score + gradeForm.fluency_score + gradeForm.accuracy_score}/30</span>
                     </div>
-                    <textarea value={gradeForm.notes} onChange={e => setGradeForm({...gradeForm, notes: e.target.value})} placeholder="Izoh (ixtiyoriy)..." rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none" />
+                    <textarea value={gradeForm.notes} onChange={e => setGradeForm({ ...gradeForm, notes: e.target.value })} placeholder="Izoh (ixtiyoriy)..." rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none" />
                     <button onClick={handleGrade} className="w-full py-2.5 bg-emerald-600 text-white rounded-xl font-bold">Baholash</button>
                 </div>
             ))}
