@@ -31,7 +31,7 @@ export default function LessionsHome() {
             setLoading(true);
             const params = {};
             if (subjectFilter) params.subject = subjectFilter;
-            const data = await apiService.get(`/olympiads/${olympiadId}/content/lessons`, params);
+            const data = await apiService.get(`/olympiad/${olympiadId}/content/lessons`, params);
             setLessons(data.data || data || []);
         } catch (err) { setError(err.message); }
         finally { setLoading(false); }
