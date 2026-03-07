@@ -7,6 +7,10 @@ import AdminDashboard from './pages/AdminDashboard';
 import OlympiadBuilder from './pages/OlympiadBuilder';
 import ReadingHome from './pages/ReadingHome';
 import ReadingAdmin from './pages/ReadingAdmin';
+import OlympiadContent from './pages/OlympiadContent';
+import LessionsHome from './pages/LessionsHome';
+import LessonDetail from './pages/LessonDetail';
+import ErtaklarPage from './pages/ErtaklarPage';
 
 import AuthSync from './components/Auth/AuthSync';
 import { ThemeProvider } from './context/ThemeContext';
@@ -46,6 +50,12 @@ const App = () => {
               {/* Reading Competition */}
               <Route path="/reading" element={<ReadingHome />} />
               <Route path="/reading/:compId" element={<ReadingHome />} />
+
+              {/* Student Content Pages */}
+              <Route path="/content" element={<OlympiadContent />} />
+              <Route path="/content/lessons" element={<LessionsHome />} />
+              <Route path="/content/lesson/:id" element={<LessonDetail />} />
+              <Route path="/content/ertaklar" element={<ErtaklarPage />} />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
