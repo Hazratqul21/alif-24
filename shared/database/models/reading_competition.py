@@ -79,6 +79,7 @@ class ReadingCompetition(Base):
 
     # Relationships
     tasks = relationship("ReadingTask", back_populates="competition", cascade="all, delete-orphan")
+    sessions = relationship("ReadingSession", back_populates="competition", cascade="all, delete-orphan")
     test = relationship("CompetitionTest", back_populates="competition", uselist=False, cascade="all, delete-orphan")
     results = relationship("CompetitionResult", back_populates="competition", cascade="all, delete-orphan")
 
@@ -197,6 +198,7 @@ class ReadingSession(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
+    competition = relationship("ReadingCompetition", back_populates="sessions")
     task = relationship("ReadingTask", back_populates="sessions")
     student = relationship("User", foreign_keys=[student_id])
 
