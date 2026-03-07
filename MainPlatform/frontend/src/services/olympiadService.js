@@ -58,6 +58,15 @@ const olympiadService = {
         api.get(`/${olympiadId}/reading-submissions`, { params: { ungraded_only: ungradedOnly } }),
     gradeReading: (submissionId, data) => api.post(`/reading-submissions/${submissionId}/grade`, data),
     getOlympiadStats: (olympiadId) => api.get(`/${olympiadId}/stats`),
+
+    // ==================== ADMIN: Olympiad Content (Isolated) ====================
+    getOlympiadLessons: (olympiadId) => api.get(`/${olympiadId}/content/lessons`),
+    createOlympiadLesson: (olympiadId, data) => api.post(`/${olympiadId}/content/lessons`, data),
+    updateOlympiadLesson: (olympiadId, lessonId, data) => api.put(`/${olympiadId}/content/lessons/${lessonId}`, data),
+    deleteOlympiadLesson: (olympiadId, lessonId) => api.delete(`/${olympiadId}/content/lessons/${lessonId}`),
+    getOlympiadStories: (olympiadId) => api.get(`/${olympiadId}/content/stories`),
+    createOlympiadStory: (olympiadId, data) => api.post(`/${olympiadId}/content/stories`, data),
+    deleteOlympiadStory: (olympiadId, storyId) => api.delete(`/${olympiadId}/content/stories/${storyId}`),
 };
 
 export default olympiadService;

@@ -5,7 +5,7 @@ import { ArrowLeft, Clock, GraduationCap, BookOpen } from 'lucide-react';
 import apiService from '../services/apiService';
 
 export default function LessonDetail() {
-    const { id } = useParams();
+    const { id, olympiadId } = useParams();
     const [lesson, setLesson] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -15,7 +15,7 @@ export default function LessonDetail() {
     const loadLesson = async () => {
         try {
             setLoading(true);
-            const data = await apiService.get(`/lessons/${id}`);
+            const data = await apiService.get(`/olympiads/${olympiadId}/content/lessons/${id}`);
             setLesson(data.data || data);
         } catch (err) { setError(err.message); }
         finally { setLoading(false); }
@@ -34,7 +34,7 @@ export default function LessonDetail() {
             <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] flex items-center justify-center">
                 <div className="text-center">
                     <p className="text-red-400 mb-4">❌ {error}</p>
-                    <Link to="/content/lessons" className="text-[#4b30fb] hover:text-white">← Darsliklar</Link>
+                    <Link to={`/olympiad/${olympiadId}/content/lessons`} className="text-[#4b30fb] hover:text-white">← Darsliklar</Link>
                 </div>
             </div>
         );
@@ -44,7 +44,7 @@ export default function LessonDetail() {
         <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
             <header className="border-b border-white/10 backdrop-blur-md bg-white/5">
                 <div className="max-w-4xl mx-auto px-4 py-4">
-                    <Link to="/content/lessons" className="inline-flex items-center gap-2 text-[#4b30fb] hover:text-white transition-colors">
+                    <Link to={`/olympiad/${olympiadId}/content/lessons`} className="inline-flex items-center gap-2 text-[#4b30fb] hover:text-white transition-colors">
                         <ArrowLeft className="w-4 h-4" /> Barcha darsliklar
                     </Link>
                 </div>

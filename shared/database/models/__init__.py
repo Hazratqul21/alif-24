@@ -63,6 +63,12 @@ from shared.database.models.olympiad import (
     OlympiadReadingSubmission,
 )
 
+# Olympiad Content (isolated per olympiad)
+from shared.database.models.olympiad_content import (
+    OlympiadLesson,
+    OlympiadStory,
+)
+
 # Game System
 from shared.database.models.game import (
     GameType,
@@ -225,6 +231,8 @@ __all__ = [
     "OlympiadAnswer",
     "OlympiadReadingTask",
     "OlympiadReadingSubmission",
+    "OlympiadLesson",
+    "OlympiadStory",
     
     # Game Models
     "GameType",

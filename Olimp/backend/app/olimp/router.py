@@ -17,6 +17,7 @@ from shared.database.models.olympiad import (
     Olympiad, OlympiadQuestion, OlympiadParticipant, OlympiadAnswer,
     OlympiadStatus, ParticipationStatus,
 )
+from shared.database.models.olympiad_content import OlympiadLesson, OlympiadStory
 from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
 from app.core.config import settings
 from app.olimp.websocket import manager
@@ -979,3 +980,205 @@ async def admin_build_olympiad(
     
     return {"success": True, "olympiad_id": new_olympiad.id, "message": "Olympiad built successfully"}
 
+
+# ============= Olympiad Content: Lessons & Stories =============
+
+@router.get("/{olympiad_id}/content/lessons")
+async def get_olympiad_lessons(
+    olympiad_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all lessons for a specific olympiad"""
+    res = await db.execute(
+        select(OlympiadLesson).where(OlympiadLesson.olympiad_id == olympiad_id)
+        .order_by(OlympiadLesson.created_at.desc())
+    )
+    lessons = res.scalars().all()
+    return {
+        "success": True,
+        "data": [{
+            "id": l.id, "olympiad_id": l.olympiad_id, "title": l.title,
+            "subject": l.subject, "content": l.content, "grade_level": l.grade_level,
+            "language": l.language, "video_url": l.video_url,
+            "attachments": l.attachments or [],
+            "created_at": l.created_at.isoformat() if l.created_at else None,
+        } for l in lessons]
+    }
+
+
+@router.get("/{olympiad_id}/content/lessons/{lesson_id}")
+async def get_olympiad_lesson(
+    olympiad_id: str,
+    lesson_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a single lesson for a specific olympiad"""
+    res = await db.execute(
+        select(OlympiadLesson).where(
+            OlympiadLesson.id == lesson_id,
+            OlympiadLesson.olympiad_id == olympiad_id
+        )
+    )
+    lesson = res.scalars().first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+    return {
+        "success": True,
+        "data": {
+            "id": lesson.id, "olympiad_id": lesson.olympiad_id, "title": lesson.title,
+            "subject": lesson.subject, "content": lesson.content, "grade_level": lesson.grade_level,
+            "language": lesson.language, "video_url": lesson.video_url,
+            "attachments": lesson.attachments or [],
+            "created_at": lesson.created_at.isoformat() if lesson.created_at else None,
+        }
+    }
+
+
+@router.post("/{olympiad_id}/content/lessons")
+async def create_olympiad_lesson(
+    olympiad_id: str,
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: Create a lesson for this olympiad"""
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    if not res.scalars().first():
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+    lesson = OlympiadLesson(
+        olympiad_id=olympiad_id,
+        title=data.get("title", ""),
+        subject=data.get("subject"),
+        content=data.get("content"),
+        grade_level=data.get("grade_level"),
+        language=data.get("language", "uz"),
+        video_url=data.get("video_url"),
+        attachments=data.get("attachments"),
+    )
+    db.add(lesson)
+    await db.commit()
+    await db.refresh(lesson)
+    return {"success": True, "data": {"id": lesson.id, "title": lesson.title}}
+
+
+@router.put("/{olympiad_id}/content/lessons/{lesson_id}")
+async def update_olympiad_lesson(
+    olympiad_id: str,
+    lesson_id: str,
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: Update a lesson"""
+    res = await db.execute(
+        select(OlympiadLesson).where(
+            OlympiadLesson.id == lesson_id,
+            OlympiadLesson.olympiad_id == olympiad_id
+        )
+    )
+    lesson = res.scalars().first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+    for field in ["title", "subject", "content", "grade_level", "language", "video_url", "attachments"]:
+        if field in data:
+            setattr(lesson, field, data[field])
+    await db.commit()
+    return {"success": True, "data": {"id": lesson.id, "title": lesson.title}}
+
+
+@router.delete("/{olympiad_id}/content/lessons/{lesson_id}")
+async def delete_olympiad_lesson(
+    olympiad_id: str,
+    lesson_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: Delete a lesson"""
+    res = await db.execute(
+        select(OlympiadLesson).where(
+            OlympiadLesson.id == lesson_id,
+            OlympiadLesson.olympiad_id == olympiad_id
+        )
+    )
+    lesson = res.scalars().first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+    await db.delete(lesson)
+    await db.commit()
+    return {"success": True, "message": "O'chirildi"}
+
+
+@router.get("/{olympiad_id}/content/stories")
+async def get_olympiad_stories(
+    olympiad_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all stories (ertaklar) for a specific olympiad"""
+    res = await db.execute(
+        select(OlympiadStory).where(OlympiadStory.olympiad_id == olympiad_id)
+        .order_by(OlympiadStory.created_at.desc())
+    )
+    stories = res.scalars().all()
+    return {
+        "success": True,
+        "data": {
+            "ertaklar": [{
+                "id": s.id, "olympiad_id": s.olympiad_id, "title": s.title,
+                "content": s.content, "language": s.language, "age_group": s.age_group,
+                "has_audio": s.has_audio, "audio_url": s.audio_url,
+                "image_url": s.image_url, "view_count": s.view_count,
+                "questions": s.questions or [],
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+            } for s in stories]
+        }
+    }
+
+
+@router.post("/{olympiad_id}/content/stories")
+async def create_olympiad_story(
+    olympiad_id: str,
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: Create a story for this olympiad"""
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    if not res.scalars().first():
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+    story = OlympiadStory(
+        olympiad_id=olympiad_id,
+        title=data.get("title", ""),
+        content=data.get("content", ""),
+        language=data.get("language", "uz"),
+        age_group=data.get("age_group", "6-8"),
+        has_audio=bool(data.get("audio_url")),
+        audio_url=data.get("audio_url"),
+        image_url=data.get("image_url"),
+        questions=data.get("questions", []),
+    )
+    db.add(story)
+    await db.commit()
+    await db.refresh(story)
+    return {"success": True, "data": {"id": story.id, "title": story.title}}
+
+
+@router.delete("/{olympiad_id}/content/stories/{story_id}")
+async def delete_olympiad_story(
+    olympiad_id: str,
+    story_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Admin: Delete a story"""
+    res = await db.execute(
+        select(OlympiadStory).where(
+            OlympiadStory.id == story_id,
+            OlympiadStory.olympiad_id == olympiad_id
+        )
+    )
+    story = res.scalars().first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+    await db.delete(story)
+    await db.commit()
+    return {"success": True, "message": "O'chirildi"}

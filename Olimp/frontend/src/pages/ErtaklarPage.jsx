@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2 } from 'lucide-react';
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
@@ -524,6 +524,7 @@ function ErtakCard({ ertak, index, onClick }) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function ErtaklarPage() {
+    const { olympiadId } = useParams();
     const [ertaklar, setErtaklar] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -534,7 +535,7 @@ export default function ErtaklarPage() {
     const loadErtaklar = async () => {
         try {
             setLoading(true);
-            const data = await apiService.get('/ertaklar');
+            const data = await apiService.get(`/olympiads/${olympiadId}/content/stories`);
             const list = data.data?.ertaklar || data.data || data || [];
             setErtaklar(Array.isArray(list) ? list : []);
         } catch (err) { setError(err.message); }
@@ -562,7 +563,7 @@ export default function ErtaklarPage() {
                         <div className="w-10 h-10 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-xl flex items-center justify-center"><BookMarked className="w-5 h-5 text-white" /></div>
                         <div><h1 className="text-xl font-bold text-white">Ertaklar</h1><p className="text-xs text-white/50">olimp.alif24.uz • Ertaklar</p></div>
                     </div>
-                    <Link to="/content" className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm"><ArrowLeft className="w-4 h-4" /> Kontentlar</Link>
+                    <Link to={`/olympiad/${olympiadId}/content`} className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm"><ArrowLeft className="w-4 h-4" /> Kontentlar</Link>
                 </div>
             </header>
 

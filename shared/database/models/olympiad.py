@@ -101,6 +101,8 @@ class Olympiad(Base):
     questions = relationship("OlympiadQuestion", back_populates="olympiad", cascade="all, delete-orphan")
     participants = relationship("OlympiadParticipant", back_populates="olympiad", cascade="all, delete-orphan")
     reading_tasks = relationship("OlympiadReadingTask", back_populates="olympiad", cascade="all, delete-orphan")
+    content_lessons = relationship("OlympiadLesson", back_populates="olympiad", cascade="all, delete-orphan")
+    content_stories = relationship("OlympiadStory", back_populates="olympiad", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Olympiad {self.title} ({self.status.value})>"
