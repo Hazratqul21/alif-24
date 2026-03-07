@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Trophy, Plus, Trash2, X, Eye, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, BarChart3, FileText, AlertCircle, PenLine, RefreshCw, Target, AudioLines, Waves } from 'lucide-react';
+import { Trophy, Plus, Trash2, X, Eye, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, BarChart3, FileText, AlertCircle, PenLine, RefreshCw, Target, AudioLines, Waves, Book, Globe, Pencil, Video, Paperclip } from 'lucide-react';
 import olympiadService from '../../services/olympiadService';
+import adminService from '../../services/adminService';
 
 export default function OlympiadsPage() {
-    const [activeView, setActiveView] = useState('list'); // list, detail, create, grading
+    const [activeView, setActiveView] = useState('list'); // list, detail, create, grading, content
     const [olympiads, setOlympiads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedOlympiad, setSelectedOlympiad] = useState(null);
     const [stats, setStats] = useState(null);
     const [notification, setNotification] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
 
     // Questions
     const [questions, setQuestions] = useState([]);
@@ -27,6 +30,20 @@ export default function OlympiadsPage() {
     const [gradeForm, setGradeForm] = useState({ pronunciation_score: 5, fluency_score: 5, accuracy_score: 5, notes: '' });
     const [gradingSubmission, setGradingSubmission] = useState(null);
     const [audioPlaying, setAudioPlaying] = useState(null);
+
+    // Content (Darslar / Ertaklar)
+    const [contentTab, setContentTab] = useState('lessons');
+    const [contentLessons, setContentLessons] = useState([]);
+    const [contentErtaklar, setContentErtaklar] = useState([]);
+    const [contentLoading, setContentLoading] = useState(false);
+    const [contentModal, setContentModal] = useState(null); // 'lesson' | 'ertak'
+    const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
+    const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
+    const [ertakQuestions, setErtakQuestions] = useState([]);
+    const [contentUploadFile, setContentUploadFile] = useState(null);
+    const [contentUploadImage, setContentUploadImage] = useState(null);
+    const [editLesson, setEditLesson] = useState(null);
+    const [editLessonForm, setEditLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
 
     // Create form
     const [createForm, setCreateForm] = useState({
@@ -311,6 +328,13 @@ export default function OlympiadsPage() {
                     </div>
                 </div>
 
+                {/* Kontent yasash tugmasi */}
+                <div className="flex justify-center">
+                    <button onClick={() => { setActiveView('content'); loadContentData(); }} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-500/20">
+                        <BookOpen size={20} /> Kontent yasash
+                    </button>
+                </div>
+
                 {/* Stats */}
                 {stats && (
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -481,6 +505,322 @@ export default function OlympiadsPage() {
             </div>
         );
     };
+    // ======================== CONTENT FUNCTIONS ========================
+    const loadContentData = async () => {
+        try {
+            setContentLoading(true);
+            const [lessRes, ertRes] = await Promise.allSettled([
+                adminService.getLessons(),
+                adminService.getErtaklar()
+            ]);
+            if (lessRes.status === 'fulfilled') {
+                const ld = lessRes.value.data?.lessons || lessRes.value.data;
+                setContentLessons(Array.isArray(ld) ? ld : []);
+            }
+            if (ertRes.status === 'fulfilled') {
+                const ed = ertRes.value.data?.ertaklar || ertRes.value.data?.stories || ertRes.value.data;
+                setContentErtaklar(Array.isArray(ed) ? ed : []);
+            }
+        } catch (e) { console.error(e); }
+        finally { setContentLoading(false); }
+    };
+
+    const handleCreateContentLesson = async () => {
+        try {
+            setSaving(true); setError('');
+            const payload = { ...lessonForm };
+            if (contentUploadFile) {
+                const upRes = await adminService.uploadFile(contentUploadFile);
+                if (upRes.data?.url) payload.attachments = [{ name: contentUploadFile.name, url: upRes.data.url, size: upRes.data.size || contentUploadFile.size }];
+            }
+            await adminService.createLesson(payload);
+            notify('success', 'Dars yaratildi!');
+            setContentModal(null);
+            setLessonForm({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
+            setContentUploadFile(null);
+            loadContentData();
+        } catch (e) { setError(e.response?.data?.detail || 'Xatolik'); notify('error', e.response?.data?.detail || 'Xatolik'); }
+        finally { setSaving(false); }
+    };
+
+    const handleCreateContentErtak = async () => {
+        try {
+            setSaving(true); setError('');
+            const payload = { ...ertakForm, questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim()) };
+            if (contentUploadFile) {
+                const upRes = await adminService.uploadFile(contentUploadFile);
+                if (upRes.data?.url) payload.audio_url = upRes.data.url;
+            }
+            if (contentUploadImage) {
+                const imgRes = await adminService.uploadFile(contentUploadImage);
+                if (imgRes.data?.url) payload.image_url = imgRes.data.url;
+            }
+            await adminService.createErtak(payload);
+            notify('success', 'Ertak yaratildi!');
+            setContentModal(null);
+            setErtakForm({ title: '', content: '', language: 'uz', age_group: '6-8' });
+            setErtakQuestions([]);
+            setContentUploadFile(null);
+            setContentUploadImage(null);
+            loadContentData();
+        } catch (e) { setError(e.response?.data?.detail || 'Xatolik'); notify('error', e.response?.data?.detail || 'Xatolik'); }
+        finally { setSaving(false); }
+    };
+
+    const handleEditContentLesson = (lesson) => {
+        setEditLesson(lesson);
+        setEditLessonForm({ title: lesson.title || '', subject: lesson.subject || '', content: lesson.content || '', grade_level: lesson.grade_level || '', language: lesson.language || 'uz', video_url: lesson.video_url || '' });
+    };
+
+    const handleUpdateContentLesson = async () => {
+        if (!editLesson) return;
+        try {
+            setSaving(true); setError('');
+            const payload = { ...editLessonForm };
+            if (contentUploadFile) {
+                const upRes = await adminService.uploadFile(contentUploadFile);
+                if (upRes.data?.url) payload.attachments = [...(editLesson.attachments || []), { name: contentUploadFile.name, url: upRes.data.url, size: upRes.data.size || contentUploadFile.size }];
+            }
+            await adminService.updateLesson(editLesson.id, payload);
+            notify('success', 'Dars yangilandi!');
+            setEditLesson(null);
+            setContentUploadFile(null);
+            loadContentData();
+        } catch (e) { setError(e.response?.data?.detail || 'Xatolik'); notify('error', e.response?.data?.detail || 'Xatolik'); }
+        finally { setSaving(false); }
+    };
+
+    const handleDeleteContentLesson = async (id) => {
+        if (!confirm("Darsni o'chirmoqchimisiz?")) return;
+        try { await adminService.deleteLesson(id); loadContentData(); notify('success', "O'chirildi"); } catch (e) { notify('error', 'Xatolik'); }
+    };
+
+    const handleDeleteContentErtak = async (id) => {
+        if (!confirm("Ertakni o'chirmoqchimisiz?")) return;
+        try { await adminService.deleteErtak(id); loadContentData(); notify('success', "O'chirildi"); } catch (e) { notify('error', 'Xatolik'); }
+    };
+
+    const addContentQuestion = () => setErtakQuestions(prev => [...prev, { question: '', answer: '' }]);
+    const removeContentQuestion = (i) => setErtakQuestions(prev => prev.filter((_, idx) => idx !== i));
+    const updateContentQuestion = (i, field, val) => setErtakQuestions(prev => prev.map((q, idx) => idx === i ? { ...q, [field]: val } : q));
+
+    // ======================== RENDER: CONTENT ========================
+    const renderContent = () => {
+        if (contentLoading) return <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" /></div>;
+
+        return (
+            <div>
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => setActiveView('detail')} className="text-gray-400 hover:text-white">← Ortga</button>
+                        <div>
+                            <h1 className="text-2xl font-bold text-white">Kontentlar</h1>
+                            <p className="text-gray-500 text-sm">Darslar va ertaklar boshqaruvi {selectedOlympiad ? `— ${selectedOlympiad.title}` : ''}</p>
+                        </div>
+                    </div>
+                    <button onClick={() => setContentModal(contentTab === 'lessons' ? 'lesson' : 'ertak')} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors">
+                        <Plus className="w-4 h-4" /> Yangi {contentTab === 'lessons' ? 'dars' : 'ertak'}
+                    </button>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex gap-2 mb-6">
+                    {[
+                        { key: 'lessons', label: 'Darslar', icon: BookOpen, count: contentLessons.length },
+                        { key: 'ertaklar', label: 'Ertaklar', icon: Book, count: contentErtaklar.length },
+                    ].map(t => (
+                        <button key={t.key} onClick={() => setContentTab(t.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${contentTab === t.key ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-gray-400 bg-gray-900 border border-gray-800 hover:text-white'}`}>
+                            <t.icon className="w-4 h-4" /> {t.label} <span className="text-xs opacity-50">({t.count})</span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Lessons */}
+                {contentTab === 'lessons' && (
+                    <div className="space-y-3">
+                        {contentLessons.length === 0 ? (
+                            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center text-gray-500">Darslar yo'q</div>
+                        ) : contentLessons.map(l => (
+                            <div key={l.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 hover:border-gray-700 transition-colors flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0"><BookOpen className="w-5 h-5 text-blue-400" /></div>
+                                    <div className="min-w-0 flex-1">
+                                        <h3 className="text-white font-medium truncate">{l.title}</h3>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            <span>{l.subject}</span>
+                                            {l.grade_level && <span>• {l.grade_level}</span>}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {l.video_url && <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1"><Video size={12} /> Video</a>}
+                                            {l.attachments?.map((att, i) => (
+                                                <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-xs flex items-center gap-1"><Paperclip size={12} /> {att.name || `Fayl ${i + 1}`}</a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button onClick={() => handleEditContentLesson(l)} className="p-2 text-gray-500 hover:text-blue-400"><Pencil className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDeleteContentLesson(l.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Ertaklar */}
+                {contentTab === 'ertaklar' && (
+                    <div className="space-y-3">
+                        {contentErtaklar.length === 0 ? (
+                            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center text-gray-500">Ertaklar yo'q</div>
+                        ) : contentErtaklar.map(e => (
+                            <div key={e.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 hover:border-gray-700 transition-colors flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center shrink-0"><Book className="w-5 h-5 text-purple-400" /></div>
+                                    <div className="min-w-0">
+                                        <h3 className="text-white font-medium truncate">{e.title}</h3>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            <span>{e.language}</span><span>• {e.age_group}</span>
+                                            {e.has_audio && <span>• 🔊 Audio</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                                <button onClick={() => handleDeleteContentErtak(e.id)} className="p-2 text-gray-500 hover:text-red-400 shrink-0"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Create Lesson Modal */}
+                {contentModal === 'lesson' && (
+                    <ContentModal title="Yangi dars yaratish" onClose={() => setContentModal(null)}>
+                        <div className="space-y-3">
+                            <ContentInput label="Nomi *" value={lessonForm.title} onChange={(v) => setLessonForm({ ...lessonForm, title: v })} />
+                            <ContentInput label="Fan *" value={lessonForm.subject} onChange={(v) => setLessonForm({ ...lessonForm, subject: v })} placeholder="Matematika, Ingliz tili..." />
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Mazmuni *</label>
+                                <textarea value={lessonForm.content} onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })} rows={5} className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 resize-none" placeholder="Dars mazmunini yozing..." />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <ContentInput label="Sinf" value={lessonForm.grade_level} onChange={(v) => setLessonForm({ ...lessonForm, grade_level: v })} placeholder="5-sinf" />
+                                <ContentSelect label="Til" value={lessonForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setLessonForm({ ...lessonForm, language: v })} />
+                            </div>
+                            <ContentInput label="Video URL (ixtiyoriy)" value={lessonForm.video_url} onChange={(v) => setLessonForm({ ...lessonForm, video_url: v })} placeholder="YouTube havola" />
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Fayl yuklash (Ixtiyoriy)</label>
+                                <input type="file" onChange={(e) => setContentUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                            </div>
+                        </div>
+                        {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button onClick={() => setContentModal(null)} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                            <button onClick={handleCreateContentLesson} disabled={saving || !lessonForm.title || !lessonForm.subject || !lessonForm.content} className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
+                                {saving ? 'Yaratilmoqda...' : 'Yaratish'}
+                            </button>
+                        </div>
+                    </ContentModal>
+                )}
+
+                {/* Edit Lesson Modal */}
+                {editLesson && (
+                    <ContentModal title={`Darsni tahrirlash: ${editLesson.title}`} onClose={() => { setEditLesson(null); setContentUploadFile(null); }}>
+                        <div className="space-y-3">
+                            <ContentInput label="Nomi *" value={editLessonForm.title} onChange={(v) => setEditLessonForm({ ...editLessonForm, title: v })} />
+                            <ContentInput label="Fan" value={editLessonForm.subject} onChange={(v) => setEditLessonForm({ ...editLessonForm, subject: v })} />
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Mazmuni</label>
+                                <textarea value={editLessonForm.content} onChange={(e) => setEditLessonForm({ ...editLessonForm, content: e.target.value })} rows={6} className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 resize-none" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <ContentInput label="Sinf" value={editLessonForm.grade_level} onChange={(v) => setEditLessonForm({ ...editLessonForm, grade_level: v })} />
+                                <ContentSelect label="Til" value={editLessonForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setEditLessonForm({ ...editLessonForm, language: v })} />
+                            </div>
+                            <ContentInput label="Video URL" value={editLessonForm.video_url} onChange={(v) => setEditLessonForm({ ...editLessonForm, video_url: v })} />
+                            {editLesson.attachments?.length > 0 && (
+                                <div>
+                                    <label className="text-gray-400 text-xs mb-1 block">Mavjud fayllar</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {editLesson.attachments.map((att, i) => (
+                                            <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded flex items-center gap-1"><Paperclip size={12} /> {att.name}</a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Yangi fayl qo'shish</label>
+                                <input type="file" onChange={(e) => setContentUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                            </div>
+                        </div>
+                        {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button onClick={() => { setEditLesson(null); setContentUploadFile(null); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                            <button onClick={handleUpdateContentLesson} disabled={saving || !editLessonForm.title} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                                {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+                            </button>
+                        </div>
+                    </ContentModal>
+                )}
+
+                {/* Create Ertak Modal */}
+                {contentModal === 'ertak' && (
+                    <ContentModal title="Yangi ertak yaratish" onClose={() => setContentModal(null)}>
+                        <div className="space-y-3">
+                            <ContentInput label="Nomi *" value={ertakForm.title} onChange={(v) => setErtakForm({ ...ertakForm, title: v })} />
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Mazmuni *</label>
+                                <textarea value={ertakForm.content} onChange={(e) => setErtakForm({ ...ertakForm, content: e.target.value })} rows={6} className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 resize-none" placeholder="Ertak mazmunini yozing..." />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <ContentSelect label="Til" value={ertakForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setErtakForm({ ...ertakForm, language: v })} />
+                                <ContentSelect label="Yosh guruhi" value={ertakForm.age_group} options={['4-6', '6-8', '8-10', '10-12']} onChange={(v) => setErtakForm({ ...ertakForm, age_group: v })} />
+                            </div>
+
+                            {/* Savollar */}
+                            <div className="border border-dashed border-gray-600 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
+                                    <button onClick={addContentQuestion} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors">
+                                        <Plus className="w-3.5 h-3.5" /> Savol qo'shish
+                                    </button>
+                                </div>
+                                {ertakQuestions.length === 0 ? (
+                                    <p className="text-gray-500 text-xs text-center py-2">Hali savol qo'shilmagan</p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {ertakQuestions.map((q, i) => (
+                                            <div key={i} className="bg-gray-800/60 rounded-xl p-3 space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-gray-400 text-xs font-medium">{i + 1}-savol</span>
+                                                    <button onClick={() => removeContentQuestion(i)} className="text-gray-600 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+                                                </div>
+                                                <input value={q.question} onChange={e => updateContentQuestion(i, 'question', e.target.value)} placeholder="Savol matni..." className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500" />
+                                                <input value={q.answer} onChange={e => updateContentQuestion(i, 'answer', e.target.value)} placeholder="To'g'ri javob..." className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Audio / Fayl yuklash (Ixtiyoriy)</label>
+                                <input type="file" accept="audio/*" onChange={(e) => setContentUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Muqova rasmi (Ixtiyoriy)</label>
+                                <input type="file" accept="image/*" onChange={(e) => setContentUploadImage(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white" />
+                            </div>
+                        </div>
+                        {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button onClick={() => { setContentModal(null); setContentUploadFile(null); setContentUploadImage(null); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                            <button onClick={handleCreateContentErtak} disabled={saving || !ertakForm.title || !ertakForm.content} className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
+                                {saving ? 'Yaratilmoqda...' : 'Yaratish'}
+                            </button>
+                        </div>
+                    </ContentModal>
+                )}
+            </div>
+        );
+    };
 
     // ======================== MODALS ========================
     const renderModal = (show, onClose, title, children) => {
@@ -509,6 +849,7 @@ export default function OlympiadsPage() {
             {activeView === 'list' && renderList()}
             {activeView === 'create' && renderCreate()}
             {activeView === 'detail' && renderDetail()}
+            {activeView === 'content' && renderContent()}
 
             {/* Add Question Modal */}
             {renderModal(showAddQuestion, () => setShowAddQuestion(false), 'Savol qo\'shish', (
@@ -608,3 +949,32 @@ export default function OlympiadsPage() {
         </div>
     );
 }
+
+// Reusable content components
+const ContentModal = ({ title, onClose, children }) => (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">{title}</h3>
+                <button onClick={onClose} className="text-gray-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            {children}
+        </div>
+    </div>
+);
+
+const ContentInput = ({ label, value, onChange, type = 'text', placeholder }) => (
+    <div>
+        <label className="text-gray-400 text-xs mb-1 block">{label}</label>
+        <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 placeholder-gray-600" />
+    </div>
+);
+
+const ContentSelect = ({ label, value, options, onChange }) => (
+    <div>
+        <label className="text-gray-400 text-xs mb-1 block">{label}</label>
+        <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500">
+            {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+    </div>
+);
