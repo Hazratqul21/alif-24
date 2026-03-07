@@ -535,7 +535,7 @@ export default function ErtaklarPage() {
     const loadErtaklar = async () => {
         try {
             setLoading(true);
-            const data = await apiService.get(`/olympiads/${olympiadId}/content/stories`);
+            const data = await apiService.get(`/olympiad/${olympiadId}/content/stories`);
             const list = data.data?.ertaklar || data.data || data || [];
             setErtaklar(Array.isArray(list) ? list : []);
         } catch (err) { setError(err.message); }
