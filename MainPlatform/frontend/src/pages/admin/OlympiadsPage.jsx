@@ -109,6 +109,9 @@ export default function OlympiadsPage() {
         if (!qForm.question_text || qForm.options.some(o => !o.trim())) {
             return notify('error', 'Savol va barcha variantlarni to\'ldiring');
         }
+        if (qForm.question_text.length < 3) {
+            return notify('error', 'Savol matni kamida 3 ta belgi bo\'lishi kerak');
+        }
         try {
             await olympiadService.addQuestion(selectedOlympiad.id, {
                 ...qForm, options: qForm.options.filter(o => o.trim()),
@@ -118,12 +121,21 @@ export default function OlympiadsPage() {
             setQForm({ question_text: '', options: ['', '', '', ''], correct_answer: 0, points: 5 });
             const res = await olympiadService.listQuestions(selectedOlympiad.id);
             setQuestions(res.questions || []);
-        } catch (e) { notify('error', e.message || 'Xatolik'); }
+        } catch (e) {
+            const msg = parseError(e);
+            notify('error', msg || 'Xatolik');
+        }
     };
 
     const handleAddReadingTask = async () => {
         if (!rtForm.title || !rtForm.text_content) {
             return notify('error', 'Sarlavha va matn kerak');
+        }
+        if (rtForm.title.length < 3) {
+            return notify('error', 'Sarlavha kamida 3 ta belgi bo\'lishi kerak');
+        }
+        if (rtForm.text_content.length < 10) {
+            return notify('error', 'Matn kamida 10 ta belgi bo\'lishi kerak');
         }
         try {
             await olympiadService.addReadingTask(selectedOlympiad.id, rtForm);
@@ -132,7 +144,10 @@ export default function OlympiadsPage() {
             setRtForm({ title: '', text_content: '', difficulty: 'medium', time_limit_seconds: 300, comprehension_questions: [] });
             const res = await olympiadService.listReadingTasks(selectedOlympiad.id);
             setReadingTasks(res.reading_tasks || []);
-        } catch (e) { notify('error', e.message || 'Xatolik'); }
+        } catch (e) {
+            const msg = parseError(e);
+            notify('error', msg || 'Xatolik');
+        }
     };
 
     const handleGrade = async () => {

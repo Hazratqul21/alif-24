@@ -23,8 +23,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (res) => res.data,
     (err) => {
-        const msg = err.response?.data?.detail || err.message || 'Xatolik';
-        return Promise.reject(new Error(msg));
+        // We want to return the raw err so components can parse e.response?.data?.detail
+        return Promise.reject(err);
     }
 );
 
