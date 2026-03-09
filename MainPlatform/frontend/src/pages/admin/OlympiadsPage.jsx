@@ -526,8 +526,19 @@ export default function OlympiadsPage() {
         finally { setContentLoading(false); }
     };
 
+    const parseError = (e) => {
+        if (!e.response?.data) return 'Xatolik yuz berdi';
+        const d = e.response.data.detail;
+        if (Array.isArray(d)) return d.map(err => `${err.loc.join('.')} - ${err.msg}`).join('\n');
+        return d || 'Xatolik yuz berdi';
+    };
+
     const handleCreateContentLesson = async () => {
         if (!selectedOlympiad) return;
+        if (lessonForm.title.length < 3) {
+            const msg = 'Sarlavha kamida 3 ta belgi bo\'lishi kerak';
+            setError(msg); notify('error', msg); return;
+        }
         try {
             setSaving(true); setError('');
             const payload = { ...lessonForm };
@@ -541,12 +552,22 @@ export default function OlympiadsPage() {
             setLessonForm({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
             setContentUploadFile(null);
             loadContentData();
-        } catch (e) { setError(e.response?.data?.detail || 'Xatolik'); notify('error', e.response?.data?.detail || 'Xatolik'); }
-        finally { setSaving(false); }
+        } catch (e) {
+            const msg = parseError(e);
+            setError(msg); notify('error', msg);
+        } finally { setSaving(false); }
     };
 
     const handleCreateContentErtak = async () => {
         if (!selectedOlympiad) return;
+        if (ertakForm.title.length < 3) {
+            const msg = 'Sarlavha kamida 3 ta belgi bo\'lishi kerak';
+            setError(msg); notify('error', msg); return;
+        }
+        if (ertakForm.content.length < 10) {
+            const msg = 'Ertak matni kamida 10 ta belgi bo\'lishi kerak';
+            setError(msg); notify('error', msg); return;
+        }
         try {
             setSaving(true); setError('');
             const payload = { ...ertakForm, questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim()) };
@@ -566,8 +587,10 @@ export default function OlympiadsPage() {
             setContentUploadFile(null);
             setContentUploadImage(null);
             loadContentData();
-        } catch (e) { setError(e.response?.data?.detail || 'Xatolik'); notify('error', e.response?.data?.detail || 'Xatolik'); }
-        finally { setSaving(false); }
+        } catch (e) {
+            const msg = parseError(e);
+            setError(msg); notify('error', msg);
+        } finally { setSaving(false); }
     };
 
     const handleEditContentLesson = (lesson) => {
@@ -577,6 +600,10 @@ export default function OlympiadsPage() {
 
     const handleUpdateContentLesson = async () => {
         if (!editLesson || !selectedOlympiad) return;
+        if (editLessonForm.title.length < 3) {
+            const msg = 'Sarlavha kamida 3 ta belgi bo\'lishi kerak';
+            setError(msg); notify('error', msg); return;
+        }
         try {
             setSaving(true); setError('');
             const payload = { ...editLessonForm };
@@ -589,8 +616,10 @@ export default function OlympiadsPage() {
             setEditLesson(null);
             setContentUploadFile(null);
             loadContentData();
-        } catch (e) { setError(e.response?.data?.detail || 'Xatolik'); notify('error', e.response?.data?.detail || 'Xatolik'); }
-        finally { setSaving(false); }
+        } catch (e) {
+            const msg = parseError(e);
+            setError(msg); notify('error', msg);
+        } finally { setSaving(false); }
     };
 
     const handleDeleteContentLesson = async (id) => {
