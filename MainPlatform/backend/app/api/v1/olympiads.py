@@ -12,7 +12,7 @@ olimp.alif24.uz (Olimp Platform, port 8005) to handle high load separately.
 
 import logging
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +28,7 @@ from shared.database.models import (
     Olympiad, OlympiadQuestion, OlympiadParticipant, OlympiadAnswer,
     OlympiadReadingTask, OlympiadReadingSubmission,
 )
+from shared.database.models.olympiad_content import OlympiadLesson, OlympiadStory
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -129,8 +130,8 @@ class OlympiadCreate(BaseModel):
     registration_end: Optional[datetime] = None
     start_time: datetime
     end_time: Optional[datetime] = None
-    duration_minutes: int = 30
-    max_participants: int = 500
+    duration_minutes: int = Field(default=30, ge=1, le=1440)
+    max_participants: int = Field(default=500, ge=1, le=100000)
     questions_count: int = 20
     results_public: bool = True
 
@@ -147,8 +148,8 @@ class OlympiadUpdate(BaseModel):
     registration_end: Optional[datetime] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
-    duration_minutes: Optional[int] = None
-    max_participants: Optional[int] = None
+    duration_minutes: Optional[int] = Field(default=None, ge=1, le=1440)
+    max_participants: Optional[int] = Field(default=None, ge=1, le=100000)
     questions_count: Optional[int] = None
     results_public: Optional[bool] = None
     status: Optional[str] = None
@@ -166,8 +167,29 @@ class ReadingTaskCreate(BaseModel):
     title: str = Field(..., min_length=3)
     text_content: str = Field(..., min_length=10)
     difficulty: str = "medium"
-    time_limit_seconds: int = 300
+    time_limit_seconds: int = Field(default=300, ge=10, le=3600)
     comprehension_questions: Optional[List[dict]] = None
+
+
+class OlympiadLessonCreate(BaseModel):
+    title: str = Field(..., min_length=3)
+    subject: Optional[str] = None
+    content: Optional[str] = None
+    grade_level: Optional[str] = None
+    language: str = "uz"
+    video_url: Optional[str] = None
+    attachments: Optional[List[dict]] = None
+
+
+class OlympiadStoryCreate(BaseModel):
+    title: str = Field(..., min_length=3)
+    content: str = Field(..., min_length=10)
+    language: str = "uz"
+    age_group: str = "6-8"
+    has_audio: bool = False
+    audio_url: Optional[str] = None
+    image_url: Optional[str] = None
+    questions: Optional[List[dict]] = None
 
 
 class GradeReading(BaseModel):
@@ -188,15 +210,27 @@ async def create_olympiad(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new olympiad (admin only)"""
-    # registration_end va end_time bo'sh bo'lsa, avtomatik hisoblash
-    reg_end = data.registration_end or data.registration_start
-    end = data.end_time or data.start_time
+    # Agar registration_end ko'rsatilmasa, u start_time ga qadar davom etadi deb faraz qilamiz yoki registration_start+duration
+    reg_end = data.registration_end or data.start_time
+    # Agar end_time ochiq qoldirilsa, uni start_time + duration_minutes orqali hisoblaymiz
+    end = data.end_time or (data.start_time + timedelta(minutes=data.duration_minutes))
+
+    # Validate enums gracefully
+    try:
+        subject = OlympiadSubject(data.subject)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Noto'g'ri fan turi (subject): {data.subject}")
+
+    try:
+        oly_type = OlympiadType(data.type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Noto'g'ri tur (type): {data.type}")
 
     olympiad = Olympiad(
         title=data.title,
         description=data.description,
-        subject=OlympiadSubject(data.subject) if data.subject in [e.value for e in OlympiadSubject] else OlympiadSubject.general,
-        type=OlympiadType(data.type) if data.type in [e.value for e in OlympiadType] else OlympiadType.test,
+        subject=subject,
+        type=oly_type,
         min_age=data.min_age,
         max_age=data.max_age,
         grade_level=data.grade_level,
@@ -298,11 +332,20 @@ async def update_olympiad(
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         if field == "subject" and value:
-            value = OlympiadSubject(value) if value in [e.value for e in OlympiadSubject] else o.subject
+            try:
+                value = OlympiadSubject(value)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Noto'g'ri fan turi: {value}")
         elif field == "type" and value:
-            value = OlympiadType(value) if value in [e.value for e in OlympiadType] else o.type
+            try:
+                value = OlympiadType(value)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Noto'g'ri tur: {value}")
         elif field == "status" and value:
-            value = OlympiadStatus(value) if value in [e.value for e in OlympiadStatus] else o.status
+            try:
+                value = OlympiadStatus(value)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Noto'g'ri status holati: {value}")
         setattr(o, field, value)
 
     await db.commit()
@@ -509,6 +552,183 @@ async def delete_reading_task(
     # NOTE: Student-facing endpoints (register, start, submit-test, submit-reading,
     # complete, my-result, upload-audio) are handled by the separate Olimp platform
     # at olimp.alif24.uz (port 8005) to avoid load on MainPlatform.
+
+
+# ============================================================================
+# ADMIN: ISOLATED CONTENT (LESSONS & STORIES)
+# ============================================================================
+
+@router.post("/{olympiad_id}/content/lessons")
+async def add_olympiad_lesson(
+    olympiad_id: str,
+    data: OlympiadLessonCreate,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a lesson specific to an olympiad (admin only)"""
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    o = res.scalars().first()
+    if not o:
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+
+    lesson = OlympiadLesson(
+        olympiad_id=olympiad_id,
+        title=data.title,
+        subject=data.subject,
+        content=data.content,
+        grade_level=data.grade_level,
+        language=data.language,
+        video_url=data.video_url,
+        attachments=data.attachments,
+    )
+    db.add(lesson)
+    await db.commit()
+    await db.refresh(lesson)
+
+    return {"success": True, "lesson": {"id": lesson.id, "title": lesson.title}, "message": "Dars qo'shildi"}
+
+@router.get("/{olympiad_id}/content/lessons")
+async def list_olympiad_lessons(
+    olympiad_id: str,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """List isolated lessons for an olympiad"""
+    result = await db.execute(select(OlympiadLesson).where(OlympiadLesson.olympiad_id == olympiad_id))
+    lessons = result.scalars().all()
+    
+    items = [
+        {
+            "id": l.id, "title": l.title, "subject": l.subject, "content": l.content, 
+            "grade_level": l.grade_level, "language": l.language, "video_url": l.video_url,
+            "attachments": l.attachments, "created_at": l.created_at.isoformat() if l.created_at else None
+        } for l in lessons
+    ]
+    return {"success": True, "data": items, "total": len(items)}
+
+@router.put("/{olympiad_id}/content/lessons/{lesson_id}")
+async def update_olympiad_lesson(
+    olympiad_id: str,
+    lesson_id: str,
+    data: OlympiadLessonCreate,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update isolated lesson (admin only)"""
+    res = await db.execute(
+        select(OlympiadLesson).where(
+            OlympiadLesson.id == lesson_id,
+            OlympiadLesson.olympiad_id == olympiad_id
+        )
+    )
+    lesson = res.scalars().first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+
+    lesson.title = data.title
+    lesson.subject = data.subject
+    lesson.content = data.content
+    lesson.grade_level = data.grade_level
+    lesson.language = data.language
+    lesson.video_url = data.video_url
+    lesson.attachments = data.attachments
+
+    await db.commit()
+    return {"success": True, "message": "Dars yangilandi"}
+
+@router.delete("/{olympiad_id}/content/lessons/{lesson_id}")
+async def delete_olympiad_lesson(
+    olympiad_id: str,
+    lesson_id: str,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete isolated lesson (admin only)"""
+    res = await db.execute(
+        select(OlympiadLesson).where(
+            OlympiadLesson.id == lesson_id,
+            OlympiadLesson.olympiad_id == olympiad_id
+        )
+    )
+    lesson = res.scalars().first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+
+    await db.delete(lesson)
+    await db.commit()
+    return {"success": True, "message": "Dars o'chirildi"}
+
+@router.post("/{olympiad_id}/content/stories")
+async def add_olympiad_story(
+    olympiad_id: str,
+    data: OlympiadStoryCreate,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a story/ertak specific to an olympiad (admin only)"""
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    o = res.scalars().first()
+    if not o:
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+
+    story = OlympiadStory(
+        olympiad_id=olympiad_id,
+        title=data.title,
+        content=data.content,
+        language=data.language,
+        age_group=data.age_group,
+        has_audio=data.has_audio,
+        audio_url=data.audio_url,
+        image_url=data.image_url,
+        questions=data.questions,
+    )
+    db.add(story)
+    await db.commit()
+    await db.refresh(story)
+
+    return {"success": True, "story": {"id": story.id, "title": story.title}, "message": "Ertak qo'shildi"}
+
+@router.get("/{olympiad_id}/content/stories")
+async def list_olympiad_stories(
+    olympiad_id: str,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """List isolated stories for an olympiad"""
+    result = await db.execute(select(OlympiadStory).where(OlympiadStory.olympiad_id == olympiad_id))
+    stories = result.scalars().all()
+    
+    items = [
+        {
+            "id": s.id, "title": s.title, "content": s.content, 
+            "language": s.language, "age_group": s.age_group, "has_audio": s.has_audio,
+            "audio_url": s.audio_url, "image_url": s.image_url, "view_count": s.view_count,
+            "questions": s.questions, "created_at": s.created_at.isoformat() if s.created_at else None
+        } for s in stories
+    ]
+    return {"success": True, "data": items, "total": len(items)}
+
+@router.delete("/{olympiad_id}/content/stories/{story_id}")
+async def delete_olympiad_story(
+    olympiad_id: str,
+    story_id: str,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete isolated story (admin only)"""
+    res = await db.execute(
+        select(OlympiadStory).where(
+            OlympiadStory.id == story_id,
+            OlympiadStory.olympiad_id == olympiad_id
+        )
+    )
+    story = res.scalars().first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+
+    await db.delete(story)
+    await db.commit()
+    return {"success": True, "message": "Ertak o'chirildi"}
 
 
 # ============================================================================

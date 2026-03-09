@@ -55,30 +55,30 @@ class CompetitionUpdate(BaseModel):
 
 class TaskCreate(BaseModel):
     day_of_week: str = Field(..., pattern="^(monday|tuesday|wednesday|thursday|friday)$")
-    title: str
+    title: str = Field(..., min_length=3)
     image_url: Optional[str] = None
     video_url: Optional[str] = None
-    story_text: str
+    story_text: str = Field(..., min_length=10)
     questions: Optional[List[Dict[str, Any]]] = None
-    time_limit_seconds: Optional[int] = None
+    time_limit_seconds: Optional[int] = Field(default=None, ge=30, le=3600)
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
+    title: Optional[str] = Field(default=None, min_length=3)
     image_url: Optional[str] = None
     video_url: Optional[str] = None
-    story_text: Optional[str] = None
+    story_text: Optional[str] = Field(default=None, min_length=10)
     questions: Optional[List[Dict[str, Any]]] = None
-    time_limit_seconds: Optional[int] = None
+    time_limit_seconds: Optional[int] = Field(default=None, ge=30, le=3600)
 
 class TestCreate(BaseModel):
     title: Optional[str] = None
     questions: List[Dict[str, Any]]
-    time_limit_minutes: int = 30
+    time_limit_minutes: int = Field(default=30, ge=1, le=1440)
 
 class TestUpdate(BaseModel):
     title: Optional[str] = None
     questions: Optional[List[Dict[str, Any]]] = None
-    time_limit_minutes: Optional[int] = None
+    time_limit_minutes: Optional[int] = Field(default=None, ge=1, le=1440)
 
 
 def _count_words(text: str) -> int:
