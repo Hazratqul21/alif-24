@@ -59,9 +59,13 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
           setOfferText(data.text);
         } else if (typeof data === 'string') {
           setOfferText(data);
+        } else {
+          setOfferText('');
         }
       } catch (err) {
-        // Offer not set yet — allow registration without it
+        // Offer not set yet, or Database is unmigrated (500 error)
+        // Allow registration without it to prevent blocking users
+        console.warn("Public Offer unavailable:", err.message);
         setOfferText('');
       }
     };

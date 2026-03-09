@@ -45,10 +45,16 @@ export default function PublicOfferPage() {
             });
             setToast({ type: 'success', msg: "Ommaviy oferta muvaffaqiyatli saqlandi!" });
         } catch (err) {
-            setToast({ type: 'error', msg: "Saqlashda xatolik: " + (err.message || 'Noma\'lum') });
+            let errorMsg = err.message || 'Noma\'lum xatolik';
+            if (err.response?.data?.detail) {
+                errorMsg = typeof err.response.data.detail === 'string'
+                    ? err.response.data.detail
+                    : JSON.stringify(err.response.data.detail);
+            }
+            setToast({ type: 'error', msg: "Saqlashda xatolik: " + errorMsg });
         } finally {
             setSaving(false);
-            setTimeout(() => setToast(null), 3000);
+            setTimeout(() => setToast(null), 5000);
         }
     };
 
@@ -93,8 +99,8 @@ export default function PublicOfferPage() {
             {/* Toast */}
             {toast && (
                 <div className={`mb-4 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${toast.type === 'success'
-                        ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                        : 'bg-red-500/10 border border-red-500/20 text-red-400'
+                    ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                    : 'bg-red-500/10 border border-red-500/20 text-red-400'
                     }`}>
                     {toast.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
                     {toast.msg}
