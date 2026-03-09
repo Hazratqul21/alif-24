@@ -15,6 +15,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Check for existing session on mount
     const initAuth = async () => {
+      // Skip profile fetch on admin routes to prevent unnecessary 401 errors
+      if (window.location.pathname.startsWith('/admin')) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const profile = await authService.getProfile();
         setUser(profile);
