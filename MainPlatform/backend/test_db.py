@@ -5,14 +5,14 @@ import os
 # Set up environment path to find the app module
 sys.path.insert(0, '/app')
 
-from shared.database import SessionLocal
+from shared.database import AsyncSessionLocal
 from shared.database.models.platform_content import PlatformContent
 from sqlalchemy import select
 from datetime import datetime, timezone
 
 async def test_db():
     try:
-        async with SessionLocal() as db:
+        async with AsyncSessionLocal() as db:
             print("1. Querying PlatformContent...")
             stmt = select(PlatformContent).where(PlatformContent.key == 'public_offer')
             result = await db.execute(stmt)
