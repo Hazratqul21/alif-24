@@ -37,6 +37,7 @@ class RegisterRequest(BaseModel):
     organization_name: Optional[str] = None
     organization_type: Optional[str] = None  # "maktab" | "o'quv_markazi" | "boshqa"
     organization_address: Optional[str] = None
+    organization_role: Optional[str] = None
     
     def validate(self):
         """Validate registration data"""

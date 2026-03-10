@@ -764,8 +764,8 @@ async def get_child_teachers(
                     "last_name": teacher_user.last_name,
                     "phone": teacher_user.phone,
                     "email": teacher_user.email,
-                    "specialty": teacher_profile.specialty if hasattr(teacher_profile, 'specialty') else None,
-                    "experience_years": teacher_profile.experience_years if hasattr(teacher_profile, 'experience_years') else None,
+                    "specialty": teacher_profile.specialization if hasattr(teacher_profile, 'specialization') else None,
+                    "experience_years": teacher_profile.years_of_experience if hasattr(teacher_profile, 'years_of_experience') else None,
                     "bio": teacher_profile.bio if hasattr(teacher_profile, 'bio') else None,
                 },
             })

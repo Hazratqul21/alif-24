@@ -95,11 +95,26 @@ class AuthService:
             self.db.add(mod_profile)
         elif user.role == UserRole.organization:
             org_name = f"{user.first_name} {user.last_name}"
-            if user_data and hasattr(user_data, 'organization_name') and user_data.organization_name:
-                org_name = user_data.organization_name
+            org_type = None
+            org_address = None
+            org_role = None
+            
+            if user_data:
+                if hasattr(user_data, 'organization_name') and user_data.organization_name:
+                    org_name = user_data.organization_name
+                if hasattr(user_data, 'organization_type') and user_data.organization_type:
+                    org_type = user_data.organization_type
+                if hasattr(user_data, 'organization_address') and user_data.organization_address:
+                    org_address = user_data.organization_address
+                if hasattr(user_data, 'organization_role') and user_data.organization_role:
+                    org_role = user_data.organization_role
+
             org_profile = OrganizationProfile(
                 user_id=user.id,
-                name=org_name
+                name=org_name,
+                organization_type=org_type,
+                address=org_address,
+                organization_role=org_role
             )
             self.db.add(org_profile)
         elif user.role == UserRole.student:
@@ -114,9 +129,12 @@ class AuthService:
             teacher = TeacherProfile(user_id=user.id)
             if user_data:
                 if hasattr(user_data, 'specialty') and user_data.specialty:
-                    teacher.specialty = user_data.specialty
+                    teacher.specialization = user_data.specialty
                 if hasattr(user_data, 'experience_years') and user_data.experience_years is not None:
-                    teacher.experience_years = user_data.experience_years
+                    try:
+                        teacher.years_of_experience = int(user_data.experience_years)
+                    except ValueError:
+                        pass
             self.db.add(teacher)
         elif user.role == UserRole.parent:
             parent = ParentProfile(user_id=user.id)
