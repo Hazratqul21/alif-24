@@ -43,6 +43,9 @@ const Footer = () => {
               <button onClick={() => navigate('/mathkids')} className="text-white/40 hover:text-white text-sm text-left bg-transparent border-none cursor-pointer transition-colors">
                 MathKids AI
               </button>
+              <button onClick={() => navigate('/privacy')} className="text-white/40 hover:text-white text-sm text-left bg-transparent border-none cursor-pointer transition-colors">
+                {t('privacy_policy') || 'Maxfiylik siyosati'}
+              </button>
             </div>
           </div>
 
