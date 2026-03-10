@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import desc, select
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 
 import sys
@@ -14,10 +15,9 @@ from app.gamification.models import Badge, UserBadge, DailyActivity, ShopItem, U
 
 router = APIRouter(prefix="/gamification", tags=["Gamification"])
 
-# --- User Profile / Activity ---
 @router.get("/profile")
 async def get_gamification_profile(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user_data: dict = Depends(verify_token)
 ):
     student_id = user_data["user_id"]
@@ -26,12 +26,18 @@ async def get_gamification_profile(
     total_coins = 500 # Default/Mock Value
     
     # Get Streak
-    activity = db.query(DailyActivity).filter(DailyActivity.user_id == student_id).first()
+    activity_res = await db.execute(select(DailyActivity).filter(DailyActivity.user_id == student_id))
+    activity = activity_res.scalars().first()
     streak = activity.current_streak if activity else 0
     longest_streak = activity.longest_streak if activity else 0
     
     # Get Badges
-    user_badges = db.query(UserBadge).filter(UserBadge.user_id == student_id).all()
+    ub_res = await db.execute(
+        select(UserBadge)
+        .options(selectinload(UserBadge.badge))
+        .filter(UserBadge.user_id == student_id)
+    )
+    user_badges = ub_res.scalars().all()
     badges = [
         {
             "id": ub.badge.id,
@@ -54,8 +60,9 @@ async def get_gamification_profile(
 
 # --- Badges ---
 @router.get("/badges/all")
-async def get_all_badges(db: Session = Depends(get_db)):
-    badges = db.query(Badge).all()
+async def get_all_badges(db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(Badge))
+    badges = res.scalars().all()
     return {
         "success": True,
         "data": [
@@ -72,8 +79,9 @@ async def get_all_badges(db: Session = Depends(get_db)):
 
 # --- Coin Shop ---
 @router.get("/shop")
-async def get_shop_items(db: Session = Depends(get_db)):
-    items = db.query(ShopItem).filter(ShopItem.is_active == True).all()
+async def get_shop_items(db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(ShopItem).filter(ShopItem.is_active == True))
+    items = res.scalars().all()
     return {
         "success": True,
         "data": [
@@ -91,12 +99,13 @@ async def get_shop_items(db: Session = Depends(get_db)):
 @router.post("/shop/purchase/{item_id}")
 async def purchase_shop_item(
     item_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user_data: dict = Depends(verify_token)
 ):
     student_id = user_data["user_id"]
     
-    item = db.query(ShopItem).filter(ShopItem.id == item_id, ShopItem.is_active == True).first()
+    item_res = await db.execute(select(ShopItem).filter(ShopItem.id == item_id, ShopItem.is_active == True))
+    item = item_res.scalars().first()
     if not item:
         raise HTTPException(status_code=404, detail="Item topilmadi")
     
@@ -104,10 +113,11 @@ async def purchase_shop_item(
     # Mock behavior for MVP
     
     # Check if already purchased
-    existing_purchase = db.query(UserPurchase).filter(
+    pur_res = await db.execute(select(UserPurchase).filter(
         UserPurchase.user_id == student_id,
         UserPurchase.item_id == item_id
-    ).first()
+    ))
+    existing_purchase = pur_res.scalars().first()
     
     if existing_purchase:
          raise HTTPException(status_code=400, detail="Siz bu mahsulotni allaqachon sotib olgansiz")
@@ -119,7 +129,7 @@ async def purchase_shop_item(
     )
     
     db.add(purchase)
-    db.commit()
+    await db.commit()
     
     return {
         "success": True,

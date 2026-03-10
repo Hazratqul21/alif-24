@@ -21,6 +21,8 @@ class OrganizationProfile(Base):
     
     # Tashkilot ma'lumotlari
     name = Column(String(200), nullable=False)
+    organization_type = Column(String(100), nullable=True)
+    organization_role = Column(String(100), nullable=True)
     address = Column(String(500), nullable=True)
     district = Column(String(100), nullable=True)
     phone = Column(String(50), nullable=True)
