@@ -12,6 +12,7 @@ import OrganizationDashboard from './pages/OrganizationDashboard';
 import ProfilePage from './pages/ProfilePage';
 import AboutPage from './pages/AboutPage';
 import PartnersPage from './pages/PartnersPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import SmartKidsAI from './pages/SmartKidsAI';
 import MathKidsAI from './pages/MathKidsAI';
 import LiveQuizStudent from './pages/LiveQuizStudent';
@@ -171,9 +172,10 @@ const AppRoutes = () => {
         }
       />
 
-      {/* About & Partners */}
+      {/* About, Partners & Privacy */}
       <Route path="/about" element={<AboutPage />} />
       <Route path="/partners" element={<PartnersPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
 
       {/* Global Leaderboard */}
       <Route path="/leaderboard" element={<LeaderboardPage />} />
