@@ -30,24 +30,4 @@ async def get_single_content(key: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Topilmadi")
     return {"success": True, "data": content.value}
 
-@router.put("/admin/content/{key}")
-async def update_content(
-    key: str, 
-    data: ContentUpdate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Faqat adminlar ruxsatga ega")
-        
-    res = await db.execute(select(PlatformContent).where(PlatformContent.key == key))
-    content = res.scalars().first()
-    if not content:
-        content = PlatformContent(key=key, value=data.value)
-        db.add(content)
-    else:
-        content.value = data.value
-        
-    await db.commit()
-    await db.refresh(content)
-    return {"success": True, "data": {"key": content.key, "value": content.value}}
+    return {"success": True, "data": content.value}
