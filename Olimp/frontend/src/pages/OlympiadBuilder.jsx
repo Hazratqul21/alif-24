@@ -12,6 +12,8 @@ export default function OlympiadBuilder() {
     const [endDate, setEndDate] = useState('');
     const [timeLimit, setTimeLimit] = useState(30);
     const [difficulty, setDifficulty] = useState('medium');
+    const [minAge, setMinAge] = useState(4);
+    const [maxAge, setMaxAge] = useState(18);
 
     const [questions, setQuestions] = useState([
         { id: 'q1', text: '', options: ['', '', '', ''], correctOption: 0, points: 5 }
@@ -68,6 +70,8 @@ export default function OlympiadBuilder() {
                 end_date: new Date(endDate).toISOString(),
                 time_limit_minutes: parseInt(timeLimit),
                 difficulty,
+                min_age: parseInt(minAge),
+                max_age: parseInt(maxAge),
                 total_point: questions.reduce((sum, q) => sum + parseInt(q.points), 0),
                 questions: questions.map((q, idx) => ({
                     question_text: q.text,
@@ -175,6 +179,28 @@ export default function OlympiadBuilder() {
                                 value={timeLimit}
                                 onChange={e => setTimeLimit(e.target.value)}
                                 className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-white/70">Kichik yosh (Min Age)</label>
+                            <input
+                                type="number"
+                                value={minAge}
+                                onChange={e => setMinAge(e.target.value)}
+                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                                min="4"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-white/70">Katta yosh (Max Age)</label>
+                            <input
+                                type="number"
+                                value={maxAge}
+                                onChange={e => setMaxAge(e.target.value)}
+                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                                min="4"
                             />
                         </div>
 

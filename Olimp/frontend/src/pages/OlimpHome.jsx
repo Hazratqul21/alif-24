@@ -50,6 +50,11 @@ export default function OlimpHome() {
             setLoading(true);
             const params = {};
             if (filter !== 'all') params.status = filter;
+
+            // Send student_id to only fetch age-appropriate olympiads
+            const userId = localStorage.getItem('userId');
+            if (userId) params.student_id = userId;
+
             const data = await apiService.get('/olympiad', params);
             const list = data.data?.olympiads || data.data || data.olympiads || [];
             setOlympiads(Array.isArray(list) ? list : []);

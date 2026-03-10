@@ -45,32 +45,242 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
   // Ommaviy Oferta
   const [offerAccepted, setOfferAccepted] = useState(false);
   const [showOfferModal, setShowOfferModal] = useState(false);
-  const [offerText, setOfferText] = useState('');
-  const [offerLoading, setOfferLoading] = useState(false);
   const offerScrollRef = useRef(null);
 
-  // Fetch offer text
-  useEffect(() => {
-    const fetchOffer = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/public/content/public_offer`);
-        const data = res?.data?.data;
-        if (data && typeof data === 'object' && data.text) {
-          setOfferText(data.text);
-        } else if (typeof data === 'string') {
-          setOfferText(data);
-        } else {
-          setOfferText('');
-        }
-      } catch (err) {
-        // Offer not set yet, or Database is unmigrated (500 error)
-        // Allow registration without it to prevent blocking users
-        console.warn("Public Offer unavailable:", err.message);
-        setOfferText('');
-      }
-    };
-    fetchOffer();
-  }, []);
+  const offerText = `OYLIK TO'LOV ASOSIDA ONLAYN TA'LIM XIZMATLARIDAN FOYDALANISH BO'YICHA OMMAVIY OFERTA
+ALIF24 AI TEXNOLOGIES MCHJ
+Oxirgi yangilangan sana: 2026-yil 4-mart
+
+1. UMUMIY QOIDALAR
+1.1. Oferta maqsadi
+Ushbu oferta Xaridorlarni (jismoniy shaxslarni) ro'yxatdan o'tkazish, identifikatsiya qilish va tasdiqlash tartibini, Alif24 platformasida elektron Shartnomalar tuzish tartibini belgilaydi, shuningdek, Xaridor va Platforma o'rtasidagi shu orqali yuzaga keladigan munosabatlarni tartibga soladi.
+Mazkur oferta, shuningdek, onlayn ta'lim xizmatlarining oldi-sotdi munosabatlarini, ya'ni xaridor tomonidan oylik obuna bo'yicha kurslardan foydalanish va platforma tomonidan uni taqdim etish jarayonlarini ham tartibga soladi.
+1.2. Qonun asoslari
+O'zbekiston Respublikasida elektron tijorat, iste'molchilarning huquqlarini himoya qilish va shaxsga doir ma'lumotlardan foydalanish kabi sohalardagi munosabatlar quyidagi hujjatlar bilan tartibga solinadi:
+
+O'zbekiston Respublikasi Fuqarolik kodeksi
+"Elektron tijorat to'g'risida"gi Qonun
+Vazirlar Mahkamasining 2016-yil 2-iyundagi 185-son qarori bilan tasdiqlangan "Elektron tijoratni amalga oshirish qoidalari"
+"Iste'molchilar huquqlarini himoya qilish to'g'risida"gi Qonun
+"Shaxsga doir ma'lumotlar to'g'risida"gi Qonun
+Boshqa normativ-huquqiy hujjatlar
+
+
+2. ASOSIY TUSHUNCHALAR
+Aksept - Xaridor tomonidan oylik to'lovni amalga oshirganligi oferta shartnomasining shartlariga rozi bo'lib, qabul (aksept) qilgani va taraflar o'rtasida shartnoma tuzilganini bildiradi.
+Bank - Xaridorning yoki uning vakilining mavjud barcha bank kartalaridan to'lov va qarzdorlikni hisobdan yechish va ushbu yechilgan mablag'larni sotuvchining joriy hisob raqamiga o'tkazish bo'yicha xizmatlarni ko'rsatadigan moliya instituti.
+Ro'yxatdan o'tgan telefon raqami - platformada ro'yxatdan o'tish jarayonida Xaridor o'zini identifikatsiyalash uchun ko'rsatgan va Sotuvchi tomonidan tasdiqlangan mobil telefon raqami.
+Xaridor - identifikatsiyadan o'tish maqsadida Platformaga murojaat qilgan va Platformaning imkoniyatlari, funksiyalari va tashkiliy mexanizmlaridan foydalangan holda kerakli tarzda xizmatlarni oylik obuna asosida sotib olish istagini bildirgan jismoniy shaxs.
+Shaxsiy kabinet - bu veb-sayt yoki mobil ilova ichidagi cheklangan foydalanuvchi maydoni bo'lib, unda Xaridor masofaviy identifikatsiya jarayonidan o'tadi, to'lov qobiliyatini tekshiradi, shartnomalar bo'yicha takliflarni tuzadi va qabul qiladi, amalga oshirilgan shartnomalar haqida ma'lumot olish imkoniyatiga ega bo'ladi va Platformada boshqa zarur amallarni bajaradi.
+Sotuvchi - Toshkent shahrida joylashgan ALIF24 AI TEXNOLOGIES MCHJ.
+Platforma - bu Sotuvchi va Xaridor o'rtasidagi o'zaro munosabatlarni ta'minlash uchun axborot tizimi orqali xizmatlarni sotishga mo'ljallangan tashkiliy, axborot va texnik yechimlardan iborat dasturiy-ta'minot majmuasi.
+Sayt - https://alif24.uz manzilida joylashgan Platformaning internet-resursi.
+Push-xabar - bu Platforma tomonidan Xaridorning mobil qurilmasi ekranida paydo bo'ladigan qisqa xabar shaklida Xaridorga yuboriladigan bildirishnoma.
+Elektron aloqa kanali - Xaridor bilan aloqaning har qanday elektron shakli, shu jumladan har qanday masofaviy xizmat ko'rsatish kanali orqali, Xaridorning ro'yxatdan o'tgan telefon raqamiga SMS-xabar yoki push-xabarnoma yoki Xaridorning ro'yxatdan o'tgan elektron pochta qutisiga elektron pochta orqali o'rnatilgan aloqa.
+
+3. SHARTNOMA PREDMETI
+3.1. Xizmatlar tarkibi
+Mazkur oferta shartlariga muvofiq Sotuvchi Xaridor tomonidan tanlangan onlayn o'quv kurslari bo'yicha o'qitish xizmatlarini ko'rsatish, Xaridor esa ushbu xizmatlarni oylik obuna asosida qabul qilib, ularning qiymatini muntazam to'lash majburiyatini oladi (bundan keyin - Xizmatlar).
+Ushbu xizmatlar Xaridorga shaxsiy kabineti orqali elektron o'quv materiallariga cheklangan muddatga kirish imkoniyatini beruvchi onlayn-kurslar to'plami, malakali va texnik yordam, uy vazifalarini tekshirish, kursni muvaffaqiyatli tugatgani to'g'risida sertifikat berishni o'z ichiga oladi.
+3.2. Kurs tavsifi
+Kurslarning tavsifi, uning davomiyligi, formati, shuningdek, ta'lim natijalari Alif24 platformasida batafsil bayon etilgan.
+
+4. ALIF24 PLATFORMASIDA RO'YXATDAN O'TISH TARTIBI
+4.1. Ro'yxatdan o'tish talabi
+Alif24 platformasida harakatlarni amalga oshirish va xizmat(lar)ni oylik obuna asosida sotib olish uchun Xaridor dastlab alif24.uz sayti orqali ro'yxatdan o'tishi kerak.
+4.2. Identifikatsiya
+Boshlanishida Xaridor alif24.uz platformasiga o'ziga tegishli plastik bank kartasi (UzCARD, HUMO, Visa va/yoki Mastercard) ulangan mobil telefon raqamini (ya'ni SMS-xabarnoma xizmati bog'langan telefon raqami) kiritishi va tegishli maydonda telefon raqamini tasdiqlash uchun SMS orqali olingan noyob kodni kiritishi shart.
+Agar xizmat bolalarga sovg'a qilish maqsadida sotib olinayotgan bo'lsa, qo'shimcha ravishda sovg'a qabul qiluvchi bolaning ismi, familiyasi va yoshi, shuningdek, to'liq yashash manzili (tuman, shaharcha, ko'cha, uy raqami) kiritilishi shart. Ushbu ma'lumotlar sovg'ani yetkazib berish va rasmiylashtirish uchun ishlatiladi.
+4.2.1. Ovoz yozib olishga rozilik
+Olimpiada va testlarda qatnashish uchun Xaridor (yoki qonuniy vakili) bolaning ovozini avtomatik yozib olishga va ushbu ovoz yozuvlaridan quyidagi maqsadlarda foydalanishga aniq rozilik bildiradi:
+
+Platformaning AI tizimlarini o'qitish va takomillashtirish maqsadida dataset tayyorlash
+Keyingi kirishlarda bolaning o'zini avtomatik aniqlash
+O'qish progressini va natijalarini baholash
+Boshqa bolalarning o'qiyotganligini aniqlash va shaxslashtirilgan tavsiyalar berish
+
+Ovoz yozuvlari faqat yuqoridagi maqsadlarda ishlatiladi va uchinchi shaxslarga berilmaydi.
+4.3. Rozilik
+Xaridor SMS tasdiqlovni olganidan so'ng, shaxsiy va boshqa ma'lumotlariga ishlov berish hamda saqlash bo'yicha Platforma siyosati bilan, shuningdek, elektron tijorat orqali oylik obuna asosida onlayn ta'lim xizmatlaridan foydalanishga oid Umumiy shartlar (Ommaviy oferta) bilan tanishganligini va ularga roziligini tasdiqlaydi.
+4.4. To'lov ma'lumotlari
+Ro'yxatdan o'tishni davom ettirish uchun Xaridor plastik bank kartasi raqami hamda amal qilish muddatini kiritishi kerak. Shundan keyin, Xaridor mazkur shartnomaning 4.2-bandiga muvofiq kiritgan telefon raqamiga noyob kodli SMS-xabar yuboriladi, uni kiritish orqali Xaridor Alif24 platformasida sotib olgan tovar va xizmatlar uchun barcha to'lovlar mazkur bank kartasi orqali amalga oshirilishiga rozilik bildiradi.
+4.5. Tasdiqlash
+Ushbu Umumiy qoidalarning 4.2, 4.3, 4.4-bandlarida ko'rsatilgan ma'lumotlar to'liq kiritilgandan so'ng, Alif24 platformasi to'lov qobiliyatini baholash tartib-taomilini amalga oshiradi va Xaridorga kiritilgan ma'lumotlar tasdiqlashdan muvaffaqiyatli o'tganligi to'g'risida yoki tasdiqlash rad etilganligi to'g'risida elektron xabar yuboradi.
+4.6. Qayta ro'yxatdan o'tish
+Tasdiqlash rad etilganligi to'g'risida elektron xabar olingan taqdirda, Alif24 platformasi tomonidan qayd etilgan kamchiliklarni bartaraf etishni hisobga olgan holda, Xaridor 4.2, 4.3, 4.4-bandlarida ko'rsatilgan ma'lumotlarni kiritishni takrorlashi mumkin.
+4.7. Ro'yxatdan o'tishning yakuni
+Tasdiqlashdan muvaffaqiyatli o'tganlik to'g'risida elektron xabar kelgach, Xaridor Alif24 platformasidagi shaxsiy kabinetiga kirish huquqiga ega bo'ladi. Shu paytdan boshlab, Xaridorni Alif24 platformasida ro'yxatdan o'tkazish, identifikatsiya qilish va tekshirish jarayoni tugallangan hisoblanadi va quyidagi shartlar asosida oylik obuna evaziga xizmatlardan foydalanishga haqli bo'ladi.
+
+5. TARAFLARNING HUQUQ VA MAJBURIYATLARI
+5.1. Sotuvchining huquqlari
+5.1.1. Sotuvchi, taqdim etilgan hujjatlarning elektron (skanerlangan) nusxalarining haqiqiyligi yoki ishonchliligiga shubha tug'ilganda, Xaridorni ro'yxatdan o'tkazishni yoki xizmat ko'rsatishni rad etish huquqiga ega.
+5.1.2. Xaridor bilan kelishuvsiz kurs mazmuniga (to'liq yoki qisman) o'zgartirishlar kiritish.
+5.1.3. Saytda texnik resurslar bo'yicha zarur rejali texnik xizmat olib borish va ta'mirlash ishlarini bajarish uchun kurs va saytning ishlashini vaqtincha to'xtatib turish.
+5.1.4. Agar kursda murabbiy (mentor) xizmati nazarda tutilgan bo'lsa, shartnoma bo'yicha o'z majburiyatlarini bajarmagan kurs murabbiylarini almashtirish.
+5.1.5. Mazkur shartnomada belgilangan holatlarda shartnomani bir tomonlama bekor qilish.
+5.1.6. Xizmatlar sifatini oshirish maqsadida Xaridor bilan bo'lgan telefon suhbatlarni yozib olish.
+5.1.7. Mazkur shartnomada belgilangan shartlar topilmagan taqdirda Xaridorga sertifikat berishdan bosh tortish.
+5.2. Sotuvchining majburiyatlari
+5.2.1. Xaridor belgilangan talablarni bajargan taqdirda uni platformada ro'yxatdan o'tkazish.
+5.2.2. Xaridor tomonidan to'lov amalga oshirilgan kundan boshlab tovar va xizmatlarga kirish imkoniyatini 24 soat ichida taqdim etish. Texnik uzilishlar yoki kirishni o'z vaqtida ta'minlashga to'sqinlik qiluvchi boshqa kutilmagan holatlar yuzaga kelgan taqdirda, Sotuvchi zudlik bilan Xaridorni yuzaga kelgan vaziyat haqida xabardor qiladi va uni imkon qadar tezroq bartaraf etish uchun barcha zarur choralarni ko'radi.
+5.2.3. Agar kursda murabbiy (mentor) xizmati mavjud bo'lsa, Xaridor tomonidan bajarilgan uy vazifalarini tekshirishi va ularning natijalarini 7 (yetti) ish kuni ichida Xaridorga taqdim etishi kerak.
+5.2.4. Toshkent shahri mahalliy vaqti bilan soat 10:00 dan 19:00 gacha bo'lgan vaqtda Xaridorlarga malakali yordam ko'rsatish, savollarga bir soat ichida javob berish.
+5.2.5. Kursga, uning materiallariga kirish va o'quv platformasining ishlashi bo'yicha texnik yordamni Xaridor murojaat qilgan paytdan boshlab doimiy, ya'ni haftaning 7 kuni davomida 24 soat ichida ta'minlash.
+5.2.6. To'lovi to'liq amalga oshirilgan kurslarning video darslari va boshqa o'quv materiallaridan foydalanishning texnik imkoniyatini shartnoma tuzilgan kundan e'tiboran 3 (uch) yilgacha, qisqa kurslar uchun esa 1 (bir) yilgacha ta'minlash.
+5.2.7. Quyidagi mezonlar bajarilgan taqdirda, kursni muvaffaqiyatli tugatgani haqida Xaridorga sertifikat berish:
+a) Kurs dasturini to'liq o'tish: Xaridor kurs dasturini, uning barcha modullari, bo'limlari va darslarini to'liq o'tishi kerak.
+b) Barcha uy vazifalari va testlarni bajarish: Xaridor har bir modul yoki kurs bo'yicha barcha uy vazifalarini, jumladan loyiha ishlari, testlar yoki imtihonlarni belgilangan talablarga muvofiq muvaffaqiyatli (o'zlashtirish darajasi 80 foiz va undan yuqori) bajarishi kerak.
+c) Kurs narxini to'liq to'lash: Sertifikat olish uchun Xaridor kurs narxini to'liq to'lagan bo'lishi shart.
+5.2.8. Xaridorning shaxsga doir ma'lumotlaridan O'zbekiston Respublikasining qonunchiligida ruxsat etilgan tartibda foydalanish, ishlov berish hamda uchinchi shaxslarga oshkor qilmaslik, ularning maxfiyligini ta'minlash.
+5.2.9. Agar kurs doirasida mentor xizmati nazarda tutilgan bo'lsa, u shartnoma tuzilgan kundan boshlab 8 (sakkiz) oygacha ta'minlanadi.
+5.3. Xaridorning majburiyatlari
+5.3.1. Ushbu Shartnoma shartlariga muvofiq, o'z vaqtida to'lovni amalga oshirish.
+5.3.2. Kompyuter, smartfon va boshqa elektron qurilmalarda to'lov vositalarining ishonchliligi va xavfsizligini ta'minlash.
+5.3.3. Sotuvchining taklifini va to'lov shartlarini qabul qilishdan oldin, shartnoma shartlarini (narx, tanlangan o'quv kursi turi, to'lov usuli, javobgarlik va hokazo) diqqat bilan tanishib chiqish.
+5.3.4. Xizmatlarni faqat shaxsiy maqsadlar uchun sotib olish va tadbirkorlik yoki daromad topish maqsadida foydalanmaslik.
+5.3.5. Shaxsiy hisob raqamining identifikatsiya ma'lumotlarini uchinchi shaxslarga oshkor qilmaslik va ularni himoyalash.
+5.3.6. alif24.uz platformasi va shaxsiy kabinetida e'lon qilingan xabarlar va bildirishnomalarni muntazam kuzatib borish.
+5.3.7. Sotuvchi va uning xodimlari bilan muloqot jarayonida umum-e'tirof etilgan odob-axloq qoidalariga rioya qilish.
+5.3.8. O'zbekiston Respublikasining "Shaxsga doir ma'lumotlar to'g'risida"gi Qonuniga muvofiq, shartnoma tuzish va amalga oshirish uchun shaxsiy ma'lumotlarni ishlov berishga to'liq rozilik berish.
+5.4. Xaridorning huquqlari
+5.4.1. Sotuvchidan ushbu Shartnomada va amaldagi qonunchilikda belgilangan hajm, sifat va muddatlarda Xizmatlarni ko'rsatishni talab qilish.
+5.4.2. Shaxsiy kabinet, mobil ilova yoki boshqa masofaviy aloqa kanallari orqali kurs materiallariga va qo'shimcha resurslarga Shartnomada ko'rsatilgan muddat davomida uzluksiz kirish imkoniyatiga ega bo'lish.
+5.4.3. Kurs bo'yicha texnik nosozliklar, kirishdagi uzilishlar yoki boshqa xizmat sifati bilan bog'liq muammolar yuzaga kelgan taqdirda, Sotuvchidan bepul va o'z vaqtida texnik yordam olish.
+5.4.4. Kurs mazmuniga yoki sifatiga nisbatan e'tirozlar bo'lsa, Shartnomada belgilangan tartibda, belgilangan muddat ichida ularni ko'rib chiqish va hal etish uchun Sotuvchiga murojaat qilish.
+5.4.5. Kursni o'zlashtirish jarayonida Sotuvchidan malakali maslahat va o'quv-metodik yordam olish.
+5.4.6. Shartnoma shartlarini buzmasdan xizmatlardan voz kechish huquqidan Shartnomada belgilangan tartib va muddatlarda foydalanish.
+5.4.7. Kursni muvaffaqiyatli yakunlagan taqdirda, Shartnomada belgilangan mezonlarga mos sertifikatni bepul olish.
+5.4.8. Shaxsiy ma'lumotlarning maxfiyligi va himoyasi bo'yicha O'zbekiston Respublikasi qonunchiligi talablariga rioya etilishini talab qilish.
+
+6. TO'LOV TARTIBI VA OYLIK OBUNA NARXI
+6.1. Narxni belgilash
+Oylik obuna narxi alif24.uz platformasida ko'rsatiladi. Xaridor tomonidan tanlangan tarif va to'lov turi Xaridorning shaxsiy kabinetida aks ettiriladi hamda ushbu ma'lumotlar mazkur Shartnomaning ajralmas qismi hisoblanadi.
+6.2. Oylik obuna tizimi
+Xaridor kurslarni oylik obuna asosida foydalanadi. To'lov har oy davomida muntazam amalga oshiriladi va to'lov amalga oshirilgan taqdirda, Sotuvchi Xaridorga platformaga kirish va kurs materiallaridan foydalanish huquqini beradi.
+6.3. Obunani bekor qilish
+Oylik obuna istalgan vaqtda to'xtatilishi mumkin. Obuna to'xtatilganda, joriy oy oxirigacha xizmatlardan foydalanish davom etadi, keyingi oy uchun to'lov amalga oshirilmaydi.
+6.4. Aksept sifatida to'lov
+Xaridor tomonidan oylik to'lovning amalga oshirilishi ushbu Shartnoma shartlariga aksept (ya'ni taklifni qabul qilish) sifatida tan olinadi hamda Shartnoma to'lov amalga oshirilgan paytdan boshlab kuchga kiradi.
+6.5. To'lovni tasdiqlash
+Sotuvchi Xaridorga oylik to'lov muvaffaqiyatli amalga oshirilganligi to'g'risida elektron xabarnoma yuborishi yoki bu haqidagi ma'lumotni Xaridorning shaxsiy kabinetida aks ettirishi orqali tasdiqlaydi.
+6.6. Kirish imkoniyati
+Sotuvchi Xaridor tomonidan oylik to'lov amalga oshirilgan kundan boshlab belgilangan muddat ichida kurs materiallariga to'liq kirish imkonini ta'minlash majburiyatini oladi.
+6.7. Valyuta va to'lov tizimlari
+Sotuvchining platformasidagi tovar va xizmatlar narxi O'zbekiston Respublikasining milliy valyutasi - so'mda, barcha soliqlar va boshqa majburiy to'lovlar hisobga olingan holda ko'rsatilgan. Mazkur shartnoma asosida taqdim etilayotgan xizmatlar uchun to'lov Xaridor tomonidan turli to'lov tizimlari (masalan, UZCARD, HUMO, Payme, Click va boshqalar) orqali amalga oshirilishi mumkin.
+6.8. Avtomatik to'lov
+Xaridor, bank kartasini Alif24 platformasi orqali ulaganda, oylik to'lovni har oy avtomatik ravishda o'z bank kartasidan to'g'ridan-to'g'ri yechib olishga rozilik bildiradi.
+
+7. OBUNANI BEKOR QILISH VA QAYTARISH TARTIBI
+7.1. Obunani to'xtatish
+Xaridor oylik obunani o'z shaxsiy kabinetida istalgan vaqtda to'xtatishi mumkin. Obuna to'xtatilganda:
+
+Joriy oy oxirigacha xizmatlardan foydalanish davom etadi
+Keyingi oy uchun to'lov amalga oshirilmaydi
+To'langan mablag'lar qaytarilmaydi
+
+7.2. Pulni qaytarish shartlari
+Agar Xaridorda kurs bo'yicha taqdim etilgan xizmatlarga nisbatan e'tirozi bo'lsa, u kurslardan foydalanish uchun platformaga kirish huquqi berilgan vaqtdan boshlab (Asia/Tashkent vaqt zonasida) 5 (besh) kalendar kun ichida Sotuvchiga xabar berishi kerak.
+Agar ushbu 5 kalendar kun ichida Xaridor darslarning videokurs davomiyligi bo'yicha hisoblangan 10 (o'n) foizidan kamrog'ini ko'rib chiqqan va shartnoma tuzilganiga 5 kundan kam vaqt o'tgan bo'lsa, Xaridorning talabiga ko'ra, to'lov qaytariladi va obuna bekor qilinadi.
+Biroq, ko'rilgan va o'zlashtirilgan darslar videokurs davomiyligi bo'yicha 11 (o'n bir) foiz yoki undan ko'proq bo'lsa, obuna bekor qilinmaydi va to'lov Xaridorga qaytarilmaydi. Xizmatlar to'liq ko'rsatilgan deb hisoblanadi.
+7.3. Muddatdan keyin
+Yuqoridagi 5 kunlik muddat o'tganidan keyin e'tirozlar qabul qilinmaydi va Xaridor kursning keyingi qismini o'zlashtirmagan, qatnashmagan yoki boshqa sabablarga ko'ra ta'lim jarayonini davom ettirmagan taqdirda ham, u ushbu Shartnomaga muvofiq belgilangan to'lov majburiyatlarini to'liq hajmda bajarishi shart.
+7.4. Pulni qaytarish tartibi
+Pulni qaytarish jarayonini boshlash uchun Xaridor shartnomani bekor qilish sabablarini va kurs uchun to'langan summani tasdiqlovchi hujjatlarni ilova qilgan holda Support bo'limiga yozma murojaat qilishi shart. Sotuvchi arizani olgandan keyin 14 ish kuni ichida uni ko'rib chiqadi va pul mablag'larini qaytarish bo'yicha qaror qabul qilib, bu haqda Xaridorga xabar beradi. Ijobiy qaror qabul qilingan kundan boshlab, pul mablag'lari Xaridorning plastik kartasiga 30 kalendar kuni ichida qaytariladi.
+
+8. FORS-MAJOR HOLATLARI
+8.1. Fors-major tushunchasi
+Agar shartnoma bo'yicha majburiyatlarni bajarmaslik yengib bo'lmaydigan kuch oqibatida (fors-major), shartnoma tuzilgandan so'ng yuzaga kelgan favqulodda hodisalar natijasida (urush, suv toshqini, yer qimirlashi, epidemiya, hukumat qarorlari va h.k.) vujudga kelgan bo'lsa, Taraflar shartnoma bo'yicha majburiyatlari qisman yoki to'liq bajarilmagani uchun javobgarlikdan ozod etiladilar.
+8.2. Majburiyatlardan ozod qilish
+Fors-major holatlari yuzaga kelgan vaqtda "Taraflar" ushbu holatlar bartaraf etilguniga qadar shartnoma bo'yicha o'zaro majburiyatlarini bajarishdan ozod bo'ladilar.
+8.3. Xabardor qilish
+Yuzaga kelgan fors-major holatlari haqida hamda ushbu holatlar yakunlanganligi haqida har bir Taraf ushbu holatlar yuzaga kelgan yoki bartaraf etilgan vaqtdan boshlab, 3 (uch) ish kuni ichida bu haqda ikkinchi tarafni yozma ravishda xabardor qilishi lozim.
+8.4. Shartnomani bekor qilish
+Fors-major holatlari 30 kun mobaynida bartaraf etilmagan taqdirda taraflar ushbu shartnomani muddatidan oldin bekor qilishga haqli bo'ladilar.
+
+9. TARAFLARNING JAVOBGARLIGI
+9.1. Mualliflik huquqlari
+Alif24 platformasida nashr etilgan barcha matn, grafik va video materiallar mualliflik huquqlari bilan himoyalangan bo'lib, ularni noqonuniy ishlatish O'zbekiston Respublikasining amaldagi qonunchiligiga zid ravishda javobgarlikka sabab bo'ladi.
+9.2. Texnik javobgarlikning chegaralari
+Alif24 platformasining funksionalligini ta'minlovchi dasturiy va apparat komplekslaridagi nosozliklar, xatolar yoki uzilishlar, shuningdek, Xaridorning Platformaga aloqasi bo'lmagan sabablar tufayli dasturiy yoki apparat vositalaridan vaqtincha foydalana olmasligi yoki shunga bog'liq bo'lgan zararlari uchun Platforma yoki Sotuvchi javobgar emas.
+9.3. Javobgarlikdan ozod qilish holatlari
+Quyidagi holatlarda kelib chiqqan zararlar uchun Sotuvchi javobgar emas:
+a) Xaridorning Alif24 platformasiga kirishda ishlatadigan qurilmalarida yoki dasturiy ta'minotida mavjud bo'lgan viruslar yoki boshqa zararli dasturlar;
+b) Alif24 platformasidan foydalanishda noto'g'ri ma'lumotlarni kiritish;
+c) Xaridor tomonidan Shartnoma shartlarining buzilishi;
+d) Xaridor tomonidan to'lov tartib-qoidalarining buzilishi;
+e) Xaridor platformadagi login va parollarni unutib qo'yishi natijasida kurslardan foydalana olmaganligi.
+9.4. Kirishni cheklash huquqi
+Sotuvchi quyidagi holatlarda Xaridorning shaxsiy kabinetiga kirishni cheklash huquqini o'zida saqlab qoladi:
+a) Xaridor tomonidan boshqa xaridorlar yoki uchinchi shaxslarning huquqlarini yoki qonuniy manfaatlarini buzilganligi haqida da'volar kelib tushganda;
+b) Xaridor Alif24 platformasining dasturiy ta'minotiga ruxsatsiz o'zgartirishlar kiritilganligi aniqlanganda;
+c) Xaridor tomonidan Shartnoma shartlari buzilganda.
+9.5. Bir tomonlama bekor qilish
+Sotuvchi Xaridor tomonidan quyidagi holatlar yuz berganda ushbu shartnomani bir tomonlama tartibda bekor qilish huquqini o'zida saqlab qoladi va to'lovni qaytarmaydi:
+a) Kurs materiallarini ko'chirish, tarqatish, qayta sotish yoki kurs kontentiga noqonuniy kirishga urinishlar;
+b) Kursning majburiy vazifalarini muntazam ravishda (2-martadan ortiq) bajarmaslik;
+c) Jamoatchilik oldida Sotuvchining brendi yoki obro'sini to'kish, shubha ostiga qo'yish, yolg'on ma'lumotlar tarqatish va h.k. orqali diskreditatsiya qilish;
+d) Kurs to'lovlarini 15 kalendar kundan ortiq kechiktirish;
+e) Kurs muhokamasi bo'ladigan guruhlarda (sayt, telegram, instagram va boshqa ijtimoiy tarmoqlarda) muloqot qilish jarayonida odob-axloq qoidalariga rioya qilmaslik;
+f) Noqonuniy faoliyat bilan shug'ullanganda, shu jumladan xakerlik kabi xatti-harakatlar bilan shug'ullanishi aniqlanganda.
+
+10. NIZOLARNI HAL QILISH TARTIBI
+10.1. Muzokaralar
+Mazkur shartnoma bo'yicha vujudga kelishi mumkin bo'lgan barcha nizo va kelishmovchiliklar taraflar tomonidan o'zaro muzokaralar o'tkazish orqali hal etiladi.
+10.2. Sud yo'li
+Agar nizolarni muzokaralar yo'li bilan hal etish imkonsiz bo'lsa yoki taraflar biror shartnomaga erisha olmasalar, taraflar nizoni hal qilish uchun O'zbekiston Respublikasining amaldagi qonunchiligiga muvofiq Fuqarolik ishlari bo'yicha Toshkent shahri sudida hal qilinadi.
+
+11. SHAXSGA DOIR MA'LUMOTLARDAN FOYDALANISH TARTIBI
+11.1. Himoya majburiyati
+Sotuvchi xaridor tomonidan taqdim etilgan shaxsiy ma'lumotlarni qonunchilikda belgilangan tartibda va darajada himoyada bo'lishi va sir saqlanishi uchun javobgardir.
+11.2. Xavfsizlik ta'rifi
+Shaxsga doir ma'lumotlarning xavfsizligi deganda shaxsga doir ma'lumotlardan noqonuniy ravishda va/yoki ruxsatsiz foydalanishdan, shaxsga doir ma'lumotlarni yo'q qilishdan, o'zgartirishdan, blokirovka qilishdan, nusxalashdan, taqdim etishdan, tarqatishdan, shuningdek shaxsga doir ma'lumotlarga nisbatan boshqa noqonuniy harakatlardan himoyalangan muhitni ta'minlash nazarda tutiladi.
+11.3. Sovg'a uchun ma'lumotlarni uzatish
+Agar xizmat bolalarga sovg'a qilish maqsadida sotib olingan bo'lsa, Sotuvchi sovg'a qabul qiluvchi bolaga tegishli quyidagi ma'lumotlarni sovg'ani yetkazib berish va rasmiylashtirish uchun uchinchi shaxslarga (yetkazib berish xizmatlari, rasmiylashtirish organlari) yuborish huquqiga ega:
+
+ismi, familiyasi, otasining ismi;
+tug'ilgan sanasi va yoshi;
+to'liq yashash manzili (tuman, shaharcha, ko'cha, uy raqami);
+aloqa telefon raqami;
+sovg'ani beruvchi shaxs haqida ma'lumot.
+
+11.3.1. Ovoz yozuvlaridan foydalanish
+Sotuvchi olimpiada va testlar davomida yozib olingan bolalar ovozlaridan quyidagi maqsadlarda foydalanish huquqiga ega:
+
+Platformaning AI tizimlarini o'qitish va takomillashtirish uchun dataset tayyorlash
+Bolaning ovozini tanish orqali avtomatik identifikatsiya tizimini rivojlantirish
+O'qish progressini va natijalarini obyektiv baholash
+Shaxslashtirilgan o'quv tavsiyalari berish
+Platforma sifatini yaxshilash uchun analitik ma'lumotlar to'plash
+
+Ovoz yozuvlari shifrlangan holda saqlanadi va faqat Sotuvchining AI tizimlari tomonidan qayta ishlash uchun ishlatiladi. Uchinchi shaxslarga ovoz yozuvlari berilmaydi.
+11.4. Rozilik
+Xaridor sovg'a qabul qiluvchi bolaning yuqoridagi ma'lumotlarini sotuvchiga foydalanish va sovg'ani yetkazib berish hamda rasmiylashtirish uchun tarqatish huquqini beradi. Xaridorga yuqoridagi ma'lumotlarni sovg'ani yetkazib berish maqsadida boshqa uchinchi shaxslarga yuborganlik uchun javobgarlik qo'llanilmaydi.
+Xaridor, shuningdek, olimpiada va testlar davomida bolaning ovozini yozib olishga va ushbu ovoz yozuvlaridan 11.3.1-bandda ko'rsatilgan maqsadlarda foydalanishga to'liq rozilik bildiradi.
+11.5. Ma'lumotlarni so'rash huquqi
+Platformaga pochta manzili yoki Internet orqali kontaktdan foydalanish bilan tegishli yozma so'rov yuborish orqali, shuningdek, Xaridorning shaxsiy kabinetidan so'rov yuborish orqali, Xaridor Platformadan o'zining shaxsiy ma'lumotlari, ularga ishlov berish va foydalanish to'g'risida to'liq ma'lumot so'rashga, shuningdek, noto'g'ri yoki to'liq bo'lmagan shaxsiy ma'lumotlarni chiqarib tashlash yoki tuzatish/qo'shishni talab qilishga haqli.
+11.6. Rozilik muddati
+Xaridor shartnoma tuzilgan kundan boshlab 3 (uch) yil davomida Sotuvchining uning shaxsiy ma'lumotlarini amaldagi qonunchilikka muvofiq qayta ishlashiga rozilik beradi. Ushbu rozilik Xaridor tomonidan Platformaga pochta manzili bo'yicha yozma ariza yuborish yoki Alif24 platformasida Xaridorning shaxsiy kabinetidan so'rov yuborish orqali bekor qilinishi mumkin.
+
+12. YAKUNIY QOIDALAR
+12.1. Oferta kuchga kirishi
+Ushbu oferta shartnomasi e'lon qilingan sanadan boshlab, ikkinchi taraf uchun aktsept qilgan paytdan boshlab kuchga kiradi va Tomonlar o'z majburiyatlarini to'liq bajargunlaricha qadar amal qiladi.
+12.2. O'zgartirishlar
+Ushbu shartnomaga qilinadigan barcha ilovalar, qo'shimchalar va o'zgarishlar ushbu shartnomaning ajralmas qismi hisoblanadi.
+12.3. Shartnomaning elektron shakli
+Mazkur Shartnoma elektron shaklda tuziladi va elektron imzo, SMS-kod, push-xabar, yoki shaxsiy kabinet orqali tasdiqlangan aksept bilan bir xil yuridik kuchga ega hisoblanadi.
+
+13. MANZIL VA BOG'LANISH
+13.1. Sotuvchi manzili
+ALIF24 AI TEXNOLOGIES MCHJ
+Manzil: O'zbekiston Respublikasi, Toshkent shahri
+Email: info@alif24.uz
+Telefon: +998 90 827 83 58
+Veb-sayt: https://alif24.uz
+13.2. Qo'shimcha ma'lumotlar
+Texnik yordam: support@alif24.uz
+Maxfiylik: privacy@alif24.uz
+
+© 2026 ALIF24 AI TEXNOLOGIES MCHJ. Barcha huquqlar himoyalangan.`;
 
   const scrollOfferToBottom = useCallback(() => {
     if (offerScrollRef.current) {
@@ -728,28 +938,26 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
       )}
 
       {/* Ommaviy Oferta Checkbox */}
-      {offerText && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={offerAccepted}
-              onChange={(e) => setOfferAccepted(e.target.checked)}
-              className="mt-0.5 w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer flex-shrink-0"
-            />
-            <span className="text-sm text-gray-700 leading-relaxed">
-              <button
-                type="button"
-                onClick={(e) => { e.preventDefault(); setShowOfferModal(true); }}
-                className="text-indigo-600 hover:text-indigo-800 font-semibold underline underline-offset-2 decoration-indigo-300 hover:decoration-indigo-500 transition-colors"
-              >
-                Ommaviy oferta
-              </button>
-              {' '}shartlarini o'qib chiqdim va qabul qilaman
-            </span>
-          </label>
-        </div>
-      )}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={offerAccepted}
+            onChange={(e) => setOfferAccepted(e.target.checked)}
+            className="mt-0.5 w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer flex-shrink-0"
+          />
+          <span className="text-sm text-gray-700 leading-relaxed">
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); setShowOfferModal(true); }}
+              className="text-indigo-600 hover:text-indigo-800 font-semibold underline underline-offset-2 decoration-indigo-300 hover:decoration-indigo-500 transition-colors"
+            >
+              Ommaviy oferta
+            </button>
+            {' '}shartlarini o'qib chiqdim va qabul qilaman
+          </span>
+        </label>
+      </div>
 
       {/* Action buttons */}
       <div className="flex gap-3 pt-2">
@@ -764,7 +972,7 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
         <button
           type="button"
           onClick={goToVerifyOrRegister}
-          disabled={loading || (offerText && !offerAccepted)}
+          disabled={loading || !offerAccepted}
           className="flex-[2] bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {loading ? (
@@ -782,7 +990,7 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
           )}
         </button>
       </div>
-      {(offerText && !offerAccepted) && (
+      {!offerAccepted && (
         <p className="text-xs text-amber-600 text-center">Davom etish uchun ommaviy ofertani qabul qiling</p>
       )}
     </div>

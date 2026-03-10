@@ -15,7 +15,6 @@ const NAV_ITEMS = [
     { path: '/admin/subscriptions', label: 'Obunalar', icon: CreditCard, perm: 'all' },
     { path: '/admin/promo-codes', label: 'Promocodlar', icon: Tag, perm: 'all' },
     { path: '/admin/payments', label: "To'lovlar", icon: Banknote, perm: 'all' },
-    { path: '/admin/public-offer', label: 'Ommaviy Oferta', icon: FileText, perm: 'all' },
 ];
 
 export default function AdminLayout() {
