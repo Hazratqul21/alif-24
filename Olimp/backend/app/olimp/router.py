@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func as sql_func, select
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import logging
 
 from shared.database import get_db
@@ -41,6 +41,8 @@ class BuilderPayload(BaseModel):
     end_date: datetime
     time_limit_minutes: int = 30
     difficulty: str = "medium"
+    min_age: int = 4
+    max_age: int = 18
     total_point: int
     questions: List[BuilderQuestionItem]
 
@@ -148,6 +150,7 @@ async def _award_coins(student_id: str, amount: int, tx_type: TransactionType,
 async def list_olympiads(
     status: Optional[str] = None,
     subject: Optional[str] = None,
+    student_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """List all olympiads (student browsing)"""
@@ -161,6 +164,21 @@ async def list_olympiads(
             return {"success": True, "data": {"olympiads": [], "total": 0}}
     if subject:
         stmt = stmt.where(Olympiad.subject.ilike(f"%{subject}%"))
+
+    if student_id:
+        user_res = await db.execute(select(User).where(User.id == student_id))
+        user = user_res.scalars().first()
+        if user and user.date_of_birth:
+            today = date.today()
+            age = today.year - user.date_of_birth.year - ((today.month, today.day) < (user.date_of_birth.month, user.date_of_birth.day))
+            
+            # Show olympiad if:
+            # - Neither min nor max is set (open for all)
+            # - Or age is strictly within the bounds
+            stmt = stmt.where(
+                ((Olympiad.min_age == None) | (Olympiad.min_age <= age)) &
+                ((Olympiad.max_age == None) | (Olympiad.max_age >= age))
+            )
 
     result = await db.execute(stmt.order_by(Olympiad.created_at.desc()))
     results = result.scalars().all()
@@ -346,7 +364,29 @@ async def register_for_olympiad(
         raise HTTPException(status_code=400, detail="Foydalanuvchi topilmadi. Iltimos, ro'yxatdan o'ting.")
         
     if user.role != UserRole.student:
-        raise HTTPException(status_code=400, detail="Kechiarsiz, Olimpiadada faqat O'quvchilar ishtirok etishi mumkin!")
+        raise HTTPException(status_code=400, detail="Kechirasiz, Olimpiadada faqat O'quvchilar ishtirok etishi mumkin!")
+
+    # Check age restriction
+    if user.date_of_birth:
+        today = date.today()
+        # Calculate age correctly accounting for leap years & months
+        age = today.year - user.date_of_birth.year - ((today.month, today.day) < (user.date_of_birth.month, user.date_of_birth.day))
+        
+        min_age = olympiad.min_age or 4
+        max_age = olympiad.max_age or 18
+        
+        if age < min_age or age > max_age:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Sizning yoshingiz ({age}) ushbu olimpiada talabiga ({min_age}-{max_age} yosh) mos kelmaydi."
+            )
+    else:
+        # If no dob is set, we could optionally block them or let them pass. 
+        # Since this is a strict age-based competition, let's require DOB.
+        raise HTTPException(
+            status_code=400, 
+            detail="Tug'ilgan sanangiz kiritilmagan. Iltimos, profilingizni to'ldiring."
+        )
 
     # Resolve student profile from user_id
     sp = await _resolve_student_profile(data.student_id, db)
@@ -959,7 +999,9 @@ async def admin_build_olympiad(
         time_limit_minutes=payload.time_limit_minutes,
         total_point=payload.total_point,
         status=status,
-        difficulty=payload.difficulty
+        difficulty=payload.difficulty,
+        min_age=payload.min_age,
+        max_age=payload.max_age
     )
     db.add(new_olympiad)
     await db.flush() # get ID
