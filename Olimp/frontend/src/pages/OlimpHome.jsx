@@ -193,7 +193,7 @@ export default function OlimpHome() {
                                     transition={{ delay: i * 0.05 }}
                                 >
                                     <Link
-                                        to={`/olympiad/${olympiad.id}`}
+                                        to={olympiad.type === 'reading' || olympiad.type === 'mixed' ? `/olympiad/${olympiad.id}/reading` : `/olympiad/${olympiad.id}`}
                                         className="block bg-white dark:bg-white/5 backdrop-blur-sm border border-indigo-50 dark:border-white/10 rounded-2xl p-6 hover:shadow-xl dark:hover:shadow-none hover:border-indigo-200 dark:hover:bg-white/10 dark:hover:border-indigo-500/30 transition-all group"
                                     >
                                         <div className="flex items-start justify-between mb-4">

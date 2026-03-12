@@ -78,7 +78,7 @@ export const translations = {
     game_uz_alphabet: "Soʻzlovchi alifbe",
     game_en_alphabet: "Ingliz alifbesi",
     game_ru_alphabet: "Rus alifbesi",
-    game_memory_game: "Xotira oʻyini",
+    game_memory_game: "Oʻyinlar",
     game_math_monster: "Matematika oʻyini",
     nothing_found: "Hech narsa topilmadi",
 
