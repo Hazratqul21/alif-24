@@ -18,14 +18,14 @@ const Footer = () => {
               <span className="text-white font-bold text-xl tracking-wide">Alif24</span>
             </div>
             <p className="text-white/40 text-sm leading-relaxed max-w-xs">
-              {t('footer_desc') || "Bolalar uchun sun'iy intellektga asoslangan ta'lim platformasi. O'yin orqali o'rganish!"}
+              Bolalar uchun sun'iy intellektga asoslangan ta'lim platformasi. O'yin va musobaqalar orqali bolajonlarni kitobxonlikka qiziqtirish!
             </p>
           </div>
 
           {/* Links */}
           <div>
             <h4 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">
-              {t('footer_links') || 'Sahifalar'}
+              Sahifalar
             </h4>
             <div className="flex flex-col gap-2">
               <button onClick={() => navigate('/')} className="text-white/40 hover:text-white text-sm text-left bg-transparent border-none cursor-pointer transition-colors">
@@ -44,7 +44,7 @@ const Footer = () => {
                 MathKids AI
               </button>
               <button onClick={() => navigate('/privacy')} className="text-white/40 hover:text-white text-sm text-left bg-transparent border-none cursor-pointer transition-colors">
-                {t('privacy_policy') || 'Maxfiylik siyosati'}
+                Maxfiylik siyosati
               </button>
             </div>
           </div>
@@ -52,16 +52,16 @@ const Footer = () => {
           {/* Contact */}
           <div>
             <h4 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">
-              {t('footer_contact') || 'Aloqa'}
+              Aloqa
             </h4>
             <div className="flex flex-col gap-3">
               <a href="mailto:info@alif24.uz" className="flex items-center gap-2 text-white/40 hover:text-white text-sm transition-colors no-underline">
                 <Mail size={14} />
                 info@alif24.uz
               </a>
-              <a href="tel:+998901234567" className="flex items-center gap-2 text-white/40 hover:text-white text-sm transition-colors no-underline">
+              <a href="tel:+998908278358" className="flex items-center gap-2 text-white/40 hover:text-white text-sm transition-colors no-underline">
                 <Phone size={14} />
-                +998 90 123 45 67
+                +998 90 827 83 58
               </a>
               <span className="flex items-center gap-2 text-white/40 text-sm">
                 <MapPin size={14} />
@@ -74,7 +74,7 @@ const Footer = () => {
         {/* Divider + Copyright */}
         <div className="border-t border-white/5 pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
           <p className="text-white/30 text-xs">
-            &copy; {year} Alif24. {t('footer_rights') || 'Barcha huquqlar himoyalangan.'}
+            &copy; {year} Alif24. Barcha huquqlar himoyalangan.
           </p>
           <p className="text-white/20 text-xs flex items-center gap-1">
             Made with <Heart size={12} className="text-red-400 fill-red-400" /> in Uzbekistan

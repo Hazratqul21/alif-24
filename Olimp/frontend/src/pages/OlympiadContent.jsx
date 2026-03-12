@@ -44,17 +44,14 @@ export default function OlympiadContent() {
                     className="text-4xl md:text-5xl font-bold text-white mb-4">
                     📚 Olimpiada Kontentlari
                 </motion.h2>
-                <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                    className="text-white/50 text-lg max-w-xl mx-auto">
-                    Darsliklar va ertaklar — o'rganish va o'qish uchun
-                </motion.p>
+                
             </section>
 
             {/* Cards */}
             <div className="relative z-10 max-w-4xl mx-auto px-4 pb-20">
                 <div className="grid md:grid-cols-2 gap-6">
                     {/* Darsliklar */}
-                    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+                   {/* <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                         <Link to={`/olympiad/${olympiadId}/content/lessons`}
                             className="block bg-gradient-to-br from-blue-500/10 to-blue-600/5 backdrop-blur-sm border border-blue-500/20 rounded-3xl p-8 hover:border-blue-500/40 hover:bg-blue-500/15 transition-all group">
                             <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -66,7 +63,7 @@ export default function OlympiadContent() {
                                 Ko'rish <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </div>
                         </Link>
-                    </motion.div>
+                    </motion.div>*/}
 
                     {/* Ertaklar */}
                     <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
@@ -75,8 +72,8 @@ export default function OlympiadContent() {
                             <div className="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                                 <BookMarked className="w-8 h-8 text-purple-400" />
                             </div>
-                            <h3 className="text-2xl font-bold text-white mb-2">✨ Ertaklar</h3>
-                            <p className="text-white/50 mb-6">Ertaklarni o'qi, ovoz yoz va savollarga javob ber!</p>
+                            <h3 className="text-2xl font-bold text-white mb-2">✨ Ertak va hikoyalar</h3>
+                            <p className="text-white/50 mb-6">Ertaklarni o'qi va savollarga javob ber!</p>
                             <div className="flex items-center gap-2 text-purple-400 font-medium">
                                 Ko'rish <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </div>

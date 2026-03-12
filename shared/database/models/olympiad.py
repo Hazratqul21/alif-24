@@ -173,6 +173,14 @@ class OlympiadParticipant(Base):
     # Coin mukofoti
     coins_earned = Column(Integer, default=0)
     
+    # O'qish natijasi (reading olympiad)
+    reading_wpm = Column(Float, default=0)              # so'z/daqiqa
+    reading_percent = Column(Float, default=0)           # o'qilgan %
+    reading_time_seconds = Column(Integer, default=0)    # o'qish vaqti
+    reading_coins = Column(Integer, default=0)           # o'qishdan coinlar
+    quiz_score = Column(Integer, default=0)              # savollar bali (0-100)
+    reading_attempts = Column(Integer, default=0)        # o'qish urinishlari
+    
     # Relationships
     olympiad = relationship("Olympiad", back_populates="participants")
     student = relationship("StudentProfile", backref="olympiad_participations")

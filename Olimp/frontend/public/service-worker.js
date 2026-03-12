@@ -32,8 +32,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Skip non-GET requests and API calls
-    if (event.request.method !== 'GET' || url.pathname.startsWith('/api/')) {
+    // Skip non-GET, API calls, and non-http(s) schemes (e.g. chrome-extension://)
+    if (event.request.method !== 'GET' || url.pathname.startsWith('/api/') || !url.protocol.startsWith('http')) {
         return;
     }
 

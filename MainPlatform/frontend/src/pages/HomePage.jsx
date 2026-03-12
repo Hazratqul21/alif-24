@@ -109,11 +109,11 @@ const HomePage = () => {
     if (gid === '3') return redirectToPlatform('https://harf.alif24.uz');        // O'zbek alifbesi
     if (gid === '4') return redirectToPlatform('https://harf.alif24.uz', '/eharf'); // Ingliz alifbesi
     if (gid === '5') return redirectToPlatform('https://harf.alif24.uz', '/rharf'); // Rus alifbes
-    if (gid === '6') return redirectToPlatform('https://games.alif24.uz'); // Xotira o'yini
-    if (gid === '7') return redirectToPlatform('https://games.alif24.uz');  // Matematika o'yini
+    if (gid === '6') return redirectToPlatform('https://ss.alif24.uz'); // Xotira o'yini
+    if (gid === '7') return redirectToPlatform('https://ss.alif24.uz');  // Matematika o'yini
 
     // Fallback
-    redirectToPlatform(game.type === 'lessons' ? 'https://lessions.alif24.uz' : 'https://games.alif24.uz');
+    redirectToPlatform(game.type === 'lessons' ? 'https://lessions.alif24.uz' : 'https://ss.alif24.uz');
   };
 
   const handleCategoryClick = (categoryId) => {
@@ -400,7 +400,7 @@ const HomePage = () => {
       />
 
       {/* Feedback Widget */}
-      <FeedbackWidget page="home" />
+     {/* <FeedbackWidget page="home" />*/}
 
       {/* Footer */}
       {!isMobile && <Footer />}

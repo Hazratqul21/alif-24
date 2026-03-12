@@ -11,6 +11,7 @@ import OlympiadContent from './pages/OlympiadContent';
 import LessionsHome from './pages/LessionsHome';
 import LessonDetail from './pages/LessonDetail';
 import ErtaklarPage from './pages/ErtaklarPage';
+import ReadingOlympiadPage from './pages/ReadingOlympiadPage';
 
 import AuthSync from './components/Auth/AuthSync';
 import { ThemeProvider } from './context/ThemeContext';
@@ -50,6 +51,9 @@ const App = () => {
               {/* Reading Competition */}
               <Route path="/reading" element={<ReadingHome />} />
               <Route path="/reading/:compId" element={<ReadingHome />} />
+
+              {/* Reading Olympiad Page */}
+              <Route path="/olympiad/:id/reading" element={<ReadingOlympiadPage />} />
 
               {/* Student Content Pages (scoped per olympiad) */}
               <Route path="/olympiad/:olympiadId/content" element={<OlympiadContent />} />

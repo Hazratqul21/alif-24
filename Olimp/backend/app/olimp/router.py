@@ -3,7 +3,7 @@ Olimp Platform Backend - Olympiad Router
 Student-facing endpoints reading from shared `olympiads` tables.
 Admin creates olympiads via MainPlatform admin panel.
 """
-from fastapi import APIRouter, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect, Query, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func as sql_func, select
 from pydantic import BaseModel, Field
@@ -15,7 +15,7 @@ from shared.database import get_db
 from shared.database.models import User, StudentProfile, UserRole
 from shared.database.models.olympiad import (
     Olympiad, OlympiadQuestion, OlympiadParticipant, OlympiadAnswer,
-    OlympiadStatus, ParticipationStatus,
+    OlympiadReadingTask, OlympiadStatus, ParticipationStatus,
 )
 from shared.database.models.olympiad_content import OlympiadLesson, OlympiadStory
 from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
@@ -1224,3 +1224,340 @@ async def delete_olympiad_story(
     await db.delete(story)
     await db.commit()
     return {"success": True, "message": "O'chirildi"}
+
+
+@router.post("/ertaklar/{story_id}/quiz/evaluate-text")
+async def evaluate_story_quiz_text(
+    story_id: str,
+    question_index: int = Query(...),
+    recognized_text: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Ertak savol-javob baholash.
+    Frontend'dan STT orqali olingan matn qabul qilinib,
+    to'g'ri javob bilan 100 ballik shkalada solishtiriladi.
+    """
+    import os
+    import difflib
+    import httpx
+
+    res = await db.execute(
+        select(OlympiadStory).where(OlympiadStory.id == story_id)
+    )
+    story = res.scalars().first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+
+    questions = story.questions or []
+    if question_index < 0 or question_index >= len(questions):
+        raise HTTPException(status_code=400, detail="Savol indeksi noto'g'ri")
+
+    correct_answer = questions[question_index].get("answer", "").strip()
+    question_text = questions[question_index].get("question", "").strip()
+    recognized_clean = recognized_text.strip()
+
+    # ── 1. AI-based evaluation (semantic similarity) ──
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    score = None
+    ai_used = False
+
+    if api_key and recognized_clean and correct_answer:
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                prompt = (
+                    f"Savol: {question_text}\n"
+                    f"To'g'ri javob: {correct_answer}\n"
+                    f"Bola aytgan: {recognized_clean}\n\n"
+                    "Bolaning javobi ma'nosi jihatidan to'g'ri javobga qanchalik mos kelishini "
+                    "0 dan 100 gacha faqat bitta butun son bilan baholang. "
+                    "100 = to'liq mos, 0 = mutlaqo noto'g'ri. "
+                    "Faqat son qaytaring, boshqa hech narsa yozmang."
+                )
+                resp = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": "gpt-4o-mini",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.0,
+                        "max_tokens": 5,
+                    }
+                )
+                if resp.status_code == 200:
+                    raw = resp.json()["choices"][0]["message"]["content"].strip()
+                    digits = "".join(filter(str.isdigit, raw))[:3]
+                    score = max(0, min(100, int(digits or "0")))
+                    ai_used = True
+        except Exception as e:
+            logger.warning(f"AI evaluation failed, falling back to difflib: {e}")
+
+    # ── 2. Fallback: keyword + sequence matching ──
+    if score is None:
+        score = 0
+        r_lower = recognized_clean.lower()
+        c_lower = correct_answer.lower()
+        if r_lower and c_lower:
+            ratio = difflib.SequenceMatcher(None, r_lower, c_lower).ratio()
+            correct_words = set(c_lower.split())
+            recognized_words = set(r_lower.split())
+            keyword_ratio = len(correct_words & recognized_words) / len(correct_words) if correct_words else 0
+            score = int((ratio * 0.5 + keyword_ratio * 0.5) * 100)
+            score = min(100, max(0, score))
+
+    return {
+        "success": True,
+        "data": {
+            "recognized_text": recognized_clean,
+            "correct_answer": correct_answer,
+            "score": score,
+            "passed": score >= 60,
+            "ai_evaluated": ai_used,
+        }
+    }
+
+
+# ============= Reading Olympiad: Submit Reading + Quiz Results =============
+
+class ReadingQuizAnswer(BaseModel):
+    question_id: str
+    answer_index: int
+
+
+class ReadingResultSubmit(BaseModel):
+    student_id: str
+    wpm: float = 0
+    read_percent: float = 0
+    reading_time_seconds: int = 0
+    quiz_answers: List[ReadingQuizAnswer] = []
+    quiz_score_direct: Optional[int] = None  # AI-evaluated score from voice quiz
+
+
+@router.post("/{olympiad_id}/reading-submit")
+async def submit_reading_result(
+    olympiad_id: str,
+    data: ReadingResultSubmit,
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit combined reading + quiz result for a reading olympiad"""
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    olympiad = res.scalars().first()
+    if not olympiad:
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+
+    sp = await _resolve_student_profile(data.student_id, db)
+    if not sp:
+        raise HTTPException(status_code=404, detail="Profil topilmadi")
+
+    p_res = await db.execute(
+        select(OlympiadParticipant).where(
+            OlympiadParticipant.olympiad_id == olympiad.id,
+            OlympiadParticipant.student_id == sp.id,
+        )
+    )
+    participant = p_res.scalars().first()
+    if not participant:
+        raise HTTPException(status_code=400, detail="Avval ro'yxatdan o'ting")
+
+    # --- Quiz scoring (100 ball tizimida) ---
+    correct_count = 0
+    total_questions = 0
+    quiz_details = []
+
+    if data.quiz_answers:
+        for ans in data.quiz_answers:
+            q_res = await db.execute(
+                select(OlympiadQuestion).where(OlympiadQuestion.id == ans.question_id)
+            )
+            question = q_res.scalars().first()
+            if not question:
+                continue
+            total_questions += 1
+            is_correct = ans.answer_index == question.correct_answer
+            if is_correct:
+                correct_count += 1
+            quiz_details.append({
+                "question_id": ans.question_id,
+                "submitted_answer": ans.answer_index,
+                "correct_answer": question.correct_answer,
+                "is_correct": is_correct,
+            })
+
+            # Save answer
+            ans_obj = OlympiadAnswer(
+                participant_id=participant.id,
+                question_id=question.id,
+                selected_answer=ans.answer_index,
+                is_correct=is_correct,
+                points_earned=question.points if is_correct else 0,
+            )
+            db.add(ans_obj)
+
+    quiz_score = round((correct_count / total_questions) * 100) if total_questions > 0 else 0
+
+    # Use direct AI-evaluated score if no multiple-choice answers were provided
+    if not data.quiz_answers and data.quiz_score_direct is not None:
+        quiz_score = max(0, min(100, data.quiz_score_direct))
+
+    # --- Reading coins ---
+    reading_coins = 10 if data.wpm >= 60 else (5 if data.wpm >= 40 else 2)
+    quiz_coins = 15 if quiz_score >= 80 else (8 if quiz_score >= 50 else 3)
+    total_new_coins = reading_coins + quiz_coins
+
+    # --- Update participant (accumulate for 2nd+ attempts) ---
+    attempt = (participant.reading_attempts or 0) + 1
+    participant.reading_attempts = attempt
+
+    # Accumulate reading stats (each attempt adds to totals)
+    participant.reading_wpm = (participant.reading_wpm or 0) + data.wpm
+    participant.reading_percent = (participant.reading_percent or 0) + data.read_percent
+    participant.reading_time_seconds = (participant.reading_time_seconds or 0) + data.reading_time_seconds
+
+    # Accumulate quiz score (each attempt adds to total)
+    participant.quiz_score = (participant.quiz_score or 0) + quiz_score
+
+    # Accumulate coins
+    participant.reading_coins = (participant.reading_coins or 0) + reading_coins
+    participant.coins_earned = (participant.coins_earned or 0) + total_new_coins
+    participant.correct_answers = (participant.correct_answers or 0) + correct_count
+    participant.wrong_answers = (participant.wrong_answers or 0) + (total_questions - correct_count)
+    participant.total_score = (participant.total_score or 0) + quiz_score
+    participant.status = ParticipationStatus.completed
+    participant.completed_at = datetime.now(timezone.utc)
+
+    # Award coins
+    try:
+        await _award_coins(
+            student_id=participant.student_id,
+            amount=total_new_coins,
+            tx_type=TransactionType.olympiad_participation,
+            description=f"O'qish olimpiadasi: {olympiad.title} — {attempt}-urinish",
+            reference_id=olympiad.id,
+            reference_type="reading_olympiad",
+            db=db,
+        )
+    except Exception as e:
+        logger.error(f"Coin award error: {e}")
+
+    await db.commit()
+
+    # Broadcast leaderboard update
+    try:
+        await manager.broadcast(olympiad.id, {"type": "leaderboard_update"})
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "data": {
+            "quiz_score": quiz_score,
+            "correct_answers": correct_count,
+            "total_questions": total_questions,
+            "wpm": data.wpm,
+            "read_percent": data.read_percent,
+            "reading_time_seconds": data.reading_time_seconds,
+            "reading_coins": reading_coins,
+            "quiz_coins": quiz_coins,
+            "total_coins": total_new_coins,
+            "attempt": attempt,
+            "quiz_details": quiz_details,
+        }
+    }
+
+
+@router.get("/{olympiad_id}/reading-leaderboard")
+async def get_reading_leaderboard(
+    olympiad_id: str,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Reading olympiad leaderboard.
+    Ranked by: quiz_score DESC, reading_wpm DESC, reading_percent DESC, reading_coins DESC
+    """
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    olympiad = res.scalars().first()
+    if not olympiad:
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+
+    p_res = await db.execute(
+        select(OlympiadParticipant).where(
+            OlympiadParticipant.olympiad_id == olympiad.id,
+        )
+        .order_by(
+            OlympiadParticipant.quiz_score.desc(),
+            OlympiadParticipant.reading_wpm.desc(),
+            OlympiadParticipant.reading_percent.desc(),
+            OlympiadParticipant.reading_coins.desc(),
+        )
+        .limit(limit)
+    )
+    participants = p_res.scalars().all()
+
+    leaderboard = []
+    for idx, p in enumerate(participants, 1):
+        student_name = f"O'quvchi #{idx}"
+        try:
+            sp_res = await db.execute(
+                select(StudentProfile).where(StudentProfile.id == p.student_id)
+            )
+            sp = sp_res.scalars().first()
+            if sp:
+                u_res = await db.execute(select(User).where(User.id == sp.user_id))
+                u = u_res.scalars().first()
+                if u:
+                    student_name = f"{u.first_name} {u.last_name}".strip() or student_name
+        except Exception:
+            pass
+
+        leaderboard.append({
+            "rank": idx,
+            "student_id": p.student_id,
+            "student_name": student_name,
+            "quiz_score": p.quiz_score or 0,
+            "reading_wpm": round(p.reading_wpm or 0),
+            "reading_percent": round(p.reading_percent or 0),
+            "reading_time_seconds": p.reading_time_seconds or 0,
+            "reading_coins": p.reading_coins or 0,
+            "coins_earned": p.coins_earned or 0,
+            "reading_attempts": p.reading_attempts or 0,
+            "status": p.status.value if p.status else "registered",
+        })
+
+    return {
+        "success": True,
+        "data": {
+            "olympiad_title": olympiad.title,
+            "leaderboard": leaderboard,
+            "total_participants": len(leaderboard),
+        }
+    }
+
+
+@router.get("/{olympiad_id}/reading-task")
+async def get_reading_task(
+    olympiad_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the reading task (text) for a reading olympiad"""
+    res = await db.execute(
+        select(OlympiadReadingTask).where(OlympiadReadingTask.olympiad_id == olympiad_id)
+        .order_by(OlympiadReadingTask.order)
+    )
+    tasks = res.scalars().all()
+    if not tasks:
+        return {"success": True, "data": None}
+
+    task = tasks[0]
+    return {
+        "success": True,
+        "data": {
+            "id": task.id,
+            "title": task.title,
+            "text_content": task.text_content,
+            "word_count": task.word_count,
+            "difficulty": task.difficulty,
+            "time_limit_seconds": task.time_limit_seconds,
+            "comprehension_questions": task.comprehension_questions,
+        }
+    }

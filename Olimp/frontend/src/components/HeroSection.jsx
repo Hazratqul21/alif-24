@@ -28,8 +28,8 @@ export default function HeroSection({ onStart }) {
                     transition={{ delay: 0.1, duration: 0.5 }}
                     className="text-5xl md:text-7xl font-extrabold text-slate-800 dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-br dark:from-white dark:via-indigo-200 dark:to-indigo-400 tracking-tight mb-6"
                 >
-                    Bilimingni Sinashtir & <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-400">G'olib Bo'l</span>
+                    O'qi va g'olib bo'l 
+                   
                 </motion.h1>
 
                 <motion.p
@@ -38,7 +38,7 @@ export default function HeroSection({ onStart }) {
                     transition={{ delay: 0.2, duration: 0.5 }}
                     className="text-lg md:text-xl text-slate-600 dark:text-indigo-200/80 max-w-2xl mx-auto mb-10 leading-relaxed font-medium"
                 >
-                    Alif24 Olimp orqali o'z bilimlaringizni sinab ko'ring. Respublika bo'ylab tengdoshlaringiz bilan bellashing va reytingda yuqoriga ko'tariling.
+                    Alif24 Olimp orqali o'qi va o'z bilimlaringizni sinab ko'ring.
                 </motion.p>
 
                 <motion.div

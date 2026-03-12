@@ -51,7 +51,8 @@ export default function OlympiadDetail() {
         // Set up WebSocket for real-time leaderboard
         if (!id || !showLeaderboard) return;
 
-        const wsBase = (import.meta.env.VITE_API_URL || 'http://localhost:8005/api/v1').replace(/^http/, 'ws');
+        const apiUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/api/v1`;
+        const wsBase = apiUrl.replace(/^http/, 'ws');
         const wsUrl = `${wsBase}/olympiads/${id}/ws/leaderboard`;
         const ws = new WebSocket(wsUrl);
 
