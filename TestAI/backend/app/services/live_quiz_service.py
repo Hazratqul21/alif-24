@@ -279,6 +279,9 @@ class LiveQuizService:
         """End the quiz and finalize scores."""
         quiz = await self._get_quiz_for_teacher(quiz_id, teacher_user_id)
         
+        if quiz.status == LiveQuizStatus.finished:
+            raise BadRequestError("Quiz allaqachon tugatilgan")
+            
         quiz.status = LiveQuizStatus.finished
         quiz.ended_at = datetime.now(timezone.utc)
         

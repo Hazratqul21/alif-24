@@ -35,9 +35,11 @@ async def require_verified_teacher(
             detail="Only teachers can access this resource"
         )
     
-    teacher_profile = db.query(TeacherProfile).filter(
+    from sqlalchemy import select
+    res = await db.execute(select(TeacherProfile).filter(
         TeacherProfile.user_id == current_user.id
-    ).first()
+    ))
+    teacher_profile = res.scalars().first()
     
     if not teacher_profile:
         raise HTTPException(

@@ -23,14 +23,15 @@ from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from typing import Optional
 from pydantic import BaseModel
 
 # Shared imports
 from shared.database import init_db, get_db
-from shared.database.models import User, StudentProfile, StudentCoin, AccountStatus
+from shared.database.models import User, StudentProfile, StudentCoin, AccountStatus, CoinTransaction, TransactionType
 from shared.auth import verify_token
 from shared.payments import add_coins, reward_game_win
 
@@ -152,6 +153,29 @@ async def health():
 
 # ============= Game Completion Endpoints =============
 
+async def enforce_daily_game_limit(db: AsyncSession, student_id: str, requested_coins: int) -> int:
+    """Check how many coins user can still earn today from games (limit: 150)"""
+    MAX_DAILY = 150
+    # Find student coin profile
+    stmt = select(StudentCoin).filter(StudentCoin.student_id == student_id)
+    res = await db.execute(stmt)
+    st_coin = res.scalars().first()
+    if not st_coin:
+        return requested_coins
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    stmt = select(func.sum(CoinTransaction.amount)).where(
+        CoinTransaction.student_coin_id == st_coin.id,
+        CoinTransaction.type == TransactionType.game_win,
+        CoinTransaction.created_at >= today_start
+    )
+    res = await db.execute(stmt)
+    today_total = res.scalar() or 0
+    
+    remaining = max(0, MAX_DAILY - today_total)
+    return min(requested_coins, remaining)
+
+
 @app.post("/api/v1/games/memory/complete")
 async def complete_memory_game(
     data: GameCompleteRequest,
@@ -166,7 +190,12 @@ async def complete_memory_game(
     student = result.scalars().first()
     
     if student and coins_earned > 0:
-        await reward_game_win(db, student.user_id, coins_earned, "Memory Game")
+        actual_coins = await enforce_daily_game_limit(db, student.id, coins_earned)
+        if actual_coins > 0:
+            await reward_game_win(db, student.user_id, actual_coins, "Memory Game")
+            coins_earned = actual_coins
+        else:
+            coins_earned = 0
         await db.commit()
     
     return {
@@ -194,7 +223,12 @@ async def complete_math_monster(
     student = result.scalars().first()
     
     if student and coins_earned > 0:
-        await reward_game_win(db, student.user_id, coins_earned, "Math Monster")
+        actual_coins = await enforce_daily_game_limit(db, student.id, coins_earned)
+        if actual_coins > 0:
+            await reward_game_win(db, student.user_id, actual_coins, "Math Monster")
+            coins_earned = actual_coins
+        else:
+            coins_earned = 0
         await db.commit()
     
     return {
@@ -224,7 +258,12 @@ async def complete_tetris(
     student = result.scalars().first()
     
     if student and coins_earned > 0:
-        await reward_game_win(db, student.user_id, coins_earned, "Tetris")
+        actual_coins = await enforce_daily_game_limit(db, student.id, coins_earned)
+        if actual_coins > 0:
+            await reward_game_win(db, student.user_id, actual_coins, "Tetris")
+            coins_earned = actual_coins
+        else:
+            coins_earned = 0
         await db.commit()
     
     return {
@@ -252,7 +291,12 @@ async def complete_2048(
     student = result.scalars().first()
     
     if student and coins_earned > 0:
-        await reward_game_win(db, student.user_id, coins_earned, "2048")
+        actual_coins = await enforce_daily_game_limit(db, student.id, coins_earned)
+        if actual_coins > 0:
+            await reward_game_win(db, student.user_id, actual_coins, "2048")
+            coins_earned = actual_coins
+        else:
+            coins_earned = 0
         await db.commit()
     
     return {

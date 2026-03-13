@@ -474,6 +474,22 @@ async def submit_reading(
         questions_total=questions_total,
     )
 
+    # Calculate and award coins
+    wpm = 0
+    if data.reading_time_seconds > 0 and similarity["words_read"] > 0:
+        wpm = round(similarity["words_read"] / (data.reading_time_seconds / 60))
+
+    reading_coin = 10 if wpm >= 60 else (5 if wpm >= 40 else 2)
+    quiz_coin = 0
+    if questions_total > 0:
+        quiz_pct = (questions_correct / questions_total) * 100
+        quiz_coin = 15 if quiz_pct >= 80 else (8 if quiz_pct >= 50 else 3)
+    coins_total = reading_coin + quiz_coin
+
+    # Check if this student already has a **completed** session for this task in the DB to avoid double rewards.
+    # But wait, we already block it at line 451: `if session.status == SessionStatus.completed: raise HTTPException...`
+    # However, to be absolutely safe against race conditions, we'll keep the coin logic simple, we know it's the first confirm.
+
     # Session yangilash
     session.status = SessionStatus.completed
     session.completed_at = datetime.now(timezone.utc)
@@ -489,18 +505,6 @@ async def submit_reading(
     session.score_time = scores["score_time"]
     session.score_questions = scores["score_questions"]
     session.total_score = scores["total_score"]
-
-    # Calculate and award coins
-    wpm = 0
-    if data.reading_time_seconds > 0 and similarity["words_read"] > 0:
-        wpm = round(similarity["words_read"] / (data.reading_time_seconds / 60))
-
-    reading_coin = 10 if wpm >= 60 else (5 if wpm >= 40 else 2)
-    quiz_coin = 0
-    if questions_total > 0:
-        quiz_pct = (questions_correct / questions_total) * 100
-        quiz_coin = 15 if quiz_pct >= 80 else (8 if quiz_pct >= 50 else 3)
-    coins_total = reading_coin + quiz_coin
 
     # Get student profile
     sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == student.id))

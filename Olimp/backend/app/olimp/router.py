@@ -465,6 +465,8 @@ async def submit_answers(
                 )
             )
             participant = p_res.scalars().first()
+            if participant and participant.status == ParticipationStatus.completed:
+                raise HTTPException(status_code=400, detail="Ushbu olimpiadaga allaqachon javob topshirgansiz")
 
     total_score = 0
     correct_count = 0
@@ -1404,40 +1406,45 @@ async def submit_reading_result(
     quiz_coins = 15 if quiz_score >= 80 else (8 if quiz_score >= 50 else 3)
     total_new_coins = reading_coins + quiz_coins
 
-    # --- Update participant (accumulate for 2nd+ attempts) ---
+    # --- Update participant ---
     attempt = (participant.reading_attempts or 0) + 1
     participant.reading_attempts = attempt
+    is_first_attempt = (attempt == 1)
 
-    # Accumulate reading stats (each attempt adds to totals)
-    participant.reading_wpm = (participant.reading_wpm or 0) + data.wpm
-    participant.reading_percent = (participant.reading_percent or 0) + data.read_percent
-    participant.reading_time_seconds = (participant.reading_time_seconds or 0) + data.reading_time_seconds
+    # Faqat natijasi yaxshiroq bo'lsagina yangilaymiz (overwrite with best attempt)
+    current_val = quiz_score * 1000 + data.wpm
+    past_val = (participant.quiz_score or 0) * 1000 + (participant.reading_wpm or 0)
+    is_best_attempt = is_first_attempt or (current_val > past_val)
 
-    # Accumulate quiz score (each attempt adds to total)
-    participant.quiz_score = (participant.quiz_score or 0) + quiz_score
+    if is_best_attempt:
+        participant.reading_wpm = data.wpm
+        participant.reading_percent = data.read_percent
+        participant.reading_time_seconds = data.reading_time_seconds
+        participant.quiz_score = quiz_score
 
-    # Accumulate coins
-    participant.reading_coins = (participant.reading_coins or 0) + reading_coins
-    participant.coins_earned = (participant.coins_earned or 0) + total_new_coins
-    participant.correct_answers = (participant.correct_answers or 0) + correct_count
-    participant.wrong_answers = (participant.wrong_answers or 0) + (total_questions - correct_count)
-    participant.total_score = (participant.total_score or 0) + quiz_score
-    participant.status = ParticipationStatus.completed
-    participant.completed_at = datetime.now(timezone.utc)
+        participant.correct_answers = correct_count
+        participant.wrong_answers = total_questions - correct_count
+        participant.total_score = quiz_score
+        
+        participant.status = ParticipationStatus.completed
+        participant.completed_at = datetime.now(timezone.utc)
 
-    # Award coins
-    try:
-        await _award_coins(
-            student_id=participant.student_id,
-            amount=total_new_coins,
-            tx_type=TransactionType.olympiad_participation,
-            description=f"O'qish olimpiadasi: {olympiad.title} — {attempt}-urinish",
-            reference_id=olympiad.id,
-            reference_type="reading_olympiad",
-            db=db,
-        )
-    except Exception as e:
-        logger.error(f"Coin award error: {e}")
+    # Tangalarni faqat 1-urinishda berish
+    if is_first_attempt:
+        participant.reading_coins = reading_coins
+        participant.coins_earned = total_new_coins
+        try:
+            await _award_coins(
+                student_id=participant.student_id,
+                amount=total_new_coins,
+                tx_type=TransactionType.olympiad_participation,
+                description=f"O'qish olimpiadasi: {olympiad.title} — 1-urinish",
+                reference_id=olympiad.id,
+                reference_type="reading_olympiad",
+                db=db,
+            )
+        except Exception as e:
+            logger.error(f"Coin award error: {e}")
 
     await db.commit()
 
@@ -1456,9 +1463,9 @@ async def submit_reading_result(
             "wpm": data.wpm,
             "read_percent": data.read_percent,
             "reading_time_seconds": data.reading_time_seconds,
-            "reading_coins": reading_coins,
-            "quiz_coins": quiz_coins,
-            "total_coins": total_new_coins,
+            "reading_coins": reading_coins if is_first_attempt else 0,
+            "quiz_coins": quiz_coins if is_first_attempt else 0,
+            "total_coins": total_new_coins if is_first_attempt else 0,
             "attempt": attempt,
             "quiz_details": quiz_details,
         }
