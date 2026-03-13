@@ -132,7 +132,28 @@ async def award_game_coins(
 
     coin = await get_or_create_coin_balance(db, current_user)
 
+    # Check daily limit (150 coins)
+    from sqlalchemy import func as sqlfunc
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    stmt = select(sqlfunc.sum(CoinTransaction.amount)).where(
+        CoinTransaction.student_coin_id == coin.id,
+        CoinTransaction.type == TransactionType.game_win,
+        CoinTransaction.created_at >= today_start
+    )
+    res = await db.execute(stmt)
+    today_total = res.scalar() or 0
+
     game_reward = 5
+    if today_total + game_reward > 150:
+        return {
+            "success": True,
+            "data": {
+                "coins_earned": 0,
+                "new_balance": coin.current_balance,
+                "message": "Kunlik limit (150 coin) ga yetdingiz. Ertaga davom eting!"
+            }
+        }
+
     coin.add_coins(game_reward)
     tx = CoinTransaction(
         student_coin_id=coin.id,

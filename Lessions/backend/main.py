@@ -20,7 +20,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -28,6 +28,11 @@ from fastapi.responses import JSONResponse
 # Shared imports
 from shared.database import init_db, get_db
 from shared.auth import verify_token
+from shared.database.models import User, AccountStatus
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import Optional
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # Local imports
 from app.core.config import settings
@@ -35,6 +40,38 @@ from app.core.logging import logger
 
 # Lessons router
 from app.lessons import router as lessons_router
+
+security = HTTPBearer(auto_error=False)
+
+async def get_current_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    """Get current authenticated user - cookie or Bearer header"""
+    token = request.cookies.get("access_token")
+    if not token and credentials:
+        token = credentials.credentials
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    if user.status != AccountStatus.active:
+        raise HTTPException(status_code=403, detail="User account is deactivated")
+    
+    return user
 
 
 @asynccontextmanager
@@ -106,7 +143,8 @@ async def health():
 app.include_router(
     lessons_router.router,
     prefix="/api/v1",
-    tags=["Lessons"]
+    tags=["Lessons"],
+    dependencies=[Depends(get_current_user)]
 )
 
 
