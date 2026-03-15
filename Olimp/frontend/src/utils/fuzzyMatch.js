@@ -62,3 +62,26 @@ export function extractWords(text) {
         .replace(/\s{2,}/g, " ")
         .trim().split(" ");
 }
+
+/**
+ * Matnni ekranga chiqarish uchun tokenlarga ajratish (tinish belgilari saqlanadi)
+ * @param {string} text 
+ * @returns {Array<{text: string, isWord: boolean, wordIndex: number}>}
+ */
+export function getDisplayTokens(text) {
+    if (!text) return [];
+    const rawTokens = text.trim().split(/\s+/);
+    const tokens = [];
+    let wIndex = 0;
+    
+    for (const token of rawTokens) {
+        const cleanText = token.replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, "");
+        if (cleanText.length > 0) {
+            tokens.push({ text: token, isWord: true, wordIndex: wIndex });
+            wIndex++;
+        } else {
+            tokens.push({ text: token, isWord: false, wordIndex: -1 });
+        }
+    }
+    return tokens;
+}

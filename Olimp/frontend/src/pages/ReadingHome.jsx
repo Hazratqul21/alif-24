@@ -6,7 +6,7 @@ import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import readingService from '../services/readingService';
 import apiService from '../services/apiService';
 import SpeedChart from '../components/SpeedChart';
-import { getSimilarity, extractWords } from '../utils/fuzzyMatch';
+import { getSimilarity, extractWords, getDisplayTokens } from '../utils/fuzzyMatch';
 
 let API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 
@@ -389,6 +389,7 @@ function RecordingModal({ compId, task, onClose, reloadTasks }) {
     const [transcript, setTranscript] = useState('');
     const [showQuiz, setShowQuiz] = useState(false);
     const [expectedWords, setExpectedWords] = useState([]);
+    const [displayTokens, setDisplayTokens] = useState([]);
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [savingResult, setSavingResult] = useState(false);
 
@@ -402,6 +403,7 @@ function RecordingModal({ compId, task, onClose, reloadTasks }) {
     useEffect(() => {
         if (task.story_text) {
             setExpectedWords(extractWords(task.story_text));
+            setDisplayTokens(getDisplayTokens(task.story_text));
         }
         return () => clearTimeout(autoQuizTimerRef.current);
     }, [task]);
@@ -594,13 +596,16 @@ function RecordingModal({ compId, task, onClose, reloadTasks }) {
 
                 <div className="bg-white/5 rounded-xl p-5 mb-6 max-h-[50vh] overflow-y-auto">
                     <p className="text-white/90 text-lg leading-relaxed whitespace-pre-wrap">
-                        {expectedWords.map((word, idx) => (
-                            <span key={idx} className={`inline-block mr-1 transition-colors duration-150 ${idx < currentWordIndex ? "text-emerald-400 font-bold drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]"
-                                : "text-white/90"
-                                }`}>
-                                {word}
-                            </span>
-                        ))}
+                        {displayTokens.map((token, idx) => {
+                            const isHighlighted = token.isWord && token.wordIndex < currentWordIndex;
+                            return (
+                                <span key={idx} className={`inline-block mr-1 transition-colors duration-150 ${isHighlighted ? "text-emerald-400 font-bold drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]"
+                                    : "text-white/90"
+                                    }`}>
+                                    {token.text}
+                                </span>
+                            );
+                        })}
                     </p>
                 </div>
 

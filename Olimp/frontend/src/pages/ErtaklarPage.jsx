@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2 } from 'lucide-react';
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import apiService from '../services/apiService';
-import { getSimilarity, extractWords } from '../utils/fuzzyMatch';
+import { getSimilarity, extractWords, getDisplayTokens } from '../utils/fuzzyMatch';
 
 let API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
@@ -440,6 +440,7 @@ function RecordingModal({ ertak, onClose, olympiadId = null }) {
 
     // Karaoke Highlighting logic
     const [expectedWords, setExpectedWords] = useState([]);
+    const [displayTokens, setDisplayTokens] = useState([]);
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
 
     const speechConfigRef = useRef(null);
@@ -453,6 +454,7 @@ function RecordingModal({ ertak, onClose, olympiadId = null }) {
         // Initialize words
         if (ertak.content) {
             setExpectedWords(extractWords(ertak.content));
+            setDisplayTokens(getDisplayTokens(ertak.content));
         }
         return () => {
             clearTimeout(autoQuizTimerRef.current);
@@ -661,13 +663,16 @@ function RecordingModal({ ertak, onClose, olympiadId = null }) {
 
                 <div className="bg-white/5 rounded-xl p-5 mb-6 max-h-[50vh] overflow-y-auto">
                     <p className="text-white/90 text-lg leading-relaxed whitespace-pre-wrap">
-                        {expectedWords.map((word, idx) => (
-                            <span key={idx} className={`inline-block mr-1 transition-colors duration-150 ${idx < currentWordIndex ? "text-emerald-400 font-bold drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]"
-                                : "text-white/90"
-                                }`}>
-                                {word}
-                            </span>
-                        ))}
+                        {displayTokens.map((token, idx) => {
+                            const isHighlighted = token.isWord && token.wordIndex < currentWordIndex;
+                            return (
+                                <span key={idx} className={`inline-block mr-1 transition-colors duration-150 ${isHighlighted ? "text-emerald-400 font-bold drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]"
+                                    : "text-white/90"
+                                    }`}>
+                                    {token.text}
+                                </span>
+                            );
+                        })}
                     </p>
                 </div>
 
