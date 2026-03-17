@@ -12,6 +12,7 @@ import { translations } from '../language/translations';
 import Navbar from '../components/Common/Navbar';
 import Footer from '../components/Common/Footer';
 import SmartAuthPrompt from '../components/Auth/SmartAuthPrompt';
+import apiService from '../services/apiService';
 
 const HomePage = () => {
   const { language } = useLanguage();
@@ -22,25 +23,14 @@ const HomePage = () => {
   const [mainFilter, setMainFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [authTrigger, setAuthTrigger] = useState(null);
+  const [dynamicDict, setDynamicDict] = useState({});
   const { trackAction, shouldShowRegistrationPrompt } = useUsageTracking();
   const sidebarRef = useRef(null);
 
-  const t = translations[language] || translations.uz;
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Lock body scroll when sidebar open
-  useEffect(() => {
-    document.body.style.overflow = sidebarOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [sidebarOpen]);
-
-  const games = [
+  const baseT = translations[language] || translations.uz;
+  const t = { ...baseT, ...(dynamicDict[language] || {}) };
+  
+  const defaultGames = [
     { id: 1, title: t.game_read,         rating: 74, image: '/oqi.jpg',   category: 'alifbe',  type: 'lessons' },
     { id: 2, title: t.game_homework,      rating: 67, image: '/matem.jpg', category: 'math',    type: 'lessons' },
     { id: 3, title: t.game_uz_alphabet,   rating: 76, image: '/alifbe.jpg',  category: 'harflar', type: 'lessons' },
@@ -48,6 +38,37 @@ const HomePage = () => {
     { id: 5, title: t.game_ru_alphabet,   rating: 66, image: '/bukv.jpg',    category: 'harflar', type: 'lessons' },
     { id: 6, title: t.game_memory_game,   rating: 74, image: '/xotira.jpg',  category: 'letters', type: 'games'   },
   ];
+  
+  const [gamesList, setGamesList] = useState(defaultGames);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    // Fetch dynamic content from Admin Panel
+    apiService.getPublicContent().then(res => {
+      if (res?.data) {
+        // Parse raw string or use object directly
+        let remoteData = res.data;
+        if (typeof remoteData === 'string') {
+          try { remoteData = JSON.parse(remoteData); } catch (e) { }
+        }
+        
+        // 1. Override translations dynamically
+        if (remoteData?.translations) {
+          setDynamicDict(remoteData.translations);
+        }
+        
+        // 2. Override games array dynamically
+        if (remoteData?.games && Array.isArray(remoteData.games)) {
+          setGamesList(remoteData.games);
+        }
+      }
+    }).catch(console.error);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const categories = [
     { id: 'harflar',     nameKey: 'letters',    icon: Camera },
@@ -71,7 +92,22 @@ const HomePage = () => {
     { from: '#5f27cd', to: '#341f97', shadow: 'rgba(95,39,205,0.55)' },
   ];
 
-  const filteredItems = games.filter(item => {
+  // Update default titles when language changes, if not replaced by remote
+  useEffect(() => {
+    setGamesList(prev => prev.map(g => {
+      // Re-map default title overrides based on ID mapping
+      let title = g.title;
+      if (g.id === 1) title = t.game_read || title;
+      if (g.id === 2) title = t.game_homework || title;
+      if (g.id === 3) title = t.game_uz_alphabet || title;
+      if (g.id === 4) title = t.game_en_alphabet || title;
+      if (g.id === 5) title = t.game_ru_alphabet || title;
+      if (g.id === 6) title = t.game_memory_game || title;
+      return { ...g, title };
+    }));
+  }, [language, dynamicDict]);
+
+  const filteredItems = gamesList.filter(item => {
     const matchesMain = mainFilter === 'all' || item.type === mainFilter;
     const matchesCat  = categoryFilter === 'all' || item.category === categoryFilter;
     return matchesMain && matchesCat;

@@ -227,6 +227,13 @@ class ApiService {
     };
     return doFetch();
   }
+
+  /**
+   * Fetch public content configured by the admin panel
+   */
+  async getPublicContent() {
+    return this.get('/public/content');
+  }
 }
 
 export { SubscriptionError };
