@@ -132,6 +132,110 @@ async def add_security_headers(request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     return response
 
+
+# ============================================================================
+# SUBSCRIPTION CHECK MIDDLEWARE
+# Obunasi yo'q foydalanuvchilar faqat ochiq URL'larga kira oladi
+# ============================================================================
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from shared.database import get_db as _get_db_session
+from shared.auth import verify_token as _verify_token
+from shared.database.models import UserSubscription, SubscriptionStatus
+from sqlalchemy import select as _select
+from datetime import datetime as _dt, timezone as _tz
+
+# Obuna tekshirilMAYDIGAN URL'lar (ochiq)
+SUBSCRIPTION_EXEMPT_PREFIXES = (
+    "/api/v1/auth",           # Login, Register
+    "/api/v1/payments",       # Obuna sotib olish, webhook
+    "/api/v1/admin",          # Admin panel
+    "/api/v1/verification",   # Telefon tasdiqlash
+    "/api/v1/telegram",       # Bot webhook
+    "/api/v1/health",         # Monitoring
+    "/health",                # Server check
+    "/api/uploads",           # Static fayllar
+    "/docs",                  # Swagger
+    "/openapi",               # OpenAPI schema
+    "/api/v1/openapi",        # OpenAPI alt
+)
+
+# Maxsus ochiq sahifalar (to'liq URL mos kelishi kerak)
+SUBSCRIPTION_EXEMPT_EXACT = {
+    "/",
+    "/api/v1/dashboard/subscription",
+    "/api/v1/dashboard/my-subscription",
+}
+
+
+class SubscriptionCheckMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+
+        # 1. Ochiq URL'larni o'tkazib yuboramiz
+        if any(path.startswith(prefix) for prefix in SUBSCRIPTION_EXEMPT_PREFIXES):
+            return await call_next(request)
+
+        if path in SUBSCRIPTION_EXEMPT_EXACT:
+            return await call_next(request)
+
+        # 2. OPTIONS (CORS preflight) — o'tkazamiz
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
+        # 3. Token olishga urinamiz
+        token = request.cookies.get("access_token")
+        if not token:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+
+        if not token:
+            # Token yo'q — get_current_user o'zi bloklasin
+            return await call_next(request)
+
+        # 4. Tokenni dekod qilamiz
+        try:
+            payload = _verify_token(token)
+            if not payload:
+                return await call_next(request)
+            user_id = payload.get("sub")
+            if not user_id:
+                return await call_next(request)
+        except Exception:
+            return await call_next(request)
+
+        # 5. Obunani tekshiramiz
+        try:
+            async for db in _get_db_session():
+                result = await db.execute(
+                    _select(UserSubscription.id).where(
+                        UserSubscription.user_id == user_id,
+                        UserSubscription.status == SubscriptionStatus.active.value,
+                        UserSubscription.expires_at > _dt.now(_tz.utc),
+                    ).limit(1)
+                )
+                has_sub = result.scalars().first() is not None
+                break
+        except Exception:
+            # DB xatosi — bloklash xato, o'tkazamiz
+            return await call_next(request)
+
+        if not has_sub:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": "Obuna talab etiladi. Iltimos, obuna sotib oling.",
+                    "code": "subscription_required",
+                    "subscription_url": "/payments/checkout",
+                }
+            )
+
+        return await call_next(request)
+
+
+app.add_middleware(SubscriptionCheckMiddleware)
+
 # Include Routers
 from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback, telegram
 from app.api.v1 import classrooms, assignments, notifications, lessons, platform_content, aiops, uploads, coins, organizations, olympiads

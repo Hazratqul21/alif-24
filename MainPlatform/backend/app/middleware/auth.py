@@ -8,15 +8,29 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from datetime import datetime, timezone
 from typing import Optional
 
 from shared.database import get_db
-from shared.database.models import User, AccountStatus
+from shared.database.models import User, AccountStatus, UserSubscription, SubscriptionStatus
 from shared.auth import verify_token
 from ..core.config import settings
 from ..core.errors import UnauthorizedError, TokenExpiredError
 
 security = HTTPBearer(auto_error=False)
+
+
+async def check_user_subscription(user_id: str, db: AsyncSession) -> bool:
+    """Foydalanuvchining faol va muddati o'tmagan obunasi borligini tekshirish."""
+    result = await db.execute(
+        select(UserSubscription.id).where(
+            UserSubscription.user_id == user_id,
+            UserSubscription.status == SubscriptionStatus.active.value,
+            UserSubscription.expires_at > datetime.now(timezone.utc),
+        ).limit(1)
+    )
+    return result.scalars().first() is not None
+
 
 async def get_current_user(
     request: Request,

@@ -1498,6 +1498,71 @@ async def get_daily_stats(
 
 
 # ============================================================================
+# USER LOGIN HISTORY — Kim qachon kirdi
+# ============================================================================
+
+from shared.database.models.analytics import UserGeoLog
+
+@router.get("/login-history")
+async def admin_login_history(
+    user_id: Optional[str] = None,
+    days: int = Query(7, ge=1, le=90),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Foydalanuvchilar login tarixi — kim, qachon, qayerdan kirdi"""
+    if not has_permission(admin, "all") and not has_permission(admin, "view"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    stmt = (
+        select(UserGeoLog)
+        .where(UserGeoLog.created_at >= since)
+        .order_by(UserGeoLog.created_at.desc())
+    )
+    count_stmt = select(func.count(UserGeoLog.id)).where(UserGeoLog.created_at >= since)
+
+    if user_id:
+        stmt = stmt.where(UserGeoLog.user_id == user_id)
+        count_stmt = count_stmt.where(UserGeoLog.user_id == user_id)
+
+    total = (await db.execute(count_stmt)).scalar() or 0
+    result = await db.execute(stmt.offset(offset).limit(limit))
+    logs = result.scalars().all()
+
+    # Foydalanuvchi ismlarini bitta zaprosda olamiz
+    user_ids = list({log.user_id for log in logs})
+    users_result = await db.execute(
+        select(User.id, User.first_name, User.last_name, User.phone).where(User.id.in_(user_ids))
+    )
+    users_map = {r.id: r for r in users_result.all()}
+
+    items = []
+    for log in logs:
+        u = users_map.get(log.user_id)
+        items.append({
+            "id": log.id,
+            "user_id": log.user_id,
+            "user_name": f"{u.first_name} {u.last_name}" if u else None,
+            "user_phone": u.phone if u else None,
+            "ip_address": log.ip_address,
+            "country": log.country,
+            "region": log.region,
+            "city": log.city,
+            "device_type": log.device_type,
+            "browser": log.browser,
+            "os": log.os,
+            "action": log.action,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        })
+
+    return {"total": total, "logs": items}
+
+
+# ============================================================================
 # SUBSCRIPTION PLAN CONFIG MANAGEMENT (Admin-configurable)
 # ============================================================================
 
