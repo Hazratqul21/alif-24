@@ -1101,10 +1101,10 @@ const StudentDashboard = () => {
                                                             if (data.checkout_url) {
                                                                 window.location.href = data.checkout_url;
                                                             } else {
-                                                                showNotification('error', data.detail || "To'lov tizimi hozir ishlamayapti");
+                                                                showNotif('error', data.detail || "To'lov tizimi hozir ishlamayapti");
                                                             }
                                                         } catch (e) {
-                                                            showNotification('error', "To'lov tizimi bilan bog'lanib bo'lmadi");
+                                                            showNotif('error', "To'lov tizimi bilan bog'lanib bo'lmadi");
                                                         }
                                                     }}
                                                     className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2.5 rounded-xl font-bold text-sm hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md flex items-center justify-center gap-2"

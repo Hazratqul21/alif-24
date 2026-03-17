@@ -54,7 +54,7 @@ async def get_current_user(
     
     payload = verify_token(token)
     if not payload:
-        raise UnauthorizedError("Invalid or expired token")
+        raise TokenExpiredError("Token expired or invalid")
     
     user_id = payload.get("sub")
     if not user_id:

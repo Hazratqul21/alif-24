@@ -401,8 +401,8 @@ Maxfiylik: privacy@alif24.uz
         setError(
           <span>
             Telefon raqam Telegram botga ulanmagan. Iltimos, avval{" "}
-            <a href="https://t.me/Alif24Bot" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-              @Alif24Bot
+            <a href="https://t.me/alif24platform_bot" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+              @alif24platform_bot
             </a>{" "}
             ga kirib <b>/start</b> tugmasini bosing va raqamingizni yuboring.
           </span>

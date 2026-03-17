@@ -118,7 +118,7 @@ const PartnersPage = () => {
               </div>
             </a>
             <a
-              href="https://t.me/Alif24Bot"
+              href="https://t.me/alif24platform_bot"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all no-underline"
@@ -126,7 +126,7 @@ const PartnersPage = () => {
               <MessageCircle className="w-6 h-6 text-[#4b30fb]" />
               <div>
                 <div className="text-sm text-white/60">Telegram</div>
-                <div className="text-white font-medium">@Alif24Bot</div>
+                <div className="text-white font-medium">@alif24platform_bot</div>
               </div>
             </a>
           </div>

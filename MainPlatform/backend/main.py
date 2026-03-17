@@ -147,7 +147,7 @@ from datetime import datetime as _dt, timezone as _tz
 
 # Obuna tekshirilMAYDIGAN URL'lar (ochiq)
 SUBSCRIPTION_EXEMPT_PREFIXES = (
-    "/api/v1/auth",           # Login, Register
+    "/api/v1/auth",           # Login, Register, Profile
     "/api/v1/payments",       # Obuna sotib olish, webhook
     "/api/v1/admin",          # Admin panel
     "/api/v1/verification",   # Telefon tasdiqlash
@@ -158,6 +158,21 @@ SUBSCRIPTION_EXEMPT_PREFIXES = (
     "/docs",                  # Swagger
     "/openapi",               # OpenAPI schema
     "/api/v1/openapi",        # OpenAPI alt
+    "/api/v1/dashboard",      # Dashboard — profil, obuna holati
+    "/api/v1/classrooms",     # Sinflar ro'yxati
+    "/api/v1/assignments",    # Vazifalar
+    "/api/v1/notifications",  # Bildirishnomalar
+    "/api/v1/olympiad",       # Olimpiada
+    "/api/v1/coins",          # Coinlar
+    "/api/v1/organizations",  # Tashkilotlar
+    "/api/v1/feedback",       # Fikr-mulohaza
+    "/api/v1/public",         # Ochiq kontent
+    "/api/v1/smartkids",      # SmartKids AI
+    "/api/v1/mathkids",       # MathKids AI
+    "/api/v1/reading",        # O'qish musobaqalari
+    "/api/v1/gamification",   # Gamifikatsiya (Olimp orqali)
+    "/api/v1/games",          # O'yinlar (Games orqali)
+    "/api/v1/lessons",        # Darslar ro'yxati
 )
 
 # Maxsus ochiq sahifalar (to'liq URL mos kelishi kerak)

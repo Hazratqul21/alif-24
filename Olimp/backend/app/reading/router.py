@@ -164,7 +164,10 @@ def calculate_scores(
         score_questions = 0
 
     # Jami (o'rtacha)
-    total = (score_completion + score_words + score_time + score_questions) / 4
+    if questions_total > 0:
+        total = (score_completion + score_words + score_time + score_questions) / 4
+    else:
+        total = (score_completion + score_words + score_time) / 3
 
     return {
         "score_completion": round(score_completion, 1),
@@ -533,6 +536,63 @@ async def submit_reading(
             sp.total_coins = (sp.total_coins or 0) + coins_total
         except Exception as e:
             logger.error(f"Reading coin award error: {e}")
+
+    # ============================================================
+    # UPDATE COMPETITION RESULT INSTANTLY FOR LEADERBOARD
+    # ============================================================
+    # Get all completed sessions for this competition
+    sessions_res = await db.execute(
+        select(ReadingSession).where(
+            ReadingSession.student_id == student.id,
+            ReadingSession.competition_id == comp_id,
+            ReadingSession.status == SessionStatus.completed,
+        )
+    )
+    all_sessions = sessions_res.scalars().all()
+    
+    daily_scores = {}
+    total_reading = 0
+    for s in all_sessions:
+        if s.task_id == task_id:
+            task_ref = task
+        else:
+            task_res = await db.execute(select(ReadingTask).where(ReadingTask.id == s.task_id))
+            task_ref = task_res.scalars().first()
+            
+        if task_ref:
+            day = task_ref.day_of_week.value
+            daily_scores[day] = {
+                "score_completion": s.score_completion,
+                "score_words": s.score_words,
+                "score_time": s.score_time,
+                "score_questions": s.score_questions,
+                "total_score": s.total_score,
+            }
+            total_reading += s.total_score
+
+    avg_reading = total_reading / max(len(all_sessions), 1)
+
+    # CompetitionResult yaratish yoki yangilash
+    result_res = await db.execute(
+        select(CompetitionResult).where(
+            CompetitionResult.student_id == student.id,
+            CompetitionResult.competition_id == comp_id,
+        )
+    )
+    comp_result = result_res.scalars().first()
+    
+    if not comp_result:
+        comp_result = CompetitionResult(
+            student_id=student.id,
+            competition_id=comp_id,
+            test_score=0.0,
+        )
+        db.add(comp_result)
+
+    comp_result.daily_scores = daily_scores
+    comp_result.total_reading_score = round(avg_reading, 1)
+    # total_score = 60% reading + 40% test
+    comp_result.total_score = round((avg_reading * 0.6) + ((comp_result.test_score or 0.0) * 0.4), 1)
 
     await db.commit()
 
@@ -989,6 +1049,9 @@ async def analyze_voice_recording(
     session.score_time = scores["score_time"]
     session.score_questions = scores["score_questions"]
     session.total_score = scores["total_score"]
+    
+    session.status = SessionStatus.completed
+    session.completed_at = datetime.now(timezone.utc)
 
     await db.commit()
 
