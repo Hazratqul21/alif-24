@@ -14,7 +14,7 @@ from shared.database import get_db
 from shared.database.models import User, UserGeoLog
 from shared.auth import create_access_token, create_refresh_token
 from ...core.config import settings
-from ...middleware.auth import get_current_user
+from ...middleware.auth import get_current_user, get_optional_current_user
 from ...services.auth_service import AuthService
 from ...schemas.auth import LoginRequest, RegisterRequest, TokenResponse
 from ...schemas.rbac import ChildLoginRequest
@@ -194,13 +194,17 @@ async def refresh_token(request: Request, response: Response, data: RefreshToken
 
 @router.get("/me")
 async def get_me(
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get current authenticated user profile.
     Used by AuthSync across all subdomains to verify active session.
-    Includes active subscription info if available.
+
+    If the user is not authenticated, return `null` (200) so clients can treat it as a guest session.
     """
+    if not current_user:
+        return None
+
     from sqlalchemy import select
     from shared.database.models import UserSubscription, SubscriptionPlanConfig, SubscriptionStatus
 
@@ -234,11 +238,11 @@ async def get_me(
     except Exception:
         pass  # Subscription jadval hali yaratilmagan bo'lishi mumkin
 
-    return {
-        "success": True,
-        "data": current_user.to_dict(),
-        "subscription": subscription_data,
-    }
+    user_data = current_user.to_dict()
+    if subscription_data:
+        user_data["subscription"] = subscription_data
+
+    return user_data
 
 class PromoCodeActivateRequest(BaseModel):
     code: str

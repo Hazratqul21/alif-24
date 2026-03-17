@@ -28,7 +28,7 @@ export default function HeroSection({ onStart }) {
                     transition={{ delay: 0.1, duration: 0.5 }}
                     className="text-5xl md:text-7xl font-extrabold text-slate-800 dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-br dark:from-white dark:via-indigo-200 dark:to-indigo-400 tracking-tight mb-6"
                 >
-                    O'qi va g'olib bo'l 
+                    G'olib bo'l 
                    
                 </motion.h1>
 
@@ -38,10 +38,10 @@ export default function HeroSection({ onStart }) {
                     transition={{ delay: 0.2, duration: 0.5 }}
                     className="text-lg md:text-xl text-slate-600 dark:text-indigo-200/80 max-w-2xl mx-auto mb-10 leading-relaxed font-medium"
                 >
-                    Alif24 Olimp orqali o'qi va o'z bilimlaringizni sinab ko'ring.
+                    Alif24 orqali musoboqada qatnashing va o'z bilimlaringizni sinab ko'ring.
                 </motion.p>
 
-                <motion.div
+                {/*<motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3, duration: 0.5 }}
@@ -59,7 +59,7 @@ export default function HeroSection({ onStart }) {
                     >
                         <BookOpen className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> O'qish Musobaqasi
                     </button>
-                </motion.div>
+                </motion.div>*/}
 
                 <StatsCounter />
             </div>

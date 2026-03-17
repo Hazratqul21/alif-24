@@ -178,7 +178,7 @@ function ImageCropper({ onTextExtracted }) {
       
       if (data.success && data.text) {
         if (onTextExtracted) {
-          onTextExtracted(data.text);
+          onTextExtracted({ text: data.text, latex: data.latex || null });
         }
       } else {
         console.error('Masala o\'qish xatosi:', data.error);

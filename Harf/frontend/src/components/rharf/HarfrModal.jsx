@@ -67,6 +67,12 @@ const HarfrModal = ({ isOpen, onClose, card, externalTranscript, onAskStateChang
     const ensureSpeechConfig = useCallback(async () => {
         if (speechConfigRef.current) return true;
 
+        if (!SpeechSDK?.SpeechConfig?.fromAuthorizationToken) {
+            console.error('❌ [HarfrModal] Speech SDK is not available or missing SpeechConfig.fromAuthorizationToken');
+            setSttError("Speech service not available.");
+            return false;
+        }
+
         if (speechInitPromiseRef.current) {
             try {
                 await speechInitPromiseRef.current;

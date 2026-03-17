@@ -98,13 +98,13 @@ const PartnersPage = () => {
           <h2 className="text-2xl font-bold text-white text-center mb-6">Biz bilan bog'laning</h2>
           <div className="grid md:grid-cols-3 gap-6">
             <a
-              href="tel:+998901234567"
+              href="tel:+998908278358"
               className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all no-underline"
             >
               <Phone className="w-6 h-6 text-[#4b30fb]" />
               <div>
                 <div className="text-sm text-white/60">Telefon</div>
-                <div className="text-white font-medium">+998 90 123 45 67</div>
+                <div className="text-white font-medium">+998 90 827 83 58</div>
               </div>
             </a>
             <a

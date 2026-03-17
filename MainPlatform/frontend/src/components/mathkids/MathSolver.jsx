@@ -1,4 +1,6 @@
 import React, { useState, useRef } from "react";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import "./MathSolver.css";
 import ImageCropper from "./ImageCropper";
 // Lazy-loaded: microsoft-cognitiveservices-speech-sdk (~30MB)
@@ -13,6 +15,7 @@ const loadSpeechSDK = async () => {
 export default function MathSolver() {
   const [mode, setMode] = useState("input"); // "input", "list", "solving"
   const [inputText, setInputText] = useState("");
+  const [ocrLatex, setOcrLatex] = useState(null);
   const [problems, setProblems] = useState([]);
   const [selectedProblem, setSelectedProblem] = useState(null);
   const [gradeLevel, setGradeLevel] = useState("1");
@@ -43,8 +46,12 @@ const SPEECH_TOKEN_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_AP
 
   
 
-  const handleTextExtracted = (text) => {
+  const handleTextExtracted = (result) => {
+    const text = typeof result === 'string' ? result : result?.text || '';
+    const latex = typeof result === 'object' ? result?.latex : null;
+
     setInputText(text);
+    setOcrLatex(latex);
     parseProblems(text);
     setShowUploader(false);
   };
@@ -218,6 +225,7 @@ const SPEECH_TOKEN_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_AP
     setUserAnswer("");
     setFeedback("");
     setInputText("");
+    setOcrLatex(null);
     setProblems([]);
     setSelectedProblem(null);
     setFinalAnswer("");
@@ -382,6 +390,16 @@ const SPEECH_TOKEN_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_AP
         <main className="math-main">
           
             <h2 className="text-2xl sm:text-4xl font-bold text-center mb-8 text-blue-600 leading-tight">🧮 AI bilan masala yechish</h2>
+
+            {ocrLatex && (
+              <div className="latex-preview mb-6">
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: katex.renderToString(ocrLatex, { throwOnError: false }),
+                  }}
+                />
+              </div>
+            )}
 
             {showUploader ? (
               <ImageCropper onTextExtracted={handleTextExtracted} />

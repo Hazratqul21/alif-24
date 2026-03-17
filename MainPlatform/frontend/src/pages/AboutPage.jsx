@@ -158,7 +158,7 @@ export default function AboutAlif24() {
 
           <div className="flex flex-wrap justify-center gap-3 anim-fadeDown-4">
             {[
-              ["4–12", "Yosh oralig'i"],
+              ["5–15", "Yosh oralig'i"],
               ["3 Til", "UZ · RU · EN"],
               ["AI", "Asoslangan baho"],
               ["🏆", "Coin & Sovg'alar"],

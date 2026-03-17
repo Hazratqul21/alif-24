@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Home, Menu, Trophy, X, Globe, Volume2, User, Users, HandshakeIcon, LogIn, UserPlus, LogOut, ChevronDown } from 'lucide-react';
+import {
+  Home, BookOpen, Gamepad2, Trophy, User, Globe, LogIn, UserPlus,
+  LogOut, ChevronDown, Menu, X, Info, HandshakeIcon, ShieldCheck,
+  Medal,
+} from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -8,380 +12,387 @@ import RegisterModal from '../Auth/RegisterModal';
 import AchievementsModal from './AchievementsModal';
 import { useStarsManager } from '../../hooks/useStarsManager';
 
-/**
- * Navigation Bar Component
- * Responsive navbar with settings and mobile navigation
- */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Drawer (shared — slides in from right)
+───────────────────────────────────────────────────────────────────────────── */
+function DrawerMenu({ open, onClose, items, onLogout, isAuthenticated, user, onLogin, profilePath, navigate }) {
+  const drawerRef = useRef(null);
+
+  // Outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (drawerRef.current && !drawerRef.current.contains(e.target)) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
+  }, [open, onClose]);
+
+  // Lock scroll
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9998,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          transition: 'opacity 0.3s',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
+        }}
+      />
+
+      {/* Panel */}
+      <div
+        ref={drawerRef}
+        style={{
+          position: 'fixed', top: 0, right: 0, height: '100%', width: '288px',
+          zIndex: 9999,
+          display: 'flex', flexDirection: 'column',
+          background: 'linear-gradient(160deg,#1a1a2e 0%,#16213e 60%,#0f1624 100%)',
+          borderLeft: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '-8px 0 40px rgba(0,0,0,0.5)',
+          transform: open ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
+          <span style={{ color:'white', fontWeight:700, fontSize:15, letterSpacing:'0.02em' }}>Menyu</span>
+          <button
+            onClick={onClose}
+            style={{ width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:8, background:'rgba(255,255,255,0.07)', border:'none', color:'rgba(255,255,255,0.6)', cursor:'pointer' }}
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        {/* Nav items */}
+        <nav style={{ flex:1, overflowY:'auto', padding:'10px 12px' }}>
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.key}
+                onClick={() => { item.action(); onClose(); }}
+                style={{
+                  width:'100%', display:'flex', alignItems:'center', gap:12,
+                  padding:'11px 14px', borderRadius:12,
+                  color:'rgba(255,255,255,0.72)', background:'none', border:'none',
+                  cursor:'pointer', fontSize:14, fontWeight:500, textAlign:'left',
+                  transition:'background 0.15s, color 0.15s',
+                  marginBottom:2,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.07)'; e.currentTarget.style.color='white'; }}
+                onMouseLeave={e => { e.currentTarget.style.background='none'; e.currentTarget.style.color='rgba(255,255,255,0.72)'; }}
+              >
+                <Icon size={17} style={{ color:'#7c6bff', flexShrink:0 }} />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Footer — auth */}
+        <div style={{ padding:'12px 12px 24px', borderTop:'1px solid rgba(255,255,255,0.07)' }}>
+          {isAuthenticated ? (
+            <>
+              {/* User info */}
+              <div
+                onClick={() => { navigate(profilePath); onClose(); }}
+                style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:12, background:'rgba(255,255,255,0.05)', cursor:'pointer', marginBottom:8 }}
+              >
+                <div style={{ width:34, height:34, borderRadius:'50%', background:'linear-gradient(135deg,#4b30fb,#764ba2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <User size={16} style={{ color:'white' }} />
+                </div>
+                <div style={{ minWidth:0 }}>
+                  <p style={{ color:'white', fontWeight:600, fontSize:14, margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {user?.first_name || 'Foydalanuvchi'}
+                  </p>
+                  <p style={{ color:'rgba(255,255,255,0.4)', fontSize:12, margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {user?.email || ''}
+                  </p>
+                </div>
+              </div>
+              {/* Logout */}
+              <button
+                onClick={() => { onLogout(); onClose(); }}
+                style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderRadius:12, background:'rgba(239,68,68,0.1)', border:'none', color:'#f87171', cursor:'pointer', fontSize:14, fontWeight:500 }}
+              >
+                <LogOut size={16} style={{ flexShrink:0 }} />
+                Profildan chiqish
+              </button>
+            </>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <button
+                onClick={() => { onLogin('login'); onClose(); }}
+                style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'11px', borderRadius:12, background:'rgba(255,255,255,0.09)', border:'none', color:'white', fontSize:14, fontWeight:600, cursor:'pointer' }}
+              >
+                <LogIn size={15} /> Kirish
+              </button>
+              <button
+                onClick={() => { onLogin('register'); onClose(); }}
+                style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'11px', borderRadius:12, background:'linear-gradient(135deg,#4b30fb,#764ba2)', border:'none', color:'white', fontSize:14, fontWeight:600, cursor:'pointer' }}
+              >
+                <UserPlus size={15} /> Ro'yxatdan o'tish
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Navbar
+───────────────────────────────────────────────────────────────────────────── */
 const Navbar = () => {
   const { t, language, switchLanguage } = useLanguage();
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('home');
-  const [volume, setVolume] = useState(70);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
-  const languageDropdownRef = useRef(null);
+  const langRef = useRef(null);
 
-  const { totalStars, starsBreakdown, updateStars, getStarsHistory } = useStarsManager();
+  const { totalStars, starsBreakdown, getStarsHistory } = useStarsManager();
 
-  // Language configurations with flags
-  const languages = {
-    uz: {
-      code: 'uz',
-      flag: '🇺🇿',
-
-    },
-    ru: {
-      code: 'ru',
-      flag: '🇷🇺',
-
-    },
-    en: {
-      code: 'en',
-      flag: '🇺🇸',
-
-    }
+  const LANGUAGES = {
+    uz: { code: 'uz', label: "O'zbekcha" },
+    ru: { code: 'ru', label: 'Русский' },
+    en: { code: 'en', label: 'English' },
   };
-
-  const currentLanguage = languages[language] || languages.uz;
+  const currentLang = LANGUAGES[language] || LANGUAGES.uz;
 
   const profilePath = isAuthenticated && user ? (
-    user.role === 'student' ? '/student-dashboard' :
-      user.role === 'teacher' ? '/teacher-dashboard' :
-        user.role === 'parent' ? '/parent-dashboard' :
-          (user.role === 'admin' || user.role === 'moderator' || user.role === 'organization') ? '/organization-dashboard' :
-            '/profile'
+    user.role === 'student'   ? '/student-dashboard' :
+    user.role === 'teacher'   ? '/teacher-dashboard' :
+    user.role === 'parent'    ? '/parent-dashboard' :
+    ['admin','super_admin','moderator','organization'].includes(user.role)
+      ? '/organization-dashboard'
+      : '/profile'
   ) : '/profile';
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Close language dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target)) {
-        setLanguageDropdownOpen(false);
-      }
-    };
-
-    if (languageDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [languageDropdownOpen]);
-
-  const handleProfileClick = (e) => {
-    e.preventDefault();
-    if (isAuthenticated) {
-      navigate(profilePath);
-    } else {
-      setLoginModalOpen(true);
-    }
-  };
-
-  const setLanguage = (lang) => {
-    switchLanguage(lang);
-    setLanguageDropdownOpen(false);
-  };
-
-  const handleLogoClick = () => {
-    navigate('/dashboard');
-  };
-
-  const handleLogin = () => {
-    setLoginModalOpen(true);
-  };
-
-  const handleRegister = () => {
-    setRegisterModalOpen(true);
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
-  const closeLoginModal = () => {
-    setLoginModalOpen(false);
-  };
-
-  const closeRegisterModal = () => {
-    setRegisterModalOpen(false);
-  };
+    const h = () => setLoginModalOpen(true);
+    window.addEventListener('showLoginModal', h);
+    return () => window.removeEventListener('showLoginModal', h);
+  }, []);
 
   useEffect(() => {
-    const path = location.pathname || '';
-    if (path.startsWith('/dashboard')) {
-      setActiveTab('home');
-    } else if (path.startsWith('/about')) {
-      setActiveTab('lessons');
-    } else if (path.startsWith('/partners')) {
-      setActiveTab('games');
-    } else if (path.startsWith('/profile') || path.includes('dashboard') && path !== '/dashboard') {
-      setActiveTab('profile');
-    } else {
-      setActiveTab('home');
-    }
-  }, [location.pathname]);
+    if (!langOpen) return;
+    const h = (e) => { if (langRef.current && !langRef.current.contains(e.target)) setLangOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [langOpen]);
 
+  const handleProfileClick = () => {
+    if (isAuthenticated) navigate(profilePath);
+    else setLoginModalOpen(true);
+  };
+  const handleLogout = () => { logout(); navigate('/'); };
+  const handleAuthModal = (type) => {
+    if (type === 'login') setLoginModalOpen(true);
+    else setRegisterModalOpen(true);
+  };
+
+  // ── Desktop drawer items ──────────────────────────────────────────────────
+  const desktopDrawerItems = [
+    { key: 'about',    icon: Info,          label: 'Biz haqimizda',      action: () => navigate('/about') },
+    { key: 'partners', icon: HandshakeIcon, label: 'Hamkorlar',          action: () => navigate('/partners') },
+    { key: 'privacy',  icon: ShieldCheck,   label: 'Maxfiylik siyosati', action: () => navigate('/privacy') },
+  ];
+
+  // ── Mobile drawer items ───────────────────────────────────────────────────
+  const mobileDrawerItems = [
+    { key: 'home',        icon: Home,          label: 'Bosh sahifa',        action: () => navigate('/dashboard') },
+    { key: 'games',       icon: Gamepad2,      label: "O'yinlar",           action: () => window.location.href = 'https://games.alif24.uz' },
+    { key: 'olympiad',    icon: Medal,         label: 'Olimpiada',          action: () => window.location.href = 'https://olimp.alif24.uz' },
+    { key: 'leaderboard', icon: Trophy,        label: 'Reyting',            action: () => navigate('/leaderboard') },
+    { key: 'profile',     icon: User,          label: 'Mening profilim',    action: handleProfileClick },
+    { key: 'about',       icon: Info,          label: 'Biz haqimizda',      action: () => navigate('/about') },
+    { key: 'partners',    icon: HandshakeIcon, label: 'Hamkorlar',          action: () => navigate('/partners') },
+    { key: 'privacy',     icon: ShieldCheck,   label: 'Maxfiylik siyosati', action: () => navigate('/privacy') },
+  ];
+
+  // Active nav-link highlight
+  const navBtnClass = (path) => {
+    const active = location.pathname.startsWith(path);
+    return [
+      'text-sm font-medium px-3 py-1.5 rounded-lg border-none cursor-pointer transition-all',
+      active
+        ? 'bg-white/15 text-white'
+        : 'bg-transparent text-white/65 hover:text-white hover:bg-white/8',
+    ].join(' ');
+  };
+
+  /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
     <>
-      {/* Desktop/Mobile Navbar */}
-      <header className={`flex justify-between items-center px-5 h-[70px] shadow-lg sticky top-0 z-50 rounded-b-[10px] bg-[#4b30fbcc] ${isMobile ? 'bg-transparent shadow-none' : ''
-        }`}>
-        <div className="flex items-center gap-4 ">
-          <div
-            className="w-[65px] h-[65px] flex items-center gap-2 cursor-pointer"
-            onClick={handleLogoClick}
-          >
-            <img src="/Logo.png" alt="Alifbe Logo" className="w-full h-full" />
-          </div>
+      <header className="sticky top-0 z-50 h-[70px] flex items-center justify-between px-4 bg-[#4b30fb]/80 backdrop-blur-md border-b border-white/10 shadow-lg">
+
+        {/* Logo */}
+        <div className="w-14 h-14 cursor-pointer shrink-0" onClick={() => navigate('/dashboard')}>
+          <img src="/Logo.png" alt="Alifbe" className="w-full h-full object-contain" />
         </div>
 
+        {/* ── DESKTOP center nav ───────────────────────────────────────────────── */}
         {!isMobile && (
-          <>
-            <nav className="flex gap-6">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="text-[#dcdcdc] text-lg transition-colors hover:text-white bg-transparent border-none cursor-pointer"
-              >
-                {t('home') || 'Bosh sahifa'}
+          <nav className="flex items-center gap-0.5">
+            {[
+              { label: 'Bosh sahifa', path: '/dashboard' },
+               { label: "O'yinlar",    path: '/games',    external: 'https://games.alif24.uz' },
+              { label: 'Olimpiada',   path: '/olympiad', external: 'https://olimp.alif24.uz' },
+              { label: 'Reyting',     path: '/leaderboard' },
+            ].map(({ label, path }) => (
+              <button key={path} onClick={() => navigate(path)} className={navBtnClass(path)}>
+                {label}
               </button>
-              <button
-                onClick={() => navigate('/about')}
-                className="text-[#dcdcdc] text-lg transition-colors hover:text-white bg-transparent border-none cursor-pointer"
-              >
-                {t('aboutus') || 'Biz haqimizda'}
-              </button>
-              <button
-                onClick={() => navigate('/partners')}
-                className="text-[#dcdcdc] text-lg transition-colors hover:text-white bg-transparent border-none cursor-pointer"
-              >
-                {t('partner') || 'Hamkorlar'}
-              </button>
-              <button
-                onClick={handleProfileClick}
-                className="text-[#dcdcdc] text-lg transition-colors hover:text-white bg-transparent border-none cursor-pointer"
-              >
-                {t('profile') || 'Profil'}
-              </button>
-            </nav>
-
-            <div className="flex items-center gap-4">
-
-              {/* Language Selector (Text-based, Pro Design) */}
-              <div className="relative" ref={languageDropdownRef}>
-                <button
-                  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-xl px-4 py-2 cursor-pointer transition-all duration-300 group"
-                  onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
-                >
-                  <Globe size={18} className="text-white/80 group-hover:text-white transition-colors" />
-                  <span className="text-white font-bold tracking-wider text-sm">{currentLanguage.code.toUpperCase()}</span>
-                  <ChevronDown
-                    size={16}
-                    className={`text-white/80 transition-transform duration-300 ${languageDropdownOpen ? 'rotate-180' : ''}`}
-                  />
-                </button>
-
-                {/* Dropdown Menu */}
-                <div
-                  className={`absolute top-full right-0 mt-3 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/10 overflow-hidden min-w-[160px] z-50 transition-all duration-300 origin-top-right ${languageDropdownOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
-                    }`}
-                >
-                  {Object.values(languages).map((lang) => (
-                    <button
-                      key={lang.code}
-                      onClick={() => setLanguage(lang.code)}
-                      className={`w-full flex items-center justify-between px-4 py-3 transition-all border-none text-left group ${language === lang.code
-                          ? 'bg-white/10 text-white'
-                          : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                        }`}
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-bold tracking-wider text-sm">{lang.code.toUpperCase()}</span>
-                        <span className="text-[10px] opacity-60 font-medium">
-                          {lang.code === 'uz' ? 'O\'zbekcha' : lang.code === 'ru' ? 'Русский' : 'English'}
-                        </span>
-                      </div>
-                      {language === lang.code && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#4b30fb] shadow-[0_0_8px_#4b30fb]"></div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {isAuthenticated ? (
-                <>
-                  <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2 rounded-xl text-white">
-                    <User size={18} className="text-white/90" />
-                    <span className="text-sm font-medium">{user?.first_name || 'Foydalanuvchi'}</span>
-                  </div>
-
-                  <button
-                    className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl w-10 h-10 flex items-center justify-center cursor-pointer text-white transition-all duration-300 hover:bg-white/20 hover:scale-105 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                    onClick={handleLogout}
-                    title="Chiqish"
-                  >
-                    <LogOut size={18} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-xl px-5 py-2 cursor-pointer transition-all duration-300 text-white hover:shadow-[0_0_20px_rgba(75,48,251,0.4)]"
-                    onClick={handleLogin}
-                  >
-                    <LogIn size={18} />
-                    <span className="text-sm font-bold tracking-wide">{t('login') || 'Kirish'}</span>
-                  </button>
-                </>
-              )}
-            </div>
-          </>
+            ))}
+            <button onClick={handleProfileClick} className={navBtnClass(profilePath)}>
+              Profil
+            </button>
+          </nav>
         )}
 
-        {isMobile && (
-          <div className="flex items-center gap-3">
+        {/* ── DESKTOP right ────────────────────────────────────────────────────── */}
+        {!isMobile && (
+          <div className="flex items-center gap-2 shrink-0">
 
-            {/* Mobile Language Selector */}
-            <div className="relative" ref={languageDropdownRef}>
+            {/* Language selector */}
+            <div className="relative" ref={langRef}>
               <button
-                className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-3 py-1.5 cursor-pointer transition-all text-white active:scale-95"
-                onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
+                onClick={() => setLangOpen(!langOpen)}
+                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/18 border border-white/15 rounded-xl px-3 py-2 text-white text-sm font-bold cursor-pointer transition-all"
               >
-                <span className="text-sm font-bold tracking-wider">{currentLanguage.code.toUpperCase()}</span>
-                <ChevronDown
-                  size={14}
-                  className={`transition-transform duration-300 ${languageDropdownOpen ? 'rotate-180' : ''}`}
-                />
+                <Globe size={14} className="text-white/70" />
+                {currentLang.code.toUpperCase()}
+                <ChevronDown size={12} className={`text-white/60 transition-transform duration-200 ${langOpen ? 'rotate-180' : ''}`} />
               </button>
-
-              {/* Mobile Dropdown Menu */}
-              <div
-                className={`absolute top-full right-0 mt-2 bg-[#1a1a2e]/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/10 overflow-hidden min-w-[140px] z-50 transition-all duration-300 origin-top-right ${languageDropdownOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
-                  }`}
-              >
-                {Object.values(languages).map((lang) => (
-                  <button
-                    key={lang.code}
-                    onClick={() => setLanguage(lang.code)}
-                    className={`w-full flex items-center justify-between px-4 py-3 transition-all border-none text-left ${language === lang.code
-                        ? 'bg-white/10 text-white'
-                        : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                      }`}
-                  >
-                    <span className="font-bold text-sm tracking-wider">{lang.code.toUpperCase()}</span>
-                    {language === lang.code && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#4b30fb]"></div>
-                    )}
+              <div className={`absolute top-full right-0 mt-2 w-44 bg-[#1a1a2e]/96 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all duration-200 origin-top-right
+                ${langOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'}`}>
+                {Object.values(LANGUAGES).map((lang) => (
+                  <button key={lang.code}
+                    onClick={() => { switchLanguage(lang.code); setLangOpen(false); }}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm border-none text-left cursor-pointer transition-all
+                      ${language === lang.code ? 'bg-white/10 text-white font-bold' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}>
+                    {lang.label}
+                    {language === lang.code && <div className="w-1.5 h-1.5 rounded-full bg-[#4b30fb]" />}
                   </button>
                 ))}
               </div>
             </div>
 
-            {isAuthenticated ? (
-              <>
-                <div className="flex items-center gap-1 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] px-2 py-1 rounded-full text-white">
-                  <User size={16} />
-                  <span className="text-xs font-medium hidden sm:inline">{user?.first_name?.charAt(0) || 'F'}</span>
-                </div>
-
-                <button
-                  className="bg-white/10 border-none rounded-full w-8 h-8 flex items-center justify-center cursor-pointer text-white transition-colors hover:bg-white/20"
-                  onClick={handleLogout}
-                  title="Chiqish"
-                >
-                  <LogOut size={16} />
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  className="bg-gradient-to-r from-[#4b30fb] to-[#764ba2] border-none rounded-full w-8 h-8 flex items-center justify-center cursor-pointer text-white transition-colors hover:bg-white/20"
-                  onClick={handleLogin}
-                  title="Kirish"
-                >
-                  <LogIn size={16} />
-                </button>
-              </>
+            {/* User pill (authenticated only) */}
+            {isAuthenticated && (
+              <button
+                onClick={() => navigate(profilePath)}
+                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/18 border border-white/15 rounded-xl px-3 py-2 text-white text-sm font-medium cursor-pointer transition-all"
+              >
+                <User size={14} className="text-white/80" />
+                {user?.first_name || 'Profil'}
+              </button>
             )}
+
+            {/* Login button (unauthenticated) */}
+            {!isAuthenticated && (
+              <button
+                onClick={() => setLoginModalOpen(true)}
+                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/18 border border-white/15 rounded-xl px-4 py-2 text-white text-sm font-semibold cursor-pointer transition-all"
+              >
+                <LogIn size={14} /> Kirish
+              </button>
+            )}
+
+            {/* Hamburger */}
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/18 border border-white/15 text-white cursor-pointer transition-all hover:scale-105 active:scale-95"
+            >
+              <Menu size={18} />
+            </button>
+          </div>
+        )}
+
+        {/* ── MOBILE right ─────────────────────────────────────────────────────── */}
+        {isMobile && (
+          <div className="flex items-center gap-2 shrink-0">
+
+            {/* Olimpiada shortcut */}
+            <button
+              onClick={() => window.location.href = 'https://olimp.alif24.uz'}
+              className="flex items-center gap-1 bg-white/10 border border-white/15 rounded-xl px-2.5 py-1.5 text-white text-xs font-semibold cursor-pointer transition-all active:scale-95"
+            >
+              <Medal size={13} /> Olimpiada
+            </button>
+
+            {/* Profile shortcut */}
+            <button
+              onClick={handleProfileClick}
+              className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white cursor-pointer transition-all active:scale-95"
+            >
+              <User size={16} />
+            </button>
+
+            {/* Hamburger */}
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white cursor-pointer transition-all active:scale-95"
+            >
+              <Menu size={18} />
+            </button>
           </div>
         )}
       </header>
 
-      {/* Mobile Bottom Navbar */}
-      {isMobile && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1a2e] flex justify-around py-2 border-t border-white/10 z-[1000] shadow-lg">
-          <button
-            className={`flex flex-col items-center text-gray-400 bg-none border-none text-xs gap-1 cursor-pointer p-2 transition-colors hover:text-[#4b30fb] ${activeTab === 'home' ? 'text-[#4b30fb]' : ''
-              }`}
-            onClick={() => { navigate('/dashboard'); }}
-          >
-            <Home size={22} />
-            <span>{t('home') || 'Bosh sahifa'}</span>
-          </button>
-          <button
-            className={`flex flex-col items-center text-gray-400 bg-none border-none text-xs gap-1 cursor-pointer p-2 transition-colors hover:text-[#4b30fb] ${activeTab === 'lessons' ? 'text-[#4b30fb]' : ''
-              }`}
-            onClick={() => { navigate('/about'); }}
-          >
-            <Users size={22} />
-            <span>{t('aboutus') || 'Biz haqimizda'}</span>
-          </button>
-          <button
-            className={`flex flex-col items-center text-gray-400 bg-none border-none text-xs gap-1 cursor-pointer p-2 transition-colors hover:text-[#4b30fb] ${activeTab === 'games' ? 'text-[#4b30fb]' : ''
-              }`}
-            onClick={() => { navigate('/partners'); }}
-          >
-            <HandshakeIcon size={22} />
-            <span>{t('partner') || 'Hamkorlar'}</span>
-          </button>
-          <button
-            className={`flex flex-col items-center text-gray-400 bg-none border-none text-xs gap-1 cursor-pointer p-2 transition-colors hover:text-[#4b30fb] ${activeTab === 'profile' ? 'text-[#4b30fb]' : ''
-              }`}
-            onClick={handleProfileClick}
-          >
-            <User size={22} />
-            <span>{t('profile') || 'Profil'}</span>
-          </button>
-        </nav>
-      )}
+      {/* ── Drawer ─────────────────────────────────────────────────────────────── */}
+      <DrawerMenu
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        items={isMobile ? mobileDrawerItems : desktopDrawerItems}
+        onLogout={handleLogout}
+        isAuthenticated={isAuthenticated}
+        user={user}
+        onLogin={handleAuthModal}
+        profilePath={profilePath}
+        navigate={navigate}
+      />
 
-      {/* Authentication Modals */}
+      {/* ── Modals ─────────────────────────────────────────────────────────────── */}
       <LoginModal
         isOpen={loginModalOpen}
-        onClose={closeLoginModal}
-        onSwitchToRegister={() => {
-          closeLoginModal();
-          handleRegister();
-        }}
+        onClose={() => setLoginModalOpen(false)}
+        onSwitchToRegister={() => { setLoginModalOpen(false); setRegisterModalOpen(true); }}
       />
-
       <RegisterModal
         isOpen={registerModalOpen}
-        onClose={closeRegisterModal}
-        onSwitchToLogin={() => {
-          closeRegisterModal();
-          handleLogin();
-        }}
+        onClose={() => setRegisterModalOpen(false)}
+        onSwitchToLogin={() => { setRegisterModalOpen(false); setLoginModalOpen(true); }}
       />
-
-      {/* Achievements Modal */}
       <AchievementsModal
         isOpen={achievementsModalOpen}
         onClose={() => setAchievementsModalOpen(false)}

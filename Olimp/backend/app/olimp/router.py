@@ -1411,7 +1411,11 @@ async def submit_reading_result(
     participant.reading_attempts = attempt
     is_first_attempt = (attempt == 1)
 
-    # Faqat natijasi yaxshiroq bo'lsagina yangilaymiz (overwrite with best attempt)
+    # ── Score aggregation ──
+    # Accumulate total score across attempts (for leaderboard aggregation)
+    participant.total_score = (participant.total_score or 0) + quiz_score
+
+    # Faqat natijasi yaxshiroq bo'lsagina ayrim ma'lumotlarni yangilaymiz
     current_val = quiz_score * 1000 + data.wpm
     past_val = (participant.quiz_score or 0) * 1000 + (participant.reading_wpm or 0)
     is_best_attempt = is_first_attempt or (current_val > past_val)
@@ -1424,8 +1428,6 @@ async def submit_reading_result(
 
         participant.correct_answers = correct_count
         participant.wrong_answers = total_questions - correct_count
-        participant.total_score = quiz_score
-        
         participant.status = ParticipationStatus.completed
         participant.completed_at = datetime.now(timezone.utc)
 
@@ -1458,6 +1460,7 @@ async def submit_reading_result(
         "success": True,
         "data": {
             "quiz_score": quiz_score,
+            "total_score": participant.total_score,
             "correct_answers": correct_count,
             "total_questions": total_questions,
             "wpm": data.wpm,
@@ -1492,6 +1495,7 @@ async def get_reading_leaderboard(
             OlympiadParticipant.olympiad_id == olympiad.id,
         )
         .order_by(
+            OlympiadParticipant.total_score.desc(),
             OlympiadParticipant.quiz_score.desc(),
             OlympiadParticipant.reading_wpm.desc(),
             OlympiadParticipant.reading_percent.desc(),
@@ -1521,6 +1525,7 @@ async def get_reading_leaderboard(
             "rank": idx,
             "student_id": p.student_id,
             "student_name": student_name,
+            "total_score": p.total_score or 0,
             "quiz_score": p.quiz_score or 0,
             "reading_wpm": round(p.reading_wpm or 0),
             "reading_percent": round(p.reading_percent or 0),

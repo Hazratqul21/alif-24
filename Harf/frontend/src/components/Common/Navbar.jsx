@@ -71,7 +71,7 @@ const Navbar = () => {
 
   const handleLogin = () => setLoginModalOpen(true);
   const handleRegister = () => setRegisterModalOpen(true);
-  const handleLogout = () => { logout(); navigate('/'); };
+  
   const closeLoginModal = () => setLoginModalOpen(false);
   const closeRegisterModal = () => setRegisterModalOpen(false);
 
@@ -157,9 +157,7 @@ const Navbar = () => {
                     <User size={18} />
                     <span className="text-sm font-medium">{user?.first_name || 'Foydalanuvchi'}</span>
                   </div>
-                  <button className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl w-10 h-10 flex items-center justify-center cursor-pointer text-white transition-all hover:bg-white/20" onClick={handleLogout} title="Chiqish">
-                    <LogOut size={18} />
-                  </button>
+                 
                 </>
               ) : (
                 <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-xl px-5 py-2 cursor-pointer transition-all text-white" onClick={handleLogin}>
@@ -200,9 +198,7 @@ const Navbar = () => {
                   <User size={16} />
                   <span className="text-xs font-medium hidden sm:inline">{user?.first_name?.charAt(0) || 'F'}</span>
                 </div>
-                <button className="bg-white/10 border-none rounded-full w-8 h-8 flex items-center justify-center cursor-pointer text-white" onClick={handleLogout} title="Chiqish">
-                  <LogOut size={16} />
-                </button>
+                
               </>
             ) : (
               <button className="bg-gradient-to-r from-[#4b30fb] to-[#764ba2] border-none rounded-full w-8 h-8 flex items-center justify-center cursor-pointer text-white" onClick={handleLogin} title="Kirish">

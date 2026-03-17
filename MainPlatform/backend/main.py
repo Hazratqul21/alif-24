@@ -21,7 +21,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user, get_optional_current_user
 from contextlib import asynccontextmanager
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -160,14 +160,14 @@ app.include_router(verification.router, prefix=f"{settings.API_PREFIX}/verificat
 app.include_router(telegram.router, prefix=f"{settings.API_PREFIX}/telegram", tags=["telegram"])
 
 # SmartKids routes
-app.include_router(story_router.router, prefix=f"{settings.API_PREFIX}/smartkids", tags=["smartkids"], dependencies=[Depends(get_current_user)])
-app.include_router(image_reader_router.router, prefix=f"{settings.API_PREFIX}/smartkids", tags=["smartkids"], dependencies=[Depends(get_current_user)])
-app.include_router(file_reader_router.router, prefix=f"{settings.API_PREFIX}/smartkids", tags=["smartkids"], dependencies=[Depends(get_current_user)])
-app.include_router(speech_token_router.router, prefix=f"{settings.API_PREFIX}/smartkids", tags=["smartkids"], dependencies=[Depends(get_current_user)])
+app.include_router(story_router.router, prefix=f"{settings.API_PREFIX}/smartkids", tags=["smartkids"], dependencies=[Depends(get_optional_current_user)])
+app.include_router(image_reader_router.router, prefix=f"{settings.API_PREFIX}/smartkids", tags=["smartkids"], dependencies=[Depends(get_optional_current_user)])
+app.include_router(file_reader_router.router, prefix=f"{settings.API_PREFIX}/smartkids", tags=["smartkids"], dependencies=[Depends(get_optional_current_user)])
+app.include_router(speech_token_router.router, prefix=f"{settings.API_PREFIX}/smartkids", tags=["smartkids"], dependencies=[Depends(get_optional_current_user)])
 
 # MathKids routes
-app.include_router(math_solver_router.router, prefix=f"{settings.API_PREFIX}/mathkids", tags=["mathkids"], dependencies=[Depends(get_current_user)])
-app.include_router(math_image_router.router, prefix=f"{settings.API_PREFIX}/mathkids", tags=["mathkids"], dependencies=[Depends(get_current_user)])
+app.include_router(math_solver_router.router, prefix=f"{settings.API_PREFIX}/mathkids", tags=["mathkids"], dependencies=[Depends(get_optional_current_user)])
+app.include_router(math_image_router.router, prefix=f"{settings.API_PREFIX}/mathkids", tags=["mathkids"], dependencies=[Depends(get_optional_current_user)])
 
 # Feedback
 app.include_router(feedback.router, prefix=f"{settings.API_PREFIX}", tags=["feedback"])

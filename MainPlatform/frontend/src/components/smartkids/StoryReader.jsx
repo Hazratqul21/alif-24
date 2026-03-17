@@ -1372,7 +1372,7 @@ export default function StoryReader({ storyText, age = 7 }) {
 
       {!readingFinished && (
         <div style={{ marginBottom: 20, display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
-          {/* AI o'qib berish tugmasi olib tashlandi - O'quvchi faqat o'zi o'qishi kerak */}
+          {/* AI o'qib berish tugmasi (play/stop) */}
           {(!isReading && audioQueue.length === 0) && (
             <>
               <button
@@ -1397,7 +1397,55 @@ export default function StoryReader({ storyText, age = 7 }) {
               >
                 <ReaderIcon size={40} />
               </button>
+
+              <button
+                onClick={startReading}
+                aria-label="AI o'qiydi"
+                title="AI o'qiydi"
+                style={{
+                  width: "64px",
+                  height: "64px",
+                  padding: 0,
+                  backgroundColor: "#1976d2",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 0
+                }}
+              >
+                <PlayCircleIcon size={40} />
+              </button>
             </>
+          )}
+
+          {isReading && (
+            <button
+              onClick={stopReadingAndReset}
+              aria-label="O'qishni to'xtatish"
+              title="O'qishni to'xtatish"
+              style={{
+                width: "64px",
+                height: "64px",
+                padding: 0,
+                backgroundColor: "#d32f2f",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 0
+              }}
+            >
+              <StopCircleIcon size={40} />
+            </button>
           )}
         </div>
       )}

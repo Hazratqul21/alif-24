@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Trophy, Plus, Trash2, X, Eye, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, BarChart3, FileText, AlertCircle, PenLine, RefreshCw, Target, AudioLines, Waves, Book, Globe, Pencil, Video, Paperclip } from 'lucide-react';
+import { Trophy, Plus, Trash2, X, Eye, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, BarChart3, FileText, AlertCircle, PenLine, RefreshCw, Target, AudioLines, Waves, Book, Globe, Pencil, Video, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft } from 'lucide-react';
 import olympiadService from '../../services/olympiadService';
 import adminService from '../../services/adminService';
 
 export default function OlympiadsPage() {
-    const [activeView, setActiveView] = useState('list'); // list, detail, create, grading, content
+    const [activeView, setActiveView] = useState('list');
     const [olympiads, setOlympiads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedOlympiad, setSelectedOlympiad] = useState(null);
@@ -36,7 +36,7 @@ export default function OlympiadsPage() {
     const [contentLessons, setContentLessons] = useState([]);
     const [contentErtaklar, setContentErtaklar] = useState([]);
     const [contentLoading, setContentLoading] = useState(false);
-    const [contentModal, setContentModal] = useState(null); // 'lesson' | 'ertak'
+    const [contentModal, setContentModal] = useState(null);
     const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
     const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
     const [ertakQuestions, setErtakQuestions] = useState([]);
@@ -44,6 +44,33 @@ export default function OlympiadsPage() {
     const [contentUploadImage, setContentUploadImage] = useState(null);
     const [editLesson, setEditLesson] = useState(null);
     const [editLessonForm, setEditLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
+
+    // ── Lesson quiz questions ─────────────────────────────────────────────────
+    const [lessonQuestions, setLessonQuestions] = useState([]);
+    const [editLessonQuestions, setEditLessonQuestions] = useState([]);
+
+    const emptyLessonQ = () => ({
+        type: 'multiple_choice', // multiple_choice | true_false | open_text | image_choice
+        question: '',
+        options: ['', '', '', ''],
+        correct: 0,
+        correct_text: '',       // for open_text
+        image_options: ['', '', '', ''], // URLs for image_choice
+        points: 5,
+    });
+
+    const addLessonQ = (setter) => setter(prev => [...prev, emptyLessonQ()]);
+    const removeLessonQ = (setter, i) => setter(prev => prev.filter((_, idx) => idx !== i));
+    const updateLessonQ = (setter, i, field, val) =>
+        setter(prev => prev.map((q, idx) => idx === i ? { ...q, [field]: val } : q));
+    const updateLessonQOption = (setter, qi, oi, val) =>
+        setter(prev => prev.map((q, idx) => idx === qi
+            ? { ...q, options: q.options.map((o, j) => j === oi ? val : o) }
+            : q));
+    const updateLessonQImageOption = (setter, qi, oi, val) =>
+        setter(prev => prev.map((q, idx) => idx === qi
+            ? { ...q, image_options: (q.image_options || ['','','','']).map((o, j) => j === oi ? val : o) }
+            : q));
 
     // Create form
     const [createForm, setCreateForm] = useState({
@@ -93,7 +120,6 @@ export default function OlympiadsPage() {
         try {
             const payload = {
                 ...createForm,
-                // Bo'sh bo'lsa default qiymat berish
                 registration_end: createForm.registration_end || createForm.registration_start,
                 end_time: createForm.end_time || createForm.start_time,
             };
@@ -128,15 +154,9 @@ export default function OlympiadsPage() {
     };
 
     const handleAddReadingTask = async () => {
-        if (!rtForm.title || !rtForm.text_content) {
-            return notify('error', 'Sarlavha va matn kerak');
-        }
-        if (rtForm.title.length < 3) {
-            return notify('error', 'Sarlavha kamida 3 ta belgi bo\'lishi kerak');
-        }
-        if (rtForm.text_content.length < 10) {
-            return notify('error', 'Matn kamida 10 ta belgi bo\'lishi kerak');
-        }
+        if (!rtForm.title || !rtForm.text_content) return notify('error', 'Sarlavha va matn kerak');
+        if (rtForm.title.length < 3) return notify('error', 'Sarlavha kamida 3 ta belgi bo\'lishi kerak');
+        if (rtForm.text_content.length < 10) return notify('error', 'Matn kamida 10 ta belgi bo\'lishi kerak');
         try {
             await olympiadService.addReadingTask(selectedOlympiad.id, rtForm);
             notify('success', 'O\'qish vazifasi qo\'shildi');
@@ -145,8 +165,7 @@ export default function OlympiadsPage() {
             const res = await olympiadService.listReadingTasks(selectedOlympiad.id);
             setReadingTasks(res.reading_tasks || []);
         } catch (e) {
-            const msg = parseError(e);
-            notify('error', msg || 'Xatolik');
+            notify('error', parseError(e) || 'Xatolik');
         }
     };
 
@@ -156,7 +175,6 @@ export default function OlympiadsPage() {
             await olympiadService.gradeReading(gradingSubmission.submission_id, gradeForm);
             notify('success', 'Baholandi!');
             setGradingSubmission(null);
-            // Refresh submissions
             const res = await olympiadService.getReadingSubmissions(selectedOlympiad.id);
             setReadingSubmissions(res.submissions || []);
         } catch (e) { notify('error', e.message || 'Xatolik'); }
@@ -207,7 +225,6 @@ export default function OlympiadsPage() {
                     <Plus size={18} /> Yangi olimpiada
                 </button>
             </div>
-
             {loading ? (
                 <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" /></div>
             ) : olympiads.length === 0 ? (
@@ -250,7 +267,6 @@ export default function OlympiadsPage() {
                 <button onClick={() => setActiveView('list')} className="text-gray-400 hover:text-white">← Ortga</button>
                 <h1 className="text-xl font-bold text-white">Yangi Olimpiada</h1>
             </div>
-
             <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6 space-y-4">
                 <div>
                     <label className="text-sm text-gray-400 mb-1 block">Sarlavha *</label>
@@ -315,7 +331,6 @@ export default function OlympiadsPage() {
                         <input type="datetime-local" value={createForm.end_time} onChange={e => setCreateForm({ ...createForm, end_time: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
                     </div>
                 </div>
-
                 <button onClick={handleCreate} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition">Yaratish</button>
             </div>
         </div>
@@ -325,7 +340,6 @@ export default function OlympiadsPage() {
     const renderDetail = () => {
         if (!selectedOlympiad) return null;
         const o = selectedOlympiad;
-
         return (
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -343,14 +357,12 @@ export default function OlympiadsPage() {
                     </div>
                 </div>
 
-                {/* Kontent yasash tugmasi */}
                 <div className="flex justify-center">
                     <button onClick={() => { setActiveView('content'); loadContentData(); }} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-500/20">
                         <BookOpen size={20} /> Kontent yasash
                     </button>
                 </div>
 
-                {/* Stats */}
                 {stats && (
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                         {[
@@ -368,7 +380,6 @@ export default function OlympiadsPage() {
                     </div>
                 )}
 
-                {/* Test Questions Section */}
                 {(o.type === 'test' || o.type === 'mixed') && (
                     <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5">
                         <div className="flex items-center justify-between mb-4">
@@ -401,7 +412,6 @@ export default function OlympiadsPage() {
                     </div>
                 )}
 
-                {/* Reading Tasks Section */}
                 {(o.type === 'reading' || o.type === 'mixed') && (
                     <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5">
                         <div className="flex items-center justify-between mb-4">
@@ -434,7 +444,6 @@ export default function OlympiadsPage() {
                     </div>
                 )}
 
-                {/* Grading Section */}
                 {(o.type === 'reading' || o.type === 'mixed') && (
                     <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5">
                         <div className="flex items-center justify-between mb-4">
@@ -487,7 +496,6 @@ export default function OlympiadsPage() {
                     </div>
                 )}
 
-                {/* Participants */}
                 <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5">
                     <h3 className="text-white font-bold mb-4 flex items-center gap-2"><Users size={18} /> Ishtirokchilar ({participants.length})</h3>
                     {participants.length === 0 ? (
@@ -520,14 +528,16 @@ export default function OlympiadsPage() {
             </div>
         );
     };
+
     // ======================== CONTENT FUNCTIONS ========================
     const loadContentData = async () => {
         if (!selectedOlympiad) return;
         try {
             setContentLoading(true);
-            const [lessRes, ertRes] = await Promise.allSettled([
+            const [lessRes, ertRes, qRes] = await Promise.allSettled([
                 olympiadService.getOlympiadLessons(selectedOlympiad.id),
-                olympiadService.getOlympiadStories(selectedOlympiad.id)
+                olympiadService.getOlympiadStories(selectedOlympiad.id),
+                olympiadService.listQuestions(selectedOlympiad.id),
             ]);
             if (lessRes.status === 'fulfilled') {
                 const ld = lessRes.value.data || [];
@@ -536,6 +546,9 @@ export default function OlympiadsPage() {
             if (ertRes.status === 'fulfilled') {
                 const ed = ertRes.value.data?.ertaklar || ertRes.value.data || [];
                 setContentErtaklar(Array.isArray(ed) ? ed : []);
+            }
+            if (qRes.status === 'fulfilled') {
+                setQuestions(qRes.value.questions || []);
             }
         } catch (e) { console.error(e); }
         finally { setContentLoading(false); }
@@ -556,7 +569,10 @@ export default function OlympiadsPage() {
         }
         try {
             setSaving(true); setError('');
-            const payload = { ...lessonForm };
+            const payload = {
+                ...lessonForm,
+                quiz_questions: lessonQuestions.filter(q => q.question.trim()),
+            };
             if (contentUploadFile) {
                 const upRes = await adminService.uploadFile(contentUploadFile);
                 if (upRes.data?.url) payload.attachments = [{ name: contentUploadFile.name, url: upRes.data.url, size: upRes.data.size || contentUploadFile.size }];
@@ -565,6 +581,7 @@ export default function OlympiadsPage() {
             notify('success', 'Dars yaratildi!');
             setContentModal(null);
             setLessonForm({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
+            setLessonQuestions([]);
             setContentUploadFile(null);
             loadContentData();
         } catch (e) {
@@ -611,6 +628,15 @@ export default function OlympiadsPage() {
     const handleEditContentLesson = (lesson) => {
         setEditLesson(lesson);
         setEditLessonForm({ title: lesson.title || '', subject: lesson.subject || '', content: lesson.content || '', grade_level: lesson.grade_level || '', language: lesson.language || 'uz', video_url: lesson.video_url || '' });
+        setEditLessonQuestions((lesson.quiz_questions || []).map(q => ({
+            type: q.type || 'multiple_choice',
+            question: q.question || '',
+            options: q.options || ['', '', '', ''],
+            correct: q.correct ?? 0,
+            correct_text: q.correct_text || '',
+            image_options: q.image_options || ['', '', '', ''],
+            points: q.points || 5,
+        })));
     };
 
     const handleUpdateContentLesson = async () => {
@@ -621,7 +647,10 @@ export default function OlympiadsPage() {
         }
         try {
             setSaving(true); setError('');
-            const payload = { ...editLessonForm };
+            const payload = {
+                ...editLessonForm,
+                quiz_questions: editLessonQuestions.filter(q => q.question.trim()),
+            };
             if (contentUploadFile) {
                 const upRes = await adminService.uploadFile(contentUploadFile);
                 if (upRes.data?.url) payload.attachments = [...(editLesson.attachments || []), { name: contentUploadFile.name, url: upRes.data.url, size: upRes.data.size || contentUploadFile.size }];
@@ -629,6 +658,7 @@ export default function OlympiadsPage() {
             await olympiadService.updateOlympiadLesson(selectedOlympiad.id, editLesson.id, payload);
             notify('success', 'Dars yangilandi!');
             setEditLesson(null);
+            setEditLessonQuestions([]);
             setContentUploadFile(null);
             loadContentData();
         } catch (e) {
@@ -651,6 +681,168 @@ export default function OlympiadsPage() {
     const removeContentQuestion = (i) => setErtakQuestions(prev => prev.filter((_, idx) => idx !== i));
     const updateContentQuestion = (i, field, val) => setErtakQuestions(prev => prev.map((q, idx) => idx === i ? { ...q, [field]: val } : q));
 
+    // ======================== LESSON QUIZ EDITOR ========================
+    const questionTypeConfig = {
+        multiple_choice: { label: 'Ko\'p tanlovli', icon: HelpCircle, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+        true_false:      { label: 'To\'g\'ri / Noto\'g\'ri', icon: ToggleLeft, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+        open_text:       { label: 'Ochiq javob', icon: AlignLeft, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+        image_choice:    { label: 'Rasm tanlash', icon: Image, color: 'text-pink-400', bg: 'bg-pink-500/10' },
+    };
+
+    const renderLessonQuizEditor = (qs, setter) => (
+        <div className="border border-dashed border-gray-600 rounded-xl p-4 space-y-4">
+            <div className="flex items-center justify-between">
+                <p className="text-white text-sm font-semibold">🧠 Test savollari ({qs.length})</p>
+                <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(questionTypeConfig).map(([type, cfg]) => (
+                        <button
+                            key={type}
+                            onClick={() => addLessonQ(setter)}
+                            title={cfg.label}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${cfg.bg} ${cfg.color} hover:opacity-80 transition-opacity`}
+                            // Override type on add by wrapping:
+                            onClickCapture={(e) => {
+                                e.stopPropagation();
+                                setter(prev => [...prev, { ...emptyLessonQ(), type }]);
+                            }}
+                        >
+                            <cfg.icon size={12} /> {cfg.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {qs.length === 0 && (
+                <p className="text-gray-500 text-xs text-center py-3">Hali savol qo'shilmagan. Yuqoridagi tugmalardan birini bosing.</p>
+            )}
+
+            {qs.map((q, qi) => {
+                const cfg = questionTypeConfig[q.type] || questionTypeConfig.multiple_choice;
+                return (
+                    <div key={qi} className="bg-gray-800/60 rounded-xl p-3 space-y-2.5">
+                        {/* Header */}
+                        <div className="flex items-center justify-between">
+                            <div className={`flex items-center gap-1.5 text-xs font-medium ${cfg.color} ${cfg.bg} px-2 py-1 rounded-lg`}>
+                                <cfg.icon size={12} /> {cfg.label}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={q.type}
+                                    onChange={e => updateLessonQ(setter, qi, 'type', e.target.value)}
+                                    className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-gray-300 text-xs outline-none"
+                                >
+                                    {Object.entries(questionTypeConfig).map(([t, c]) => (
+                                        <option key={t} value={t}>{c.label}</option>
+                                    ))}
+                                </select>
+                                <button onClick={() => removeLessonQ(setter, qi)} className="text-gray-500 hover:text-red-400"><X size={14} /></button>
+                            </div>
+                        </div>
+
+                        {/* Question text */}
+                        <input
+                            value={q.question}
+                            onChange={e => updateLessonQ(setter, qi, 'question', e.target.value)}
+                            placeholder="Savol matni..."
+                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                        />
+
+                        {/* Type-specific inputs */}
+                        {q.type === 'multiple_choice' && (
+                            <div className="space-y-1.5">
+                                {q.options.map((opt, oi) => (
+                                    <div key={oi} className="flex items-center gap-2">
+                                        <input
+                                            type="radio"
+                                            name={`lq_correct_${qi}`}
+                                            checked={q.correct === oi}
+                                            onChange={() => updateLessonQ(setter, qi, 'correct', oi)}
+                                            className="accent-emerald-500 shrink-0"
+                                        />
+                                        <input
+                                            value={opt}
+                                            onChange={e => updateLessonQOption(setter, qi, oi, e.target.value)}
+                                            placeholder={`${String.fromCharCode(65 + oi)} variant`}
+                                            className="flex-1 px-2 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                        />
+                                    </div>
+                                ))}
+                                <p className="text-gray-500 text-xs">● = To'g'ri javob</p>
+                            </div>
+                        )}
+
+                        {q.type === 'true_false' && (
+                            <div className="flex gap-3">
+                                {['To\'g\'ri', 'Noto\'g\'ri'].map((label, oi) => (
+                                    <button
+                                        key={oi}
+                                        onClick={() => updateLessonQ(setter, qi, 'correct', oi)}
+                                        className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${q.correct === oi ? (oi === 0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50') : 'bg-gray-700 text-gray-400 border border-gray-600'}`}
+                                    >
+                                        {oi === 0 ? '✓' : '✗'} {label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {q.type === 'open_text' && (
+                            <input
+                                value={q.correct_text}
+                                onChange={e => updateLessonQ(setter, qi, 'correct_text', e.target.value)}
+                                placeholder="To'g'ri javob (tekshiruv uchun)..."
+                                className="w-full px-3 py-2 bg-emerald-900/20 border border-emerald-700/40 rounded-lg text-emerald-300 text-sm focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                            />
+                        )}
+
+                        {q.type === 'image_choice' && (
+                            <div className="space-y-2">
+                                <div className="grid grid-cols-2 gap-2">
+                                    {(q.image_options || ['', '', '', '']).map((url, oi) => (
+                                        <div key={oi} className={`relative rounded-xl border-2 overflow-hidden transition-all ${q.correct === oi ? 'border-emerald-500' : 'border-gray-600'}`}>
+                                            <button
+                                                onClick={() => updateLessonQ(setter, qi, 'correct', oi)}
+                                                className="absolute top-1 left-1 z-10 w-5 h-5 rounded-full border-2 border-white/40 flex items-center justify-center"
+                                                style={{ background: q.correct === oi ? '#10b981' : 'transparent' }}
+                                            >
+                                                {q.correct === oi && <span className="text-white text-xs">✓</span>}
+                                            </button>
+                                            {url ? (
+                                                <img src={url} alt={`Option ${oi + 1}`} className="w-full h-20 object-cover" />
+                                            ) : (
+                                                <div className="w-full h-20 bg-gray-700 flex items-center justify-center">
+                                                    <Image size={20} className="text-gray-500" />
+                                                </div>
+                                            )}
+                                            <input
+                                                value={url}
+                                                onChange={e => updateLessonQImageOption(setter, qi, oi, e.target.value)}
+                                                placeholder={`Rasm URL ${oi + 1}`}
+                                                className="w-full px-2 py-1 bg-gray-800 text-white text-xs outline-none border-t border-gray-600 placeholder-gray-500"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-gray-500 text-xs">Yashil = To'g'ri javob rasm</p>
+                            </div>
+                        )}
+
+                        {/* Points */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-gray-500 text-xs">Ball:</span>
+                            <input
+                                type="number"
+                                min={1} max={100}
+                                value={q.points}
+                                onChange={e => updateLessonQ(setter, qi, 'points', parseInt(e.target.value) || 5)}
+                                className="w-16 px-2 py-1 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs outline-none"
+                            />
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+
     // ======================== RENDER: CONTENT ========================
     const renderContent = () => {
         if (contentLoading) return <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" /></div>;
@@ -665,16 +857,23 @@ export default function OlympiadsPage() {
                             <p className="text-gray-500 text-sm">Darslar va ertaklar boshqaruvi {selectedOlympiad ? `— ${selectedOlympiad.title}` : ''}</p>
                         </div>
                     </div>
-                    <button onClick={() => setContentModal(contentTab === 'lessons' ? 'lesson' : 'ertak')} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors">
-                        <Plus className="w-4 h-4" /> Yangi {contentTab === 'lessons' ? 'dars' : 'ertak'}
+                    <button
+                        onClick={() => {
+                            if (contentTab === 'lessons') setContentModal('lesson');
+                            else if (contentTab === 'ertaklar') setContentModal('ertak');
+                            else setShowAddQuestion(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+                    >
+                        <Plus className="w-4 h-4" /> Yangi {contentTab === 'lessons' ? 'dars' : contentTab === 'ertaklar' ? 'ertak' : 'savol'}
                     </button>
                 </div>
 
-                {/* Tabs */}
                 <div className="flex gap-2 mb-6">
                     {[
                         { key: 'lessons', label: 'Darslar', icon: BookOpen, count: contentLessons.length },
                         { key: 'ertaklar', label: 'Ertaklar', icon: Book, count: contentErtaklar.length },
+                        { key: 'tests', label: 'Test', icon: FileText, count: questions.length },
                     ].map(t => (
                         <button key={t.key} onClick={() => setContentTab(t.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${contentTab === t.key ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-gray-400 bg-gray-900 border border-gray-800 hover:text-white'}`}>
                             <t.icon className="w-4 h-4" /> {t.label} <span className="text-xs opacity-50">({t.count})</span>
@@ -696,6 +895,9 @@ export default function OlympiadsPage() {
                                         <div className="flex items-center gap-2 text-xs text-gray-500">
                                             <span>{l.subject}</span>
                                             {l.grade_level && <span>• {l.grade_level}</span>}
+                                            {(l.quiz_questions?.length > 0) && (
+                                                <span className="text-indigo-400">• 🧠 {l.quiz_questions.length} savol</span>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2 mt-1">
                                             {l.video_url && <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1"><Video size={12} /> Video</a>}
@@ -711,6 +913,39 @@ export default function OlympiadsPage() {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {/* Testlar */}
+                {contentTab === 'tests' && (
+                    <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-white font-bold flex items-center gap-2"><FileText size={18} /> Test Savollari ({questions.length})</h3>
+                            <button onClick={() => setShowAddQuestion(true)} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm"><Plus size={16} /> Savol</button>
+                        </div>
+                        {questions.length === 0 ? (
+                            <p className="text-gray-500 text-sm text-center py-4">Savollar qo'shilmagan</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {questions.map((q, i) => (
+                                    <div key={q.id} className="bg-gray-900/50 rounded-xl p-4">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1">
+                                                <p className="text-white text-sm"><span className="text-indigo-400 font-bold mr-2">{i + 1}.</span>{q.question_text} <span className="text-gray-500">({q.points} ball)</span></p>
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {(q.options || []).map((opt, oi) => (
+                                                        <span key={oi} className={`text-xs px-2 py-1 rounded ${oi === q.correct_answer ? 'bg-green-500/20 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
+                                                            {String.fromCharCode(65 + oi)}. {opt}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <button onClick={async () => { await olympiadService.deleteQuestion(selectedOlympiad.id, q.id); const r = await olympiadService.listQuestions(selectedOlympiad.id); setQuestions(r.questions || []); }} className="text-gray-600 hover:text-red-400 ml-2"><Trash2 size={16} /></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -739,7 +974,7 @@ export default function OlympiadsPage() {
 
                 {/* Create Lesson Modal */}
                 {contentModal === 'lesson' && (
-                    <ContentModal title="Yangi dars yaratish" onClose={() => setContentModal(null)}>
+                    <ContentModal title="Yangi dars yaratish" onClose={() => { setContentModal(null); setLessonQuestions([]); }}>
                         <div className="space-y-3">
                             <ContentInput label="Nomi *" value={lessonForm.title} onChange={(v) => setLessonForm({ ...lessonForm, title: v })} />
                             <ContentInput label="Fan *" value={lessonForm.subject} onChange={(v) => setLessonForm({ ...lessonForm, subject: v })} placeholder="Matematika, Ingliz tili..." />
@@ -756,10 +991,12 @@ export default function OlympiadsPage() {
                                 <label className="text-gray-400 text-xs mb-1 block">Fayl yuklash (Ixtiyoriy)</label>
                                 <input type="file" onChange={(e) => setContentUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
                             </div>
+                            {/* Quiz section */}
+                            {renderLessonQuizEditor(lessonQuestions, setLessonQuestions)}
                         </div>
                         {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
                         <div className="flex justify-end gap-3 mt-6">
-                            <button onClick={() => setContentModal(null)} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                            <button onClick={() => { setContentModal(null); setLessonQuestions([]); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
                             <button onClick={handleCreateContentLesson} disabled={saving || !lessonForm.title || !lessonForm.subject || !lessonForm.content} className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
                                 {saving ? 'Yaratilmoqda...' : 'Yaratish'}
                             </button>
@@ -769,7 +1006,7 @@ export default function OlympiadsPage() {
 
                 {/* Edit Lesson Modal */}
                 {editLesson && (
-                    <ContentModal title={`Darsni tahrirlash: ${editLesson.title}`} onClose={() => { setEditLesson(null); setContentUploadFile(null); }}>
+                    <ContentModal title={`Darsni tahrirlash: ${editLesson.title}`} onClose={() => { setEditLesson(null); setContentUploadFile(null); setEditLessonQuestions([]); }}>
                         <div className="space-y-3">
                             <ContentInput label="Nomi *" value={editLessonForm.title} onChange={(v) => setEditLessonForm({ ...editLessonForm, title: v })} />
                             <ContentInput label="Fan" value={editLessonForm.subject} onChange={(v) => setEditLessonForm({ ...editLessonForm, subject: v })} />
@@ -796,10 +1033,12 @@ export default function OlympiadsPage() {
                                 <label className="text-gray-400 text-xs mb-1 block">Yangi fayl qo'shish</label>
                                 <input type="file" onChange={(e) => setContentUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
                             </div>
+                            {/* Quiz section */}
+                            {renderLessonQuizEditor(editLessonQuestions, setEditLessonQuestions)}
                         </div>
                         {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
                         <div className="flex justify-end gap-3 mt-6">
-                            <button onClick={() => { setEditLesson(null); setContentUploadFile(null); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                            <button onClick={() => { setEditLesson(null); setContentUploadFile(null); setEditLessonQuestions([]); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
                             <button onClick={handleUpdateContentLesson} disabled={saving || !editLessonForm.title} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
                                 {saving ? 'Saqlanmoqda...' : 'Saqlash'}
                             </button>
@@ -820,8 +1059,6 @@ export default function OlympiadsPage() {
                                 <ContentSelect label="Til" value={ertakForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setErtakForm({ ...ertakForm, language: v })} />
                                 <ContentSelect label="Yosh guruhi" value={ertakForm.age_group} options={['4-6', '6-8', '8-10', '10-12']} onChange={(v) => setErtakForm({ ...ertakForm, age_group: v })} />
                             </div>
-
-                            {/* Savollar */}
                             <div className="border border-dashed border-gray-600 rounded-xl p-4">
                                 <div className="flex items-center justify-between mb-3">
                                     <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
@@ -846,7 +1083,6 @@ export default function OlympiadsPage() {
                                     </div>
                                 )}
                             </div>
-
                             <div>
                                 <label className="text-gray-400 text-xs mb-1 block">Audio / Fayl yuklash (Ixtiyoriy)</label>
                                 <input type="file" accept="audio/*" onChange={(e) => setContentUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
@@ -930,8 +1166,6 @@ export default function OlympiadsPage() {
                         <input type="number" value={rtForm.time_limit_seconds} onChange={e => setRtForm({ ...rtForm, time_limit_seconds: parseInt(e.target.value) || 300 })} className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
                         <span className="text-gray-500 text-sm self-center">soniya</span>
                     </div>
-
-                    {/* Comprehension questions */}
                     <div className="border-t border-gray-700 pt-3">
                         <p className="text-gray-400 text-sm mb-2">Tushunish savollari ({rtForm.comprehension_questions.length})</p>
                         {rtForm.comprehension_questions.map((cq, i) => (
@@ -956,7 +1190,6 @@ export default function OlympiadsPage() {
                             }} className="text-xs text-indigo-400 hover:underline">+ Savolni qo'shish</button>
                         </div>
                     </div>
-
                     <button onClick={handleAddReadingTask} className="w-full py-2.5 bg-amber-600 text-white rounded-xl font-medium">Qo'shish</button>
                 </div>
             ))}
@@ -997,7 +1230,6 @@ export default function OlympiadsPage() {
     );
 }
 
-// Reusable content components
 const ContentModal = ({ title, onClose, children }) => (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>

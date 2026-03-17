@@ -55,11 +55,7 @@ const AppRoutes = () => {
       <Route path="/math-monster" element={<MathMonsterGame />} />
       <Route path="/math" element={<MathMonsterGame />} />
 
-      {/* Tetris */}
-      <Route path="/tetris" element={<Tetris />} />
-
-      {/* 2048 */}
-      <Route path="/2048" element={<Game2048 />} />
+      
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -88,8 +84,7 @@ const GameSelection = () => {
       setGamesList([
         { id: 1, title: "Xotira O'yini", icon: "🧠", path: "/memory", bg_color: "from-pink-500 to-rose-600", shadow_color: "rgba(244,63,94,0.4)" },
         { id: 2, title: "Matematika", icon: "🤖", path: "/math-monster", bg_color: "from-green-500 to-emerald-600", shadow_color: "rgba(16,185,129,0.4)" },
-        { id: 3, title: "Tetris", icon: "🧱", path: "/tetris", bg_color: "from-yellow-500 to-amber-600", shadow_color: "rgba(245,158,11,0.4)" },
-        { id: 4, title: "2048", icon: "🔢", path: "/2048", bg_color: "from-blue-500 to-cyan-600", shadow_color: "rgba(59,130,246,0.4)" }
+       
       ]);
     } finally {
       setLoading(false);

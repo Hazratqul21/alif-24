@@ -4,9 +4,10 @@ MathKids Image Reader - Matematik masalalarni rasmdan o'qish
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from openai import AsyncAzureOpenAI
 import base64
-import os
 import logging
 from app.core.config import settings
+
+from sympy import sympify, latex as sympy_latex
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -58,6 +59,37 @@ def clean_text_for_tts(text: str) -> str:
         text = text.replace(old, new)
     
     return text
+
+
+def math_text_to_latex(text: str) -> str:
+    """Try to parse raw OCR math text and return a LaTeX string.
+
+    This is not guaranteed since OCR text can be noisy. We make a best-effort
+    conversion using sympy and some simple normalizations.
+    """
+    if not text:
+        return ''
+
+    cleaned = (text
+        .replace('−', '-')
+        .replace('—', '-')
+        .replace('×', '*')
+        .replace('÷', '/')
+        .replace('^', '**')
+        .replace('“', '"').replace('”', '"')
+        .replace('‘', "'").replace('’', "'")
+    )
+
+    # Often OCR returns spaces inside exponents like "3^( 8x - 1 )"; remove
+    # spaces around ** to make parsing more reliable.
+    cleaned = cleaned.replace('** ', '**').replace(' **', '**')
+
+    try:
+        expr = sympify(cleaned, evaluate=False)
+        return sympy_latex(expr, mul_symbol='dot')
+    except Exception:
+        # Fallback: just escape backslashes/underscores for KaTeX display
+        return cleaned
 
 
 @router.post("/image/read")
@@ -115,10 +147,14 @@ async def read_math_image(image: UploadFile = File(...)):
         
         # Matnni TTS uchun tozalash (faqat ovoz uchun)
         cleaned_text = clean_text_for_tts(text_output)
+
+        # LaTeX ko'rinishini ham qaytara olsak foydali
+        latex_text = math_text and math_text_to_latex(math_text) or ""
         
         return {
             "success": True, 
             "text": math_text,  # Matematik belgilar bilan
+            "latex": latex_text,
             "speech_text": cleaned_text  # TTS uchun
         }
         

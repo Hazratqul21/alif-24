@@ -58,3 +58,18 @@ async def get_current_user(
         raise UnauthorizedError("User account is deactivated")
     
     return user
+
+
+async def get_optional_current_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSession = Depends(get_db)
+):
+    """Optional auth: returns current user or None if unauthenticated.
+
+    This is useful for routes that should work for both guest users and logged-in users.
+    """
+    try:
+        return await get_current_user(request, credentials, db)
+    except Exception:
+        return None

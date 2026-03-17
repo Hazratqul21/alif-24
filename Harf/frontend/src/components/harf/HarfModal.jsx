@@ -64,6 +64,12 @@ const HarfModal = ({ isOpen, onClose, card, externalTranscript, onAskStateChange
     const ensureSpeechConfig = useCallback(async () => {
         if (speechConfigRef.current) return true;
 
+        if (!SpeechSDK?.SpeechConfig?.fromAuthorizationToken) {
+            console.error('❌ [HarfModal] Speech SDK is not available or missing SpeechConfig.fromAuthorizationToken');
+            setSttError("Speech service not available.");
+            return false;
+        }
+
         // If an init is already in-flight, await it instead of failing.
         if (speechInitPromiseRef.current) {
             try {

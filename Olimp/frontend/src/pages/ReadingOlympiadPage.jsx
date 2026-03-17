@@ -227,7 +227,7 @@ function LeaderboardTable({ leaderboard, loading, currentUserId }) {
                             <tr className="text-white/40 text-xs uppercase tracking-wide border-b border-white/10">
                                 <th className="text-left py-3 px-2">#</th>
                                 <th className="text-left py-3 px-2">Ism</th>
-                                <th className="text-center py-3 px-2">Ball</th>
+                                <th className="text-center py-3 px-2">Ball (jami)</th>
                                 <th className="text-center py-3 px-2 hidden sm:table-cell">Tezlik</th>
                                 <th className="text-center py-3 px-2 hidden sm:table-cell">O'qilgan</th>
                                 <th className="text-center py-3 px-2 hidden md:table-cell">Vaqt</th>
@@ -262,8 +262,8 @@ function LeaderboardTable({ leaderboard, loading, currentUserId }) {
                                             )}
                                         </td>
                                         <td className="py-3 px-2 text-center">
-                                            <span className={`font-bold text-base ${entry.quiz_score >= 80 ? 'text-emerald-400' : entry.quiz_score >= 50 ? 'text-amber-400' : entry.quiz_score > 0 ? 'text-red-400' : 'text-white/30'}`}>
-                                                {entry.quiz_score || '—'}
+                                            <span className={`font-bold text-base ${entry.total_score >= 80 ? 'text-emerald-400' : entry.total_score >= 50 ? 'text-amber-400' : entry.total_score > 0 ? 'text-red-400' : 'text-white/30'}`}>
+                                                {entry.total_score || '—'}
                                             </span>
                                         </td>
                                         <td className="py-3 px-2 text-center hidden sm:table-cell">

@@ -41,3 +41,6 @@ pypdf==4.1.0
 asyncpg==0.29.0
 pytest-asyncio==0.23.5
 sentry-sdk[fastapi]==1.40.6
+
+# Math parsing for OCR -> LaTeX
+sympy==1.12
