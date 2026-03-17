@@ -68,8 +68,13 @@ class PaymeGateway(BaseGateway):
     Docs: https://developer.help.paycom.uz/
     """
 
-    BASE_URL = "https://checkout.paycom.uz"
-    MERCHANT_API = "https://checkout.paycom.uz/api"
+    @property
+    def base_url(self):
+        return "https://test.paycom.uz" if self.is_test else "https://checkout.paycom.uz"
+
+    @property
+    def merchant_api(self):
+        return f"{self.base_url}/api"
 
     async def create_payment(
         self, amount: int, order_id: str, description: str, return_url: str
@@ -84,7 +89,7 @@ class PaymeGateway(BaseGateway):
         params = f"m={self.merchant_id};ac.order_id={order_id};a={amount_tiyin};c={return_url}"
         encoded = base64.b64encode(params.encode()).decode()
 
-        checkout_url = f"{self.BASE_URL}/{encoded}"
+        checkout_url = f"{self.base_url}/{encoded}"
 
         return {
             "checkout_url": checkout_url,
@@ -105,7 +110,7 @@ class PaymeGateway(BaseGateway):
         }
         try:
             async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.post(self.MERCHANT_API, json=payload, headers=headers)
+                resp = await client.post(self.merchant_api, json=payload, headers=headers)
                 data = resp.json()
                 if data.get("result"):
                     state = data["result"].get("state", 0)

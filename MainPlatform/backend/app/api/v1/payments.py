@@ -19,6 +19,7 @@ from shared.database.models import (
     User,
     SubscriptionPlanConfig, UserSubscription, SubscriptionStatus,
     PaymentGatewayConfig, PaymentTransaction, TransactionStatus,
+    PromoCode, PromoCodeUsage,
 )
 from shared.payments.gateway_service import get_gateway
 
@@ -35,6 +36,7 @@ class CheckoutRequest(BaseModel):
     plan_config_id: str
     gateway_id: Optional[str] = None  # Agar berilmasa default gateway ishlatiladi
     return_url: Optional[str] = "https://alif24.uz/payment/success"
+    promo_code: Optional[str] = None  # Chegirma uchun promokod (ixtiyoriy)
 
 
 class GatewayCreateRequest(BaseModel):
@@ -158,21 +160,50 @@ async def checkout(
     else:
         gateway = await get_default_gateway(db)
 
-    # 3. Tranzaksiya yaratish
+    # 3. Promokod chegirma tekshirish (ixtiyoriy)
+    final_amount = plan.price
+    promo_applied = None
+    if data.promo_code:
+        try:
+            promo_obj = await _validate_promo(data.promo_code, user.id, db)
+            if promo_obj.promo_type == "discount" and promo_obj.discount_percent > 0:
+                discount_amount = int(plan.price * promo_obj.discount_percent / 100)
+                final_amount = max(0, plan.price - discount_amount)
+                promo_applied = promo_obj
+        except HTTPException:
+            # Noto'g'ri promokod — checkout ni to'xtatmaymiz, shunchaki e'tiborsiz qoldiramiz
+            logger.warning(f"Checkout: invalid promo_code '{data.promo_code}' for user {user.id}")
+
+    # 4. Tranzaksiya yaratish
     transaction = PaymentTransaction(
         user_id=user.id,
         plan_config_id=plan.id,
         gateway_config_id=gateway.id,
         provider=gateway.provider,
-        amount=plan.price,
+        amount=final_amount,
         status=TransactionStatus.pending.value,
-        description=f"{plan.name} obunasi — {plan.duration_days} kun",
+        description=(
+            f"{plan.name} obunasi — {plan.duration_days} kun"
+            + (f" ({promo_applied.discount_percent}% chegirma)" if promo_applied else "")
+        ),
     )
     db.add(transaction)
     await db.commit()
     await db.refresh(transaction)
 
-    # 4. Gateway'dan checkout URL olish
+    # Chegirma promokod ishlatildi — usage yozamiz
+    if promo_applied:
+        usage = PromoCodeUsage(
+            promo_code_id=promo_applied.id,
+            user_id=user.id,
+            result_type="discount",
+            result_value=f"{promo_applied.discount_percent}% chegirma, asl: {plan.price} UZS → {final_amount} UZS",
+        )
+        db.add(usage)
+        promo_applied.current_uses = (promo_applied.current_uses or 0) + 1
+        await db.commit()
+
+    # 5. Gateway'dan checkout URL olish
     try:
         gw_service = get_gateway({
             "provider": gateway.provider,
@@ -183,7 +214,7 @@ async def checkout(
             "settings": gateway.settings,
         })
         result = await gw_service.create_payment(
-            amount=plan.price,
+            amount=final_amount,
             order_id=transaction.id,
             description=transaction.description,
             return_url=data.return_url,
@@ -199,8 +230,10 @@ async def checkout(
             "transaction_id": transaction.id,
             "checkout_url": transaction.checkout_url,
             "provider": gateway.provider,
-            "amount": plan.price,
+            "amount": final_amount,
+            "original_amount": plan.price,
             "plan_name": plan.name,
+            "discount_applied": promo_applied.discount_percent if promo_applied else None,
         }
     except Exception as e:
         logger.error(f"Checkout error: {e}")
@@ -280,6 +313,203 @@ async def available_gateways(db: AsyncSession = Depends(get_db)):
 
 
 # ============================================================================
+# PROMO CODE — USER FACING
+# ============================================================================
+
+async def _validate_promo(
+    code: str,
+    user_id: str,
+    db: AsyncSession,
+) -> PromoCode:
+    """
+    Promokodni tekshirish:
+    - Mavjudmi, faolmi, muddati o'tmaganmi,
+    - Umumiy limit oshmaganmi, user o'zi ko'p ishlatmaganmi
+    """
+    result = await db.execute(
+        select(PromoCode).where(PromoCode.code == code.upper(), PromoCode.is_active == True)
+    )
+    promo = result.scalars().first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promokod topilmadi yoki faol emas")
+
+    now = datetime.now(timezone.utc)
+    if promo.starts_at and promo.starts_at > now:
+        raise HTTPException(status_code=400, detail="Promokod hali kuchga kirmagan")
+    if promo.expires_at and promo.expires_at < now:
+        raise HTTPException(status_code=400, detail="Promokod muddati tugagan")
+    if promo.max_uses > 0 and promo.current_uses >= promo.max_uses:
+        raise HTTPException(status_code=400, detail="Promokod ishlatish limiti tugagan")
+
+    # User bu promokodni necha marta ishlatgan
+    if promo.max_uses_per_user > 0:
+        user_usage = await db.scalar(
+            select(func.count(PromoCodeUsage.id)).where(
+                PromoCodeUsage.promo_code_id == promo.id,
+                PromoCodeUsage.user_id == user_id,
+            )
+        ) or 0
+        if user_usage >= promo.max_uses_per_user:
+            raise HTTPException(status_code=400, detail="Siz bu promokodni allaqachon ishlatgansiz")
+
+    return promo
+
+
+@router.get("/promo/{code}")
+async def validate_promo_code(
+    code: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Promokodni tekshirish (ishlatmasdan).
+    Frontend da foydalanuvchi kod kiritganda darhol ko'rsatish uchun.
+    """
+    promo = await _validate_promo(code, user.id, db)
+
+    # Chegirma turida plan narxini ko'rsatish uchun
+    preview = {
+        "code": promo.code,
+        "promo_type": promo.promo_type,
+        "description": promo.description,
+    }
+    if promo.promo_type == "discount":
+        preview["discount_percent"] = promo.discount_percent
+        preview["message"] = f"{promo.discount_percent}% chegirma beriladi"
+    elif promo.promo_type == "free_days":
+        preview["free_days_count"] = promo.free_days_count
+        preview["message"] = f"{promo.free_days_count} kun bepul sinash muddati beriladi"
+    elif promo.promo_type == "plan":
+        if promo.plan_config:
+            preview["plan_name"] = promo.plan_config.name
+            preview["plan_days"] = promo.plan_config.duration_days
+        preview["message"] = "Sizga to'liq obuna beriladi"
+
+    return {"valid": True, "promo": preview}
+
+
+@router.post("/promo/{code}/apply")
+async def apply_promo_code(
+    code: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Promokodni qo'llash.
+    - free_days: Foydalanuvchining joriy obunasiga kun qo'shadi (yoki yangi ochadi).
+    - plan: To'g'ridan-to'g'ri berilgan planni beradi.
+    - discount: Checkout paytida ishlatiladi, bu endpoint faqat tasdiqlaydi.
+    """
+    promo = await _validate_promo(code, user.id, db)
+
+    if promo.promo_type == "discount":
+        # Chegirma checkout da qo'llanadi, bu yerda faqat tasdiqlash
+        return {
+            "applied": False,
+            "message": f"'{promo.code}' chegirma kodi to'lov paytida avtomatik qo'llanadi",
+            "promo_type": "discount",
+            "discount_percent": promo.discount_percent,
+            "code": promo.code,
+        }
+
+    now = datetime.now(timezone.utc)
+
+    if promo.promo_type == "free_days":
+        # Joriy faol obunani topamiz
+        existing_sub_res = await db.execute(
+            select(UserSubscription).where(
+                UserSubscription.user_id == user.id,
+                UserSubscription.status == SubscriptionStatus.active.value,
+            ).order_by(UserSubscription.expires_at.desc())
+        )
+        existing_sub = existing_sub_res.scalars().first()
+
+        if existing_sub:
+            # Mavjud obunaning muddatini uzaytiramiz
+            existing_sub.expires_at = existing_sub.expires_at + timedelta(days=promo.free_days_count)
+            result_msg = f"Obunangiz {promo.free_days_count} kunga uzaytirildi. Yangi tugash: {existing_sub.expires_at.strftime('%d.%m.%Y')}"
+        else:
+            # Joriy faol obuna yo'q — eng arzon (yoki birinchi) planni bepul ochib beramiz
+            first_plan_res = await db.execute(
+                select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.is_active == True)
+                .order_by(SubscriptionPlanConfig.sort_order)
+                .limit(1)
+            )
+            first_plan = first_plan_res.scalars().first()
+            if not first_plan:
+                raise HTTPException(status_code=503, detail="Hozircha faol obuna plani mavjud emas")
+
+            new_sub = UserSubscription(
+                user_id=user.id,
+                plan_config_id=first_plan.id,
+                status=SubscriptionStatus.active.value,
+                started_at=now,
+                expires_at=now + timedelta(days=promo.free_days_count),
+                amount_paid=0,
+                created_by=f"promo:{promo.code}",
+                notes=f"Promocode: {promo.code} ({promo.free_days_count} kun bepul)",
+            )
+            db.add(new_sub)
+            result_msg = f"{promo.free_days_count} kunlik bepul obuna ochildi!"
+
+    elif promo.promo_type == "plan":
+        if not promo.plan_config_id:
+            raise HTTPException(status_code=500, detail="Promokod plani sozlanmagan")
+
+        plan_res = await db.execute(
+            select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == promo.plan_config_id)
+        )
+        plan = plan_res.scalars().first()
+        if not plan or not plan.is_active:
+            raise HTTPException(status_code=400, detail="Promokod plani faol emas")
+
+        # Eski faol obunani expire qilamiz
+        old_subs_res = await db.execute(
+            select(UserSubscription).where(
+                UserSubscription.user_id == user.id,
+                UserSubscription.status == SubscriptionStatus.active.value,
+            )
+        )
+        for old in old_subs_res.scalars().all():
+            old.status = SubscriptionStatus.expired.value
+
+        new_sub = UserSubscription(
+            user_id=user.id,
+            plan_config_id=plan.id,
+            status=SubscriptionStatus.active.value,
+            started_at=now,
+            expires_at=now + timedelta(days=plan.duration_days),
+            amount_paid=0,
+            created_by=f"promo:{promo.code}",
+            notes=f"Promocode: {promo.code}",
+        )
+        db.add(new_sub)
+        result_msg = f"'{plan.name}' obunasi muvaffaqiyatli ochildi ({plan.duration_days} kun)!"
+
+    else:
+        raise HTTPException(status_code=400, detail="Noma'lum promokod turi")
+
+    # PromoCodeUsage yozamiz
+    usage = PromoCodeUsage(
+        promo_code_id=promo.id,
+        user_id=user.id,
+        result_type=promo.promo_type,
+        result_value=(
+            f"{promo.free_days_count} kun" if promo.promo_type == "free_days"
+            else promo.plan_config.name if promo.plan_config else str(promo.plan_config_id)
+        ),
+    )
+    db.add(usage)
+
+    # Promokod counter
+    promo.current_uses = (promo.current_uses or 0) + 1
+    await db.commit()
+
+    return {"applied": True, "message": result_msg}
+
+
+
+# ============================================================================
 # WEBHOOKS
 # ============================================================================
 
@@ -356,73 +586,220 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
     rpc_id = parsed.get("rpc_id")
 
     if method == "CheckPerformTransaction":
-        # Tranzaksiya tekshirish
-        if order_id:
-            txn_result = await db.execute(
-                select(PaymentTransaction).where(PaymentTransaction.id == order_id)
-            )
-            txn = txn_result.scalars().first()
-            if txn and txn.status in (TransactionStatus.pending.value, TransactionStatus.processing.value):
-                return {"id": rpc_id, "result": {"allow": True}}
-        return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
+        # Tranzaksiya qabul qilish tekshiruvi
+        if not order_id:
+            return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
+            
+        txn_result = await db.execute(
+            select(PaymentTransaction).where(PaymentTransaction.id == order_id)
+        )
+        txn = txn_result.scalars().first()
+        
+        if not txn:
+            return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
+            
+        if txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value):
+            return {"id": rpc_id, "error": {"code": -31050, "message": "Order is cancelled or failed"}}
+            
+        if parsed.get("amount") != txn.amount:
+            return {"id": rpc_id, "error": {"code": -31001, "message": "Incorrect amount"}}
+            
+        return {"id": rpc_id, "result": {"allow": True}}
+
 
     elif method == "CreateTransaction":
-        if order_id:
-            txn_result = await db.execute(
-                select(PaymentTransaction).where(PaymentTransaction.id == order_id)
-            )
-            txn = txn_result.scalars().first()
-            if txn:
-                txn.external_id = parsed.get("external_id")
-                txn.status = TransactionStatus.processing.value
-                txn.gateway_response = parsed.get("raw")
-                await db.commit()
-                return {"id": rpc_id, "result": {"create_time": int(txn.created_at.timestamp() * 1000), "transaction": txn.external_id, "state": 1}}
-        return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
+        if not order_id:
+            return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
+            
+        ext_id = parsed.get("external_id") # Payme system id
+        
+        # O'sha payme ID si bilan tranzaksiya bormi qidiramiz
+        existing_ext = await db.execute(
+            select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
+        )
+        existing_txn = existing_ext.scalars().first()
+        
+        if existing_txn:
+            # Agar oldin yaratilgan bo'lsa
+            if existing_txn.id != order_id:
+                # Xuddi o'sha to'lov boshqa order bn kelibdi.
+                return {"id": rpc_id, "error": {"code": -31050, "message": "Transaction belongs to different order"}}
+                
+            if existing_txn.status in (TransactionStatus.completed.value, TransactionStatus.processing.value):
+                # 12 soatdan o'tib ketganmi tekshiramiz
+                duration = datetime.now(timezone.utc) - existing_txn.created_at
+                if duration.total_seconds() > 43200: # 12 soat
+                    existing_txn.status = TransactionStatus.failed.value
+                    existing_txn.error_message = "Timeout (12h) passed"
+                    await db.commit()
+                    return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction timeout"}}
+                    
+                return {"id": rpc_id, "result": {"create_time": int(existing_txn.created_at.timestamp() * 1000), "transaction": existing_txn.external_id, "state": 1}}
+            
+            # Agar Cancelled bolsa qila olmaydi
+            return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction cancelled or failed"}}
+            
+            
+        # Oldin bunday ID li tranzaksiya kelmagan, endi orderni qaraymiz.
+        txn_result = await db.execute(
+            select(PaymentTransaction).where(PaymentTransaction.id == order_id)
+        )
+        txn = txn_result.scalars().first()
+        
+        if not txn:
+            return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
+            
+        if parsed.get("amount") != txn.amount:
+            return {"id": rpc_id, "error": {"code": -31001, "message": "Incorrect amount"}}
+            
+        if txn.status == TransactionStatus.pending.value:
+            # Endi Create qilamiz
+            txn.external_id = ext_id
+            txn.status = TransactionStatus.processing.value
+            txn.gateway_response = parsed.get("raw")
+            await db.commit()
+            return {"id": rpc_id, "result": {"create_time": int(txn.created_at.timestamp() * 1000), "transaction": txn.external_id, "state": 1}}
+            
+        return {"id": rpc_id, "error": {"code": -31050, "message": "Order already processed or cancelled"}}
+
 
     elif method == "PerformTransaction":
         ext_id = parsed.get("external_id")
-        if ext_id:
-            txn_result = await db.execute(
-                select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
-            )
-            txn = txn_result.scalars().first()
-            if txn:
-                await _complete_payment(txn, db)
-                return {"id": rpc_id, "result": {"transaction": txn.external_id, "perform_time": int(datetime.now(timezone.utc).timestamp() * 1000), "state": 2}}
-        return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+        if not ext_id:
+            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+            
+        txn_result = await db.execute(
+            select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
+        )
+        txn = txn_result.scalars().first()
+        
+        if not txn:
+            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+            
+        if txn.status == TransactionStatus.processing.value:
+            # 12 soatdan o'tib ketganmi tekshiramiz
+            duration = datetime.now(timezone.utc) - txn.created_at
+            if duration.total_seconds() > 43200: # 12 soat
+                txn.status = TransactionStatus.failed.value
+                txn.error_message = "Timeout (12h) passed before complete"
+                await db.commit()
+                return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction timeout"}}
+                
+            await _complete_payment(txn, db)
+            return {"id": rpc_id, "result": {"transaction": txn.external_id, "perform_time": int(txn.completed_at.timestamp() * 1000), "state": 2}}
+            
+        elif txn.status == TransactionStatus.completed.value:
+            # Already done - Idempotency
+            return {"id": rpc_id, "result": {"transaction": txn.external_id, "perform_time": int(txn.completed_at.timestamp() * 1000) if txn.completed_at else int(datetime.now(timezone.utc).timestamp() * 1000), "state": 2}}
+            
+        return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction is cancelled or failed"}}
+
 
     elif method == "CancelTransaction":
         ext_id = parsed.get("external_id")
-        if ext_id:
-            txn_result = await db.execute(
-                select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
-            )
-            txn = txn_result.scalars().first()
-            if txn:
-                txn.status = TransactionStatus.cancelled.value
-                txn.gateway_response = parsed.get("raw")
-                await db.commit()
-                return {"id": rpc_id, "result": {"transaction": txn.external_id, "cancel_time": int(datetime.now(timezone.utc).timestamp() * 1000), "state": -1}}
-        return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+        reason = parsed.get("raw", {}).get("params", {}).get("reason", 0)
+        
+        if not ext_id:
+            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+            
+        txn_result = await db.execute(
+            select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
+        )
+        txn = txn_result.scalars().first()
+        if not txn:
+            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+            
+        if txn.status == TransactionStatus.processing.value:
+            # Cancel before complete
+            txn.status = TransactionStatus.cancelled.value
+            txn.error_message = f"Cancelled by payme. Reason: {reason}"
+            txn.completed_at = datetime.now(timezone.utc) # Using as cancel time for simplicity
+            await db.commit()
+            return {"id": rpc_id, "result": {"transaction": txn.external_id, "cancel_time": int(txn.completed_at.timestamp() * 1000), "state": -1}}
+            
+        elif txn.status == TransactionStatus.completed.value:
+            # Cancel after complete (Refund)
+            txn.status = TransactionStatus.refunded.value
+            txn.error_message = f"Refunded by payme. Reason: {reason}"
+            txn.completed_at = datetime.now(timezone.utc) # Using this field dynamically
+            await db.commit()
+            
+            # Agar obunani ham avtomat bekor qilish kerak bo'lsa: (Bu qo'shimcha mantiq kiritish talab qiladi, hozircha faqat transaction)
+            return {"id": rpc_id, "result": {"transaction": txn.external_id, "cancel_time": int(txn.completed_at.timestamp() * 1000), "state": -2}}
+            
+        elif txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value, TransactionStatus.refunded.value):
+            # Already cancelled — idempotency
+            return {"id": rpc_id, "result": {
+                "transaction": txn.external_id,
+                "cancel_time": int(txn.completed_at.timestamp() * 1000) if txn.completed_at else int(datetime.now(timezone.utc).timestamp() * 1000),
+                "state": -1 if txn.status == TransactionStatus.cancelled.value else -2
+            }}
+
+        # Agar boshqa holat bo'lsa (masalan: pending) — bekor qila olmaymiz
+        return {"id": rpc_id, "error": {"code": -31007, "message": "Transaction cannot be cancelled in current state"}}
 
     elif method == "CheckTransaction":
         ext_id = parsed.get("external_id")
-        if ext_id:
-            txn_result = await db.execute(
-                select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
-            )
-            txn = txn_result.scalars().first()
-            if txn:
-                state_map = {
-                    TransactionStatus.pending.value: 1,
-                    TransactionStatus.processing.value: 1,
-                    TransactionStatus.completed.value: 2,
-                    TransactionStatus.cancelled.value: -1,
-                    TransactionStatus.failed.value: -2,
-                }
-                return {"id": rpc_id, "result": {"create_time": int(txn.created_at.timestamp() * 1000), "perform_time": int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0, "state": state_map.get(txn.status, 1), "transaction": txn.external_id}}
-        return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+        if not ext_id:
+            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+            
+        txn_result = await db.execute(
+            select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
+        )
+        txn = txn_result.scalars().first()
+        
+        if not txn:
+            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+            
+        reason = 0
+        if "Reason: " in (txn.error_message or ""):
+            try:
+                reason = int(txn.error_message.split("Reason: ")[1])
+            except:
+                pass
+                
+        state_map = {
+            TransactionStatus.processing.value: 1,
+            TransactionStatus.completed.value: 2,
+            TransactionStatus.cancelled.value: -1,
+            TransactionStatus.failed.value: -1,
+            TransactionStatus.refunded.value: -2,
+        }
+        
+        state = state_map.get(txn.status, 1)
+        create_time = int(txn.created_at.timestamp() * 1000) if hasattr(txn, 'created_at') and txn.created_at else 0
+        
+        # Holatlarga qarab vaqtlarni aniqlaymiz
+        perform_time = 0
+        cancel_time = 0
+        
+        if txn.status in (TransactionStatus.completed.value, TransactionStatus.refunded.value):
+             # Complete bo'lganda completed_at paydo bo'lgan
+             # Refunded -2 bo'lganda ham completed_at cancel_time bolib ishlatilgan
+             if txn.status == TransactionStatus.completed.value:
+                  perform_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
+             else:
+                  cancel_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
+        elif txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value):
+             cancel_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
+             
+        # "GetStatement" uchun zarur
+        return {
+            "id": rpc_id, 
+            "result": {
+                "create_time": create_time, 
+                "perform_time": perform_time,
+                "cancel_time": cancel_time,
+                "transaction": txn.external_id,
+                "state": state,
+                "reason": reason
+            }
+        }
+        
+    elif method == "GetStatement":
+        return {"id": rpc_id, "result": {"transactions": []}} # Sodda yechim, majburiy emas
+        
+
 
     return {"id": rpc_id, "error": {"code": -32601, "message": f"Unknown method: {method}"}}
 
@@ -468,6 +845,9 @@ async def webhook_click(request: Request, db: AsyncSession = Depends(get_db)):
         return {"error": -5, "error_note": "Transaction not found"}
 
     if parsed.get("method") == "prepare":
+        if parsed.get("amount") != txn.amount:
+            return {"error": -2, "error_note": "Incorrect amount"}
+            
         txn.external_id = parsed.get("external_id")
         txn.status = TransactionStatus.processing.value
         txn.gateway_response = parsed.get("raw")
@@ -475,6 +855,9 @@ async def webhook_click(request: Request, db: AsyncSession = Depends(get_db)):
         return {"error": 0, "error_note": "Success", "click_trans_id": parsed.get("external_id"), "merchant_trans_id": order_id, "merchant_prepare_id": txn.id}
 
     elif parsed.get("method") == "complete":
+        if parsed.get("amount") != txn.amount:
+            return {"error": -2, "error_note": "Incorrect amount"}
+            
         if parsed.get("status") == "completed":
             await _complete_payment(txn, db)
             return {"error": 0, "error_note": "Success", "click_trans_id": parsed.get("external_id"), "merchant_trans_id": order_id, "merchant_confirm_id": txn.id}
@@ -525,6 +908,13 @@ async def webhook_uzum(request: Request, db: AsyncSession = Depends(get_db)):
         return {"status": "error", "message": "Transaction not found"}
 
     if parsed.get("status") == "completed":
+        if parsed.get("amount") != txn.amount:
+            txn.status = TransactionStatus.failed.value
+            txn.error_message = f"Incorrect amount: expected {txn.amount}, got {parsed.get('amount')}"
+            txn.gateway_response = parsed.get("raw")
+            await db.commit()
+            return {"status": "error", "message": "Incorrect amount"}
+            
         await _complete_payment(txn, db)
     elif parsed.get("status") in ("cancelled", "failed"):
         txn.status = TransactionStatus.failed.value
@@ -572,9 +962,6 @@ async def admin_create_gateway(
 
     # Agar default bo'lsa, boshqalarni default emas qilish
     if data.is_default:
-        await db.execute(
-            select(PaymentGatewayConfig)  # dummy — need update
-        )
         existing = await db.execute(select(PaymentGatewayConfig).where(PaymentGatewayConfig.is_default == True))
         for gw in existing.scalars().all():
             gw.is_default = False
@@ -690,12 +1077,17 @@ async def admin_get_transactions(
     result = await db.execute(stmt.offset(offset).limit(limit))
     transactions = result.scalars().all()
 
-    # User info qo'shish
+    # User info — barcha user ID larini bir zaprosda olamiz (N+1 dan qochish)
+    user_ids = list({txn.user_id for txn in transactions})
+    users_result = await db.execute(
+        select(User.id, User.first_name, User.last_name, User.phone).where(User.id.in_(user_ids))
+    )
+    users_map = {row.id: row for row in users_result.all()}
+
     items = []
     for txn in transactions:
         d = txn.to_dict()
-        user_result = await db.execute(select(User.first_name, User.last_name, User.phone).where(User.id == txn.user_id))
-        u = user_result.first()
+        u = users_map.get(txn.user_id)
         if u:
             d["user_name"] = f"{u.first_name} {u.last_name}"
             d["user_phone"] = u.phone
