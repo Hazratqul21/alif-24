@@ -1,6 +1,18 @@
 // Backend URL from environment variables or default to Vercel production
 const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 
+/** Custom error for subscription-gated content */
+class SubscriptionError extends Error {
+  constructor(data) {
+    super(data?.message || 'Obuna talab etiladi');
+    this.name = 'SubscriptionError';
+    this.code = data?.code || 'SUBSCRIPTION_REQUIRED';
+    this.requiredFeature = data?.required_feature;
+    this.currentPlan = data?.current_plan;
+    this.upgradeUrl = data?.upgrade_url || '/pricing';
+  }
+}
+
 /**
  * API Service
  * Handles all HTTP requests to the backend
@@ -72,6 +84,16 @@ class ApiService {
           }));
           window.location.href = '/';
           throw new Error('Session expired');
+        }
+      }
+
+      // Handle subscription-required (403) — NEVER logout, show upgrade modal
+      if (response.status === 403) {
+        const subCode = data.detail?.code || data.code;
+        if (subCode === 'SUBSCRIPTION_REQUIRED' || subCode === 'FEATURE_LOCKED' || subCode === 'PREMIUM_REQUIRED') {
+          const detail = typeof data.detail === 'object' ? data.detail : { code: subCode, message: data.detail };
+          window.dispatchEvent(new CustomEvent('subscriptionRequired', { detail }));
+          throw new SubscriptionError(detail);
         }
       }
 
@@ -207,5 +229,6 @@ class ApiService {
   }
 }
 
+export { SubscriptionError };
 export const apiService = new ApiService();
 export default apiService;

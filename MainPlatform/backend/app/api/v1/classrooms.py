@@ -20,6 +20,7 @@ from shared.database.models.classroom import (
 )
 from shared.database.models.in_app_notification import InAppNotification, InAppNotifType
 from app.middleware.auth import get_current_user
+from app.middleware.subscription_deps import require_feature, SubscriptionInfo
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -536,6 +537,7 @@ async def remove_student(
 async def student_my_classrooms(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sub: SubscriptionInfo = Depends(require_feature("darslar")),
 ):
     if current_user.role != UserRole.student:
         raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
@@ -570,6 +572,7 @@ async def student_my_classrooms(
 async def student_invitations(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sub: SubscriptionInfo = Depends(require_feature("darslar")),
 ):
     if current_user.role != UserRole.student:
         raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
@@ -604,6 +607,7 @@ async def respond_invitation(
     invitation_id: str, data: InvitationResponse,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sub: SubscriptionInfo = Depends(require_feature("darslar")),
 ):
     if current_user.role != UserRole.student:
         raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
@@ -671,6 +675,7 @@ async def join_by_code(
     data: JoinByCodeRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sub: SubscriptionInfo = Depends(require_feature("darslar")),
 ):
     """Invite code orqali sinfga qo'shilish"""
     if current_user.role != UserRole.student:

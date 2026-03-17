@@ -7,8 +7,10 @@ from pydantic import BaseModel, Field
 
 from shared.database import get_db
 from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, Lesson
+from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, Lesson
 from shared.database.models.classroom import Classroom, ClassroomStudent, ClassroomStudentStatus
 from app.middleware.auth import get_current_user
+from app.middleware.subscription_deps import require_feature, SubscriptionInfo
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -71,6 +73,7 @@ async def get_lessons_for_student(
     offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sub: SubscriptionInfo = Depends(require_feature("darslar")),
 ):
     """Get lessons for current student — from their classroom teachers and organization"""
     # Get teacher IDs from student's classrooms
@@ -104,6 +107,8 @@ async def get_lesson_by_id(
     lesson_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    # Studentlar uchun darslar ruxsati tekshiriladi
+    sub: SubscriptionInfo = Depends(require_feature("darslar")),
 ):
     """Get a single lesson by ID (any authenticated user)"""
     res = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
@@ -134,6 +139,7 @@ async def list_all_lessons(
     offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sub: SubscriptionInfo = Depends(require_feature("darslar")),
 ):
     """List all lessons (public browse)"""
     base = select(Lesson)

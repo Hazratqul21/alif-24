@@ -194,6 +194,7 @@ async def refresh_token(request: Request, response: Response, data: RefreshToken
 
 @router.get("/me")
 async def get_me(
+    request: Request,
     current_user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -205,35 +206,50 @@ async def get_me(
     if not current_user:
         return None
 
+    # Middlewaredan tayyor subscription infosini olamiz
+    # Uning ishi "virtual free" plan bo'lsa ham hal qilgan bo'ladi
+    from app.middleware.subscription_deps import get_sub_info
+    sub_info = get_sub_info(request)
+
+    # Convert to dict for response
+    subscription_data = {
+        "status": "active" if sub_info.has_subscription else "none",
+        "plan_slug": sub_info.plan_slug or ("free" if not sub_info.has_subscription else "unknown"),
+        "plan_name": sub_info.plan_name or ("Bepul (Faqat ertaklar)" if not sub_info.has_subscription else "Noma'lum"),
+        "features": sub_info.features or {
+            # Default free features
+            "ertaklar": True,
+            "darslar": False,
+            "oyinlar": False,
+            "olimpiada": False,
+            "ai_test": False,
+            "kutubxona": False,
+            "live_quiz": False,
+        },
+        "expires_at": sub_info.expires_at,
+        "is_free": sub_info.is_free,
+        "is_premium": sub_info.is_premium
+    }
+
+    # Boshqa ma'lumotlarni yig'ish (Coin, Organization va hk)
+    from shared.database.models import StudentProfile, Organization
     from sqlalchemy import select
-    from shared.database.models import UserSubscription, SubscriptionPlanConfig, SubscriptionStatus
-
-    # Obuna ma'lumotini olish
-    subscription_data = None
+    
+    student_record = None
     try:
-        sub_result = await db.execute(
-            select(UserSubscription).where(
-                UserSubscription.user_id == current_user.id,
-                UserSubscription.status == SubscriptionStatus.active.value,
-            ).order_by(UserSubscription.expires_at.desc())
+        sp_res = await db.execute(
+            select(StudentProfile).where(StudentProfile.user_id == current_user.id)
         )
-        active_sub = sub_result.scalars().first()
-
-        if active_sub:
-            plan_result = await db.execute(
-                select(SubscriptionPlanConfig).where(
-                    SubscriptionPlanConfig.id == active_sub.plan_config_id
-                )
-            )
-            plan = plan_result.scalars().first()
-
-            subscription_data = {
-                "plan_name": plan.name if plan else None,
-                "plan_slug": plan.slug if plan else None,
-                "status": active_sub.status,
-                "expires_at": active_sub.expires_at.isoformat() if active_sub.expires_at else None,
-                "features": plan.features if plan else None,
-                "max_children": plan.max_children if plan else 1,
+        sp = sp_res.scalars().first()
+        if sp:
+            student_record = {
+                "id": sp.id,
+                "grade": sp.grade,
+                "school_name": sp.school_name,
+                "region": sp.region,
+                "district": sp.district,
+                "avatar_seed": sp.avatar_seed,
+                "total_coins": sp.total_coins,
             }
     except Exception:
         pass  # Subscription jadval hali yaratilmagan bo'lishi mumkin

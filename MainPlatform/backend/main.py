@@ -142,114 +142,102 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from shared.database import get_db as _get_db_session
 from shared.auth import verify_token as _verify_token
 from shared.database.models import UserSubscription, SubscriptionStatus
+from shared.database.models.subscription import SubscriptionPlanConfig
 from sqlalchemy import select as _select
+from sqlalchemy.orm import selectinload as _selectinload
 from datetime import datetime as _dt, timezone as _tz
+from app.middleware.subscription_deps import SubscriptionInfo
 
-# Obuna tekshirilMAYDIGAN URL'lar (ochiq)
-SUBSCRIPTION_EXEMPT_PREFIXES = (
-    "/api/v1/auth",           # Login, Register, Profile
-    "/api/v1/payments",       # Obuna sotib olish, webhook
-    "/api/v1/admin",          # Admin panel
-    "/api/v1/verification",   # Telefon tasdiqlash
-    "/api/v1/telegram",       # Bot webhook
-    "/api/v1/health",         # Monitoring
-    "/health",                # Server check
-    "/api/uploads",           # Static fayllar
-    "/docs",                  # Swagger
-    "/openapi",               # OpenAPI schema
-    "/api/v1/openapi",        # OpenAPI alt
-    "/api/v1/dashboard",      # Dashboard — profil, obuna holati
-    "/api/v1/classrooms",     # Sinflar ro'yxati
-    "/api/v1/assignments",    # Vazifalar
-    "/api/v1/notifications",  # Bildirishnomalar
-    "/api/v1/olympiad",       # Olimpiada
-    "/api/v1/coins",          # Coinlar
-    "/api/v1/organizations",  # Tashkilotlar
-    "/api/v1/feedback",       # Fikr-mulohaza
-    "/api/v1/public",         # Ochiq kontent
-    "/api/v1/smartkids",      # SmartKids AI
-    "/api/v1/mathkids",       # MathKids AI
-    "/api/v1/reading",        # O'qish musobaqalari
-    "/api/v1/gamification",   # Gamifikatsiya (Olimp orqali)
-    "/api/v1/games",          # O'yinlar (Games orqali)
-    "/api/v1/lessons",        # Darslar ro'yxati
-)
+class SubscriptionInfoMiddleware(BaseHTTPMiddleware):
+    """
+    Professional subscription middleware: "Inject, Don't Block"
+    Foydalanuvchini HECH QACHON bloklamaydi (403 bermaydi).
+    Faqat request.state.subscription ga joriy obuna va ruxsatlarni (features) yozadi.
+    Zarur bo'lsa, Endpoints o'zlari Depends() orqali ruxsat tekshiradi.
+    """
+    
+    # Static va tekshirish kerakmas api'lar
+    SKIP_PREFIXES = (
+        "/health", "/docs", "/openapi", "/api/uploads",
+        "/api/v1/health", "/api/v1/openapi",
+    )
 
-# Maxsus ochiq sahifalar (to'liq URL mos kelishi kerak)
-SUBSCRIPTION_EXEMPT_EXACT = {
-    "/",
-    "/api/v1/dashboard/subscription",
-    "/api/v1/dashboard/my-subscription",
-}
-
-
-class SubscriptionCheckMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        # 1. Ochiq URL'larni o'tkazib yuboramiz
-        if any(path.startswith(prefix) for prefix in SUBSCRIPTION_EXEMPT_PREFIXES):
+        # 1. Tizim resurslari — o'tkazamiz
+        if any(path.startswith(p) for p in self.SKIP_PREFIXES):
+            request.state.subscription = SubscriptionInfo() # Default, bo'sh
             return await call_next(request)
 
-        if path in SUBSCRIPTION_EXEMPT_EXACT:
-            return await call_next(request)
-
-        # 2. OPTIONS (CORS preflight) — o'tkazamiz
+        # 2. CORS
         if request.method == "OPTIONS":
+            request.state.subscription = SubscriptionInfo()
             return await call_next(request)
 
-        # 3. Token olishga urinamiz
+        # 3. Token qidirish
         token = request.cookies.get("access_token")
         if not token:
             auth_header = request.headers.get("authorization", "")
             if auth_header.startswith("Bearer "):
                 token = auth_header[7:]
 
+        # Token umuman topilmadi — u mehmondir (login qilinmagan)
         if not token:
-            # Token yo'q — get_current_user o'zi bloklasin
+            request.state.subscription = SubscriptionInfo(is_authenticated=False)
             return await call_next(request)
 
-        # 4. Tokenni dekod qilamiz
+        # 4. Token haqiqiyligini tekshirish
         try:
             payload = _verify_token(token)
             if not payload:
+                request.state.subscription = SubscriptionInfo()
                 return await call_next(request)
             user_id = payload.get("sub")
             if not user_id:
+                request.state.subscription = SubscriptionInfo()
                 return await call_next(request)
         except Exception:
+            request.state.subscription = SubscriptionInfo()
             return await call_next(request)
 
-        # 5. Obunani tekshiramiz
+        # 5. Token to'g'ri (Login qilgan yuzer kirdi). Endi tarifini topamiz.
+        sub_info = SubscriptionInfo(is_authenticated=True)
         try:
             async for db in _get_db_session():
                 result = await db.execute(
-                    _select(UserSubscription.id).where(
+                    _select(UserSubscription)
+                    .options(_selectinload(UserSubscription.plan_config))
+                    .where(
                         UserSubscription.user_id == user_id,
                         UserSubscription.status == SubscriptionStatus.active.value,
                         UserSubscription.expires_at > _dt.now(_tz.utc),
-                    ).limit(1)
+                    )
+                    .order_by(UserSubscription.expires_at.desc())
+                    .limit(1)
                 )
-                has_sub = result.scalars().first() is not None
+                active_sub = result.scalars().first()
+
+                if active_sub and active_sub.plan_config:
+                    # Haqiqiy plan/tarif topildi!
+                    plan = active_sub.plan_config
+                    sub_info = SubscriptionInfo(
+                        is_authenticated=True,
+                        has_subscription=True,
+                        plan_slug=plan.slug,
+                        plan_name=plan.name,
+                        features=plan.features or {},
+                        expires_at=active_sub.expires_at.isoformat() if active_sub.expires_at else None,
+                    )
                 break
         except Exception:
-            # DB xatosi — bloklash xato, o'tkazamiz
-            return await call_next(request)
+            pass  # Xato bo'lsa default holatda qo'yamiz
 
-        if not has_sub:
-            return JSONResponse(
-                status_code=403,
-                content={
-                    "detail": "Obuna talab etiladi. Iltimos, obuna sotib oling.",
-                    "code": "subscription_required",
-                    "subscription_url": "/payments/checkout",
-                }
-            )
-
+        # State ga joylaymiz, va keyingi jarayonga yo'l beramiz
+        request.state.subscription = sub_info
         return await call_next(request)
 
-
-app.add_middleware(SubscriptionCheckMiddleware)
+app.add_middleware(SubscriptionInfoMiddleware)
 
 # Include Routers
 from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback, telegram

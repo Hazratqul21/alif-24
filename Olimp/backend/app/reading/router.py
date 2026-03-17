@@ -39,6 +39,7 @@ from shared.database.models.coin import StudentCoin, CoinTransaction, Transactio
 from shared.auth import verify_token
 from shared.services.storage_service import get_storage_service
 from shared.services.azure_speech_service import speech_service
+from MainPlatform.backend.app.middleware.subscription_deps import require_feature, SubscriptionInfo
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
@@ -186,6 +187,8 @@ def calculate_scores(
 async def list_active_competitions(
     db: AsyncSession = Depends(get_db),
     grade_level: Optional[str] = None,
+    # Hamma uchun ruxsat emas, faqat "ertaklar" featuresi (Free da by default bor) borlarga
+    sub: SubscriptionInfo = Depends(require_feature("ertaklar")),
 ):
     """Faol musobaqalar ro'yxati (login shart emas)"""
     stmt = (
@@ -227,6 +230,7 @@ async def get_competition_detail(
     comp_id: str,
     db: AsyncSession = Depends(get_db),
     student: User = Depends(get_current_student),
+    sub: SubscriptionInfo = Depends(require_feature("ertaklar")),
 ):
     """Musobaqa tafsilotlari — kunlik vazifalar va o'quvchining progressi"""
     comp_res = await db.execute(
@@ -1052,6 +1056,64 @@ async def analyze_voice_recording(
     
     session.status = SessionStatus.completed
     session.completed_at = datetime.now(timezone.utc)
+
+    # ============================================================
+    # UPDATE COMPETITION RESULT INSTANTLY FOR LEADERBOARD
+    # ============================================================
+    from shared.database.models.reading_competition import CompetitionResult
+    # Get comp_id from session's competition_id
+    comp_id = session.competition_id
+    
+    sessions_res = await db.execute(
+        select(ReadingSession).where(
+            ReadingSession.student_id == student.id,
+            ReadingSession.competition_id == comp_id,
+            ReadingSession.status == SessionStatus.completed,
+        )
+    )
+    all_sessions = sessions_res.scalars().all()
+    
+    daily_scores = {}
+    total_reading = 0
+    for s in all_sessions:
+        if s.task_id == session.task_id:
+            task_ref = task
+        else:
+            task_res_loop = await db.execute(select(ReadingTask).where(ReadingTask.id == s.task_id))
+            task_ref = task_res_loop.scalars().first()
+            
+        if task_ref:
+            day = task_ref.day_of_week.value
+            daily_scores[day] = {
+                "score_completion": s.score_completion,
+                "score_words": s.score_words,
+                "score_time": s.score_time,
+                "score_questions": s.score_questions,
+                "total_score": s.total_score,
+            }
+            total_reading += s.total_score
+
+    avg_reading = total_reading / max(len(all_sessions), 1)
+
+    result_res = await db.execute(
+        select(CompetitionResult).where(
+            CompetitionResult.student_id == student.id,
+            CompetitionResult.competition_id == comp_id,
+        )
+    )
+    comp_result = result_res.scalars().first()
+    
+    if not comp_result:
+        comp_result = CompetitionResult(
+            student_id=student.id,
+            competition_id=comp_id,
+            test_score=0.0,
+        )
+        db.add(comp_result)
+
+    comp_result.daily_scores = daily_scores
+    comp_result.total_reading_score = round(avg_reading, 1)
+    comp_result.total_score = round((avg_reading * 0.6) + ((comp_result.test_score or 0.0) * 0.4), 1)
 
     await db.commit()
 

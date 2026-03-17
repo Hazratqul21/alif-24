@@ -29,6 +29,16 @@ from fastapi.responses import JSONResponse
 # Shared imports
 from shared.database import init_db, get_db
 from shared.auth import verify_token
+from shared.database.models import UserSubscription, SubscriptionStatus
+from shared.database.models.subscription import SubscriptionPlanConfig
+
+# Import subscription info and dependencies from MainPlatform
+from MainPlatform.backend.app.middleware.subscription_deps import SubscriptionInfo, get_sub_info, require_feature
+
+from sqlalchemy import select as _select
+from sqlalchemy.orm import selectinload as _selectinload
+from datetime import datetime as _dt, timezone as _tz
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Local imports
 from app.core.config import settings
@@ -76,6 +86,75 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class SubscriptionInfoMiddleware(BaseHTTPMiddleware):
+    SKIP_PREFIXES = ("/health", "/docs", "/openapi")
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if any(path.startswith(p) for p in self.SKIP_PREFIXES):
+            request.state.subscription = SubscriptionInfo()
+            return await call_next(request)
+        if request.method == "OPTIONS":
+            request.state.subscription = SubscriptionInfo()
+            return await call_next(request)
+
+        token = request.cookies.get("access_token")
+        if not token:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+
+        if not token:
+            request.state.subscription = SubscriptionInfo(is_authenticated=False)
+            return await call_next(request)
+
+        try:
+            payload = verify_token(token)
+            if not payload:
+                request.state.subscription = SubscriptionInfo()
+                return await call_next(request)
+            user_id = payload.get("sub")
+            if not user_id:
+                request.state.subscription = SubscriptionInfo()
+                return await call_next(request)
+        except Exception:
+            request.state.subscription = SubscriptionInfo()
+            return await call_next(request)
+
+        sub_info = SubscriptionInfo(is_authenticated=True)
+        try:
+            async for db in get_db():
+                result = await db.execute(
+                    _select(UserSubscription)
+                    .options(_selectinload(UserSubscription.plan_config))
+                    .where(
+                        UserSubscription.user_id == user_id,
+                        UserSubscription.status == SubscriptionStatus.active.value,
+                        UserSubscription.expires_at > _dt.now(_tz.utc),
+                    )
+                    .order_by(UserSubscription.expires_at.desc())
+                    .limit(1)
+                )
+                active_sub = result.scalars().first()
+                if active_sub and active_sub.plan_config:
+                    plan = active_sub.plan_config
+                    sub_info = SubscriptionInfo(
+                        is_authenticated=True,
+                        has_subscription=True,
+                        plan_slug=plan.slug,
+                        plan_name=plan.name,
+                        features=plan.features or {},
+                        expires_at=active_sub.expires_at.isoformat() if active_sub.expires_at else None,
+                    )
+                break
+        except Exception:
+            pass
+
+        request.state.subscription = sub_info
+        return await call_next(request)
+
+app.add_middleware(SubscriptionInfoMiddleware)
 
 
 # Security headers
