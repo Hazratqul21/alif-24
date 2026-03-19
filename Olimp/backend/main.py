@@ -29,7 +29,7 @@ from fastapi.responses import JSONResponse
 # Shared imports
 from shared.database import init_db, get_db
 from shared.auth import verify_token
-from shared.database.models import UserSubscription, SubscriptionStatus
+from shared.database.models import UserSubscription, SubscriptionStatus, User
 from shared.database.models.subscription import SubscriptionPlanConfig
 
 # Import subscription info and dependencies from shared module
@@ -177,6 +177,38 @@ async def root():
         "docs": "/docs",
         "features": ["olympiads", "questions", "registration", "leaderboard"]
     }
+
+
+@app.get("/api/v1/auth/me")
+async def auth_me(request: Request):
+    """Verify session and return user info"""
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = payload.get("sub")
+    async for db in get_db():
+        result = await db.execute(_select(User).where(User.id == user_id))
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return {
+            "success": True,
+            "user": {
+                "id": user.id,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role.value if user.role else None,
+            }
+        }
 
 
 # Health check

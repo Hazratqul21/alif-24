@@ -219,7 +219,7 @@ export default function OlimpHome() {
                                         <div className="flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-indigo-500">
                                             <span className="flex items-center gap-1 bg-slate-50 dark:bg-transparent px-2 py-1 rounded-md">
                                                 <Calendar className="w-3 h-3" />
-                                                {olympiad.start_date ? new Date(olympiad.start_date).toLocaleDateString('uz') : '—'}
+                                                {olympiad.start_time ? new Date(olympiad.start_time).toLocaleDateString('uz') : '—'}
                                             </span>
                                             <span className="flex items-center gap-1 bg-slate-50 dark:bg-transparent px-2 py-1 rounded-md">
                                                 <Users className="w-3 h-3" />
@@ -227,10 +227,10 @@ export default function OlimpHome() {
                                             </span>
                                         </div>
 
-                                        {olympiad.status === 'active' && olympiad.end_date && (
+                                        {olympiad.status === 'active' && olympiad.end_time && (
                                             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-white/5 flex flex-col gap-2">
                                                 <span className="text-slate-500 dark:text-indigo-300 text-[10px] uppercase tracking-wider font-bold">Faol Musobaqa — Vaqt qoldi:</span>
-                                                <CountdownTimer targetDate={olympiad.end_date} />
+                                                <CountdownTimer targetDate={olympiad.end_time} />
                                             </div>
                                         )}
                                     </Link>

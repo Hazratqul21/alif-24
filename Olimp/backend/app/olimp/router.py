@@ -162,6 +162,9 @@ async def list_olympiads(
         except ValueError:
             # Invalid status value, return empty list
             return {"success": True, "data": {"olympiads": [], "total": 0}}
+    else:
+        # Students should not see draft or cancelled olympiads
+        stmt = stmt.where(Olympiad.status.notin_([OlympiadStatus.draft, OlympiadStatus.cancelled]))
     if subject:
         stmt = stmt.where(Olympiad.subject.ilike(f"%{subject}%"))
 
@@ -879,7 +882,7 @@ async def admin_analytics_overview(
     admin_key: str = Header(None, alias="X-Admin-Key")
 ):
     """ADM-1: Aggregated analytics for admin dashboard"""
-    if admin_key != settings.ADMIN_KEY:
+    if admin_key != settings.ADMIN_SECRET_KEY:
         raise HTTPException(status_code=403, detail="Admin access required")
 
     # Total students
@@ -978,7 +981,7 @@ async def admin_build_olympiad(
     admin_key: str = Header(None, alias="X-Admin-Key")
 ):
     """ADM-4: Backend endpoint for new Olympiad Builder"""
-    if admin_key != settings.ADMIN_KEY:
+    if admin_key != settings.ADMIN_SECRET_KEY:
         raise HTTPException(status_code=403, detail="Admin access required")
 
     # Determine status
