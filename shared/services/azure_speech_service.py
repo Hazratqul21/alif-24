@@ -41,7 +41,7 @@ class AzureSpeechService:
 
     def __init__(self, speech_key: Optional[str] = None, speech_region: Optional[str] = None):
         self.speech_key = speech_key or os.getenv("AZURE_SPEECH_KEY", "")
-        self.speech_region = speech_region or os.getenv("AZURE_SPEECH_REGION", "eastus")
+        self.speech_region = speech_region or os.getenv("AZURE_SPEECH_REGION", "westeurope")
         self.token_url = f"https://{self.speech_region}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
         self.tts_url = f"https://{self.speech_region}.tts.speech.microsoft.com/cognitiveservices/v1"
         self.stt_url = f"https://{self.speech_region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1"
@@ -67,6 +67,17 @@ class AzureSpeechService:
                 self._cached_token = resp.text
                 self._token_expiry = time.time() + 540  # 9 daqiqa
                 return self._cached_token
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            body = e.response.text
+            logger.error(f"Azure Speech token HTTP error ({status}): {body}")
+            detail = f"Speech token xatoligi ({status}): {body}"
+            if status == 401:
+                detail = (
+                    "Speech token xatoligi (401): Permission denied. "
+                    "Iltimos, AZURE_SPEECH_KEY va AZURE_SPEECH_REGION sozlamalarini tekshiring."
+                )
+            raise HTTPException(status_code=500, detail=detail)
         except Exception as e:
             logger.error(f"Azure Speech token olishda xatolik: {e}")
             raise HTTPException(status_code=500, detail=f"Speech token xatoligi: {str(e)}")

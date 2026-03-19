@@ -21,7 +21,7 @@ class Settings:
 
     # Azure Speech (optional)
     AZURE_SPEECH_KEY: Optional[str] = os.getenv("AZURE_SPEECH_KEY", None)
-    AZURE_SPEECH_REGION: str = os.getenv("AZURE_SPEECH_REGION", "eastus")
+    AZURE_SPEECH_REGION: str = os.getenv("AZURE_SPEECH_REGION", "westeurope")
 
     # Azure Storage (optional)
     AZURE_STORAGE_CONNECTION: Optional[str] = os.getenv("AZURE_STORAGE_CONNECTION_STRING", None)

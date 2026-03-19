@@ -39,7 +39,7 @@ from shared.database.models.coin import StudentCoin, CoinTransaction, Transactio
 from shared.auth import verify_token
 from shared.services.storage_service import get_storage_service
 from shared.services.azure_speech_service import speech_service
-from MainPlatform.backend.app.middleware.subscription_deps import require_feature, SubscriptionInfo
+from shared.subscription import require_feature, SubscriptionInfo
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)

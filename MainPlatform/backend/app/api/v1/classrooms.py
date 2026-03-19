@@ -20,7 +20,7 @@ from shared.database.models.classroom import (
 )
 from shared.database.models.in_app_notification import InAppNotification, InAppNotifType
 from app.middleware.auth import get_current_user
-from app.middleware.subscription_deps import require_feature, SubscriptionInfo
+from shared.subscription import require_feature, SubscriptionInfo
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

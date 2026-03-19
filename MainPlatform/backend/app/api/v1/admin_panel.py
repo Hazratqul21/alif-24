@@ -981,21 +981,54 @@ async def update_table_row(
         raise HTTPException(status_code=403, detail="Super admin only")
     
     try:
+        # Load column metadata so we can cast/normalize values (e.g. empty string -> NULL)
+        col_result = await db.execute(text("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = :tbl
+        """), {"tbl": table_name})
+        col_types = {row[0]: row[1] for row in col_result}
+
         # Build SET clause
         set_parts = []
         params = {"row_id": row_id}
         for key, value in data.items():
             if key in ("id", "created_at"):  # Don't allow changing these
                 continue
+            if key not in col_types:
+                continue
+
+            # Normalize empty strings for non-string columns
+            col_type = col_types.get(key)
+            if value == "" and col_type not in ("character varying", "text", "varchar"):
+                value = None
+
+            # Coerce boolean-like values
+            if col_type == "boolean" and isinstance(value, str):
+                if value.lower() in ("true", "1", "t", "y", "yes"):
+                    value = True
+                elif value.lower() in ("false", "0", "f", "n", "no"):
+                    value = False
+
+            # Parse ISO datetime strings for timestamp/date columns
+            if col_type in ("timestamp without time zone", "timestamp with time zone", "date") and isinstance(value, str) and value:
+                try:
+                    # NOTE: fromisoformat can parse most ISO formats
+                    # e.g. "2026-03-17T12:00" or "2026-03-17T12:00:00"
+                    from datetime import datetime
+                    value = datetime.fromisoformat(value)
+                except Exception:
+                    pass  # let DB handle invalid format errors
+
             safe_key = key.replace('"', '')  # prevent SQL injection in key
             set_parts.append(f'"{safe_key}" = :val_{safe_key}')
             params[f"val_{safe_key}"] = value
-        
+
         if not set_parts:
             raise HTTPException(status_code=400, detail="O'zgartirish uchun ma'lumot yo'q")
-        
+
         set_clause = ", ".join(set_parts)
-        
+
         # Find primary key column
         pk_result = await db.execute(text("""
             SELECT column_name FROM information_schema.key_column_usage
@@ -1004,18 +1037,19 @@ async def update_table_row(
         """), {"tbl": table_name})
         pk_row = pk_result.first()
         pk_col = pk_row[0] if pk_row else "id"
-        
+
         await db.execute(
             text(f'UPDATE "{table_name}" SET {set_clause} WHERE "{pk_col}" = :row_id'),
             params
         )
         await db.commit()
-        
+
         return {"message": f"Qator yangilandi", "table": table_name, "id": row_id}
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
+        logger.exception("Admin DB update failed")
         raise HTTPException(status_code=500, detail=f"Database xatosi: {str(e)}")
 
 

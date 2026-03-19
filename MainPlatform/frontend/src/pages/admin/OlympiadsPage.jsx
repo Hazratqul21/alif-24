@@ -90,8 +90,10 @@ export default function OlympiadsPage() {
             setLoading(true);
             const res = await olympiadService.listOlympiads();
             setOlympiads(res.olympiads || []);
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
+        } catch (e) {
+            console.error(e);
+            notify('error', 'Olimpiadalarni olishda xatolik');
+        } finally { setLoading(false); }
     }, []);
 
     useEffect(() => { fetchOlympiads(); }, [fetchOlympiads]);
@@ -113,23 +115,42 @@ export default function OlympiadsPage() {
         } catch (e) { console.error(e); }
     };
 
-    const handleCreate = async () => {
-        if (!createForm.title || !createForm.registration_start || !createForm.start_time) {
-            return notify('error', 'Sarlavha, ro\'yxatdan o\'tish va boshlanish sanasi kerak');
-        }
-        try {
-            const payload = {
-                ...createForm,
-                registration_end: createForm.registration_end || createForm.registration_start,
-                end_time: createForm.end_time || createForm.start_time,
-            };
-            await olympiadService.createOlympiad(payload);
-            notify('success', 'Olimpiada yaratildi!');
-            setActiveView('list');
-            fetchOlympiads();
-            setCreateForm({ title: '', description: '', subject: 'general', type: 'test', min_age: 4, max_age: 18, grade_level: '', registration_start: '', registration_end: '', start_time: '', end_time: '', duration_minutes: 30, max_participants: 500, questions_count: 20, results_public: true });
-        } catch (e) { notify('error', e.message || 'Xatolik'); }
-    };
+   // handleCreate funksiyasini shu ko'rinishga o'zgartiring:
+
+const handleCreate = async () => {
+    if (!createForm.title || !createForm.registration_start || !createForm.start_time) {
+        return notify('error', 'Sarlavha, ro\'yxatdan o\'tish va boshlanish sanasi kerak');
+    }
+    try {
+        const payload = {
+            ...createForm,
+            registration_end: createForm.registration_end || createForm.registration_start,
+            end_time: createForm.end_time || createForm.start_time,
+        };
+        await olympiadService.createOlympiad(payload);
+
+        notify('success', 'Olimpiada yaratildi!');
+
+        // 1) Avval listni serverdan yangilash
+        await fetchOlympiads();
+
+        // 2) Keyin formni tozalab listga o'tish
+        setCreateForm({
+            title: '', description: '', subject: 'general', type: 'test',
+            min_age: 4, max_age: 18, grade_level: '',
+            registration_start: '', registration_end: '',
+            start_time: '', end_time: '',
+            duration_minutes: 30, max_participants: 500,
+            questions_count: 20, results_public: true,
+        });
+        setActiveView('list');
+
+    } catch (e) {
+        const msg = parseError(e) || e.message || 'Xatolik';
+        notify('error', msg);
+        console.error('Create Olympiad error:', e);
+    }
+};
 
     const handleAddQuestion = async () => {
         if (!qForm.question_text || qForm.options.some(o => !o.trim())) {
@@ -235,7 +256,15 @@ export default function OlympiadsPage() {
             ) : (
                 <div className="grid gap-4">
                     {olympiads.map(o => (
-                        <div key={o.id} className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 hover:bg-gray-800/70 transition cursor-pointer" onClick={() => { setSelectedOlympiad(o); fetchDetail(o.id); setActiveView('detail'); }}>
+                        <div key={o.id || Math.random()} className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 hover:bg-gray-800/70 transition cursor-pointer" onClick={() => {
+                            if (!o?.id) {
+                                notify('error', 'Olimpiada ID topilmadi');
+                                return;
+                            }
+                            setSelectedOlympiad(o);
+                            fetchDetail(o.id);
+                            setActiveView('detail');
+                        }}>
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-2">
@@ -281,14 +310,14 @@ export default function OlympiadsPage() {
                         <label className="text-sm text-gray-400 mb-1 block">Turi</label>
                         <select value={createForm.type} onChange={e => setCreateForm({ ...createForm, type: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
                             <option value="test">Test</option>
-                            <option value="reading">O'qish tezligi</option>
+                            <option value="reading">O'qish</option>
                             <option value="mixed">Aralash</option>
                         </select>
                     </div>
                     <div>
                         <label className="text-sm text-gray-400 mb-1 block">Fan</label>
                         <select value={createForm.subject} onChange={e => setCreateForm({ ...createForm, subject: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
-                            <option value="general">Umumiy</option>
+                            <option value="general">O'qish</option>
                             <option value="math">Matematika</option>
                             <option value="uzbek">O'zbek tili</option>
                             <option value="russian">Rus tili</option>

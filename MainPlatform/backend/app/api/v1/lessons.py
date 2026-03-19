@@ -10,7 +10,7 @@ from shared.database.models import User, UserRole, TeacherProfile, StudentProfil
 from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, Lesson
 from shared.database.models.classroom import Classroom, ClassroomStudent, ClassroomStudentStatus
 from app.middleware.auth import get_current_user
-from app.middleware.subscription_deps import require_feature, SubscriptionInfo
+from shared.subscription import require_feature, SubscriptionInfo
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

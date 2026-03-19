@@ -32,8 +32,8 @@ from shared.auth import verify_token
 from shared.database.models import UserSubscription, SubscriptionStatus
 from shared.database.models.subscription import SubscriptionPlanConfig
 
-# Import subscription info and dependencies from MainPlatform
-from MainPlatform.backend.app.middleware.subscription_deps import SubscriptionInfo, get_sub_info, require_feature
+# Import subscription info and dependencies from shared module
+from shared.subscription import SubscriptionInfo, get_sub_info, require_feature
 
 from sqlalchemy import select as _select
 from sqlalchemy.orm import selectinload as _selectinload
@@ -185,10 +185,15 @@ async def health():
     return {"status": "healthy"}
 
 
-# Include Olimp router
+# Include Olimp router (singular and plural endpoints)
 app.include_router(
     olimp_router.router,
     prefix="/api/v1/olympiad",
+    tags=["Olympiad"]
+)
+app.include_router(
+    olimp_router.router,
+    prefix="/api/v1/olympiads",
     tags=["Olympiad"]
 )
 

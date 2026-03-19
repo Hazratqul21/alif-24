@@ -4,7 +4,17 @@
  */
 import axios from 'axios';
 
-const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
+const defaultApiUrl = () => {
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        return 'http://localhost:8000/api/v1';
+    }
+
+    const envUrl = import.meta.env.VITE_API_URL;
+    const normalized = envUrl ? envUrl.replace(/^https?:\/\//, window.location.protocol + '//') : '';
+    return normalized || '/api/v1';
+};
+
+const API_URL = defaultApiUrl();
 
 // Get stored admin credentials
 const getAdminHeaders = () => {
@@ -175,12 +185,13 @@ const adminService = {
     getRecentLogins: (limit = 30) => adminApi.get('/analytics/recent-logins', { params: { limit } }),
 
     // ============ PAYMENT GATEWAY MANAGEMENT ============
-    getPaymentGateways: () => adminApi.get('/payments/admin/gateways'),
-    createPaymentGateway: (data) => adminApi.post('/payments/admin/gateways', data),
-    updatePaymentGateway: (id, data) => adminApi.put(`/payments/admin/gateways/${id}`, data),
-    deletePaymentGateway: (id) => adminApi.delete(`/payments/admin/gateways/${id}`),
-    getPaymentTransactions: (params) => adminApi.get('/payments/admin/transactions', { params }),
-    getPaymentStats: () => adminApi.get('/payments/admin/payments-stats'),
+    // These routes are handled by the Payments router (not the Admin router)
+    getPaymentGateways: () => axios.get(`${API_URL}/payments/admin/gateways`, { headers: getAdminHeaders() }),
+    createPaymentGateway: (data) => axios.post(`${API_URL}/payments/admin/gateways`, data, { headers: getAdminHeaders() }),
+    updatePaymentGateway: (id, data) => axios.put(`${API_URL}/payments/admin/gateways/${id}`, data, { headers: getAdminHeaders() }),
+    deletePaymentGateway: (id) => axios.delete(`${API_URL}/payments/admin/gateways/${id}`, { headers: getAdminHeaders() }),
+    getPaymentTransactions: (params) => axios.get(`${API_URL}/payments/admin/transactions`, { params, headers: getAdminHeaders() }),
+    getPaymentStats: () => axios.get(`${API_URL}/payments/admin/payments-stats`, { headers: getAdminHeaders() }),
 };
 
 export default adminService;

@@ -146,7 +146,7 @@ from shared.database.models.subscription import SubscriptionPlanConfig
 from sqlalchemy import select as _select
 from sqlalchemy.orm import selectinload as _selectinload
 from datetime import datetime as _dt, timezone as _tz
-from app.middleware.subscription_deps import SubscriptionInfo
+from shared.subscription import SubscriptionInfo
 
 class SubscriptionInfoMiddleware(BaseHTTPMiddleware):
     """

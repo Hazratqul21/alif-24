@@ -123,9 +123,11 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
         try {
             let resp = await fetch(`${API_URL}/smartkids/speech-token`, { credentials: 'include' });
             if (!resp.ok) {
-                resp = await fetch('https://alif24.uz/api/v1/smartkids/speech-token', { credentials: 'include' });
+                const body = await resp.text();
+                const status = resp.status;
+                const detail = body ? body : 'Unknown error';
+                throw new Error(`speech-token failed (${status}): ${detail}`);
             }
-            if (!resp.ok) throw new Error(`speech-token failed`);
             const data = await resp.json();
             const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
             cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';

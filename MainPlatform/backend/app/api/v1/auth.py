@@ -208,7 +208,7 @@ async def get_me(
 
     # Middlewaredan tayyor subscription infosini olamiz
     # Uning ishi "virtual free" plan bo'lsa ham hal qilgan bo'ladi
-    from app.middleware.subscription_deps import get_sub_info
+    from shared.subscription import get_sub_info
     sub_info = get_sub_info(request)
 
     # Convert to dict for response
@@ -232,7 +232,7 @@ async def get_me(
     }
 
     # Boshqa ma'lumotlarni yig'ish (Coin, Organization va hk)
-    from shared.database.models import StudentProfile, Organization
+    from shared.database.models import StudentProfile, OrganizationProfile
     from sqlalchemy import select
     
     student_record = None

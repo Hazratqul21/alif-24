@@ -35,11 +35,11 @@ class Settings:
     AZURE_OPENAI_ENDPOINT: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
     AZURE_OPENAI_DEPLOYMENT_NAME: str = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-chat")
     AZURE_OPENAI_API_VERSION: str = os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview")
-    AZURE_OPENAI_REGION: str = os.getenv("AZURE_OPENAI_REGION", "eastus")
+    AZURE_OPENAI_REGION: str = os.getenv("AZURE_OPENAI_REGION", "westeurope")
 
     # Azure Speech (optional)
     AZURE_SPEECH_KEY: Optional[str] = os.getenv("AZURE_SPEECH_KEY", None)
-    AZURE_SPEECH_REGION: str = os.getenv("AZURE_SPEECH_REGION", "eastus")
+    AZURE_SPEECH_REGION: str = os.getenv("AZURE_SPEECH_REGION", "westeurope")
 
     # Azure Storage (optional)
     AZURE_STORAGE_CONNECTION_STRING: Optional[str] = os.getenv("AZURE_STORAGE_CONNECTION_STRING", None)

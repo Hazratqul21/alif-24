@@ -6,7 +6,18 @@
  */
 import axios from 'axios';
 
-const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
+const defaultApiUrl = () => {
+    // During local development, we must talk to the local backend even if VITE_API_URL is set to the prod host.
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        return 'http://localhost:8000/api/v1';
+    }
+
+    const envUrl = import.meta.env.VITE_API_URL;
+    const normalized = envUrl ? envUrl.replace(/^https?:\/\//, window.location.protocol + '//') : '';
+    return normalized || '/api/v1';
+};
+
+const API_URL = defaultApiUrl();
 
 const getAdminHeaders = () => ({
     'X-Admin-Role': localStorage.getItem('adminRole') || '',
@@ -14,6 +25,10 @@ const getAdminHeaders = () => ({
 });
 
 const api = axios.create({ baseURL: `${API_URL}/olympiads` });
+
+if (import.meta.env.DEV) {
+    console.debug('[OlympiadService] baseURL', `${API_URL}/olympiads`, 'resolved from', API_URL);
+}
 
 api.interceptors.request.use((config) => {
     config.headers = { ...config.headers, ...getAdminHeaders() };
