@@ -55,7 +55,8 @@ export default function OlympiadDetail() {
 
         const apiUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/api/v1`;
         const wsBase = apiUrl.replace(/^http/, 'ws');
-        const wsUrl = `${wsBase}/olympiads/${id}/ws/leaderboard`;
+        // Bug fix: use /olympiad/ (singular) not /olympiads/ (plural) to match backend router
+        const wsUrl = `${wsBase}/olympiad/${id}/ws/leaderboard`;
         const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => console.log('Connected to live leaderboard WS');
@@ -276,10 +277,10 @@ export default function OlympiadDetail() {
                         <div>
                             <button
                                 onClick={handleRegister}
-                                disabled={registering || !['active', 'upcoming'].includes(olympiad?.status)}
+                                disabled={registering || !['active'].includes(olympiad?.status)}
                                 className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-600/30"
                             >
-                                {registering ? 'Yuklanmoqda...' : ['active', 'upcoming'].includes(olympiad?.status) ? "Ro'yxatdan o'tish va boshlash" : 'Olimpiada faol emas'}
+                                {registering ? 'Yuklanmoqda...' : olympiad?.status === 'active' ? "Ro'yxatdan o'tish va boshlash" : olympiad?.status === 'upcoming' ? 'Olimpiada hali boshlanmagan' : 'Olimpiada faol emas'}
                             </button>
                             {regError && <p className="text-red-400 text-sm mt-2 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {regError}</p>}
                         </div>
@@ -355,10 +356,12 @@ export default function OlympiadDetail() {
 
                         <button
                             onClick={handleSubmit}
-                            disabled={Object.keys(answers).length === 0}
+                            disabled={Object.keys(answers).length < questions.length}
                             className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 shadow-lg"
                         >
-                            Javoblarni yuborish ({Object.keys(answers).length}/{questions.length})
+                            {Object.keys(answers).length < questions.length
+                                ? `Barcha savollarni javoblang (${Object.keys(answers).length}/${questions.length})`
+                                : 'Javoblarni yuborish'}
                         </button>
                     </div>
                 )}

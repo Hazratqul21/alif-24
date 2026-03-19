@@ -1065,9 +1065,9 @@ async def admin_build_olympiad(
             olympiad_id=new_olympiad.id,
             question_text=q_item.question_text,
             options=q_item.options,
-            correct_option_index=q_item.correct_option_index,
+            correct_answer=q_item.correct_option_index,  # Bug fix: DB column is correct_answer not correct_option_index
             points=q_item.points,
-            order_index=q_item.order_index
+            order=q_item.order_index  # Bug fix: DB column is 'order' not 'order_index'
         )
         db.add(q)
         
