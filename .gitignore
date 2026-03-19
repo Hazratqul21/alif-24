@@ -38,3 +38,4 @@ Thumbs.db
 # Node modules (frontend)
 node_modules/
 .next/
+.env*
