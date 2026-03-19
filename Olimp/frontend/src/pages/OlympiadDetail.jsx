@@ -24,6 +24,8 @@ export default function OlympiadDetail() {
 
     // Quiz state
     const [quizStarted, setQuizStarted] = useState(false);
+    const [timeRemaining, setTimeRemaining] = useState(null);
+    const [timerIntervalId, setTimerIntervalId] = useState(null);
     const [answers, setAnswers] = useState({});
     const [submitted, setSubmitted] = useState(false);
     const [result, setResult] = useState(null);
@@ -155,10 +157,54 @@ export default function OlympiadDetail() {
             }
 
             setSubmitted(true);
+            if (timerIntervalId) {
+                clearInterval(timerIntervalId);
+                setTimerIntervalId(null);
+            }
             loadLeaderboard();
         } catch (err) {
             setError(err.message);
         }
+    };
+
+    // Timer logic
+    useEffect(() => {
+        if (quizStarted && !submitted && olympiad?.duration_minutes) {
+            // Find existing registration time or use now
+            let startTimeStr = olympiad?.my_participation?.registered_at;
+            let startTime = startTimeStr ? new Date(startTimeStr).getTime() : Date.now();
+            let durationSeconds = olympiad.duration_minutes * 60;
+            
+            const updateTimer = () => {
+                const now = Date.now();
+                const elapsedSeconds = Math.floor((now - startTime) / 1000);
+                const remaining = durationSeconds - elapsedSeconds;
+                
+                if (remaining <= 0) {
+                    setTimeRemaining(0);
+                    clearInterval(interval);
+                    if (!submitted) {
+                        alert('Vaqt tugadi! Javoblar avtomat yuborilmoqda...');
+                        handleSubmit();
+                    }
+                } else {
+                    setTimeRemaining(remaining);
+                }
+            };
+            
+            updateTimer();
+            const interval = setInterval(updateTimer, 1000);
+            setTimerIntervalId(interval);
+            
+            return () => clearInterval(interval);
+        }
+    }, [quizStarted, submitted, olympiad]);
+
+    const formatTime = (seconds) => {
+        if (seconds === null) return '--:--';
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
     const loadLeaderboard = useCallback(async () => {
@@ -265,6 +311,16 @@ export default function OlympiadDetail() {
                 {/* Quiz */}
                 {quizStarted && !submitted && (
                     <div className="space-y-6">
+                        {/* Timer Header */}
+                        {timeRemaining !== null && (
+                            <div className="sticky top-20 z-40 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex items-center justify-between shadow-lg">
+                                <span className="text-white font-medium">Qolgan vaqt:</span>
+                                <span className={`text-2xl font-bold font-mono ${timeRemaining < 60 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
+                                    {formatTime(timeRemaining)}
+                                </span>
+                            </div>
+                        )}
+                        
                         {questions.map((q, qi) => (
                             <motion.div
                                 key={q.id}

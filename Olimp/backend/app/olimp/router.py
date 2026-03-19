@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func as sql_func, select
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 import logging
 
 from shared.database import get_db
@@ -16,6 +16,7 @@ from shared.database.models import User, StudentProfile, UserRole
 from shared.database.models.olympiad import (
     Olympiad, OlympiadQuestion, OlympiadParticipant, OlympiadAnswer,
     OlympiadReadingTask, OlympiadStatus, ParticipationStatus,
+    OlympiadSubject, OlympiadType
 )
 from shared.database.models.olympiad_content import OlympiadLesson, OlympiadStory
 from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
@@ -160,11 +161,19 @@ async def list_olympiads(
         try:
             stmt = stmt.where(Olympiad.status == OlympiadStatus(status))
         except ValueError:
-            # Invalid status value, return empty list
             return {"success": True, "data": {"olympiads": [], "total": 0}}
     else:
         # Students should not see draft or cancelled olympiads
         stmt = stmt.where(Olympiad.status.notin_([OlympiadStatus.draft, OlympiadStatus.cancelled]))
+        
+    # Avtomatik holat (status) filtri qo'shamiz (bazadagi status noto'g'ri bo'lsa ham ishlaydi)
+    now = datetime.now(timezone.utc)
+    if status == "upcoming":
+        stmt = stmt.where(Olympiad.start_time > now)
+    elif status == "active":
+        stmt = stmt.where(Olympiad.start_time <= now, Olympiad.end_time > now)
+    elif status == "completed":
+        stmt = stmt.where(Olympiad.end_time <= now)
     if subject:
         stmt = stmt.where(Olympiad.subject.ilike(f"%{subject}%"))
 
@@ -355,9 +364,20 @@ async def register_for_olympiad(
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
-    # Allow registration for active or upcoming olympiads
+    # Allow registration only for active or upcoming olympiads (and strict date checks)
+    now = datetime.now(timezone.utc)
+    
     if olympiad.status not in (OlympiadStatus.active, OlympiadStatus.upcoming):
         raise HTTPException(status_code=400, detail="Olimpiada hali faol emas")
+
+    if olympiad.registration_end and now > olympiad.registration_end:
+        raise HTTPException(status_code=400, detail="Ro'yxatdan o'tish muddati tugagan")
+        
+    if olympiad.start_time and now < olympiad.start_time:
+        raise HTTPException(status_code=400, detail="Olimpiada hali boshlanmagan, hozir ro'yxatdan o'tolmaysiz")
+        
+    if olympiad.end_time and now > olympiad.end_time:
+        raise HTTPException(status_code=400, detail="Olimpiada vaqti allaqachon tugagan")
 
     # Check if real user exists and is a student
     user_res = await db.execute(select(User).where(User.id == data.student_id))
@@ -470,6 +490,29 @@ async def submit_answers(
             participant = p_res.scalars().first()
             if participant and participant.status == ParticipationStatus.completed:
                 raise HTTPException(status_code=400, detail="Ushbu olimpiadaga allaqachon javob topshirgansiz")
+
+    # === Chiting va vaqt tugashiga qarshi himoya qatlami === #
+    now = datetime.now(timezone.utc)
+    
+    # 1. Muddat tugaganmi tekshiramiz (5 minutlik "grace period" bilan, internet qotishlarga)
+    if olympiad.end_time and now > (olympiad.end_time + timedelta(minutes=5)):
+        raise HTTPException(status_code=400, detail="Olimpiada muddasi allaqachon tugagan! Javoblaringiz qabul qilinmadi.")
+        
+    # 2. Test davomiyligi (duration_minutes) nazorati
+    if participant and participant.registered_at and olympiad.duration_minutes:
+        delta = now - participant.registered_at
+        time_spent_seconds = int(delta.total_seconds())
+        # Ajratilgan vaqt + 1.5 daqiqa greys period
+        max_allowed_seconds = (olympiad.duration_minutes * 60) + 90
+        
+        if time_spent_seconds > max_allowed_seconds:
+            # Vaqtidan o'tib ketgan, bahoni 0 qilib yopamiz
+            participant.status = ParticipationStatus.completed
+            participant.time_spent_seconds = time_spent_seconds
+            participant.total_score = 0
+            participant.completed_at = now
+            await db.commit()
+            raise HTTPException(status_code=400, detail="Ajratilgan vaqt (Time Limit) tugagan! Natijangiz bekor qilindi.")
 
     total_score = 0
     correct_count = 0
@@ -999,10 +1042,15 @@ async def admin_build_olympiad(
     new_olympiad = Olympiad(
         title=payload.title,
         description=payload.description,
-        start_date=payload.start_date,
-        end_date=payload.end_date,
-        time_limit_minutes=payload.time_limit_minutes,
-        total_point=payload.total_point,
+        subject=OlympiadSubject.general, # default
+        type=OlympiadType.test,
+        registration_start=now - timedelta(days=1), # Avtomatik ro'yxatdan o'tishni ochish (kecha)
+        registration_end=start,
+        start_time=start,
+        end_time=payload.end_date.replace(tzinfo=timezone.utc) if payload.end_date.tzinfo is None else payload.end_date,
+        duration_minutes=payload.time_limit_minutes,
+        max_participants=5000,
+        questions_count=len(payload.questions),
         status=status,
         difficulty=payload.difficulty,
         min_age=payload.min_age,
@@ -1364,6 +1412,12 @@ async def submit_reading_result(
     if not participant:
         raise HTTPException(status_code=400, detail="Avval ro'yxatdan o'ting")
 
+    now = datetime.now(timezone.utc)
+    if olympiad.end_time and now > olympiad.end_time + timedelta(minutes=5):
+        raise HTTPException(status_code=400, detail="Kechirasiz, musobaqa vaqti o'tib ketgan. Natija qabul qilinmaydi.")
+    if olympiad.start_time and now < olympiad.start_time:
+        raise HTTPException(status_code=400, detail="Kechirasiz, musobaqa hali boshlanmagan.")
+
     # --- Quiz scoring (100 ball tizimida) ---
     correct_count = 0
     total_questions = 0
@@ -1414,16 +1468,13 @@ async def submit_reading_result(
     participant.reading_attempts = attempt
     is_first_attempt = (attempt == 1)
 
-    # ── Score aggregation ──
-    # Accumulate total score across attempts (for leaderboard aggregation)
-    participant.total_score = (participant.total_score or 0) + quiz_score
-
-    # Faqat natijasi yaxshiroq bo'lsagina ayrim ma'lumotlarni yangilaymiz
+    # Faqat natijasi yaxshiroq bo'lsagina ma'lumotlarni yangilaymiz (eng katta ballni saqlab qolish)
     current_val = quiz_score * 1000 + data.wpm
     past_val = (participant.quiz_score or 0) * 1000 + (participant.reading_wpm or 0)
     is_best_attempt = is_first_attempt or (current_val > past_val)
 
     if is_best_attempt:
+        participant.total_score = quiz_score  # Fix: Eng katta ball olinadi, qo'shilib ketavermaydi!
         participant.reading_wpm = data.wpm
         participant.reading_percent = data.read_percent
         participant.reading_time_seconds = data.reading_time_seconds

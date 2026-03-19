@@ -27,14 +27,14 @@ class SubscriptionInfo:
             return False
 
         if not self.has_subscription:
-            # In the free tier, only "ertaklar" is enabled.
+            # Bepul tarif kengaytirildi: Darslar, Olimpiada va Kutubxona ochiq.
             default_free_features = {
                 "ertaklar": True,
-                "darslar": False,
+                "darslar": True,
                 "oyinlar": False,
-                "olimpiada": False,
+                "olimpiada": True,
                 "ai_test": False,
-                "kutubxona": False,
+                "kutubxona": True,
                 "live_quiz": False,
             }
             return bool(default_free_features.get(feature_name, False))

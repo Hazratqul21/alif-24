@@ -31,14 +31,14 @@ class SubscriptionInfo:
         # Agar foydalanuvchida obuna yo'q bo'lsa (yoki muddati tugagan bo'lsa), 
         # u avtomatik ravishda VIRTUAL BEPUL obunada hisoblanadi.
         if not self.has_subscription:
-            # Bepul tarifda Hozircha faqat ERTAKLAR ochiq bo'ladi
+            # Bepul tarif kengaytirildi: Darslar, Olimpiada va Kutubxona ochiq.
             default_free_features = {
                 "ertaklar": True,
-                "darslar": False,
+                "darslar": True,
                 "oyinlar": False,
-                "olimpiada": False,
+                "olimpiada": True,
                 "ai_test": False,
-                "kutubxona": False,
+                "kutubxona": True,
                 "live_quiz": False,
             }
             return bool(default_free_features.get(feature_name, False))
