@@ -261,53 +261,63 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
                     const overallEmoji = (totalScore >= 80 && wpm >= 40) ? '🏆' : totalScore >= 50 ? '⭐' : '💪';
 
                     return (
-                        <div className="flex flex-col items-center gap-4">
-                            <div className="text-5xl">{overallEmoji}</div>
-                            <p className="text-white font-bold text-2xl">Umumiy natija</p>
-                            <p className="text-white/40 text-sm -mt-2">{ertak.title}</p>
+                        <div className="flex flex-col items-center gap-5">
+                            <div className="text-6xl pt-2 pb-1">💪</div>
+                            <div className="text-center">
+                                <p className="text-white font-bold text-[1.75rem] mb-1">Umumiy natija</p>
+                                <p className="text-white/40 text-sm">{ertak.title}</p>
+                            </div>
 
-                            <div className="w-full">
-                                <p className="text-white/50 text-xs uppercase tracking-wide mb-2">📖 O'qish</p>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-                                        <p className={`text-xl font-black ${wpmColor}`}>{wpm}</p>
-                                        <p className="text-white/40 text-[10px]">so'z/daq</p>
+                            <div className="w-full mt-2">
+                                <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
+                                    📖 O'QISH
+                                </p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                                        <p className={`text-[1.75rem] font-black mb-1 leading-none ${wpmColor}`}>{wpm}</p>
+                                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">so'z/daq</p>
                                     </div>
-                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-                                        <p className="text-xl font-black text-blue-400">{readPercent}%</p>
-                                        <p className="text-white/40 text-[10px]">o'qilgan</p>
+                                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                                        <p className="text-[1.75rem] font-black mb-1 leading-none text-[#5188f6]">{readPercent}%</p>
+                                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">o'qilgan</p>
                                     </div>
-                                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-                                        <p className="text-xl font-black text-purple-400">{fmtTime}</p>
-                                        <p className="text-white/40 text-[10px]">vaqt</p>
+                                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                                        <p className="text-[1.75rem] font-black mb-1 leading-none text-[#c97cf7]">{fmtTime}</p>
+                                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">vaqt</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="w-full">
-                                <p className="text-white/50 text-xs uppercase tracking-wide mb-2">Savol-javob</p>
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center mb-2">
-                                    <p className={`text-4xl font-black ${scoreColor(totalScore)}`}>{totalPoints}</p>
-                                    <p className="text-white/40 text-xs mt-1">ball ({totalCorrect}/{questions.length} to'g'ri)</p>
+                            <div className="w-full mt-1">
+                                <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
+                                    🧠 SAVOL-JAVOB
+                                </p>
+                                <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-[1.25rem] p-6 text-center mb-4">
+                                    <p className={`text-[3.5rem] leading-none font-black mb-2 ${scoreColor(totalScore)}`}>{totalScore}</p>
+                                    <p className="text-white/40 text-sm font-medium">100 ball dan</p>
                                 </div>
-                                <div className="space-y-1.5">
+                                <div className="space-y-[6px]">
                                     {scores.map((s, i) => (
-                                        <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                                            <span className="text-white/60 text-xs">{i + 1}-savol</span>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                        <div key={i} className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
+                                            <span className="text-white/60 text-[13px] font-medium">{i + 1}-savol</span>
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-[4.5rem] h-2 bg-white/5 rounded-full overflow-hidden">
                                                     <div className={`h-full rounded-full ${scoreBg(s.score)}`} style={{ width: `${s.score}%` }} />
                                                 </div>
-                                                <span className={`text-xs font-bold min-w-[24px] text-right ${scoreColor(s.score)}`}>{s.passed ? `+${pointsPerCorrect}` : 0}</span>
+                                                <span className={`text-[13px] font-bold min-w-[28px] text-right ${scoreColor(s.score)}`}>{s.score}</span>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            <div className="w-full bg-gradient-to-r from-yellow-500/20 to-amber-500/10 border border-yellow-500/30 rounded-2xl p-4 text-center">
-                                <p className="text-3xl font-black text-yellow-400">+{totalCoin} 🪙</p>
-                                <p className="text-white/40 text-xs mt-1">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
+                            <div className="w-full mt-2 bg-gradient-to-r from-[#cca651]/10 via-[#cca651]/15 to-[#cca651]/10 border border-[#cca651]/20 rounded-3xl p-[18px] text-center flex flex-col items-center justify-center">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <p className="text-4xl leading-none font-black text-[#facc15]">+{totalCoin}</p>
+                                    <img src="/icons/coin.svg" alt="coin" className="w-[38px] h-[38px] drop-shadow-md" onError={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='block'; }} />
+                                    <span className="text-4xl filter drop-shadow-md hidden">🪙</span>
+                                </div>
+                                <p className="text-white/50 text-[13px] font-medium tracking-wide">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
                             </div>
 
                             {/* The "Testni boshlash" button is intentionally omitted here as this is already within the Quiz modal */}
@@ -323,7 +333,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
                             />
 
                             <button onClick={onClose}
-                                className="w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform">
+                                className="w-full py-[18px] mt-2 bg-gradient-to-r from-[#5f33f6] to-[#7f3bf6] text-white rounded-2xl font-bold text-[17px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
                                 Yopish
                             </button>
                         </div>
