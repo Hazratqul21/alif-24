@@ -385,14 +385,12 @@ async def register_for_olympiad(
     if olympiad.status not in (OlympiadStatus.active, OlympiadStatus.upcoming):
         raise HTTPException(status_code=400, detail="Olimpiada hali faol emas")
 
+    # Registration window: registration_start <= now <= registration_end
+    if olympiad.registration_start and now < olympiad.registration_start:
+        raise HTTPException(status_code=400, detail="Ro'yxatdan o'tish hali boshlanmagan")
+
     if olympiad.registration_end and now > olympiad.registration_end:
         raise HTTPException(status_code=400, detail="Ro'yxatdan o'tish muddati tugagan")
-        
-    if olympiad.start_time and now < olympiad.start_time:
-        raise HTTPException(status_code=400, detail="Olimpiada hali boshlanmagan, hozir ro'yxatdan o'tolmaysiz")
-        
-    if olympiad.end_time and now > olympiad.end_time:
-        raise HTTPException(status_code=400, detail="Olimpiada vaqti allaqachon tugagan")
 
     # Check if real user exists and is a student
     user_res = await db.execute(select(User).where(User.id == data.student_id))
