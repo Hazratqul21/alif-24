@@ -5,7 +5,7 @@ Admin creates olympiads via MainPlatform admin panel.
 """
 from fastapi import APIRouter, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect, Query, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func as sql_func, select
+from sqlalchemy import func as sql_func, select, or_
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any
 from datetime import datetime, timezone, date, timedelta
@@ -1518,16 +1518,23 @@ async def submit_reading_result(
         sub_res = await db.execute(
             select(OlympiadReadingSubmission).where(
                 OlympiadReadingSubmission.participant_id == participant.id,
-                OlympiadReadingSubmission.reading_task_id == data.story_id
+                or_(
+                    OlympiadReadingSubmission.reading_task_id == data.story_id,
+                    OlympiadReadingSubmission.story_id == data.story_id
+                )
             )
         )
         submission = sub_res.scalars().first()
         submission_existed = submission is not None
         
         if not submission:
+            # Check if it's a task or a story to set the right foreign key
+            is_task = (await db.execute(select(OlympiadReadingTask).where(OlympiadReadingTask.id == data.story_id))).scalars().first() is not None
+            
             submission = OlympiadReadingSubmission(
                 participant_id=participant.id,
-                reading_task_id=data.story_id,
+                reading_task_id=data.story_id if is_task else None,
+                story_id=data.story_id if not is_task else None,
                 earned_coins=0
             )
             db.add(submission)

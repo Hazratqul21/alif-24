@@ -273,7 +273,8 @@ class OlympiadReadingSubmission(Base):
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
     participant_id = Column(String(8), ForeignKey("olympiad_participants.id"), nullable=False)
-    reading_task_id = Column(String(8), ForeignKey("olympiad_reading_tasks.id"), nullable=False)
+    reading_task_id = Column(String(8), ForeignKey("olympiad_reading_tasks.id"), nullable=True)
+    story_id = Column(String(8), ForeignKey("olympiad_stories.id"), nullable=True)
     
     # O'qish natijasi
     audio_url = Column(String(500), nullable=True)   # Yozilgan audio fayl URL
@@ -304,6 +305,7 @@ class OlympiadReadingSubmission(Base):
     # Relationships
     participant = relationship("OlympiadParticipant", backref="reading_submissions")
     reading_task = relationship("OlympiadReadingTask", back_populates="submissions")
+    story = relationship("OlympiadStory")
     
     def __repr__(self):
         return f"<OlympiadReadingSubmission wpm={self.words_per_minute}>"
