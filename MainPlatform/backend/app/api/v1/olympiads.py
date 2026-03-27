@@ -210,6 +210,7 @@ async def create_olympiad(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new olympiad (admin only)"""
+    logger.info(f"create_olympiad called by admin={admin['role']}, title={data.title!r}")
     # Agar registration_end ko'rsatilmasa, u start_time ga qadar davom etadi deb faraz qilamiz yoki registration_start+duration
     reg_end = data.registration_end or data.start_time
     # Agar end_time ochiq qoldirilsa, uni start_time + duration_minutes orqali hisoblaymiz
@@ -249,6 +250,7 @@ async def create_olympiad(
     try:
         await db.commit()
         await db.refresh(olympiad)
+        logger.info(f"Olympiad created successfully: id={olympiad.id}, title={olympiad.title!r}")
     except Exception as e:
         await db.rollback()
         logger.error(f"Olimpiada yaratishda xatolik: {e}")

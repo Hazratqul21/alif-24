@@ -89,10 +89,14 @@ export default function OlympiadsPage() {
         try {
             setLoading(true);
             const res = await olympiadService.listOlympiads();
+            console.log('[OlympiadsPage] listOlympiads response:', res);
             setOlympiads(res.olympiads || []);
+            if (!res.success) {
+                console.warn('[OlympiadsPage] listOlympiads returned success=false:', res);
+            }
         } catch (e) {
-            console.error(e);
-            notify('error', 'Olimpiadalarni olishda xatolik');
+            console.error('[OlympiadsPage] listOlympiads error:', e.response?.status, e.response?.data || e.message);
+            notify('error', `Olimpiadalarni olishda xatolik: ${e.response?.data?.error?.message || e.message}`);
         } finally { setLoading(false); }
     }, []);
 
@@ -139,7 +143,17 @@ const handleCreate = async () => {
             start_time: toISO(createForm.start_time),
             end_time: toISO(createForm.end_time || createForm.start_time),
         };
-        await olympiadService.createOlympiad(payload);
+        console.log('[OlympiadsPage] create payload:', payload);
+        const res = await olympiadService.createOlympiad(payload);
+        console.log('[OlympiadsPage] create response:', res);
+
+        // Validate response — backend returns { success: true, olympiad: {...} }
+        if (!res || !res.success) {
+            const errMsg = res?.error?.message || res?.detail || 'Server javob bermadi';
+            notify('error', `Yaratishda xatolik: ${errMsg}`);
+            console.error('[OlympiadsPage] create returned non-success:', res);
+            return;
+        }
 
         notify('success', 'Olimpiada yaratildi!');
 
@@ -160,7 +174,7 @@ const handleCreate = async () => {
     } catch (e) {
         const msg = parseError(e) || e.message || 'Xatolik';
         notify('error', msg);
-        console.error('Create Olympiad error:', e);
+        console.error('[OlympiadsPage] create error:', e.response?.status, e.response?.data || e.message);
     }
 };
 
