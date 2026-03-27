@@ -7,14 +7,12 @@
 import axios from 'axios';
 
 const defaultApiUrl = () => {
-    // During local development, we must talk to the local backend even if VITE_API_URL is set to the prod host.
+    // Local development → direct to backend
     if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
         return 'http://localhost:8000/api/v1';
     }
-
-    const envUrl = import.meta.env.VITE_API_URL;
-    const normalized = envUrl ? envUrl.replace(/^https?:\/\//, window.location.protocol + '//') : '';
-    return normalized || '/api/v1';
+    // Production → always relative (inherits HTTPS from page)
+    return '/api/v1';
 };
 
 const API_URL = defaultApiUrl();
