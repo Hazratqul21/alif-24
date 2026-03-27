@@ -10,7 +10,7 @@ project_root = Path(__file__).parent.parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from shared.database import get_db
-from shared.auth import verify_token
+from app.dependencies import get_current_user_data
 from app.gamification.models import Badge, UserBadge, DailyActivity, ShopItem, UserPurchase
 
 router = APIRouter(prefix="/gamification", tags=["Gamification"])
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/gamification", tags=["Gamification"])
 @router.get("/profile")
 async def get_gamification_profile(
     db: AsyncSession = Depends(get_db),
-    user_data: dict = Depends(verify_token)
+    user_data: dict = Depends(get_current_user_data)
 ):
     student_id = user_data["user_id"]
     
@@ -100,7 +100,7 @@ async def get_shop_items(db: AsyncSession = Depends(get_db)):
 async def purchase_shop_item(
     item_id: str,
     db: AsyncSession = Depends(get_db),
-    user_data: dict = Depends(verify_token)
+    user_data: dict = Depends(get_current_user_data)
 ):
     student_id = user_data["user_id"]
     

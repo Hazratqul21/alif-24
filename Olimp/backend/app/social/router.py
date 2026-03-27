@@ -6,7 +6,7 @@ from typing import List
 
 from shared.database import get_db
 from shared.database.models import User, StudentProfile
-from shared.auth import verify_token
+from app.dependencies import get_current_user_data
 from app.social.models import Friendship, FriendshipStatus
 
 router = APIRouter()
@@ -23,7 +23,7 @@ class FriendActionSchema(BaseModel):
 async def search_users(
     q: str = "",
     db: AsyncSession = Depends(get_db),
-    user_data: dict = Depends(verify_token)
+    user_data: dict = Depends(get_current_user_data)
 ):
     """Search users to add as friends"""
     current_user_id = user_data["user_id"]
@@ -76,7 +76,7 @@ async def search_users(
 async def send_friend_request(
     data: FriendRequestSchema,
     db: AsyncSession = Depends(get_db),
-    user_data: dict = Depends(verify_token)
+    user_data: dict = Depends(get_current_user_data)
 ):
     current_user_id = user_data["user_id"]
     
@@ -120,7 +120,7 @@ async def send_friend_request(
 async def action_friend_request(
     data: FriendActionSchema,
     db: AsyncSession = Depends(get_db),
-    user_data: dict = Depends(verify_token)
+    user_data: dict = Depends(get_current_user_data)
 ):
     current_user_id = user_data["user_id"]
     
@@ -155,7 +155,7 @@ async def action_friend_request(
 @router.get("/my-friends")
 async def my_friends(
     db: AsyncSession = Depends(get_db),
-    user_data: dict = Depends(verify_token)
+    user_data: dict = Depends(get_current_user_data)
 ):
     current_user_id = user_data["user_id"]
     

@@ -310,15 +310,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
                                 <p className="text-white/40 text-xs mt-1">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
                             </div>
 
-                            {hasAnyQuiz && !showQuiz && onStartOlympiadQuiz && (
-                                <button onClick={() => {
-                                    if (hasStoryQuestions) setShowQuiz(true);
-                                    else if (hasOlympiadQuestions) onStartOlympiadQuiz();
-                                }}
-                                    className="w-full py-3 mb-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform">
-                                    Testni boshlash
-                                </button>
-                            )}
+                            {/* The "Testni boshlash" button is intentionally omitted here as this is already within the Quiz modal */}
 
                             <SubmitToOlympiad
                                 olympiadId={olympiadId}
