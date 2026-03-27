@@ -331,6 +331,7 @@ async def get_olympiad(
                     "coins_earned": participant.coins_earned,
                     "rank": participant.rank,
                     "registered_at": participant.registered_at.isoformat() if participant.registered_at else None,
+                    "started_at": participant.started_at.isoformat() if participant.started_at else None,
                     "completed_at": participant.completed_at.isoformat() if participant.completed_at else None,
                 }
 
@@ -474,6 +475,40 @@ async def register_for_olympiad(
     }
 
 
+# ============= Student: Start Olympiad =============
+
+@router.post("/{olympiad_id}/start")
+async def start_olympiad(
+    olympiad_id: str,
+    data: OlympiadRegistrationSchema,
+    db: AsyncSession = Depends(get_db)
+):
+    """Mark olympiad as started by the student"""
+    sp = await _resolve_student_profile(data.student_id, db)
+    if not sp:
+        raise HTTPException(status_code=404, detail="Profil topilmadi")
+
+    p_res = await db.execute(
+        select(OlympiadParticipant).where(
+            OlympiadParticipant.olympiad_id == olympiad_id,
+            OlympiadParticipant.student_id == sp.id
+        )
+    )
+    participant = p_res.scalars().first()
+    if not participant:
+        raise HTTPException(status_code=400, detail="Avval ro'yxatdan o'ting")
+
+    if participant.status == ParticipationStatus.completed:
+        raise HTTPException(status_code=400, detail="Siz allaqachon olimpiadani yakunlagansiz")
+
+    if not participant.started_at:
+        participant.started_at = datetime.now(timezone.utc)
+        participant.status = ParticipationStatus.started
+        await db.commit()
+    
+    return {"success": True, "data": {"started_at": participant.started_at.isoformat()}}
+
+
 # ============= Student: Submit Answers =============
 
 @router.post("/{olympiad_id}/submit")
@@ -512,8 +547,8 @@ async def submit_answers(
         raise HTTPException(status_code=400, detail="Olimpiada muddasi allaqachon tugagan! Javoblaringiz qabul qilinmadi.")
         
     # 2. Test davomiyligi (duration_minutes) nazorati
-    if participant and participant.registered_at and olympiad.duration_minutes:
-        delta = now - participant.registered_at
+    if participant and participant.started_at and olympiad.duration_minutes:
+        delta = now - participant.started_at
         time_spent_seconds = int(delta.total_seconds())
         # Ajratilgan vaqt + 1.5 daqiqa greys period
         max_allowed_seconds = (olympiad.duration_minutes * 60) + 90
@@ -575,8 +610,8 @@ async def submit_answers(
 
     # Calculate time spent
     if participant:
-        if participant.registered_at:
-            delta = datetime.now(timezone.utc) - participant.registered_at
+        if participant.started_at:
+            delta = datetime.now(timezone.utc) - participant.started_at
             participant.time_spent_seconds = int(delta.total_seconds())
         else:
             participant.time_spent_seconds = 0

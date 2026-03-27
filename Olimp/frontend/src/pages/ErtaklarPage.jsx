@@ -428,6 +428,123 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
     );
 }
 
+// ─── Olympiad Test Result Modal ──────────────────────────────────────────────
+function OlympiadTestResultModal({ result, onClose }) {
+    return (
+        <div className="space-y-4 text-center">
+            <div className="text-4xl font-black text-emerald-400">✅</div>
+            <p className="text-white font-bold text-lg">Test yakunlandi</p>
+            <div className="grid grid-cols-2 gap-3 text-left">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
+                    <p className="text-white/50 text-xs">To'g'ri javoblar</p>
+                    <p className="text-white font-bold text-lg">{result.correct_answers ?? 0} / {result.total_questions ?? 0}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
+                    <p className="text-white/50 text-xs">Vaqt</p>
+                    <p className="text-white font-bold text-lg">{result.elapsed_seconds ? `${Math.floor(result.elapsed_seconds/60)}:${String(result.elapsed_seconds % 60).padStart(2,'0')}` : '—'}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
+                    <p className="text-white/50 text-xs">Ball</p>
+                    <p className="text-white font-bold text-lg">{result.total_score ?? 0}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
+                    <p className="text-white/50 text-xs">Coin</p>
+                    <p className="text-white font-bold text-lg">+{result.coins_earned ?? 0}</p>
+                </div>
+            </div>
+            <button
+                onClick={onClose}
+                className="mt-2 w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform"
+            >
+                Yopish
+            </button>
+        </div>
+    );
+}
+
+// ─── Olympiad Reading Result Modal ───────────────────────────────────────────
+function OlympiadReadingResultModal({ result, readingStats, olympiadId, onClose }) {
+    const wpm = readingStats.wpm || 0;
+    const readPercent = readingStats.readPercent || 0;
+    const readElapsed = readingStats.elapsed || 0;
+    const fmtTime = `${String(Math.floor(readElapsed / 60)).padStart(2, '0')}:${String(readElapsed % 60).padStart(2, '0')}`;
+    const readingCoin = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
+    const totalScore = result.total_score || 0;
+    const quizCoin = totalScore >= 80 ? 15 : totalScore >= 50 ? 8 : 3;
+    const totalCoin = readingCoin + quizCoin;
+    const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
+    const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-red-400';
+    
+    return (
+        <div className="flex flex-col items-center gap-5">
+            <div className="text-6xl pt-2 pb-1">💪</div>
+            <div className="text-center">
+                <p className="text-white font-bold text-[1.75rem] mb-1">Umumiy natija</p>
+            </div>
+            
+            <div className="w-full mt-2">
+                <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
+                    📖 O'QISH
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                        <p className={`text-[1.75rem] font-black mb-1 leading-none ${wpmColor}`}>{wpm}</p>
+                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">so'z/daq</p>
+                    </div>
+                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                        <p className="text-[1.75rem] font-black mb-1 leading-none text-[#5188f6]">{readPercent}%</p>
+                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">o'qilgan</p>
+                    </div>
+                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                        <p className="text-[1.75rem] font-black mb-1 leading-none text-[#c97cf7]">{fmtTime}</p>
+                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">vaqt</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="w-full mt-1">
+                <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
+                    🧠 SAVOL-JAVOB
+                </p>
+                <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-[1.25rem] p-6 text-center mb-4">
+                    <p className={`text-[3.5rem] leading-none font-black mb-2 ${scoreColor(totalScore)}`}>{totalScore}</p>
+                    <p className="text-white/40 text-sm font-medium">100 ball dan</p>
+                </div>
+                <div className="space-y-[6px]">
+                    <div className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
+                        <span className="text-white/60 text-[13px] font-medium">To'g'ri javoblar</span>
+                        <span className="text-[13px] font-bold text-white">{result.correct_answers} / {result.total_questions}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="w-full mt-2 bg-gradient-to-r from-[#cca651]/10 via-[#cca651]/15 to-[#cca651]/10 border border-[#cca651]/20 rounded-3xl p-[18px] text-center flex flex-col items-center justify-center">
+                <div className="flex items-center gap-3 mb-1">
+                    <p className="text-4xl leading-none font-black text-[#facc15]">+{totalCoin}</p>
+                    <img src="/icons/coin.svg" alt="coin" className="w-[38px] h-[38px] drop-shadow-md" onError={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='block'; }} />
+                    <span className="text-4xl filter drop-shadow-md hidden">🪙</span>
+                </div>
+                <p className="text-white/50 text-[13px] font-medium tracking-wide">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
+            </div>
+            
+            <SubmitToOlympiad
+                olympiadId={olympiadId}
+                wpm={wpm}
+                readPercent={readPercent}
+                readElapsed={readElapsed}
+                quizScore={totalScore || 0}
+                submitted={false}
+                onSubmitted={() => {}}
+            />
+            
+            <button onClick={onClose}
+                className="w-full py-[18px] mt-2 bg-gradient-to-r from-[#5f33f6] to-[#7f3bf6] text-white rounded-2xl font-bold text-[17px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
+                Yopish
+            </button>
+        </div>
+    );
+}
+
 // ─── Olympiad Quiz Modal (multiple-choice) ───────────────────────────────────
 function OlympiadQuizModal({ questions = [], olympiadId, onClose, readingStats = null }) {
     const [qIndex, setQIndex] = useState(0);
@@ -448,7 +565,13 @@ function OlympiadQuizModal({ questions = [], olympiadId, onClose, readingStats =
         setError('');
         setStartedAt(Date.now());
         setElapsedSeconds(0);
-    }, [questions]);
+        
+        // Notify backend that we started to fix time limit logic
+        const studentId = localStorage.getItem('userId');
+        if (studentId && olympiadId && questions.length > 0) {
+            apiService.post(`/olympiad/${olympiadId}/start`, { student_id: studentId }).catch(e => console.error("Could not start:", e));
+        }
+    }, [questions, olympiadId]);
 
     useEffect(() => {
         if (result) return;
@@ -533,115 +656,18 @@ function OlympiadQuizModal({ questions = [], olympiadId, onClose, readingStats =
                     {questions.length === 0 ? (
                         <div className="text-center py-10 text-white/60">Bu olimpiada uchun test savollari mavjud emas.</div>
                     ) : result ? (
-                        readingStats ? (() => {
-                            const wpm = readingStats.wpm || 0;
-                            const readPercent = readingStats.readPercent || 0;
-                            const readElapsed = readingStats.elapsed || 0;
-                            const fmtTime = `${String(Math.floor(readElapsed / 60)).padStart(2, '0')}:${String(readElapsed % 60).padStart(2, '0')}`;
-                            const readingCoin = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
-                            const totalScore = result.total_score || 0;
-                            const quizCoin = totalScore >= 80 ? 15 : totalScore >= 50 ? 8 : 3;
-                            const totalCoin = readingCoin + quizCoin;
-                            const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
-                            const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-red-400';
-                            
-                            return (
-                                <div className="flex flex-col items-center gap-5">
-                                    <div className="text-6xl pt-2 pb-1">💪</div>
-                                    <div className="text-center">
-                                        <p className="text-white font-bold text-[1.75rem] mb-1">Umumiy natija</p>
-                                    </div>
-                                    
-                                    <div className="w-full mt-2">
-                                        <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
-                                            📖 O'QISH
-                                        </p>
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
-                                                <p className={`text-[1.75rem] font-black mb-1 leading-none ${wpmColor}`}>{wpm}</p>
-                                                <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">so'z/daq</p>
-                                            </div>
-                                            <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
-                                                <p className="text-[1.75rem] font-black mb-1 leading-none text-[#5188f6]">{readPercent}%</p>
-                                                <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">o'qilgan</p>
-                                            </div>
-                                            <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
-                                                <p className="text-[1.75rem] font-black mb-1 leading-none text-[#c97cf7]">{fmtTime}</p>
-                                                <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">vaqt</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="w-full mt-1">
-                                        <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
-                                            🧠 SAVOL-JAVOB
-                                        </p>
-                                        <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-[1.25rem] p-6 text-center mb-4">
-                                            <p className={`text-[3.5rem] leading-none font-black mb-2 ${scoreColor(totalScore)}`}>{totalScore}</p>
-                                            <p className="text-white/40 text-sm font-medium">100 ball dan</p>
-                                        </div>
-                                        <div className="space-y-[6px]">
-                                            <div className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
-                                                <span className="text-white/60 text-[13px] font-medium">To'g'ri javoblar</span>
-                                                <span className="text-[13px] font-bold text-white">{result.correct_answers} / {result.total_questions}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="w-full mt-2 bg-gradient-to-r from-[#cca651]/10 via-[#cca651]/15 to-[#cca651]/10 border border-[#cca651]/20 rounded-3xl p-[18px] text-center flex flex-col items-center justify-center">
-                                        <div className="flex items-center gap-3 mb-1">
-                                            <p className="text-4xl leading-none font-black text-[#facc15]">+{totalCoin}</p>
-                                            <img src="/icons/coin.svg" alt="coin" className="w-[38px] h-[38px] drop-shadow-md" onError={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='block'; }} />
-                                            <span className="text-4xl filter drop-shadow-md hidden">🪙</span>
-                                        </div>
-                                        <p className="text-white/50 text-[13px] font-medium tracking-wide">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
-                                    </div>
-                                    
-                                    <SubmitToOlympiad
-                                        olympiadId={olympiadId}
-                                        wpm={wpm}
-                                        readPercent={readPercent}
-                                        readElapsed={readElapsed}
-                                        quizScore={totalScore || 0}
-                                        submitted={false}
-                                        onSubmitted={() => {}}
-                                    />
-                                    
-                                    <button onClick={handleClose}
-                                        className="w-full py-[18px] mt-2 bg-gradient-to-r from-[#5f33f6] to-[#7f3bf6] text-white rounded-2xl font-bold text-[17px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-                                        Yopish
-                                    </button>
-                                </div>
-                            );
-                        })() : (
-                        <div className="space-y-4 text-center">
-                            <div className="text-4xl font-black text-emerald-400">✅</div>
-                            <p className="text-white font-bold text-lg">Test yakunlandi</p>
-                            <div className="grid grid-cols-2 gap-3 text-left">
-                                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                                    <p className="text-white/50 text-xs">To'g'ri javoblar</p>
-                                    <p className="text-white font-bold text-lg">{result.correct_answers ?? 0} / {result.total_questions ?? 0}</p>
-                                </div>
-                                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                                    <p className="text-white/50 text-xs">Vaqt</p>
-                                    <p className="text-white font-bold text-lg">{result.elapsed_seconds ? `${Math.floor(result.elapsed_seconds/60)}:${String(result.elapsed_seconds % 60).padStart(2,'0')}` : '—'}</p>
-                                </div>
-                                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                                    <p className="text-white/50 text-xs">Ball</p>
-                                    <p className="text-white font-bold text-lg">{result.total_score ?? 0}</p>
-                                </div>
-                                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                                    <p className="text-white/50 text-xs">Coin</p>
-                                    <p className="text-white font-bold text-lg">+{result.coins_earned ?? 0}</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleClose}
-                                className="mt-2 w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform"
-                            >
-                                Yopish
-                            </button>
-                        </div>
+                        readingStats ? (
+                            <OlympiadReadingResultModal
+                                result={result}
+                                readingStats={readingStats}
+                                olympiadId={olympiadId}
+                                onClose={handleClose}
+                            />
+                        ) : (
+                            <OlympiadTestResultModal
+                                result={result}
+                                onClose={handleClose}
+                            />
                         )
                     ) : (
                         <div className="space-y-4">

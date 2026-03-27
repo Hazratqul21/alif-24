@@ -107,6 +107,26 @@ export default function OlympiadDetail() {
         }
     };
 
+    const handleStartQuiz = async () => {
+        try {
+            setQuizStarted(true);
+            const studentId = currentUserId || localStorage.getItem('userId');
+            const data = await apiService.post(`/olympiad/${id}/start`, { student_id: studentId });
+            
+            if (data?.data?.started_at && olympiad?.my_participation) {
+                setOlympiad(prev => ({
+                    ...prev,
+                    my_participation: {
+                        ...prev.my_participation,
+                        started_at: data.data.started_at
+                    }
+                }));
+            }
+        } catch (err) {
+            console.error("Failed to start olympiad:", err);
+        }
+    };
+
     const handleRegister = async () => {
         const studentId = currentUserId || localStorage.getItem('userId');
         if (!studentId) {
@@ -171,8 +191,8 @@ export default function OlympiadDetail() {
     // Timer logic
     useEffect(() => {
         if (quizStarted && !submitted && olympiad?.duration_minutes) {
-            // Find existing registration time or use now
-            let startTimeStr = olympiad?.my_participation?.registered_at;
+            // Find existing start time or use now
+            let startTimeStr = olympiad?.my_participation?.started_at;
             let startTime = startTimeStr ? new Date(startTimeStr).getTime() : Date.now();
             let durationSeconds = olympiad.duration_minutes * 60;
             
@@ -293,7 +313,7 @@ export default function OlympiadDetail() {
                             <p className="text-green-400 font-medium mb-4">Ro'yxatdan muvaffaqiyatli o'tdingiz!</p>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                 <button
-                                    onClick={() => setQuizStarted(true)}
+                                    onClick={handleStartQuiz}
                                     className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all"
                                 >
                                     Testni boshlash ({questions.length} savol)
