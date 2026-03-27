@@ -1299,7 +1299,7 @@ function ErtakCard({ ertak, index, onClick, olympiadQuestions = [] }) {
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
-export default function ErtaklarPage() {
+export default function OlimpiadErtaklarPage() {
     const { olympiadId } = useParams();
     const [searchParams] = useSearchParams();
     const fromReading = searchParams.get('from') === 'reading';

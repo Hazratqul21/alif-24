@@ -10,7 +10,7 @@ import ReadingAdmin from './pages/ReadingAdmin';
 import OlympiadContent from './pages/OlympiadContent';
 import LessionsHome from './pages/LessionsHome';
 import LessonDetail from './pages/LessonDetail';
-import ErtaklarPage from './pages/ErtaklarPage';
+import OlimpiadErtaklarPage from './pages/OlimpiadErtaklarPage';
 import ReadingOlympiadPage from './pages/ReadingOlympiadPage';
 
 import AuthSync from './components/Auth/AuthSync';
@@ -59,7 +59,7 @@ const App = () => {
               <Route path="/olympiad/:olympiadId/content" element={<OlympiadContent />} />
               <Route path="/olympiad/:olympiadId/content/lessons" element={<LessionsHome />} />
               <Route path="/olympiad/:olympiadId/content/lesson/:id" element={<LessonDetail />} />
-              <Route path="/olympiad/:olympiadId/content/ertaklar" element={<ErtaklarPage />} />
+              <Route path="/olympiad/:olympiadId/content/ertaklar" element={<OlimpiadErtaklarPage />} />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
