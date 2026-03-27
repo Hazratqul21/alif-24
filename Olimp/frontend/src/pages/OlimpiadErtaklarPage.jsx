@@ -12,7 +12,7 @@ if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
 }
 
 // ─── Submit to Olympiad ────────────────────────────────────────────────────────
-function SubmitToOlympiad({ olympiadId, wpm, readPercent, readElapsed, quizScore, submitted, onSubmitted }) {
+function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, quizScore, submitted, onSubmitted }) {
     const [status, setStatus] = useState(submitted ? 'done' : 'idle');
 
     useEffect(() => {
@@ -24,6 +24,7 @@ function SubmitToOlympiad({ olympiadId, wpm, readPercent, readElapsed, quizScore
                 if (!studentId) { setStatus('done'); onSubmitted(); return; }
                 await apiService.post(`/olympiad/${olympiadId}/reading-submit`, {
                     student_id: studentId,
+                    story_id: storyId,
                     wpm: wpm || 0,
                     read_percent: readPercent || 0,
                     reading_time_seconds: readElapsed || 0,
@@ -324,6 +325,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
 
                             <SubmitToOlympiad
                                 olympiadId={olympiadId}
+                                storyId={ertak.id}
                                 wpm={wpm}
                                 readPercent={readPercent}
                                 readElapsed={readElapsed}
@@ -463,7 +465,7 @@ function OlympiadTestResultModal({ result, onClose }) {
 }
 
 // ─── Olympiad Reading Result Modal ───────────────────────────────────────────
-function OlympiadReadingResultModal({ result, readingStats, olympiadId, onClose }) {
+function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId, onClose }) {
     const wpm = readingStats.wpm || 0;
     const readPercent = readingStats.readPercent || 0;
     const readElapsed = readingStats.elapsed || 0;
@@ -529,6 +531,7 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, onClose 
             
             <SubmitToOlympiad
                 olympiadId={olympiadId}
+                storyId={storyId}
                 wpm={wpm}
                 readPercent={readPercent}
                 readElapsed={readElapsed}
@@ -546,7 +549,7 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, onClose 
 }
 
 // ─── Olympiad Quiz Modal (multiple-choice) ───────────────────────────────────
-function OlympiadQuizModal({ questions = [], olympiadId, onClose, readingStats = null }) {
+function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose, readingStats = null }) {
     const [qIndex, setQIndex] = useState(0);
     const [selected, setSelected] = useState(null);
     const [answers, setAnswers] = useState(Array(questions.length).fill(null));
@@ -661,6 +664,7 @@ function OlympiadQuizModal({ questions = [], olympiadId, onClose, readingStats =
                                 result={result}
                                 readingStats={readingStats}
                                 olympiadId={olympiadId}
+                                storyId={storyId}
                                 onClose={handleClose}
                             />
                         ) : (
@@ -971,7 +975,7 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
             totalWords: expectedWords.length,
         };
         if (showQuiz) return <QuizModal ertak={ertak} onClose={onClose} readingStats={readingStats} olympiadId={olympiadId} />;
-        if (showOlympiadQuizInternal) return <OlympiadQuizModal questions={olympiadQuestions} olympiadId={olympiadId} onClose={onClose} readingStats={readingStats} />;
+        if (showOlympiadQuizInternal) return <OlympiadQuizModal questions={olympiadQuestions} olympiadId={olympiadId} storyId={ertak.id} onClose={onClose} readingStats={readingStats} />;
     }
 
     // ── reading stats for 'done' phase ──

@@ -279,6 +279,7 @@ class OlympiadReadingSubmission(Base):
     audio_url = Column(String(500), nullable=True)   # Yozilgan audio fayl URL
     reading_duration_seconds = Column(Integer, default=0)  # O'qishga sarflangan vaqt
     words_per_minute = Column(Float, default=0.0)    # So'z/daqiqa (WPM)
+    read_percent = Column(Float, default=0.0)         # O'qilgan %
     
     # Tushunish savollari natijalari
     comprehension_answers = Column(JSON, nullable=True)
@@ -296,6 +297,7 @@ class OlympiadReadingSubmission(Base):
     
     # Hisoblangan umumiy ball (test + o'qish + admin)
     total_points = Column(Integer, default=0)
+    earned_coins = Column(Integer, default=0)
     
     submitted_at = Column(DateTime(timezone=True), server_default=func.now())
     

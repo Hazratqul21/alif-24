@@ -15,7 +15,7 @@ from shared.database import get_db
 from shared.database.models import User, StudentProfile, UserRole
 from shared.database.models.olympiad import (
     Olympiad, OlympiadQuestion, OlympiadParticipant, OlympiadAnswer,
-    OlympiadReadingTask, OlympiadStatus, ParticipationStatus,
+    OlympiadReadingTask, OlympiadReadingSubmission, OlympiadStatus, ParticipationStatus,
     OlympiadSubject, OlympiadType
 )
 from shared.database.models.olympiad_content import OlympiadLesson, OlympiadStory
@@ -1427,6 +1427,7 @@ class ReadingQuizAnswer(BaseModel):
 
 class ReadingResultSubmit(BaseModel):
     student_id: str
+    story_id: Optional[str] = None  # Yangi: qaysi ertak topshirildi?
     wpm: float = 0
     read_percent: float = 0
     reading_time_seconds: int = 0
@@ -1511,38 +1512,83 @@ async def submit_reading_result(
     quiz_coins = 15 if quiz_score >= 80 else (8 if quiz_score >= 50 else 3)
     total_new_coins = reading_coins + quiz_coins
 
-    # --- Update participant ---
-    attempt = (participant.reading_attempts or 0) + 1
-    participant.reading_attempts = attempt
-    is_first_attempt = (attempt == 1)
+    # --- Save Submission per Story ---
+    submission_existed = False
+    if data.story_id:
+        sub_res = await db.execute(
+            select(OlympiadReadingSubmission).where(
+                OlympiadReadingSubmission.participant_id == participant.id,
+                OlympiadReadingSubmission.reading_task_id == data.story_id
+            )
+        )
+        submission = sub_res.scalars().first()
+        submission_existed = submission is not None
+        
+        if not submission:
+            submission = OlympiadReadingSubmission(
+                participant_id=participant.id,
+                reading_task_id=data.story_id,
+                earned_coins=0
+            )
+            db.add(submission)
+        
+        # Keep best for this story
+        story_current_val = quiz_score * 1000 + data.wpm
+        story_past_val = (submission.comprehension_score or 0) * 1000 + (submission.words_per_minute or 0)
+        
+        if story_current_val >= story_past_val:
+            submission.words_per_minute = data.wpm
+            submission.read_percent = data.read_percent
+            submission.reading_duration_seconds = data.reading_time_seconds
+            submission.comprehension_score = quiz_score
+            submission.comprehension_total = total_questions
+            submission.total_points = quiz_score 
+            submission.submitted_at = datetime.now(timezone.utc)
 
-    # Faqat natijasi yaxshiroq bo'lsagina ma'lumotlarni yangilaymiz (eng katta ballni saqlab qolish)
-    current_val = quiz_score * 1000 + data.wpm
-    past_val = (participant.quiz_score or 0) * 1000 + (participant.reading_wpm or 0)
-    is_best_attempt = is_first_attempt or (current_val > past_val)
+    db.add(participant)
+    await db.flush() 
 
-    if is_best_attempt:
-        participant.total_score = quiz_score  # Fix: Eng katta ball olinadi, qo'shilib ketavermaydi!
-        participant.reading_wpm = data.wpm
-        participant.reading_percent = data.read_percent
-        participant.reading_time_seconds = data.reading_time_seconds
-        participant.quiz_score = quiz_score
-
-        participant.correct_answers = correct_count
-        participant.wrong_answers = total_questions - correct_count
+    # --- Aggregation logic ---
+    all_subs_res = await db.execute(
+        select(OlympiadReadingSubmission).where(
+            OlympiadReadingSubmission.participant_id == participant.id
+        )
+    )
+    all_subs = all_subs_res.scalars().all()
+    
+    if all_subs:
+        all_count = len(all_subs)
+        # Sums
+        total_points_sum = sum(s.comprehension_score or 0 for s in all_subs)
+        total_duration = sum(s.reading_duration_seconds or 0 for s in all_subs)
+        total_coins = sum(s.earned_coins or 0 for s in all_subs)
+        
+        # Averages
+        avg_wpm = sum(s.words_per_minute or 0 for s in all_subs) / all_count
+        avg_percent = sum(s.read_percent or 0 for s in all_subs) / all_count
+        
+        participant.total_score = total_points_sum
+        participant.reading_wpm = avg_wpm
+        participant.reading_percent = avg_percent
+        participant.reading_time_seconds = total_duration
+        participant.reading_coins = total_coins
+        
+        # Backward compatibility
+        participant.quiz_score = avg_percent 
+        
         participant.status = ParticipationStatus.completed
         participant.completed_at = datetime.now(timezone.utc)
+    participant.reading_attempts = (participant.reading_attempts or 0) + 1
 
-    # Tangalarni faqat 1-urinishda berish
-    if is_first_attempt:
-        participant.reading_coins = reading_coins
-        participant.coins_earned = total_new_coins
+    # --- Award Coins (Only on first submission of this story) ---
+    if data.story_id and not submission_existed:
+        submission.earned_coins = total_new_coins
         try:
             await _award_coins(
                 student_id=participant.student_id,
                 amount=total_new_coins,
                 tx_type=TransactionType.olympiad_participation,
-                description=f"O'qish olimpiadasi: {olympiad.title} — 1-urinish",
+                description=f"O'qish olimpiadasi: {olympiad.title} (Story: {data.story_id})",
                 reference_id=olympiad.id,
                 reference_type="reading_olympiad",
                 db=db,
@@ -1568,10 +1614,10 @@ async def submit_reading_result(
             "wpm": data.wpm,
             "read_percent": data.read_percent,
             "reading_time_seconds": data.reading_time_seconds,
-            "reading_coins": reading_coins if is_first_attempt else 0,
-            "quiz_coins": quiz_coins if is_first_attempt else 0,
-            "total_coins": total_new_coins if is_first_attempt else 0,
-            "attempt": attempt,
+            "reading_coins": total_new_coins if not submission_existed else 0,
+            "quiz_coins": quiz_coins if not submission_existed else 0,
+            "total_coins": total_new_coins if not submission_existed else 0,
+            "attempt": participant.reading_attempts,
             "quiz_details": quiz_details,
         }
     }
