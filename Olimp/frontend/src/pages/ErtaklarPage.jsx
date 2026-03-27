@@ -604,6 +604,11 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
     const [playing, setPlaying] = useState(false);
     const [showQuiz, setShowQuiz] = useState(false);
 
+    const storyQuestions = ertak?.questions || [];
+    const hasStoryQuestions = storyQuestions.length > 0;
+    const hasOlympiadQuestions = (olympiadQuestions || []).length > 0;
+    const hasAnyQuiz = hasStoryQuestions || hasOlympiadQuestions;
+
     const [expectedWords, setExpectedWords] = useState([]);
     const [displayTokens, setDisplayTokens] = useState([]);
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
@@ -837,10 +842,6 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
     };
 
     const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-    const storyQuestions = ertak.questions || [];
-    const hasStoryQuestions = storyQuestions.length > 0;
-    const hasOlympiadQuestions = (olympiadQuestions || []).length > 0;
-    const hasAnyQuiz = hasStoryQuestions || hasOlympiadQuestions;
 
     if (showQuiz) {
         const readingStats = {
