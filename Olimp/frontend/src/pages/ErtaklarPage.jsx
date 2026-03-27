@@ -429,7 +429,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
 }
 
 // ─── Olympiad Quiz Modal (multiple-choice) ───────────────────────────────────
-function OlympiadQuizModal({ questions = [], olympiadId, onClose }) {
+function OlympiadQuizModal({ questions = [], olympiadId, onClose, readingStats = null }) {
     const [qIndex, setQIndex] = useState(0);
     const [selected, setSelected] = useState(null);
     const [answers, setAnswers] = useState(Array(questions.length).fill(null));
@@ -533,6 +533,87 @@ function OlympiadQuizModal({ questions = [], olympiadId, onClose }) {
                     {questions.length === 0 ? (
                         <div className="text-center py-10 text-white/60">Bu olimpiada uchun test savollari mavjud emas.</div>
                     ) : result ? (
+                        readingStats ? (() => {
+                            const wpm = readingStats.wpm || 0;
+                            const readPercent = readingStats.readPercent || 0;
+                            const readElapsed = readingStats.elapsed || 0;
+                            const fmtTime = `${String(Math.floor(readElapsed / 60)).padStart(2, '0')}:${String(readElapsed % 60).padStart(2, '0')}`;
+                            const readingCoin = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
+                            const totalScore = result.total_score || 0;
+                            const quizCoin = totalScore >= 80 ? 15 : totalScore >= 50 ? 8 : 3;
+                            const totalCoin = readingCoin + quizCoin;
+                            const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
+                            const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-red-400';
+                            
+                            return (
+                                <div className="flex flex-col items-center gap-5">
+                                    <div className="text-6xl pt-2 pb-1">💪</div>
+                                    <div className="text-center">
+                                        <p className="text-white font-bold text-[1.75rem] mb-1">Umumiy natija</p>
+                                    </div>
+                                    
+                                    <div className="w-full mt-2">
+                                        <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
+                                            📖 O'QISH
+                                        </p>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                                                <p className={`text-[1.75rem] font-black mb-1 leading-none ${wpmColor}`}>{wpm}</p>
+                                                <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">so'z/daq</p>
+                                            </div>
+                                            <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                                                <p className="text-[1.75rem] font-black mb-1 leading-none text-[#5188f6]">{readPercent}%</p>
+                                                <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">o'qilgan</p>
+                                            </div>
+                                            <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                                                <p className="text-[1.75rem] font-black mb-1 leading-none text-[#c97cf7]">{fmtTime}</p>
+                                                <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">vaqt</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="w-full mt-1">
+                                        <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
+                                            🧠 SAVOL-JAVOB
+                                        </p>
+                                        <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-[1.25rem] p-6 text-center mb-4">
+                                            <p className={`text-[3.5rem] leading-none font-black mb-2 ${scoreColor(totalScore)}`}>{totalScore}</p>
+                                            <p className="text-white/40 text-sm font-medium">100 ball dan</p>
+                                        </div>
+                                        <div className="space-y-[6px]">
+                                            <div className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
+                                                <span className="text-white/60 text-[13px] font-medium">To'g'ri javoblar</span>
+                                                <span className="text-[13px] font-bold text-white">{result.correct_answers} / {result.total_questions}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="w-full mt-2 bg-gradient-to-r from-[#cca651]/10 via-[#cca651]/15 to-[#cca651]/10 border border-[#cca651]/20 rounded-3xl p-[18px] text-center flex flex-col items-center justify-center">
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <p className="text-4xl leading-none font-black text-[#facc15]">+{totalCoin}</p>
+                                            <img src="/icons/coin.svg" alt="coin" className="w-[38px] h-[38px] drop-shadow-md" onError={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='block'; }} />
+                                            <span className="text-4xl filter drop-shadow-md hidden">🪙</span>
+                                        </div>
+                                        <p className="text-white/50 text-[13px] font-medium tracking-wide">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
+                                    </div>
+                                    
+                                    <SubmitToOlympiad
+                                        olympiadId={olympiadId}
+                                        wpm={wpm}
+                                        readPercent={readPercent}
+                                        readElapsed={readElapsed}
+                                        quizScore={totalScore || 0}
+                                        submitted={false}
+                                        onSubmitted={() => {}}
+                                    />
+                                    
+                                    <button onClick={handleClose}
+                                        className="w-full py-[18px] mt-2 bg-gradient-to-r from-[#5f33f6] to-[#7f3bf6] text-white rounded-2xl font-bold text-[17px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
+                                        Yopish
+                                    </button>
+                                </div>
+                            );
+                        })() : (
                         <div className="space-y-4 text-center">
                             <div className="text-4xl font-black text-emerald-400">✅</div>
                             <p className="text-white font-bold text-lg">Test yakunlandi</p>
@@ -561,6 +642,7 @@ function OlympiadQuizModal({ questions = [], olympiadId, onClose }) {
                                 Yopish
                             </button>
                         </div>
+                        )
                     ) : (
                         <div className="space-y-4">
                             <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
@@ -613,6 +695,7 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
     const [transcript, setTranscript] = useState('');
     const [playing, setPlaying] = useState(false);
     const [showQuiz, setShowQuiz] = useState(false);
+    const [showOlympiadQuizInternal, setShowOlympiadQuizInternal] = useState(false);
 
     const storyQuestions = ertak?.questions || [];
     const hasStoryQuestions = storyQuestions.length > 0;
@@ -799,7 +882,7 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
                 if (hasAnyQuiz) {
                     autoQuizTimerRef.current = setTimeout(() => {
                         if (hasStoryQuestions) setShowQuiz(true);
-                        else if (hasOlympiadQuestions) onStartOlympiadQuiz?.();
+                        else if (hasOlympiadQuestions) setShowOlympiadQuizInternal(true);
                     }, 2000);
                 }
             });
@@ -808,7 +891,7 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
             if (hasAnyQuiz) {
                 autoQuizTimerRef.current = setTimeout(() => {
                     if (hasStoryQuestions) setShowQuiz(true);
-                    else if (hasOlympiadQuestions) onStartOlympiadQuiz?.();
+                    else if (hasOlympiadQuestions) setShowOlympiadQuizInternal(true);
                 }, 2000);
             }
         }
@@ -853,7 +936,7 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
 
     const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
-    if (showQuiz) {
+    if (showQuiz || showOlympiadQuizInternal) {
         const readingStats = {
             wpm: expectedWords.length > 0 && elapsed > 0 ? Math.round(currentWordIndex / (elapsed / 60)) : 0,
             readPercent: expectedWords.length > 0 ? Math.round((currentWordIndex / expectedWords.length) * 100) : 0,
@@ -861,7 +944,8 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
             wordsRead: currentWordIndex,
             totalWords: expectedWords.length,
         };
-        return <QuizModal ertak={ertak} onClose={onClose} readingStats={readingStats} olympiadId={olympiadId} />;
+        if (showQuiz) return <QuizModal ertak={ertak} onClose={onClose} readingStats={readingStats} olympiadId={olympiadId} />;
+        if (showOlympiadQuizInternal) return <OlympiadQuizModal questions={olympiadQuestions} olympiadId={olympiadId} onClose={onClose} readingStats={readingStats} />;
     }
 
     // ── reading stats for 'done' phase ──
@@ -1051,11 +1135,11 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
                                 </button>
                             </div>
 
-                            {hasAnyQuiz && !showQuiz && onStartOlympiadQuiz && (
+                            {hasAnyQuiz && !showQuiz && !showOlympiadQuizInternal && onStartOlympiadQuiz && (
                                 <button
                                     onClick={() => {
                                         if (hasStoryQuestions) setShowQuiz(true);
-                                        else if (hasOlympiadQuestions) onStartOlympiadQuiz?.();
+                                        else if (hasOlympiadQuestions) setShowOlympiadQuizInternal(true);
                                     }}
                                     className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold hover:scale-[1.02] transition-transform shadow-lg shadow-purple-500/20"
                                 >
@@ -1081,7 +1165,7 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
                                         if (hasAnyQuiz) {
                                             autoQuizTimerRef.current = setTimeout(() => {
                                                 if (hasStoryQuestions) setShowQuiz(true);
-                                                else if (hasOlympiadQuestions) onStartOlympiadQuiz?.();
+                                                else if (hasOlympiadQuestions) setShowOlympiadQuizInternal(true);
                                             }, 2000);
                                         }
                                     }}
