@@ -106,19 +106,34 @@ app.add_exception_handler(AppError, error_handler)
 app.add_exception_handler(Exception, error_handler)
 
 # CORS
-origins = ["*"]
-allow_credentials = True
+# MUHIM: origins=["*"] + credentials=True birga bo'lishi MUMKIN EMAS (HTTP spec).
+# Browserlar bunday responseni rad etadi.
 if settings.CORS_ORIGINS:
     if isinstance(settings.CORS_ORIGINS, str):
         origins = [o.strip() for o in settings.CORS_ORIGINS.split(",")]
     else:
         origins = settings.CORS_ORIGINS
-    allow_credentials = True
+else:
+    # Default: alif24.uz subdomenlari + local development
+    origins = [
+        "https://alif24.uz",
+        "https://www.alif24.uz",
+        "https://olimp.alif24.uz",
+        "https://games.alif24.uz",
+        "https://admin.alif24.uz",
+        "https://crm.alif24.uz",
+        "https://harf.alif24.uz",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=allow_credentials,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -230,8 +245,8 @@ class SubscriptionInfoMiddleware(BaseHTTPMiddleware):
                         expires_at=active_sub.expires_at.isoformat() if active_sub.expires_at else None,
                     )
                 break
-        except Exception:
-            pass  # Xato bo'lsa default holatda qo'yamiz
+        except Exception as e:
+            logger.warning(f"Subscription query failed for user {user_id}: {e}")
 
         # State ga joylaymiz, va keyingi jarayonga yo'l beramiz
         request.state.subscription = sub_info

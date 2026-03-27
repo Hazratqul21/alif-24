@@ -70,25 +70,7 @@ class GatewayUpdateRequest(BaseModel):
 # AUTH HELPERS
 # ============================================================================
 
-async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
-    """JWT cookie'dan foydalanuvchini olish"""
-    from app.core.auth import decode_token
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Tizimga kiring")
-    try:
-        payload = decode_token(token)
-        user_id = payload.get("sub") or payload.get("user_id")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Token noto'g'ri")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token muddati tugagan")
-
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalars().first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
-    return user
+from app.middleware.auth import get_current_user
 
 
 async def get_default_gateway(db: AsyncSession) -> PaymentGatewayConfig:
@@ -755,7 +737,7 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
         if "Reason: " in (txn.error_message or ""):
             try:
                 reason = int(txn.error_message.split("Reason: ")[1])
-            except:
+            except (ValueError, IndexError):
                 pass
                 
         state_map = {

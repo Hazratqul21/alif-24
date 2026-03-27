@@ -50,8 +50,11 @@ async def error_handler(request: Request, exc: Exception):
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
         )
-    # Log unexpected errors
-    logger.error(f"Unhandled error: {exc}\n{traceback.format_exc()}")
+    # Log unexpected errors with request context
+    logger.error(
+        f"Unhandled error on {request.method} {request.url.path}: "
+        f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"
+    )
     
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -59,7 +62,9 @@ async def error_handler(request: Request, exc: Exception):
             "success": False,
             "error": {
                 "code": "INTERNAL_ERROR",
-                "message": "An unexpected error occurred"
+                "type": type(exc).__name__,
+                "message": str(exc) if str(exc) else "An unexpected error occurred",
+                "path": request.url.path,
             },
             "timestamp": datetime.now(timezone.utc).isoformat()
         }

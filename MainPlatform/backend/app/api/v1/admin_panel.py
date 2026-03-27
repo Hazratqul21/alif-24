@@ -42,12 +42,13 @@ async def _log_audit(db, role, action, **kwargs):
         try:
             from .admin_analytics import write_audit_log
             _audit_log_fn = write_audit_log
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Audit log import xatosi: {e}")
             return
     try:
         await _audit_log_fn(db, role, action, **kwargs)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Audit log yozishda xatolik: {e}")
 
 # Admin Secret Keys from environment
 ADMIN_KEYS = {
@@ -548,8 +549,8 @@ async def admin_dashboard(
                 TeacherProfile.verification_status == TeacherStatus.pending
             )
         )).scalar() or 0
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Pending teachers sonini olishda xatolik: {e}")
     
     return {
         "total_users": total_users,
@@ -882,6 +883,23 @@ async def approve_teacher(
 # DATABASE MANAGEMENT - hazratqul & nurali
 # ============================================================================
 
+import re as _re
+
+async def _validate_table_name(table_name: str, db: AsyncSession) -> str:
+    """SQL Injection himoyasi: table_name faqat haqiqiy jadval bo'lishi kerak"""
+    # 1. Faqat alfanumerik va underscore ruxsat
+    if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+        raise HTTPException(status_code=400, detail="Noto'g'ri jadval nomi")
+    # 2. information_schema dan tekshirish (whitelist)
+    result = await db.execute(text(
+        "SELECT 1 FROM information_schema.tables "
+        "WHERE table_schema = 'public' AND table_name = :tbl"
+    ), {"tbl": table_name})
+    if not result.first():
+        raise HTTPException(status_code=404, detail="Jadval topilmadi")
+    return table_name
+
+
 @router.get("/db/tables")
 async def list_database_tables(
     admin: Dict = Depends(verify_admin),
@@ -907,7 +925,8 @@ async def list_database_tables(
             count_result = await db.execute(text(f'SELECT COUNT(*) FROM "{t}"'))
             count = count_result.scalar() or 0
             table_info.append({"name": t, "rows": count})
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Table '{t}' uchun COUNT xatosi: {e}")
             table_info.append({"name": t, "rows": 0})
     
     return {"tables": table_info}
@@ -926,6 +945,7 @@ async def get_table_data(
     if not has_permission(admin, "all"):
         raise HTTPException(status_code=403, detail="Super admin only")
     
+    await _validate_table_name(table_name, db)
     try:
         # Get columns
         col_result = await db.execute(text("""
@@ -980,6 +1000,7 @@ async def update_table_row(
     if not has_permission(admin, "all"):
         raise HTTPException(status_code=403, detail="Super admin only")
     
+    await _validate_table_name(table_name, db)
     try:
         # Load column metadata so we can cast/normalize values (e.g. empty string -> NULL)
         col_result = await db.execute(text("""
@@ -1064,6 +1085,7 @@ async def delete_table_row(
     if not has_permission(admin, "all"):
         raise HTTPException(status_code=403, detail="Super admin only")
     
+    await _validate_table_name(table_name, db)
     try:
         # Find primary key column
         pk_result = await db.execute(text("""
@@ -2035,13 +2057,13 @@ async def create_promo_code(
     if data.starts_at:
         try:
             promo.starts_at = datetime.fromisoformat(data.starts_at.replace('Z', '+00:00'))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"PromoCode starts_at parse xatosi: {data.starts_at} -> {e}")
     if data.expires_at:
         try:
             promo.expires_at = datetime.fromisoformat(data.expires_at.replace('Z', '+00:00'))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"PromoCode expires_at parse xatosi: {data.expires_at} -> {e}")
 
     db.add(promo)
     await db.commit()
@@ -2083,13 +2105,13 @@ async def update_promo_code(
     if data.starts_at is not None:
         try:
             promo.starts_at = datetime.fromisoformat(data.starts_at.replace('Z', '+00:00'))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"PromoCode update starts_at parse xatosi: {data.starts_at} -> {e}")
     if data.expires_at is not None:
         try:
             promo.expires_at = datetime.fromisoformat(data.expires_at.replace('Z', '+00:00'))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"PromoCode update expires_at parse xatosi: {data.expires_at} -> {e}")
 
     await db.commit()
     await db.refresh(promo)

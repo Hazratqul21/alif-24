@@ -307,8 +307,8 @@ async def get_student_detail(
             )
             for cs, cls in cls_res.all():
                 student_classes.append({"id": cls.id, "name": cls.name, "subject": cls.subject})
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Student class lookup failed for {student.id}: {e}")
 
     return {
         "success": True,

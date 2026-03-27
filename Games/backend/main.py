@@ -111,13 +111,23 @@ app = FastAPI(
 
 # CORS - configurable origins
 cors_origins_str = os.getenv("CORS_ORIGINS", "")
-cors_origins = [o.strip() for o in cors_origins_str.split(",") if o.strip()] if cors_origins_str else ["*"]
-allow_credentials = True
+if cors_origins_str:
+    cors_origins = [o.strip() for o in cors_origins_str.split(",") if o.strip()]
+else:
+    cors_origins = [
+        "https://alif24.uz",
+        "https://www.alif24.uz",
+        "https://games.alif24.uz",
+        "https://olimp.alif24.uz",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+    ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=allow_credentials,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -309,6 +319,9 @@ async def complete_2048(
     }
 
 
+VALID_GAME_TYPES = {"memory", "math-monster", "tetris", "2048"}
+
+
 @app.get("/api/v1/games/leaderboard/{game_type}")
 async def get_leaderboard(
     game_type: str,
@@ -317,27 +330,34 @@ async def get_leaderboard(
     db: AsyncSession = Depends(get_db)
 ):
     """Get game leaderboard"""
-    stmt = select(StudentProfile).order_by(desc(StudentProfile.total_points)).limit(limit)
+    if game_type not in VALID_GAME_TYPES:
+        raise HTTPException(status_code=400, detail=f"Noma'lum o'yin turi: {game_type}")
+
+    # Single JOIN query instead of N+1
+    stmt = (
+        select(StudentProfile, User)
+        .join(User, User.id == StudentProfile.user_id)
+        .order_by(desc(StudentProfile.total_points))
+        .limit(limit)
+    )
     result = await db.execute(stmt)
-    top_students = result.scalars().all()
-    
-    leaderboard_data = []
-    for idx, s in enumerate(top_students):
-        stmt = select(User).filter(User.id == s.user_id)
-        u_res = await db.execute(stmt)
-        u = u_res.scalars().first()
-        leaderboard_data.append({
+    rows = result.all()
+
+    leaderboard_data = [
+        {
             "rank": idx + 1,
-            "name": f"{u.first_name} {u.last_name}" if u else "Unknown",
+            "name": f"{u.first_name} {u.last_name}",
             "score": s.total_points,
-            "level": s.level
-        })
-        
+            "level": s.level,
+        }
+        for idx, (s, u) in enumerate(rows)
+    ]
+
     return {
         "success": True,
         "data": {
             "game": game_type,
-            "leaderboard": leaderboard_data
+            "leaderboard": leaderboard_data,
         }
     }
 

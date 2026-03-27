@@ -65,13 +65,22 @@ app = FastAPI(
 
 # CORS - configurable origins
 cors_origins_str = os.getenv("CORS_ORIGINS", "")
-cors_origins = [o.strip() for o in cors_origins_str.split(",") if o.strip()] if cors_origins_str else ["*"]
-allow_credentials = True
+if cors_origins_str:
+    cors_origins = [o.strip() for o in cors_origins_str.split(",") if o.strip()]
+else:
+    cors_origins = [
+        "https://alif24.uz",
+        "https://www.alif24.uz",
+        "https://crm.alif24.uz",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+    ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=allow_credentials,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

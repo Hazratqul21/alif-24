@@ -49,11 +49,26 @@ class BuilderPayload(BaseModel):
 
 # ============= Admin Auth =============
 
-async def verify_admin_key(x_admin_key: str = Header(..., alias="X-Admin-Key")):
-    """Admin key tekshirish"""
-    if x_admin_key != settings.ADMIN_SECRET_KEY:
-        raise HTTPException(status_code=403, detail="Admin emas")
-    return True
+async def verify_admin_key(
+    x_admin_key: str = Header(..., alias="X-Admin-Key"),
+    x_admin_role: Optional[str] = Header(None, alias="X-Admin-Role"),
+):
+    """Admin key tekshirish — MainPlatform va Olimp formatlarini qo'llab quvvatlaydi"""
+    # MainPlatform format: X-Admin-Role + X-Admin-Key
+    # Olimp format: faqat X-Admin-Key
+    ADMIN_KEYS = {
+        "hazratqul": settings.ADMIN_SECRET_KEY,
+        "nurali": settings.ADMIN_SECRET_KEY,
+        "pedagog": settings.ADMIN_SECRET_KEY,
+    }
+    if x_admin_role:
+        role = x_admin_role.lower()
+        if role in ADMIN_KEYS and x_admin_key == ADMIN_KEYS[role]:
+            return True
+    # Fallback: faqat key tekshirish
+    if x_admin_key == settings.ADMIN_SECRET_KEY:
+        return True
+    raise HTTPException(status_code=403, detail="Admin emas")
 
 
 # ============= Pydantic Schemas =============

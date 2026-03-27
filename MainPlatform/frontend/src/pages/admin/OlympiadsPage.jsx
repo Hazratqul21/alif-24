@@ -122,10 +122,22 @@ const handleCreate = async () => {
         return notify('error', 'Sarlavha, ro\'yxatdan o\'tish va boshlanish sanasi kerak');
     }
     try {
+        // datetime-local inputlar timezone o'z ichiga olmaydi — ISO 8601 formatga o'tkazamiz
+        const toISO = (v) => {
+            if (!v) return v;
+            // Agar allaqachon 'Z' yoki '+' bo'lsa, o'zgartirmaymiz
+            if (v.includes('Z') || v.includes('+')) return v;
+            // Local timezone offset qo'shamiz
+            const d = new Date(v);
+            return d.toISOString();
+        };
+
         const payload = {
             ...createForm,
-            registration_end: createForm.registration_end || createForm.registration_start,
-            end_time: createForm.end_time || createForm.start_time,
+            registration_start: toISO(createForm.registration_start),
+            registration_end: toISO(createForm.registration_end || createForm.registration_start),
+            start_time: toISO(createForm.start_time),
+            end_time: toISO(createForm.end_time || createForm.start_time),
         };
         await olympiadService.createOlympiad(payload);
 

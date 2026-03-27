@@ -251,8 +251,8 @@ async def get_me(
                 "avatar_seed": sp.avatar_seed,
                 "total_coins": sp.total_coins,
             }
-    except Exception:
-        pass  # Subscription jadval hali yaratilmagan bo'lishi mumkin
+    except Exception as e:
+        logger.warning(f"Student profile query failed for user {current_user.id}: {e}")
 
     user_data = current_user.to_dict()
     if subscription_data:
