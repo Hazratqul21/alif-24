@@ -9,8 +9,9 @@ import gameService from './services/gameService';
 // Games
 import LetterMemoryGame from './games/memory/LetterMemoryGame';
 import MathMonsterGame from './games/math/MathMonsterGame';
-import Tetris from './games/Tetris';
-import Game2048 from './games/Game2048';
+// TODO: Tetris and Game2048 components not yet implemented
+// import Tetris from './games/Tetris';
+// import Game2048 from './games/Game2048';
 
 // Components
 import ErrorBoundary from './components/Common/ErrorBoundary';
