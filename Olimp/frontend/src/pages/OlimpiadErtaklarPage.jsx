@@ -1334,7 +1334,12 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
     const storyQCount = (ertak.questions || []).length;
     const globalQCount = olympiadQuestions?.length || 0;
     const qCount = storyQCount || globalQCount;
-    const isCompleted = !!ertak.student_result;
+    
+    // MUHIM: student_result ni to'g'ri tekshirish
+    const isCompleted = ertak.student_result && 
+                        (ertak.student_result.total_points !== undefined || 
+                         ertak.student_result.read_percent !== undefined ||
+                         ertak.student_result.earned_coins !== undefined);
 
     return (
         <motion.div
@@ -1408,7 +1413,7 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
                         </div>
                         <div className="bg-amber-50/50 rounded-lg p-1.5 text-center border border-amber-100/30">
                             <p className="text-[9px] text-amber-600/60 uppercase font-bold leading-none mb-1">Coin</p>
-                            <p className="text-[13px] font-black text-amber-600 leading-none">+{ertak.student_result.coins_earned ?? 0}</p>
+                            <p className="text-[13px] font-black text-amber-600 leading-none">+{ertak.student_result.earned_coins ?? 0}</p>
                         </div>
                     </div>
                 )}
