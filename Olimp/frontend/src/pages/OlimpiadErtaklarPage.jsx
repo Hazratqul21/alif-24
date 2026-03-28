@@ -1253,8 +1253,8 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
     );
 }
 
-// ─── Test Card ─────────────────────────────────────────────────────────────────
-function TestCard({ questionCount, onClick, onViewResult, globalQuizResult }) {
+// ─── Test Card (Global Olympiad Test) ──────────────────────────────────────────
+function TestCard({ questionCount, onClick, globalQuizResult, onViewResult, isSeen }) {
     const isCompleted = !!globalQuizResult;
 
     return (
@@ -1265,12 +1265,7 @@ function TestCard({ questionCount, onClick, onViewResult, globalQuizResult }) {
             onClick={onClick}
             className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group flex flex-col h-full relative"
         >
-            {isCompleted ? (
-                <div className="absolute top-2.5 left-2.5 z-20 bg-emerald-50 text-emerald-600 text-[10px] uppercase font-bold px-2 py-1 rounded shadow-sm border border-emerald-100 flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    O'qilgan
-                </div>
-            ) : (
+            {!isSeen && !isCompleted && (
                 <div className="absolute top-2.5 left-2.5 z-20 bg-orange-500 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow-lg animate-pulse border border-orange-400">
                     Yangi
                 </div>
@@ -1584,7 +1579,12 @@ export default function OlimpiadErtaklarPage() {
                                 {olympiadQuestions.length > 0 && (
                                     <TestCard
                                         questionCount={olympiadQuestions.length}
-                                        onClick={() => { setActiveErtak(null); setShowOlympiadQuiz(true); }}
+                                        isSeen={seenStories.includes('global_test')}
+                                        onClick={() => { 
+                                            markAsSeen('global_test');
+                                            setActiveErtak(null); 
+                                            setShowOlympiadQuiz(true); 
+                                        }}
                                         globalQuizResult={globalQuizResult}
                                         onViewResult={() => setViewingResult({ type: 'global', data: globalQuizResult })}
                                     />
