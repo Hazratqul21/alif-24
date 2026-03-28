@@ -1278,13 +1278,8 @@ async def get_olympiad_stories(
     db: AsyncSession = Depends(get_db),
 ):
     """Get all stories (ertaklar) for a specific olympiad"""
-    try:
-        olympiad_id_int = int(olympiad_id)
-    except (ValueError, TypeError):
-        olympiad_id_int = 0
-
     res = await db.execute(
-        select(OlympiadStory).where(OlympiadStory.olympiad_id == olympiad_id_int)
+        select(OlympiadStory).where(OlympiadStory.olympiad_id == olympiad_id)
         .order_by(OlympiadStory.created_at.desc())
     )
     stories = res.scalars().all()
@@ -1295,7 +1290,7 @@ async def get_olympiad_stories(
     if student_id:
         p_res = await db.execute(
             select(OlympiadParticipant).where(
-                OlympiadParticipant.olympiad_id == olympiad_id_int,
+                OlympiadParticipant.olympiad_id == olympiad_id,
                 OlympiadParticipant.student_id == str(student_id)
             )
         )
