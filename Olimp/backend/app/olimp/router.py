@@ -1278,8 +1278,13 @@ async def get_olympiad_stories(
     db: AsyncSession = Depends(get_db),
 ):
     """Get all stories (ertaklar) for a specific olympiad"""
+    try:
+        olympiad_id_int = int(olympiad_id)
+    except (ValueError, TypeError):
+        olympiad_id_int = 0
+
     res = await db.execute(
-        select(OlympiadStory).where(OlympiadStory.olympiad_id == olympiad_id)
+        select(OlympiadStory).where(OlympiadStory.olympiad_id == olympiad_id_int)
         .order_by(OlympiadStory.created_at.desc())
     )
     stories = res.scalars().all()
@@ -1290,8 +1295,8 @@ async def get_olympiad_stories(
     if student_id:
         p_res = await db.execute(
             select(OlympiadParticipant).where(
-                OlympiadParticipant.olympiad_id == olympiad_id,
-                OlympiadParticipant.student_id == student_id
+                OlympiadParticipant.olympiad_id == olympiad_id_int,
+                OlympiadParticipant.student_id == str(student_id)
             )
         )
         participant = p_res.scalars().first()
@@ -1308,14 +1313,15 @@ async def get_olympiad_stories(
                     "reading_time_seconds": sub.reading_duration_seconds or 0,
                     "quiz_score": sub.comprehension_score or 0,
                     "earned_coins": sub.earned_coins or 0,
-                    "correct_answers": (sub.comprehension_score // 5) if sub.comprehension_score else 0,
+                    "correct_answers": (sub.comprehension_score // 100) if sub.comprehension_score else 0,
                     "total_questions": sub.comprehension_total or 0,
+                    "total_points": sub.total_points or 0,
                 }
-                if sub.story_id:
+                if sub.story_id is not None:
                     subs_map[str(sub.story_id)] = obj
-                elif sub.reading_task_id:
+                elif sub.reading_task_id is not None:
                     subs_map[str(sub.reading_task_id)] = obj
-                elif not sub.story_id and not sub.reading_task_id:
+                else:
                     global_quiz_result = obj
 
     return {
