@@ -1541,19 +1541,15 @@ async def submit_reading_result(
             )
             db.add(ans_obj)
 
-    # Average Formula (as requested: mean of all components)
-    # components: [ReadingScore, Q1_Score, Q2_Score, ...]
+    # Revised Formula (Quiz-Only average or 10 points for reading)
+    # components: [Q1_Score, Q2_Score, ...]
     
     item_scores = []
-    # 1. Reading component (only if it's a story reading task)
-    if data.story_id:
-        item_scores.append(float(data.read_percent))
     
-    # 2. Quiz components
+    # 1. Quiz components
     if data.quiz_answers:
         for q_detail in quiz_details:
             # If the frontend provided a specific score (AI voice quiz)
-            # Find the original answer to get the score if it was passed
             ans_score = None
             for ans in data.quiz_answers:
                 if ans.question_id == q_detail["question_id"]:
@@ -1566,9 +1562,13 @@ async def submit_reading_result(
                 # Fallback for Multiple Choice: 100 for correct, 0 for incorrect
                 item_scores.append(100.0 if q_detail["is_correct"] else 0.0)
     
-    # 3. Final session score (Mean)
+    # 2. Final session score
     if item_scores:
+        # Mean of quiz questions
         quiz_score = int(round(sum(item_scores) / len(item_scores)))
+    elif data.story_id:
+        # Reading-only story (no quiz) = 10 points
+        quiz_score = 10
     else:
         quiz_score = 0
         
