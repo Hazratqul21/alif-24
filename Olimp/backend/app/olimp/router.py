@@ -1293,6 +1293,8 @@ async def get_olympiad_stories(
                 }
                 if sub.story_id:
                     subs_map[sub.story_id] = obj
+                elif sub.reading_task_id:
+                    subs_map[sub.reading_task_id] = obj
                 elif not sub.story_id and not sub.reading_task_id:
                     global_quiz_result = obj
 
@@ -1583,7 +1585,7 @@ async def submit_reading_result(
                 participant_id=participant.id,
                 reading_task_id=data.story_id if is_task else None,
                 story_id=data.story_id if not is_task else None,
-                earned_coins=0,
+                earned_coins=int(total_new_coins),
                 words_per_minute=data.wpm,
                 read_percent=data.read_percent,
                 reading_duration_seconds=data.reading_time_seconds,
@@ -1612,7 +1614,7 @@ async def submit_reading_result(
                 participant_id=participant.id,
                 story_id=None,
                 reading_task_id=None,
-                earned_coins=0,
+                earned_coins=int(total_new_coins),
                 comprehension_score=quiz_score,
                 total_points=quiz_score,
                 comprehension_total=total_questions,
@@ -1639,11 +1641,12 @@ async def submit_reading_result(
         total_duration = sum(s.reading_duration_seconds or 0 for s in all_subs)
         total_coins = sum(s.earned_coins or 0 for s in all_subs)
         
-        # Faqat 1-marta yangi yechganda coinlarni qoshamiz (tepadagi sum ichida yo'qligi sababli)
-        # Yoki await db.flush() bulgani un all_subs da bulishi kk. 
-        # Lekin earned_coins hali submission ga berilmagan!
-        if not submission_existed:
-            total_coins += total_new_coins
+        # Aggregation logic: ensures newly added (first-time) coins are counted correctly
+        # though since we already set total_new_coins on the new submission and flushed it, 
+        # total_coins sum should already be correct. 
+        # But we'll add a safety check just in case the ORM session was tricky.
+        if not submission_existed and submission and submission.earned_coins not in [s.earned_coins for s in all_subs]:
+             total_coins += total_new_coins
         
         # Averages
         avg_wpm = sum(s.words_per_minute or 0 for s in all_subs) / all_count
