@@ -1548,6 +1548,9 @@ async def submit_reading_result(
     # Use direct AI-evaluated score if no multiple-choice answers were provided
     if not data.quiz_answers and data.quiz_score_direct is not None:
         quiz_score = max(0, min(100, data.quiz_score_direct or 0))
+    elif not data.quiz_answers:
+        # Fallback for reading-only sessions: use read_percent as the score
+        quiz_score = int(data.read_percent)
 
     # --- Reading coins ---
     reading_coins = 0 if data.wpm == 0 else (10 if data.wpm >= 60 else (5 if data.wpm >= 40 else 2))

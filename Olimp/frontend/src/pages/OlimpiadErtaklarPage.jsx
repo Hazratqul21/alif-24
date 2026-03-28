@@ -434,46 +434,49 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
 function OlympiadTestResultModal({ result, onClose }) {
     const wrongAnswers = (result.total_questions || 0) - (result.correct_answers || 0);
     return (
-        <div className="space-y-4 text-center">
-            <div className="text-4xl mt-2 mb-1">🎯</div>
-            <h2 className="text-white font-bold text-2xl">Test natijasi!</h2>
-            <div className="grid grid-cols-2 gap-3 text-left">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                    <p className="text-white/50 text-xs">To'g'ri</p>
-                    <p className="text-white font-bold text-lg text-emerald-400">{result.correct_answers ?? 0} ta</p>
+        <div className="space-y-6 text-center py-4">
+            <div className="text-5xl mt-2 mb-2">🎯</div>
+            <h2 className="text-[#1a1a2e] font-bold text-2xl">Test natijasi!</h2>
+            <div className="grid grid-cols-2 gap-4 text-left">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                    <p className="text-emerald-800/60 text-[10px] uppercase font-bold tracking-wider mb-1">To'g'ri</p>
+                    <p className="text-emerald-600 font-extrabold text-2xl">{result.correct_answers ?? 0} ta</p>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                    <p className="text-white/50 text-xs">Noto'g'ri</p>
-                    <p className="text-white font-bold text-lg text-red-400">{wrongAnswers} ta</p>
+                <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4">
+                    <p className="text-rose-800/60 text-[10px] uppercase font-bold tracking-wider mb-1">Noto'g'ri</p>
+                    <p className="text-rose-600 font-extrabold text-2xl">{wrongAnswers} ta</p>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                    <p className="text-white/50 text-xs">Vaqt</p>
-                    <p className="text-white font-bold text-lg">{result.elapsed_seconds ? `${Math.floor(result.elapsed_seconds/60)}:${String(result.elapsed_seconds % 60).padStart(2,'0')}` : '—'}</p>
+                <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+                    <p className="text-indigo-800/60 text-[10px] uppercase font-bold tracking-wider mb-1">Vaqt</p>
+                    <p className="text-[#4b30fb] font-extrabold text-2xl">{result.elapsed_seconds ? `${Math.floor(result.elapsed_seconds/60)}:${String(result.elapsed_seconds % 60).padStart(2,'0')}` : '—'}</p>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                    <p className="text-white/50 text-xs">Test bali</p>
-                    <p className="text-white font-bold text-lg">{result.quiz_score ?? 0}</p>
-                </div>
-            </div>
-            <div className="bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border border-yellow-500/20 rounded-2xl p-4 flex flex-col items-center justify-center mt-2">
-                <p className="text-white/50 text-xs uppercase font-medium tracking-wide mb-1">Berilgan coinlar</p>
-                <div className="flex items-center gap-2">
-                    <p className="text-3xl font-black text-yellow-400">+{result.quiz_coins ?? 0}</p>
-                    <span className="text-3xl filter drop-shadow-md">🪙</span>
+                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+                    <p className="text-amber-800/60 text-[10px] uppercase font-bold tracking-wider mb-1">Test bali</p>
+                    <p className="text-amber-600 font-extrabold text-2xl">{result.quiz_score ?? 0}</p>
                 </div>
             </div>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3 mt-2 flex justify-between items-center text-sm">
-                <span className="text-white/50">Jami ball (Olimpiada)</span>
-                <span className="text-white font-bold">{result.total_score ?? 0}</span>
+            <div className="bg-gradient-to-br from-yellow-100/50 to-orange-100/50 border border-yellow-200 rounded-2xl p-5 flex flex-col items-center justify-center">
+                <p className="text-amber-900/40 text-[10px] uppercase font-bold tracking-widest mb-2">Yig'ilgan coinlar</p>
+                <div className="flex items-center gap-3">
+                    <p className="text-4xl font-black text-amber-600">+{result.quiz_coins ?? 0}</p>
+                    <span className="text-4xl">🪙</span>
+                </div>
             </div>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-2 flex justify-between items-center text-sm">
-                <span className="text-white/50">Jami Coinlar</span>
-                <span className="text-white font-bold text-yellow-400">{result.total_coins ?? 0} 🪙</span>
+            
+            <div className="space-y-2">
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center">
+                    <span className="text-slate-500 text-sm font-medium">Jami olimpiada balli</span>
+                    <span className="text-[#1a1a2e] font-extrabold text-lg">{result.total_score ?? 0}</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center">
+                    <span className="text-slate-500 text-sm font-medium">Jami yig'ilgan coinlar</span>
+                    <span className="text-amber-600 font-extrabold text-lg flex items-center gap-1.5">{result.total_coins ?? 0} 🪙</span>
+                </div>
             </div>
             
             <button
                 onClick={onClose}
-                className="mt-2 w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform shadow-lg shadow-purple-500/20"
+                className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-purple-500/25"
             >
                 Yopish
             </button>
@@ -492,79 +495,80 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
     const totalCoin = readingCoin + quizCoin;
     const totalScore = result.total_score || 0;
     const quizScore = result.quiz_score || 0;
-    const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
-    const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-red-400';
+    const wpmColor = wpm >= 60 ? 'text-emerald-600' : wpm >= 40 ? 'text-amber-600' : 'text-rose-600';
+    const scoreColor = (s) => s >= 80 ? 'text-emerald-600' : s >= 50 ? 'text-amber-600' : 'text-rose-600';
     const wrongAnswers = (result.total_questions || 0) - (result.correct_answers || 0);
     const testFmtTime = result.elapsed_seconds ? `${String(Math.floor(result.elapsed_seconds / 60)).padStart(2, '0')}:${String(result.elapsed_seconds % 60).padStart(2, '0')}` : '00:00';
-    
+    const isQuizAttempted = (result.total_questions || 0) > 0;
+
     return (
-        <div className="flex flex-col items-center gap-5">
-            <div className="text-6xl pt-2 pb-1">💪</div>
+        <div className="flex flex-col items-center gap-6 py-2">
+            <div className="text-6xl mt-2">🎖️</div>
             <div className="text-center">
-                <p className="text-white font-bold text-[1.75rem] mb-1">Umumiy natija</p>
+                <p className="text-[#1a1a2e] font-black text-3xl mb-1">Natijangiz</p>
+                <p className="text-slate-400 text-sm">Ajoyib ko'rsatkich!</p>
             </div>
             
-            <div className="w-full mt-2">
-                <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
-                    📖 O'QISH
+            <div className="w-full">
+                <p className="text-slate-800/40 text-[10px] uppercase tracking-[0.2em] font-black mb-4 flex items-center gap-2 px-1">
+                    📖 O'QISH TEZLIGI
                 </p>
                 <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
-                        <p className={`text-[1.75rem] font-black mb-1 leading-none ${wpmColor}`}>{wpm}</p>
-                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">so'z/daq</p>
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm">
+                        <p className={`text-2xl font-black mb-1 leading-none ${wpmColor}`}>{wpm}</p>
+                        <p className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">so'z/daq</p>
                     </div>
-                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
-                        <p className="text-[1.75rem] font-black mb-1 leading-none text-[#5188f6]">{readPercent}%</p>
-                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">o'qilgan</p>
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm">
+                        <p className="text-2xl font-black mb-1 leading-none text-indigo-600">{readPercent}%</p>
+                        <p className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">o'qilgan</p>
                     </div>
-                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
-                        <p className="text-[1.75rem] font-black mb-1 leading-none text-[#c97cf7]">{fmtTime}</p>
-                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">vaqt</p>
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm">
+                        <p className="text-2xl font-black mb-1 leading-none text-purple-600">{fmtTime}</p>
+                        <p className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">vaqt</p>
                     </div>
                 </div>
             </div>
             
-            <div className="w-full mt-1">
-                <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
+            <div className="w-full">
+                <p className="text-slate-800/40 text-[10px] uppercase tracking-[0.2em] font-black mb-4 flex items-center gap-2 px-1">
                     🧠 SAVOL-JAVOB
                 </p>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-5 flex flex-col items-center justify-center">
                         <p className={`text-4xl font-black mb-1 leading-none ${scoreColor(quizScore)}`}>{quizScore}</p>
-                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">Test bali</p>
+                        <p className="text-indigo-900/40 text-[9px] uppercase font-bold tracking-widest">Vazifa bali</p>
                     </div>
-                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-5 flex flex-col items-center justify-center">
                         <p className={`text-4xl font-black mb-1 leading-none ${scoreColor(totalScore)}`}>{totalScore}</p>
-                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">Jami O'rtacha</p>
+                        <p className="text-indigo-900/40 text-[9px] uppercase font-bold tracking-widest">Jami reyting</p>
                     </div>
                 </div>
-                <div className="space-y-[6px]">
-                    <div className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
-                        <span className="text-white/60 text-[13px] font-medium">To'g'ri javoblar</span>
-                        <span className="text-[13px] font-bold text-emerald-400">{result.correct_answers || 0} ta</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
-                        <span className="text-white/60 text-[13px] font-medium">Noto'g'ri javoblar</span>
-                        <span className="text-[13px] font-bold text-red-400">{wrongAnswers} ta</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
-                        <span className="text-white/60 text-[13px] font-medium">Test ishlash vaqti</span>
-                        <span className="text-[13px] font-bold text-white">{testFmtTime}</span>
-                    </div>
-                </div>
+                {isQuizAttempted && (
+                  <div className="space-y-2">
+                      <div className="flex items-center justify-between bg-emerald-50 text-emerald-700 rounded-xl px-4 py-3 border border-emerald-100/50">
+                          <span className="text-[13px] font-semibold">To'g'ri javoblar</span>
+                          <span className="text-[13px] font-black">{result.correct_answers || 0} ta</span>
+                      </div>
+                      <div className="flex items-center justify-between bg-rose-50 text-rose-700 rounded-xl px-4 py-3 border border-rose-100/50">
+                          <span className="text-[13px] font-semibold">Noto'g'ri javoblar</span>
+                          <span className="text-[13px] font-black">{wrongAnswers} ta</span>
+                      </div>
+                  </div>
+                )}
             </div>
             
-            <div className="w-full mt-2 bg-gradient-to-r from-[#cca651]/10 via-[#cca651]/15 to-[#cca651]/10 border border-[#cca651]/20 rounded-3xl p-[18px] text-center flex flex-col items-center justify-center">
-                <div className="flex items-center gap-3 mb-1">
-                    <p className="text-4xl leading-none font-black text-[#facc15]">+{totalCoin}</p>
-                    <img src="/icons/coin.svg" alt="coin" className="w-[38px] h-[38px] drop-shadow-md" onError={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='block'; }} />
-                    <span className="text-4xl filter drop-shadow-md hidden">🪙</span>
+            <div className="w-full bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-3xl p-6 text-center flex flex-col items-center justify-center shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                    <p className="text-4xl leading-none font-black text-amber-600">+{totalCoin}</p>
+                    <span className="text-4xl">🪙</span>
                 </div>
-                <p className="text-white/50 text-[13px] font-medium tracking-wide">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
+                <p className="text-amber-800/40 text-xs font-bold tracking-wide">
+                    O'qish: +{readingCoin} {isQuizAttempted && `• Quiz: +${quizCoin}`}
+                </p>
             </div>
             
             <button onClick={onClose}
-                className="w-full py-[18px] mt-2 bg-gradient-to-r from-[#5f33f6] to-[#7f3bf6] text-white rounded-2xl font-bold text-[17px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
+                className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-purple-500/25">
                 Yopish
             </button>
         </div>
@@ -668,7 +672,7 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.88, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-white/10 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col"
+                className="relative bg-white border border-slate-200 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col"
                 style={{ maxHeight: '94vh' }}
                 onClick={e => e.stopPropagation()}
             >
@@ -1252,19 +1256,20 @@ function TestCard({ questionCount, onClick, onViewResult, globalQuizResult }) {
             className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group flex flex-col h-full relative"
         >
             {isCompleted ? (
-                <div className="absolute top-2 left-2 z-10 bg-emerald-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded border border-emerald-400/30 backdrop-blur-sm">
+                <div className="absolute top-2.5 left-2.5 z-20 bg-emerald-50 text-emerald-600 text-[10px] uppercase font-bold px-2 py-1 rounded shadow-sm border border-emerald-100 flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     O'qilgan
                 </div>
             ) : (
-                <div className="absolute top-2 left-2 z-10 bg-rose-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded animate-pulse border border-rose-400/30 backdrop-blur-sm">
+                <div className="absolute top-2.5 left-2.5 z-20 bg-orange-500 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow-lg animate-pulse border border-orange-400">
                     Yangi
                 </div>
             )}
 
-            <div className={`w-full aspect-[4/3] relative overflow-hidden flex items-center justify-center ${isCompleted ? 'bg-gradient-to-br from-[#10b981]/80 to-[#059669]/80' : 'bg-gradient-to-br from-[#fbbf24] to-[#f97316]'}`}>
-                <div className="text-white text-5xl">🧠</div>
+            <div className={`w-full aspect-[4/3] relative overflow-hidden flex items-center justify-center ${isCompleted ? 'bg-emerald-50/50' : 'bg-gradient-to-br from-[#fbbf24] to-[#f97316]'}`}>
+                <div className={`text-5xl ${isCompleted ? 'opacity-30 contrast-75' : 'text-white'}`}>🧠</div>
             </div>
-            <div className={`p-4 flex flex-col flex-1 ${isCompleted ? 'bg-slate-50' : ''}`}>
+            <div className={`p-4 flex flex-col flex-1 ${isCompleted ? 'bg-white' : ''}`}>
                 <h3 className="text-[#1a1a2e] font-bold text-base mb-1 leading-snug">Olimpiada testi</h3>
                 <p className={`${isCompleted ? 'text-emerald-600' : 'text-[#4b30fb]'} text-xs mb-3`}>Test savollari orqali ball to'plang</p>
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4">
@@ -1311,26 +1316,27 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
             className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group flex flex-col h-full relative"
         >
             {isCompleted ? (
-                <div className="absolute top-2 left-2 z-10 bg-emerald-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded border border-emerald-400/30 backdrop-blur-sm">
+                <div className="absolute top-2.5 left-2.5 z-20 bg-emerald-50 text-emerald-600 text-[10px] uppercase font-bold px-2 py-1 rounded shadow-sm border border-emerald-100 flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     O'qilgan
                 </div>
             ) : (
-                <div className="absolute top-2 left-2 z-10 bg-rose-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded animate-pulse border border-rose-400/30 backdrop-blur-sm">
+                <div className="absolute top-2.5 left-2.5 z-20 bg-rose-500 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow-lg animate-pulse border border-rose-400">
                     Yangi
                 </div>
             )}
 
-            <div className={`w-full aspect-[4/3] relative overflow-hidden flex items-center justify-center ${isCompleted ? 'bg-gradient-to-br from-[#4b6ef5]/80 to-[#9b59b6]/80' : 'bg-gradient-to-br from-[#4b6ef5] to-[#9b59b6]'}`}>
+            <div className={`w-full aspect-[4/3] relative overflow-hidden flex items-center justify-center ${isCompleted ? 'bg-indigo-50/50' : 'bg-gradient-to-br from-[#4b6ef5] to-[#9b59b6]'}`}>
                 {hasImage ? (
                     <img
                         src={ertak.image_url}
                         alt={ertak.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 mix-blend-overlay"
+                        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${isCompleted ? 'opacity-40 grayscale-[0.3]' : 'mix-blend-overlay'}`}
                         onError={() => setImgError(true)}
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center group-hover:opacity-90 transition-opacity">
-                        <BookOpen className="w-14 h-14 text-white/40" strokeWidth={1.5} />
+                        <BookOpen className={`w-14 h-14 ${isCompleted ? 'text-indigo-200' : 'text-white/40'}`} strokeWidth={1.5} />
                     </div>
                 )}
                 {qCount > 0 && (
@@ -1342,7 +1348,7 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
                     </div>
                 )}
             </div>
-            <div className={`p-4 flex flex-col flex-1 ${isCompleted ? 'bg-slate-50' : ''}`}>
+            <div className={`p-4 flex flex-col flex-1 ${isCompleted ? 'bg-white' : 'bg-white'}`}>
                 <h3 className="text-[#1a1a2e] font-bold text-base mb-1 line-clamp-2 leading-snug">{ertak.title}</h3>
                 {ertak.content && (
                     <p className={`text-xs mb-3 line-clamp-2 flex items-center gap-1 ${isCompleted ? 'text-[#4b30fb]/70' : 'text-[#4b30fb]'}`}>
