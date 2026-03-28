@@ -1254,6 +1254,7 @@ async def delete_olympiad_lesson(
 @router.get("/{olympiad_id}/content/stories")
 async def get_olympiad_stories(
     olympiad_id: str,
+    student_id: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Get all stories (ertaklar) for a specific olympiad"""
@@ -1262,9 +1263,43 @@ async def get_olympiad_stories(
         .order_by(OlympiadStory.created_at.desc())
     )
     stories = res.scalars().all()
+    
+    subs_map = {}
+    global_quiz_result = None
+    
+    if student_id:
+        p_res = await db.execute(
+            select(OlympiadParticipant).where(
+                OlympiadParticipant.olympiad_id == olympiad_id,
+                OlympiadParticipant.student_id == student_id
+            )
+        )
+        participant = p_res.scalars().first()
+        if participant:
+            sub_res = await db.execute(
+                select(OlympiadReadingSubmission).where(
+                    OlympiadReadingSubmission.participant_id == participant.id
+                )
+            )
+            for sub in sub_res.scalars().all():
+                obj = {
+                    "wpm": sub.words_per_minute or 0,
+                    "read_percent": sub.read_percent or 0,
+                    "reading_time_seconds": sub.reading_duration_seconds or 0,
+                    "quiz_score": sub.comprehension_score or 0,
+                    "earned_coins": sub.earned_coins or 0,
+                    "correct_answers": (sub.comprehension_score // 5) if sub.comprehension_score else 0,
+                    "total_questions": sub.comprehension_total or 0,
+                }
+                if sub.story_id:
+                    subs_map[sub.story_id] = obj
+                elif not sub.story_id and not sub.reading_task_id:
+                    global_quiz_result = obj
+
     return {
         "success": True,
         "data": {
+            "global_quiz_result": global_quiz_result,
             "ertaklar": [{
                 "id": s.id, "olympiad_id": s.olympiad_id, "title": s.title,
                 "content": s.content, "language": s.language, "age_group": s.age_group,
@@ -1272,6 +1307,7 @@ async def get_olympiad_stories(
                 "image_url": s.image_url, "view_count": s.view_count,
                 "questions": s.questions or [],
                 "created_at": s.created_at.isoformat() if s.created_at else None,
+                "student_result": subs_map.get(s.id)
             } for s in stories]
         }
     }
@@ -1489,6 +1525,7 @@ async def submit_reading_result(
                 "submitted_answer": ans.answer_index,
                 "correct_answer": question.correct_answer,
                 "is_correct": is_correct,
+                "points": question.points if is_correct else 0,
             })
 
             # Save answer
@@ -1501,11 +1538,16 @@ async def submit_reading_result(
             )
             db.add(ans_obj)
 
-    quiz_score = round((correct_count / total_questions) * 100) if total_questions > 0 else 0
+    # For multiple-choice, scale points (or sum them up).
+    # Since requested: har bir to'g'ri javob uchun q.points (e.g. 5) ball
+    if data.quiz_answers:
+        quiz_score = int(sum(int(q.get("points", 0)) for q in quiz_details))
+    else:
+        quiz_score = 0
 
     # Use direct AI-evaluated score if no multiple-choice answers were provided
     if not data.quiz_answers and data.quiz_score_direct is not None:
-        quiz_score = max(0, min(100, data.quiz_score_direct))
+        quiz_score = max(0, min(100, data.quiz_score_direct or 0))
 
     # --- Reading coins ---
     reading_coins = 0 if data.wpm == 0 else (10 if data.wpm >= 60 else (5 if data.wpm >= 40 else 2))
@@ -1517,7 +1559,7 @@ async def submit_reading_result(
         
     total_new_coins = reading_coins + quiz_coins
 
-    # --- Save Submission per Story ---
+    # --- Save Submission per Story or General Test ---
     submission_existed = False
     if data.story_id:
         sub_res = await db.execute(
@@ -1533,29 +1575,48 @@ async def submit_reading_result(
         submission_existed = submission is not None
         
         if not submission:
-            # Check if it's a task or a story to set the right foreign key
             is_task = (await db.execute(select(OlympiadReadingTask).where(OlympiadReadingTask.id == data.story_id))).scalars().first() is not None
-            
             submission = OlympiadReadingSubmission(
                 participant_id=participant.id,
                 reading_task_id=data.story_id if is_task else None,
                 story_id=data.story_id if not is_task else None,
-                earned_coins=0
+                earned_coins=0,
+                words_per_minute=data.wpm,
+                read_percent=data.read_percent,
+                reading_duration_seconds=data.reading_time_seconds,
+                comprehension_score=quiz_score,
+                comprehension_total=total_questions,
+                total_points=quiz_score,
+                submitted_at=datetime.now(timezone.utc)
             )
             db.add(submission)
+            # Faqat 1-marta qo'shiladi
+            
+    else:
+        # Global Olympiad Test (no story_id)
+        sub_res = await db.execute(
+            select(OlympiadReadingSubmission).where(
+                OlympiadReadingSubmission.participant_id == participant.id,
+                OlympiadReadingSubmission.story_id == None,
+                OlympiadReadingSubmission.reading_task_id == None
+            )
+        )
+        submission = sub_res.scalars().first()
+        submission_existed = submission is not None
         
-        # Keep best for this story
-        story_current_val = quiz_score * 1000 + data.wpm
-        story_past_val = (submission.comprehension_score or 0) * 1000 + (submission.words_per_minute or 0)
-        
-        if story_current_val >= story_past_val:
-            submission.words_per_minute = data.wpm
-            submission.read_percent = data.read_percent
-            submission.reading_duration_seconds = data.reading_time_seconds
-            submission.comprehension_score = quiz_score
-            submission.comprehension_total = total_questions
-            submission.total_points = quiz_score 
-            submission.submitted_at = datetime.now(timezone.utc)
+        if not submission:
+            submission = OlympiadReadingSubmission(
+                participant_id=participant.id,
+                story_id=None,
+                reading_task_id=None,
+                earned_coins=0,
+                comprehension_score=quiz_score,
+                total_points=quiz_score,
+                comprehension_total=total_questions,
+                submitted_at=datetime.now(timezone.utc)
+            )
+            db.add(submission)
+            # Faqat 1-marta qo'shiladi
 
     db.add(participant)
     await db.flush() 
@@ -1575,8 +1636,10 @@ async def submit_reading_result(
         total_duration = sum(s.reading_duration_seconds or 0 for s in all_subs)
         total_coins = sum(s.earned_coins or 0 for s in all_subs)
         
-        # Include coins for the new story if it's the first attempt
-        if data.story_id and not submission_existed:
+        # Faqat 1-marta yangi yechganda coinlarni qoshamiz (tepadagi sum ichida yo'qligi sababli)
+        # Yoki await db.flush() bulgani un all_subs da bulishi kk. 
+        # Lekin earned_coins hali submission ga berilmagan!
+        if not submission_existed:
             total_coins += total_new_coins
         
         # Averages
@@ -1588,6 +1651,7 @@ async def submit_reading_result(
         participant.reading_percent = avg_percent
         participant.reading_time_seconds = total_duration
         participant.reading_coins = total_coins
+        participant.coins_earned = total_coins  # Buni ham yangilaymiz (Leaderboard da ishlatilishi u-n)
         
         # Backward compatibility
         participant.quiz_score = avg_percent 
@@ -1596,8 +1660,8 @@ async def submit_reading_result(
         participant.completed_at = datetime.now(timezone.utc)
     participant.reading_attempts = (participant.reading_attempts or 0) + 1
 
-    # --- Award Coins (Only on first submission of this story) ---
-    if data.story_id and not submission_existed:
+    # --- Award Coins (Only on first submission of this story/test) ---
+    if not submission_existed:
         submission.earned_coins = total_new_coins
         try:
             await _award_coins(

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, Trophy } from 'lucide-react';
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import apiService from '../services/apiService';
 import { getSimilarity, extractWords, getDisplayTokens } from '../utils/fuzzyMatch';
@@ -1002,7 +1002,7 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
             totalWords: expectedWords.length,
         };
         if (showQuiz) return <QuizModal ertak={ertak} onClose={onClose} readingStats={readingStats} olympiadId={olympiadId} />;
-        if (showOlympiadQuizInternal) return <OlympiadQuizModal questions={olympiadQuestions} olympiadId={olympiadId} storyId={ertak.id} onClose={onClose} readingStats={readingStats} />;
+        if (showOlympiadQuizInternal) return <OlympiadQuizModal questions={olympiadQuestions} olympiadId={olympiadId} storyId={null} onClose={onClose} readingStats={readingStats} />;
     }
 
     // ── reading stats for 'done' phase ──
@@ -1240,35 +1240,57 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
 }
 
 // ─── Test Card ─────────────────────────────────────────────────────────────────
-function TestCard({ questionCount, onClick }) {
+function TestCard({ questionCount, onClick, onViewResult, globalQuizResult }) {
+    const isCompleted = !!globalQuizResult;
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0 }}
             onClick={onClick}
-            className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group flex flex-col h-full"
+            className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group flex flex-col h-full relative"
         >
-            <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-[#fbbf24] to-[#f97316] flex items-center justify-center">
+            {isCompleted ? (
+                <div className="absolute top-2 left-2 z-10 bg-emerald-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded border border-emerald-400/30 backdrop-blur-sm">
+                    O'qilgan
+                </div>
+            ) : (
+                <div className="absolute top-2 left-2 z-10 bg-rose-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded animate-pulse border border-rose-400/30 backdrop-blur-sm">
+                    Yangi
+                </div>
+            )}
+
+            <div className={`w-full aspect-[4/3] relative overflow-hidden flex items-center justify-center ${isCompleted ? 'bg-gradient-to-br from-[#10b981]/80 to-[#059669]/80' : 'bg-gradient-to-br from-[#fbbf24] to-[#f97316]'}`}>
                 <div className="text-white text-5xl">🧠</div>
             </div>
-            <div className="p-4 flex flex-col flex-1">
+            <div className={`p-4 flex flex-col flex-1 ${isCompleted ? 'bg-slate-50' : ''}`}>
                 <h3 className="text-[#1a1a2e] font-bold text-base mb-1 leading-snug">Olimpiada testi</h3>
-                <p className="text-[#4b30fb] text-xs mb-3">Test savollari orqali ball to'plang</p>
+                <p className={`${isCompleted ? 'text-emerald-600' : 'text-[#4b30fb]'} text-xs mb-3`}>Test savollari orqali ball to'plang</p>
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4">
                     <span>{questionCount} savol</span>
                 </div>
-                <button className="mt-auto w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#f97316] to-[#ef4444] text-white rounded-2xl font-semibold text-sm hover:scale-[1.02] transition-transform shadow-md shadow-orange-500/30">
-                    Testni boshlash
-                    <ChevronRight className="w-4 h-4" />
-                </button>
+                <div className="mt-auto grid grid-cols-1 gap-2">
+                    {isCompleted && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onViewResult(); }}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-medium text-sm hover:bg-emerald-100 transition-all border border-emerald-500/10"
+                        >
+                            <Trophy className="w-4 h-4 text-emerald-500" /> Natijani ko'rish
+                        </button>
+                    )}
+                    <button className={`w-full flex items-center justify-center gap-2 py-3 ${isCompleted ? 'bg-gradient-to-r from-emerald-500/80 to-emerald-600/80 group-hover:scale-[1.02]' : 'bg-gradient-to-r from-[#f97316] to-[#ef4444] group-hover:scale-[1.02]'} text-white rounded-2xl font-semibold text-sm transition-transform shadow-md ${isCompleted ? 'shadow-emerald-500/20' : 'shadow-orange-500/30'}`}>
+                        {isCompleted ? 'Qayta ishlash' : 'Testni boshlash'}
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
         </motion.div>
     );
 }
 
 // ─── Card ──────────────────────────────────────────────────────────────────────
-function ErtakCard({ ertak, index, onClick, olympiadQuestions = [] }) {
+function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = [] }) {
     const [imgError, setImgError] = useState(false);
     const hasImage = ertak.image_url && !imgError;
     const dayNames = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
@@ -1278,6 +1300,7 @@ function ErtakCard({ ertak, index, onClick, olympiadQuestions = [] }) {
     const storyQCount = (ertak.questions || []).length;
     const globalQCount = olympiadQuestions?.length || 0;
     const qCount = storyQCount || globalQCount;
+    const isCompleted = !!ertak.student_result;
 
     return (
         <motion.div
@@ -1285,14 +1308,24 @@ function ErtakCard({ ertak, index, onClick, olympiadQuestions = [] }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.06 }}
             onClick={onClick}
-            className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group flex flex-col h-full"
+            className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group flex flex-col h-full relative"
         >
-            <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-[#4b6ef5] to-[#9b59b6] flex items-center justify-center">
+            {isCompleted ? (
+                <div className="absolute top-2 left-2 z-10 bg-emerald-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded border border-emerald-400/30 backdrop-blur-sm">
+                    O'qilgan
+                </div>
+            ) : (
+                <div className="absolute top-2 left-2 z-10 bg-rose-500/90 text-white text-[10px] uppercase font-bold px-2 py-1 rounded animate-pulse border border-rose-400/30 backdrop-blur-sm">
+                    Yangi
+                </div>
+            )}
+
+            <div className={`w-full aspect-[4/3] relative overflow-hidden flex items-center justify-center ${isCompleted ? 'bg-gradient-to-br from-[#4b6ef5]/80 to-[#9b59b6]/80' : 'bg-gradient-to-br from-[#4b6ef5] to-[#9b59b6]'}`}>
                 {hasImage ? (
                     <img
                         src={ertak.image_url}
                         alt={ertak.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 mix-blend-overlay"
                         onError={() => setImgError(true)}
                     />
                 ) : (
@@ -1301,7 +1334,7 @@ function ErtakCard({ ertak, index, onClick, olympiadQuestions = [] }) {
                     </div>
                 )}
                 {qCount > 0 && (
-                    <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+                    <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
                         🧠 {qCount} savol
                         {storyQCount === 0 && globalQCount > 0 && (
                             <span className="ml-1 text-[10px] opacity-80">(olympiad)</span>
@@ -1309,10 +1342,10 @@ function ErtakCard({ ertak, index, onClick, olympiadQuestions = [] }) {
                     </div>
                 )}
             </div>
-            <div className="p-4 flex flex-col flex-1">
+            <div className={`p-4 flex flex-col flex-1 ${isCompleted ? 'bg-slate-50' : ''}`}>
                 <h3 className="text-[#1a1a2e] font-bold text-base mb-1 line-clamp-2 leading-snug">{ertak.title}</h3>
                 {ertak.content && (
-                    <p className="text-[#4b30fb] text-xs mb-3 line-clamp-2 flex items-center gap-1">
+                    <p className={`text-xs mb-3 line-clamp-2 flex items-center gap-1 ${isCompleted ? 'text-[#4b30fb]/70' : 'text-[#4b30fb]'}`}>
                         <span>📖</span> {ertak.content.slice(0, 60)}...
                     </p>
                 )}
@@ -1321,9 +1354,19 @@ function ErtakCard({ ertak, index, onClick, olympiadQuestions = [] }) {
                     {dayLabel && wordCount > 0 && <span>•</span>}
                     {wordCount > 0 && <span>{wordCount} so'z</span>}
                 </div>
-                <button className="mt-auto w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-semibold text-sm hover:scale-[1.02] transition-transform shadow-md shadow-purple-500/30">
-                    <Mic className="w-4 h-4" /> Boshlash
-                </button>
+                <div className="mt-auto grid grid-cols-1 gap-2">
+                    {isCompleted && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onViewResult(); }}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-50 text-[#4b30fb] rounded-xl font-medium text-sm hover:bg-indigo-100 transition-all border border-[#4b30fb]/10"
+                        >
+                            <Trophy className="w-4 h-4 text-[#4b30fb]" /> Natijani ko'rish
+                        </button>
+                    )}
+                    <button className={`w-full flex items-center justify-center gap-2 py-3 ${isCompleted ? 'bg-gradient-to-r from-[#4b30fb]/80 to-[#764ba2]/80 group-hover:scale-[1.02]' : 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] group-hover:scale-[1.02]'} text-white rounded-2xl font-semibold text-sm transition-transform shadow-md ${isCompleted ? 'shadow-purple-500/20' : 'shadow-purple-500/30'}`}>
+                        <Mic className="w-4 h-4" /> {isCompleted ? 'Qayta boshlash' : 'Boshlash'}
+                    </button>
+                </div>
             </div>
         </motion.div>
     );
@@ -1340,20 +1383,27 @@ export default function OlimpiadErtaklarPage() {
     const [error, setError] = useState(null);
     const [activeErtak, setActiveErtak] = useState(null);
     const [showOlympiadQuiz, setShowOlympiadQuiz] = useState(false);
+    const [globalQuizResult, setGlobalQuizResult] = useState(null);
+    const [viewingResult, setViewingResult] = useState(null); // { type: 'story'|'global', data: {...}, ertak: {...} }
 
     useEffect(() => { loadErtaklar(); }, [olympiadId]);
 
     const loadErtaklar = async () => {
         try {
             setLoading(true);
+            const studentId = localStorage.getItem('userId');
+            const url = studentId ? `/olympiad/${olympiadId}/content/stories?student_id=${studentId}` : `/olympiad/${olympiadId}/content/stories`;
+            
             const [storiesRes, questionsRes] = await Promise.allSettled([
-                apiService.get(`/olympiad/${olympiadId}/content/stories`),
+                apiService.get(url),
                 apiService.get(`/olympiad/${olympiadId}/questions`),
             ]);
 
             if (storiesRes.status === 'fulfilled') {
-                const list = storiesRes.value.data?.ertaklar || storiesRes.value.data || storiesRes.value || [];
+                const data = storiesRes.value.data;
+                const list = data?.ertaklar || data || [];
                 setErtaklar(Array.isArray(list) ? list : []);
+                setGlobalQuizResult(data?.global_quiz_result || null);
             }
 
             if (questionsRes.status === 'fulfilled') {
@@ -1458,6 +1508,8 @@ export default function OlimpiadErtaklarPage() {
                                     <TestCard
                                         questionCount={olympiadQuestions.length}
                                         onClick={() => { setActiveErtak(null); setShowOlympiadQuiz(true); }}
+                                        globalQuizResult={globalQuizResult}
+                                        onViewResult={() => setViewingResult({ type: 'global', data: globalQuizResult })}
                                     />
                                 )}
                                 {ertaklar.map((ertak, i) => (
@@ -1466,6 +1518,7 @@ export default function OlimpiadErtaklarPage() {
                                         ertak={ertak}
                                         index={i}
                                         onClick={() => setActiveErtak(ertak)}
+                                        onViewResult={() => setViewingResult({ type: 'story', data: ertak.student_result, ertak })}
                                         olympiadQuestions={olympiadQuestions}
                                     />
                                 ))}

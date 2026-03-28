@@ -279,7 +279,7 @@ function LeaderboardTable({ leaderboard, loading, currentUserId }) {
                                             </span>
                                         </td>
                                         <td className="py-3 px-2 text-center">
-                                            <span className="text-yellow-400 font-bold">{entry.coins_earned || 0}</span>
+                                            <span className="text-yellow-400 font-bold">{entry.reading_coins || 0}</span>
                                             <span className="text-[10px] ml-0.5">🪙</span>
                                         </td>
                                     </tr>
