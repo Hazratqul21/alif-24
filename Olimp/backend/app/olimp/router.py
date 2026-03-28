@@ -1577,15 +1577,22 @@ async def submit_reading_result(
                 "points": 100 if is_correct else 0,
             })
 
-            # Save answer
-            ans_obj = OlympiadAnswer(
-                participant_id=participant.id,
-                question_id=ans.question_id,
-                selected_answer=ans.answer_index,
-                is_correct=is_correct,
-                points_earned=ans.score if ans.score is not None else (100 if is_correct else 0),
-            )
-            db.add(ans_obj)
+            # Save answer only if it's a real database question to avoid FK violation
+            if question:
+                ans_obj = OlympiadAnswer(
+                    participant_id=participant.id,
+                    question_id=ans.question_id,
+                    selected_answer=ans.answer_index,
+                    is_correct=is_correct,
+                    points_earned=ans.score if ans.score is not None else (100 if is_correct else 0),
+                )
+                db.add(ans_obj)
+            else:
+                # For dynamic story questions, we don't save to OlympiadAnswer table 
+                # because they don't have a record in olympiad_questions table.
+                # Their score is already being tracked via quiz_details/item_scores.
+                pass
+
 
     # Revised Formula (Quiz-Only average or 10 points for reading)
     # components: [Q1_Score, Q2_Score, ...]
