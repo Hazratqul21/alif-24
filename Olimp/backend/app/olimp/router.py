@@ -1461,6 +1461,7 @@ async def evaluate_story_quiz_text(
 class ReadingQuizAnswer(BaseModel):
     question_id: str
     answer_index: int
+    score: Optional[int] = None # 0-100 for AI/voice responses
 
 
 class ReadingResultSubmit(BaseModel):
@@ -1540,19 +1541,38 @@ async def submit_reading_result(
             )
             db.add(ans_obj)
 
-    # For multiple-choice, scale points (or sum them up).
-    # Since requested: har bir to'g'ri javob uchun q.points (e.g. 5) ball
+    # Average Formula (as requested: mean of all components)
+    # components: [ReadingScore, Q1_Score, Q2_Score, ...]
+    
+    item_scores = []
+    # 1. Reading component (only if it's a story reading task)
+    if data.story_id:
+        item_scores.append(float(data.read_percent))
+    
+    # 2. Quiz components
     if data.quiz_answers:
-        quiz_score = int(sum(int(q.get("points", 0)) for q in quiz_details))
+        for q_detail in quiz_details:
+            # If the frontend provided a specific score (AI voice quiz)
+            # Find the original answer to get the score if it was passed
+            ans_score = None
+            for ans in data.quiz_answers:
+                if ans.question_id == q_detail["question_id"]:
+                    ans_score = ans.score
+                    break
+            
+            if ans_score is not None:
+                item_scores.append(float(ans_score))
+            else:
+                # Fallback for Multiple Choice: 100 for correct, 0 for incorrect
+                item_scores.append(100.0 if q_detail["is_correct"] else 0.0)
+    
+    # 3. Final session score (Mean)
+    if item_scores:
+        quiz_score = int(round(sum(item_scores) / len(item_scores)))
     else:
         quiz_score = 0
-
-    # Use direct AI-evaluated score if no multiple-choice answers were provided
-    if not data.quiz_answers and data.quiz_score_direct is not None:
-        quiz_score = max(0, min(100, data.quiz_score_direct or 0))
-    elif not data.quiz_answers:
-        # Fallback for reading-only sessions: use read_percent as the score
-        quiz_score = int(data.read_percent)
+        
+    quiz_score = min(100, max(0, quiz_score))
 
     # --- Reading coins ---
     reading_coins = 0 if data.wpm == 0 else (10 if data.wpm >= 60 else (5 if data.wpm >= 40 else 2))
