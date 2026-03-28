@@ -1671,16 +1671,17 @@ async def submit_reading_result(
         # Averages
         avg_wpm = sum(s.words_per_minute or 0 for s in all_subs) / all_count
         avg_percent = sum(s.read_percent or 0 for s in all_subs) / all_count
+        avg_comp_score = sum(s.comprehension_score or 0 for s in all_subs) / all_count
         
-        participant.total_score = total_points_sum
+        participant.total_score = int(total_points_sum)
         participant.reading_wpm = avg_wpm
         participant.reading_percent = avg_percent
-        participant.reading_time_seconds = total_duration
-        participant.reading_coins = total_coins
-        participant.coins_earned = total_coins  # Buni ham yangilaymiz (Leaderboard da ishlatilishi u-n)
+        participant.reading_time_seconds = int(total_duration)
+        participant.reading_coins = int(total_coins)
+        participant.coins_earned = int(total_coins)  # Buni ham yangilaymiz (Leaderboard da ishlatilishi u-n)
         
-        # Backward compatibility
-        participant.quiz_score = avg_percent 
+        # Correctly set quiz_score to the comprehension average (not reading %)
+        participant.quiz_score = int(avg_comp_score) 
         
         participant.status = ParticipationStatus.completed
         participant.completed_at = datetime.now(timezone.utc)
