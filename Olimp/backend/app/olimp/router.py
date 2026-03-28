@@ -1312,9 +1312,9 @@ async def get_olympiad_stories(
                     "total_questions": sub.comprehension_total or 0,
                 }
                 if sub.story_id:
-                    subs_map[sub.story_id] = obj
+                    subs_map[str(sub.story_id)] = obj
                 elif sub.reading_task_id:
-                    subs_map[sub.reading_task_id] = obj
+                    subs_map[str(sub.reading_task_id)] = obj
                 elif not sub.story_id and not sub.reading_task_id:
                     global_quiz_result = obj
 
@@ -1329,7 +1329,7 @@ async def get_olympiad_stories(
                 "image_url": s.image_url, "view_count": s.view_count,
                 "questions": s.questions or [],
                 "created_at": s.created_at.isoformat() if s.created_at else None,
-                "student_result": subs_map.get(s.id)
+                "student_result": subs_map.get(str(s.id))
             } for s in stories]
         }
     }
