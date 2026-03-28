@@ -672,7 +672,7 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.88, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                className="relative bg-black border border-slate-200 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col"
+                className="relative bg-black/75 border border-slate-200 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col"
                 style={{ maxHeight: '94vh' }}
                 onClick={e => e.stopPropagation()}
             >
@@ -1579,7 +1579,7 @@ export default function OlimpiadErtaklarPage() {
                 {activeErtak && (
                     <RecordingModal
                         ertak={activeErtak}
-                        onClose={() => setActiveErtak(null)}
+                        onClose={() => { setActiveErtak(null); loadErtaklar(); }}
                         olympiadId={olympiadId}
                         olympiadQuestions={olympiadQuestions}
                         onStartOlympiadQuiz={() => { setActiveErtak(null); setShowOlympiadQuiz(true); }}
@@ -1590,7 +1590,7 @@ export default function OlimpiadErtaklarPage() {
                     <OlympiadQuizModal
                         questions={olympiadQuestions}
                         olympiadId={olympiadId}
-                        onClose={() => setShowOlympiadQuiz(false)}
+                        onClose={() => { setShowOlympiadQuiz(false); loadErtaklar(); }}
                     />
                 )}
             </AnimatePresence>
