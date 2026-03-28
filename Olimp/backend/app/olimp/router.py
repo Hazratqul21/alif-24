@@ -1684,7 +1684,7 @@ async def submit_reading_result(
     if all_subs:
         all_count = len(all_subs)
         # Sums
-        total_points_sum = sum(s.comprehension_score or 0 for s in all_subs)
+        total_points_sum = sum(s.total_points or 0 for s in all_subs)
         total_duration = sum(s.reading_duration_seconds or 0 for s in all_subs)
         total_coins = sum(s.earned_coins or 0 for s in all_subs)
         
@@ -1698,7 +1698,7 @@ async def submit_reading_result(
         # Averages
         avg_wpm = sum(s.words_per_minute or 0 for s in all_subs) / all_count
         avg_percent = sum(s.read_percent or 0 for s in all_subs) / all_count
-        avg_comp_score = sum(s.comprehension_score or 0 for s in all_subs) / all_count
+        avg_comp_score = sum(s.total_points or 0 for s in all_subs) / all_count
         
         participant.total_score = int(total_points_sum)
         participant.reading_wpm = avg_wpm
