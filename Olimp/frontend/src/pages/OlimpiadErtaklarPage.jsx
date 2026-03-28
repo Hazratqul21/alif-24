@@ -315,7 +315,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
                             <div className="w-full mt-2 bg-gradient-to-r from-[#cca651]/10 via-[#cca651]/15 to-[#cca651]/10 border border-[#cca651]/20 rounded-3xl p-[18px] text-center flex flex-col items-center justify-center">
                                 <div className="flex items-center gap-3 mb-1">
                                     <p className="text-4xl leading-none font-black text-[#facc15]">+{totalCoin}</p>
-                                    <img src="/icons/coin.svg" alt="coin" className="w-[38px] h-[38px] drop-shadow-md" onError={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='block'; }} />
+                                    <img src="/icons/coin.svg" alt="coin" className="w-[38px] h-[38px] drop-shadow-md" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
                                     <span className="text-4xl filter drop-shadow-md hidden">🪙</span>
                                 </div>
                                 <p className="text-white/50 text-[13px] font-medium tracking-wide">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
@@ -448,7 +448,7 @@ function OlympiadTestResultModal({ result, onClose }) {
                 </div>
                 <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
                     <p className="text-indigo-800/60 text-[10px] uppercase font-bold tracking-wider mb-1">Vaqt</p>
-                    <p className="text-[#4b30fb] font-extrabold text-2xl">{result.elapsed_seconds ? `${Math.floor(result.elapsed_seconds/60)}:${String(result.elapsed_seconds % 60).padStart(2,'0')}` : '—'}</p>
+                    <p className="text-[#4b30fb] font-extrabold text-2xl">{result.elapsed_seconds ? `${Math.floor(result.elapsed_seconds / 60)}:${String(result.elapsed_seconds % 60).padStart(2, '0')}` : '—'}</p>
                 </div>
                 <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
                     <p className="text-amber-800/60 text-[10px] uppercase font-bold tracking-wider mb-1">Test bali</p>
@@ -462,7 +462,7 @@ function OlympiadTestResultModal({ result, onClose }) {
                     <span className="text-4xl">🪙</span>
                 </div>
             </div>
-            
+
             <div className="space-y-2">
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center">
                     <span className="text-slate-500 text-sm font-medium">Jami olimpiada balli</span>
@@ -473,7 +473,7 @@ function OlympiadTestResultModal({ result, onClose }) {
                     <span className="text-amber-600 font-extrabold text-lg flex items-center gap-1.5">{result.total_coins ?? 0} 🪙</span>
                 </div>
             </div>
-            
+
             <button
                 onClick={onClose}
                 className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-purple-500/25"
@@ -508,7 +508,7 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
                 <p className="text-[#1a1a2e] font-black text-3xl mb-1">Natijangiz</p>
                 <p className="text-slate-400 text-sm">Ajoyib ko'rsatkich!</p>
             </div>
-            
+
             <div className="w-full">
                 <p className="text-slate-800/40 text-[10px] uppercase tracking-[0.2em] font-black mb-4 flex items-center gap-2 px-1">
                     📖 O'QISH TEZLIGI
@@ -528,7 +528,7 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
                     </div>
                 </div>
             </div>
-            
+
             <div className="w-full">
                 <p className="text-slate-800/40 text-[10px] uppercase tracking-[0.2em] font-black mb-4 flex items-center gap-2 px-1">
                     🧠 SAVOL-JAVOB
@@ -544,19 +544,19 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
                     </div>
                 </div>
                 {isQuizAttempted && (
-                  <div className="space-y-2">
-                      <div className="flex items-center justify-between bg-emerald-50 text-emerald-700 rounded-xl px-4 py-3 border border-emerald-100/50">
-                          <span className="text-[13px] font-semibold">To'g'ri javoblar</span>
-                          <span className="text-[13px] font-black">{result.correct_answers || 0} ta</span>
-                      </div>
-                      <div className="flex items-center justify-between bg-rose-50 text-rose-700 rounded-xl px-4 py-3 border border-rose-100/50">
-                          <span className="text-[13px] font-semibold">Noto'g'ri javoblar</span>
-                          <span className="text-[13px] font-black">{wrongAnswers} ta</span>
-                      </div>
-                  </div>
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between bg-emerald-50 text-emerald-700 rounded-xl px-4 py-3 border border-emerald-100/50">
+                            <span className="text-[13px] font-semibold">To'g'ri javoblar</span>
+                            <span className="text-[13px] font-black">{result.correct_answers || 0} ta</span>
+                        </div>
+                        <div className="flex items-center justify-between bg-rose-50 text-rose-700 rounded-xl px-4 py-3 border border-rose-100/50">
+                            <span className="text-[13px] font-semibold">Noto'g'ri javoblar</span>
+                            <span className="text-[13px] font-black">{wrongAnswers} ta</span>
+                        </div>
+                    </div>
                 )}
             </div>
-            
+
             <div className="w-full bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-3xl p-6 text-center flex flex-col items-center justify-center shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
                     <p className="text-4xl leading-none font-black text-amber-600">+{totalCoin}</p>
@@ -566,7 +566,7 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
                     O'qish: +{readingCoin} {isQuizAttempted && `• Quiz: +${quizCoin}`}
                 </p>
             </div>
-            
+
             <button onClick={onClose}
                 className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-purple-500/25">
                 Yopish
@@ -632,7 +632,7 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
         try {
             const studentId = localStorage.getItem('userId');
             const url = `/olympiad/${olympiadId}/reading-submit`;
-            
+
             const payload = {
                 student_id: studentId,
                 story_id: storyId,
@@ -1037,7 +1037,7 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
                 <div className="flex items-start justify-between px-2 pt-2 pb-2 shrink-0">
                     <div className="pr-8">
                         <h2 className="text-white font-bold text-xl leading-tight">{ertak.title}</h2>
-                      
+
                     </div>
                     <button onClick={onClose} className="text-white/40 hover:text-white transition-colors shrink-0 mt-0.5">
                         <X className="w-5 h-5" />
@@ -1061,11 +1061,10 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
                                     return (
                                         <span key={idx}>
                                             <span
-                                                className={`transition-colors duration-150 ${
-                                                    isHighlighted
-                                                        ? 'text-emerald-400 font-bold drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
-                                                        : 'text-white/85'
-                                                }`}
+                                                className={`transition-colors duration-150 ${isHighlighted
+                                                    ? 'text-emerald-400 font-bold drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
+                                                    : 'text-white/85'
+                                                    }`}
                                             >
                                                 {token.text}
                                             </span>
@@ -1179,11 +1178,10 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
                             <div className="flex gap-2">
                                 <button
                                     onClick={togglePlay}
-                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-medium text-sm transition-all ${
-                                        playing
-                                            ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
-                                            : 'bg-white/8 border border-white/10 text-white hover:bg-white/15'
-                                    }`}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-medium text-sm transition-all ${playing
+                                        ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
+                                        : 'bg-white/8 border border-white/10 text-white hover:bg-white/15'
+                                        }`}
                                 >
                                     {playing ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                                     {playing ? "To'xtatish" : 'Eshitish'}
@@ -1272,12 +1270,31 @@ function TestCard({ questionCount, onClick, onViewResult, globalQuizResult }) {
             <div className={`p-4 flex flex-col flex-1 ${isCompleted ? 'bg-white' : ''}`}>
                 <h3 className="text-[#1a1a2e] font-bold text-base mb-1 leading-snug">Olimpiada testi</h3>
                 <p className={`${isCompleted ? 'text-emerald-600' : 'text-[#4b30fb]'} text-xs mb-3`}>Test savollari orqali ball to'plang</p>
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4">
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
                     <span>{questionCount} savol</span>
                 </div>
+
+                {isCompleted && globalQuizResult && (
+                    <div className="grid grid-cols-3 gap-1.5 mb-4">
+                        <div className="bg-emerald-50/50 rounded-lg p-1.5 text-center border border-emerald-100/30">
+                            <p className="text-[10px] text-emerald-600/60 uppercase font-bold leading-none mb-1">Ball</p>
+                            <p className="text-sm font-black text-emerald-600 leading-none">{globalQuizResult.quiz_score ?? 0}</p>
+                        </div>
+                        <div className="bg-blue-50/50 rounded-lg p-1.5 text-center border border-blue-100/30">
+                            <p className="text-[10px] text-blue-600/60 uppercase font-bold leading-none mb-1">Vaqt</p>
+                            <p className="text-sm font-black text-blue-600 leading-none">
+                                {globalQuizResult.time_spent_seconds ? `${Math.floor(globalQuizResult.time_spent_seconds / 60)}:${String(globalQuizResult.time_spent_seconds % 60).padStart(2, '0')}` : '—'}
+                            </p>
+                        </div>
+                        <div className="bg-amber-50/50 rounded-lg p-1.5 text-center border border-amber-100/30">
+                            <p className="text-[10px] text-amber-600/60 uppercase font-bold leading-none mb-1">Coin</p>
+                            <p className="text-sm font-black text-amber-600 leading-none">+{globalQuizResult.coins_earned ?? 0}</p>
+                        </div>
+                    </div>
+                )}
                 <div className="mt-auto grid grid-cols-1 gap-2">
                     {isCompleted && (
-                        <button 
+                        <button
                             onClick={(e) => { e.stopPropagation(); onViewResult(); }}
                             className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-medium text-sm hover:bg-emerald-100 transition-all border border-emerald-500/10"
                         >
@@ -1355,14 +1372,37 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
                         <span>📖</span> {ertak.content.slice(0, 60)}...
                     </p>
                 )}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4">
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
                     {dayLabel && <span>{dayLabel}</span>}
                     {dayLabel && wordCount > 0 && <span>•</span>}
                     {wordCount > 0 && <span>{wordCount} so'z</span>}
                 </div>
+
+                {isCompleted && ertak.student_result && (
+                    <div className="grid grid-cols-4 gap-1 mb-4">
+                        <div className="bg-emerald-50/50 rounded-lg p-1.5 text-center border border-emerald-100/30">
+                            <p className="text-[9px] text-emerald-600/60 uppercase font-bold leading-none mb-1">Ball</p>
+                            <p className="text-[13px] font-black text-emerald-600 leading-none">{ertak.student_result.total_points ?? 0}</p>
+                        </div>
+                        <div className="bg-blue-50/50 rounded-lg p-1.5 text-center border border-blue-100/30">
+                            <p className="text-[9px] text-blue-600/60 uppercase font-bold leading-none mb-1">O'qish</p>
+                            <p className="text-[13px] font-black text-blue-600 leading-none">{Math.round(ertak.student_result.read_percent ?? 0)}%</p>
+                        </div>
+                        <div className="bg-purple-50/50 rounded-lg p-1.5 text-center border border-purple-100/30">
+                            <p className="text-[9px] text-purple-600/60 uppercase font-bold leading-none mb-1">Vaqt</p>
+                            <p className="text-[13px] font-black text-purple-600 leading-none">
+                                {ertak.student_result.reading_duration_seconds ? `${Math.floor(ertak.student_result.reading_duration_seconds / 60)}:${String(ertak.student_result.reading_duration_seconds % 60).padStart(2, '0')}` : '—'}
+                            </p>
+                        </div>
+                        <div className="bg-amber-50/50 rounded-lg p-1.5 text-center border border-amber-100/30">
+                            <p className="text-[9px] text-amber-600/60 uppercase font-bold leading-none mb-1">Coin</p>
+                            <p className="text-[13px] font-black text-amber-600 leading-none">+{ertak.student_result.coins_earned ?? 0}</p>
+                        </div>
+                    </div>
+                )}
                 <div className="mt-auto grid grid-cols-1 gap-2">
                     {isCompleted && (
-                        <button 
+                        <button
                             onClick={(e) => { e.stopPropagation(); onViewResult(); }}
                             className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-50 text-[#4b30fb] rounded-xl font-medium text-sm hover:bg-indigo-100 transition-all border border-[#4b30fb]/10"
                         >
@@ -1399,7 +1439,7 @@ export default function OlimpiadErtaklarPage() {
             setLoading(true);
             const studentId = localStorage.getItem('userId');
             const url = studentId ? `/olympiad/${olympiadId}/content/stories?student_id=${studentId}` : `/olympiad/${olympiadId}/content/stories`;
-            
+
             const [storiesRes, questionsRes] = await Promise.allSettled([
                 apiService.get(url),
                 apiService.get(`/olympiad/${olympiadId}/questions`),
