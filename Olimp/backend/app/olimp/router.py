@@ -1570,6 +1570,10 @@ async def submit_reading_result(
         total_duration = sum(s.reading_duration_seconds or 0 for s in all_subs)
         total_coins = sum(s.earned_coins or 0 for s in all_subs)
         
+        # Include coins for the new story if it's the first attempt
+        if data.story_id and not submission_existed:
+            total_coins += total_new_coins
+        
         # Averages
         avg_wpm = sum(s.words_per_minute or 0 for s in all_subs) / all_count
         avg_percent = sum(s.read_percent or 0 for s in all_subs) / all_count

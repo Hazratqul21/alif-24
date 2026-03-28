@@ -529,17 +529,6 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
                 <p className="text-white/50 text-[13px] font-medium tracking-wide">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
             </div>
             
-            <SubmitToOlympiad
-                olympiadId={olympiadId}
-                storyId={storyId}
-                wpm={wpm}
-                readPercent={readPercent}
-                readElapsed={readElapsed}
-                quizScore={totalScore || 0}
-                submitted={false}
-                onSubmitted={() => {}}
-            />
-            
             <button onClick={onClose}
                 className="w-full py-[18px] mt-2 bg-gradient-to-r from-[#5f33f6] to-[#7f3bf6] text-white rounded-2xl font-bold text-[17px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
                 Yopish
