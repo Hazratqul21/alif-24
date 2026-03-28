@@ -625,6 +625,26 @@ async def submit_answers(
         participant.coins_earned = coins
         participant.completed_at = datetime.now(timezone.utc)
 
+        # Unified scoring: create submission record for the general test part
+        # so it's aggregated correctly in mixed olympiads.
+        sub_res = await db.execute(
+            select(OlympiadReadingSubmission).where(
+                OlympiadReadingSubmission.participant_id == participant.id,
+                OlympiadReadingSubmission.story_id == None,
+                OlympiadReadingSubmission.reading_task_id == None
+            )
+        )
+        submission = sub_res.scalars().first()
+        if not submission:
+            submission = OlympiadReadingSubmission(participant_id=participant.id)
+            db.add(submission)
+        
+        submission.total_points = total_score
+        submission.comprehension_score = total_score
+        submission.comprehension_total = len(answers)
+        submission.submitted_at = datetime.now(timezone.utc)
+
+
         # Award coins to student balance
         try:
             await _award_coins(
@@ -1612,8 +1632,7 @@ async def submit_reading_result(
         
     total_new_coins = reading_coins + quiz_coins
 
-    # --- Save Submission per Story or General Test ---
-    submission_existed = False
+    # --- Save/Update Submission per Story or General Test ---
     if data.story_id:
         sub_res = await db.execute(
             select(OlympiadReadingSubmission).where(
@@ -1633,17 +1652,9 @@ async def submit_reading_result(
                 participant_id=participant.id,
                 reading_task_id=data.story_id if is_task else None,
                 story_id=data.story_id if not is_task else None,
-                earned_coins=int(total_new_coins),
-                words_per_minute=data.wpm,
-                read_percent=data.read_percent,
-                reading_duration_seconds=data.reading_time_seconds,
-                comprehension_score=quiz_sum,
-                comprehension_total=total_questions,
-                total_points=total_session_points,
-                submitted_at=datetime.now(timezone.utc)
             )
             db.add(submission)
-            
+
     else:
         # Global Olympiad Test (no story_id)
         sub_res = await db.execute(
@@ -1661,13 +1672,21 @@ async def submit_reading_result(
                 participant_id=participant.id,
                 story_id=None,
                 reading_task_id=None,
-                earned_coins=int(total_new_coins),
-                comprehension_score=quiz_sum,
-                total_points=total_session_points,
-                comprehension_total=total_questions,
-                submitted_at=datetime.now(timezone.utc)
             )
             db.add(submission)
+
+    # Always update scores on the submission object (whether new or existing)
+    submission.words_per_minute = data.wpm
+    submission.read_percent = data.read_percent
+    submission.reading_duration_seconds = data.reading_time_seconds
+    submission.comprehension_score = quiz_sum
+    submission.comprehension_total = total_questions
+    submission.total_points = total_session_points
+    submission.submitted_at = datetime.now(timezone.utc)
+    
+    if not submission_existed:
+        submission.earned_coins = int(total_new_coins)
+
 
 
     db.add(participant)
