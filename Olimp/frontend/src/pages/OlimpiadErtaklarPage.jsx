@@ -12,9 +12,9 @@ if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
 }
 
 // ─── Submit to Olympiad ────────────────────────────────────────────────────────
-function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, quizScore, submitted, onSubmitted }) {
+function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, quizAnswers = [], quizScoreDirect = null, submitted, onSubmitted }) {
     const [status, setStatus] = useState(submitted ? 'done' : 'idle');
-
+ 
     useEffect(() => {
         if (!olympiadId || submitted) return;
         const submit = async () => {
@@ -28,8 +28,8 @@ function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, 
                     wpm: wpm || 0,
                     read_percent: readPercent || 0,
                     reading_time_seconds: readElapsed || 0,
-                    quiz_answers: [],
-                    quiz_score_direct: quizScore || 0,
+                    quiz_answers: quizAnswers,
+                    quiz_score_direct: quizScoreDirect,
                 });
                 setStatus('done');
                 onSubmitted();
@@ -41,6 +41,7 @@ function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, 
         };
         submit();
     }, [olympiadId]);
+
 
     if (!olympiadId) return null;
     if (status === 'sending') return (
@@ -329,7 +330,12 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
                                 wpm={wpm}
                                 readPercent={readPercent}
                                 readElapsed={readElapsed}
-                                quizScore={quizScoreForSubmit}
+                                quizAnswers={scores.map((s, idx) => ({
+                                    question_id: String(idx),
+                                    answer_index: 0,
+                                    score: s.score
+                                }))}
+                                quizScoreDirect={quizScoreForSubmit}
                                 submitted={resultSubmitted}
                                 onSubmitted={() => setResultSubmitted(true)}
                             />
@@ -1006,7 +1012,8 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
             totalWords: expectedWords.length,
         };
         if (showQuiz) return <QuizModal ertak={ertak} onClose={onClose} readingStats={readingStats} olympiadId={olympiadId} />;
-        if (showOlympiadQuizInternal) return <OlympiadQuizModal questions={olympiadQuestions} olympiadId={olympiadId} storyId={null} onClose={onClose} readingStats={readingStats} />;
+        if (showOlympiadQuizInternal) return <OlympiadQuizModal questions={olympiadQuestions} olympiadId={olympiadId} storyId={ertak.id} onClose={onClose} readingStats={readingStats} />;
+
     }
 
     // ── reading stats for 'done' phase ──
