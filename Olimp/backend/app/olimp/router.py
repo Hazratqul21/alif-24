@@ -1589,17 +1589,16 @@ async def submit_reading_result(
                 item_scores.append(100.0 if q_detail["is_correct"] else 0.0)
     
     # 2. Final session score
-    if item_scores:
-        # Quiz Story: Score is strictly the average of answers (0-100)
-        quiz_score = int(round(sum(item_scores) / len(item_scores)))
-    elif data.story_id:
-        # Reading-only story: Award 10 points
-        quiz_score = 10
-    else:
-        # General Test without story
-        quiz_score = 0
-        
-    quiz_score = min(100, max(0, quiz_score))
+    reading_base = 10 if (data.story_id or data.wpm > 0) else 0
+    
+    # Quiz sum (each question is 0-100)
+    quiz_sum = int(round(sum(item_scores))) if item_scores else 0
+    
+    # Total points for this submission: 10 (reading) + Quiz Sum
+    total_session_points = reading_base + quiz_sum
+    
+    # For compatibility/legacy we keep quiz_score as the total of this session
+    quiz_score = total_session_points
 
     # --- Reading coins ---
     reading_coins = 0 if data.wpm == 0 else (10 if data.wpm >= 60 else (5 if data.wpm >= 40 else 2))
@@ -1607,7 +1606,9 @@ async def submit_reading_result(
     if data.quiz_answers:
         quiz_coins = correct_count
     else:
-        quiz_coins = 15 if quiz_score >= 80 else (8 if quiz_score >= 50 else 3)
+        # Use average to decide coins if no answers provided directly
+        quiz_avg = quiz_sum / len(item_scores) if (item_scores and len(item_scores) > 0) else quiz_sum
+        quiz_coins = 15 if quiz_avg >= 80 else (8 if quiz_avg >= 50 else 3)
         
     total_new_coins = reading_coins + quiz_coins
 
@@ -1636,13 +1637,12 @@ async def submit_reading_result(
                 words_per_minute=data.wpm,
                 read_percent=data.read_percent,
                 reading_duration_seconds=data.reading_time_seconds,
-                comprehension_score=quiz_score,
+                comprehension_score=quiz_sum,
                 comprehension_total=total_questions,
-                total_points=quiz_score,
+                total_points=total_session_points,
                 submitted_at=datetime.now(timezone.utc)
             )
             db.add(submission)
-            # Faqat 1-marta qo'shiladi
             
     else:
         # Global Olympiad Test (no story_id)
@@ -1662,13 +1662,13 @@ async def submit_reading_result(
                 story_id=None,
                 reading_task_id=None,
                 earned_coins=int(total_new_coins),
-                comprehension_score=quiz_score,
-                total_points=quiz_score,
+                comprehension_score=quiz_sum,
+                total_points=total_session_points,
                 comprehension_total=total_questions,
                 submitted_at=datetime.now(timezone.utc)
             )
             db.add(submission)
-            # Faqat 1-marta qo'shiladi
+
 
     db.add(participant)
     await db.flush() 
