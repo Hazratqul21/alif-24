@@ -12,7 +12,7 @@ if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
 }
 
 // ─── Submit to Olympiad ────────────────────────────────────────────────────────
-function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, quizAnswers = [], quizScoreDirect = null, submitted, onSubmitted }) {
+function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, quizAnswers = [], quizScoreDirect = null, submitted, onSubmitted, onRefresh }) {
     const [status, setStatus] = useState(submitted ? 'done' : 'idle');
  
     useEffect(() => {
@@ -33,6 +33,8 @@ function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, 
                 });
                 setStatus('done');
                 onSubmitted();
+                // Refresh the story list AFTER successful submit so card turns green
+                if (onRefresh) onRefresh();
             } catch (err) {
                 console.error('Olympiad submit error:', err);
                 setStatus('done');
@@ -56,7 +58,7 @@ function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, 
 }
 
 // ─── Quiz Modal ────────────────────────────────────────────────────────────────
-function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
+function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRefresh = null }) {
     const questions = ertak.questions || [];
     const [qIndex, setQIndex] = useState(0);
     const [phase, setPhase] = useState('tts');
@@ -338,6 +340,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
                                 quizScoreDirect={quizScoreForSubmit}
                                 submitted={resultSubmitted}
                                 onSubmitted={() => setResultSubmitted(true)}
+                                onRefresh={onRefresh}
                             />
 
                             <button onClick={onClose}
@@ -582,7 +585,7 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
 }
 
 // ─── Olympiad Quiz Modal (multiple-choice) ───────────────────────────────────
-function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose, readingStats = null }) {
+function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose, readingStats = null, onRefresh = null }) {
     const [qIndex, setQIndex] = useState(0);
     const [selected, setSelected] = useState(null);
     const [answers, setAnswers] = useState(Array(questions.length).fill(null));
@@ -657,6 +660,8 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
                 ...(res.data || {}),
                 elapsed_seconds: elapsedSeconds,
             });
+            // Refresh story list so card turns green
+            if (onRefresh) onRefresh();
         } catch (err) {
             console.error('Olympiad quiz submit error:', err);
             setError(err.message || 'Xatolik yuz berdi');
@@ -753,7 +758,7 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
 }
 
 // ─── Recording Modal ───────────────────────────────────────────────────────────
-function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions = [], onStartOlympiadQuiz }) {
+function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions = [], onStartOlympiadQuiz, onRefresh }) {
     const [phase, setPhase] = useState('countdown');
     const [count, setCount] = useState(3);
     const [elapsed, setElapsed] = useState(0);
@@ -1011,8 +1016,8 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
             wordsRead: currentWordIndex,
             totalWords: expectedWords.length,
         };
-        if (showQuiz) return <QuizModal ertak={ertak} onClose={onClose} readingStats={readingStats} olympiadId={olympiadId} />;
-        if (showOlympiadQuizInternal) return <OlympiadQuizModal questions={olympiadQuestions} olympiadId={olympiadId} storyId={ertak.id} onClose={onClose} readingStats={readingStats} />;
+        if (showQuiz) return <QuizModal ertak={ertak} onClose={onClose} readingStats={readingStats} olympiadId={olympiadId} onRefresh={onRefresh} />;
+        if (showOlympiadQuizInternal) return <OlympiadQuizModal questions={olympiadQuestions} olympiadId={olympiadId} storyId={ertak.id} onClose={onClose} readingStats={readingStats} onRefresh={onRefresh} />;
 
     }
 
@@ -1587,6 +1592,7 @@ export default function OlimpiadErtaklarPage() {
                     <RecordingModal
                         ertak={activeErtak}
                         onClose={() => { setActiveErtak(null); loadErtaklar(); }}
+                        onRefresh={loadErtaklar}
                         olympiadId={olympiadId}
                         olympiadQuestions={olympiadQuestions}
                         onStartOlympiadQuiz={() => { setActiveErtak(null); setShowOlympiadQuiz(true); }}
@@ -1598,6 +1604,7 @@ export default function OlimpiadErtaklarPage() {
                         questions={olympiadQuestions}
                         olympiadId={olympiadId}
                         onClose={() => { setShowOlympiadQuiz(false); loadErtaklar(); }}
+                        onRefresh={loadErtaklar}
                     />
                 )}
             </AnimatePresence>
