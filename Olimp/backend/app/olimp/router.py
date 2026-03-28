@@ -1508,8 +1508,13 @@ async def submit_reading_result(
         quiz_score = max(0, min(100, data.quiz_score_direct))
 
     # --- Reading coins ---
-    reading_coins = 10 if data.wpm >= 60 else (5 if data.wpm >= 40 else 2)
-    quiz_coins = 15 if quiz_score >= 80 else (8 if quiz_score >= 50 else 3)
+    reading_coins = 0 if data.wpm == 0 else (10 if data.wpm >= 60 else (5 if data.wpm >= 40 else 2))
+    
+    if data.quiz_answers:
+        quiz_coins = correct_count
+    else:
+        quiz_coins = 15 if quiz_score >= 80 else (8 if quiz_score >= 50 else 3)
+        
     total_new_coins = reading_coins + quiz_coins
 
     # --- Save Submission per Story ---

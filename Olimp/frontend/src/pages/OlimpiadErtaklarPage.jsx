@@ -432,31 +432,48 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null }) {
 
 // ─── Olympiad Test Result Modal ──────────────────────────────────────────────
 function OlympiadTestResultModal({ result, onClose }) {
+    const wrongAnswers = (result.total_questions || 0) - (result.correct_answers || 0);
     return (
         <div className="space-y-4 text-center">
-            <div className="text-4xl font-black text-emerald-400">✅</div>
-            <p className="text-white font-bold text-lg">Test yakunlandi</p>
+            <div className="text-4xl mt-2 mb-1">🎯</div>
+            <h2 className="text-white font-bold text-2xl">Test natijasi!</h2>
             <div className="grid grid-cols-2 gap-3 text-left">
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                    <p className="text-white/50 text-xs">To'g'ri javoblar</p>
-                    <p className="text-white font-bold text-lg">{result.correct_answers ?? 0} / {result.total_questions ?? 0}</p>
+                    <p className="text-white/50 text-xs">To'g'ri</p>
+                    <p className="text-white font-bold text-lg text-emerald-400">{result.correct_answers ?? 0} ta</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
+                    <p className="text-white/50 text-xs">Noto'g'ri</p>
+                    <p className="text-white font-bold text-lg text-red-400">{wrongAnswers} ta</p>
                 </div>
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
                     <p className="text-white/50 text-xs">Vaqt</p>
                     <p className="text-white font-bold text-lg">{result.elapsed_seconds ? `${Math.floor(result.elapsed_seconds/60)}:${String(result.elapsed_seconds % 60).padStart(2,'0')}` : '—'}</p>
                 </div>
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                    <p className="text-white/50 text-xs">Ball</p>
-                    <p className="text-white font-bold text-lg">{result.total_score ?? 0}</p>
-                </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-                    <p className="text-white/50 text-xs">Coin</p>
-                    <p className="text-white font-bold text-lg">+{result.coins_earned ?? 0}</p>
+                    <p className="text-white/50 text-xs">Test bali</p>
+                    <p className="text-white font-bold text-lg">{result.quiz_score ?? 0}</p>
                 </div>
             </div>
+            <div className="bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border border-yellow-500/20 rounded-2xl p-4 flex flex-col items-center justify-center mt-2">
+                <p className="text-white/50 text-xs uppercase font-medium tracking-wide mb-1">Berilgan coinlar</p>
+                <div className="flex items-center gap-2">
+                    <p className="text-3xl font-black text-yellow-400">+{result.quiz_coins ?? 0}</p>
+                    <span className="text-3xl filter drop-shadow-md">🪙</span>
+                </div>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 mt-2 flex justify-between items-center text-sm">
+                <span className="text-white/50">Jami ball (Olimpiada)</span>
+                <span className="text-white font-bold">{result.total_score ?? 0}</span>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-2 flex justify-between items-center text-sm">
+                <span className="text-white/50">Jami Coinlar</span>
+                <span className="text-white font-bold text-yellow-400">{result.total_coins ?? 0} 🪙</span>
+            </div>
+            
             <button
                 onClick={onClose}
-                className="mt-2 w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform"
+                className="mt-2 w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-semibold hover:scale-[1.02] transition-transform shadow-lg shadow-purple-500/20"
             >
                 Yopish
             </button>
@@ -470,12 +487,15 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
     const readPercent = readingStats.readPercent || 0;
     const readElapsed = readingStats.elapsed || 0;
     const fmtTime = `${String(Math.floor(readElapsed / 60)).padStart(2, '0')}:${String(readElapsed % 60).padStart(2, '0')}`;
-    const readingCoin = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
-    const totalScore = result.total_score || 0;
-    const quizCoin = totalScore >= 80 ? 15 : totalScore >= 50 ? 8 : 3;
+    const readingCoin = result.reading_coins ?? 0;
+    const quizCoin = result.quiz_coins ?? 0;
     const totalCoin = readingCoin + quizCoin;
+    const totalScore = result.total_score || 0;
+    const quizScore = result.quiz_score || 0;
     const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
     const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-red-400';
+    const wrongAnswers = (result.total_questions || 0) - (result.correct_answers || 0);
+    const testFmtTime = result.elapsed_seconds ? `${String(Math.floor(result.elapsed_seconds / 60)).padStart(2, '0')}:${String(result.elapsed_seconds % 60).padStart(2, '0')}` : '00:00';
     
     return (
         <div className="flex flex-col items-center gap-5">
@@ -508,14 +528,28 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
                 <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
                     🧠 SAVOL-JAVOB
                 </p>
-                <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-[1.25rem] p-6 text-center mb-4">
-                    <p className={`text-[3.5rem] leading-none font-black mb-2 ${scoreColor(totalScore)}`}>{totalScore}</p>
-                    <p className="text-white/40 text-sm font-medium">100 ball dan</p>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                        <p className={`text-4xl font-black mb-1 leading-none ${scoreColor(quizScore)}`}>{quizScore}</p>
+                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">Test bali</p>
+                    </div>
+                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 flex flex-col items-center justify-center">
+                        <p className={`text-4xl font-black mb-1 leading-none ${scoreColor(totalScore)}`}>{totalScore}</p>
+                        <p className="text-white/40 text-[10px] uppercase font-medium tracking-wide">Jami O'rtacha</p>
+                    </div>
                 </div>
                 <div className="space-y-[6px]">
                     <div className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
                         <span className="text-white/60 text-[13px] font-medium">To'g'ri javoblar</span>
-                        <span className="text-[13px] font-bold text-white">{result.correct_answers} / {result.total_questions}</span>
+                        <span className="text-[13px] font-bold text-emerald-400">{result.correct_answers || 0} ta</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
+                        <span className="text-white/60 text-[13px] font-medium">Noto'g'ri javoblar</span>
+                        <span className="text-[13px] font-bold text-red-400">{wrongAnswers} ta</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
+                        <span className="text-white/60 text-[13px] font-medium">Test ishlash vaqti</span>
+                        <span className="text-[13px] font-bold text-white">{testFmtTime}</span>
                     </div>
                 </div>
             </div>
@@ -557,12 +591,6 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
         setError('');
         setStartedAt(Date.now());
         setElapsedSeconds(0);
-        
-        // Notify backend that we started to fix time limit logic
-        const studentId = localStorage.getItem('userId');
-        if (studentId && olympiadId && questions.length > 0) {
-            apiService.post(`/olympiad/${olympiadId}/start`, { student_id: studentId }).catch(e => console.error("Could not start:", e));
-        }
     }, [questions, olympiadId]);
 
     useEffect(() => {
@@ -599,11 +627,21 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
         setError('');
         try {
             const studentId = localStorage.getItem('userId');
-            const payload = questions.map((q, idx) => ({
-                question_id: q.id,
-                answer_index: answers[idx] ?? 0,
-            }));
-            const url = `/olympiad/${olympiadId}/submit${studentId ? `?student_id=${encodeURIComponent(studentId)}` : ''}`;
+            const url = `/olympiad/${olympiadId}/reading-submit`;
+            
+            const payload = {
+                student_id: studentId,
+                story_id: storyId,
+                wpm: readingStats?.wpm || 0,
+                read_percent: readingStats?.readPercent || 0,
+                reading_time_seconds: readingStats?.elapsed || 0,
+                quiz_score_direct: null,
+                quiz_answers: questions.map((q, idx) => ({
+                    question_id: q.id,
+                    answer_index: answers[idx] ?? 0,
+                }))
+            };
+
             const res = await apiService.post(url, payload);
             setResult({
                 ...(res.data || {}),
