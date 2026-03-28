@@ -1687,9 +1687,10 @@ async def submit_reading_result(
     if not submission_existed:
         submission.earned_coins = int(total_new_coins)
 
-
-
+    # Ensure current submission is flushed to DB before aggregation
     db.add(participant)
+    if submission:
+        db.add(submission)
     await db.flush() 
 
     # --- Aggregation logic ---
@@ -1701,36 +1702,40 @@ async def submit_reading_result(
     all_subs = all_subs_res.scalars().all()
     
     if all_subs:
-        all_count = len(all_subs)
-        # Sums
+        # 1. Total points (Rating)
         total_points_sum = sum(s.total_points or 0 for s in all_subs)
+        
+        # 2. Total duration and coins
         total_duration = sum(s.reading_duration_seconds or 0 for s in all_subs)
         total_coins = sum(s.earned_coins or 0 for s in all_subs)
         
-        # Aggregation logic: ensures newly added (first-time) coins are counted correctly
-        # though since we already set total_new_coins on the new submission and flushed it, 
-        # total_coins sum should already be correct. 
-        # But we'll add a safety check just in case the ORM session was tricky.
-        if not submission_existed and submission and submission.earned_coins not in [s.earned_coins for s in all_subs]:
-             total_coins += total_new_coins
-        
-        # Averages
+        # 3. Averages (WPM and Percent)
+        all_count = len(all_subs)
         avg_wpm = sum(s.words_per_minute or 0 for s in all_subs) / all_count
         avg_percent = sum(s.read_percent or 0 for s in all_subs) / all_count
-        avg_comp_score = sum(s.total_points or 0 for s in all_subs) / all_count
         
+        # 4. Quiz-only average for the 'quiz_score' field (0-100 scale ideally)
+        total_comp_score = sum(s.comprehension_score or 0 for s in all_subs)
+        total_comp_qs = sum(s.comprehension_total or 0 for s in all_subs)
+        
+        if total_comp_qs > 0:
+            avg_comp_score = (total_comp_score / (total_comp_qs * 100)) * 100 # Overall %
+        else:
+            avg_comp_score = 0
+            
         participant.total_score = int(total_points_sum)
         participant.reading_wpm = avg_wpm
         participant.reading_percent = avg_percent
         participant.reading_time_seconds = int(total_duration)
         participant.reading_coins = int(total_coins)
-        participant.coins_earned = int(total_coins)  # Buni ham yangilaymiz (Leaderboard da ishlatilishi u-n)
+        participant.coins_earned = int(total_coins)
         
-        # Correctly set quiz_score to the comprehension average (not reading %)
-        participant.quiz_score = int(avg_comp_score) 
+        # This reflects the overall quiz performance percentage
+        participant.quiz_score = int(round(avg_comp_score))
         
         participant.status = ParticipationStatus.completed
         participant.completed_at = datetime.now(timezone.utc)
+
     participant.reading_attempts = (participant.reading_attempts or 0) + 1
 
     # --- Award Coins (Only on first submission of this story/test) ---
