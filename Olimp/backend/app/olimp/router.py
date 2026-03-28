@@ -1511,33 +1511,59 @@ async def submit_reading_result(
     total_questions = 0
     quiz_details = []
 
+    # Story Fetch for question lookup
+    story_obj = None
+    if data.story_id:
+        s_res = await db.execute(select(OlympiadStory).where(OlympiadStory.id == data.story_id))
+        story_obj = s_res.scalars().first()
+
     if data.quiz_answers:
         for ans in data.quiz_answers:
-            q_res = await db.execute(
-                select(OlympiadQuestion).where(OlympiadQuestion.id == ans.question_id)
-            )
+            question_data = None
+            is_correct = False
+            
+            # 1. Look for question in global table
+            q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == ans.question_id))
             question = q_res.scalars().first()
-            if not question:
+            
+            if question:
+                question_data = {"id": question.id, "correct_answer": question.correct_answer}
+            elif story_obj and story_obj.questions:
+                # 2. Look for question in story's JSON (might be index or ID)
+                story_qs = story_obj.questions or []
+                for idx, sq in enumerate(story_qs):
+                    if ans.question_id == str(sq.get("id", idx)):
+                        question_data = {
+                            "id": ans.question_id, 
+                            "correct_answer": sq.get("answer_index", sq.get("correct_answer"))
+                        }
+                        break
+            
+            # Even if we don't find the exact question record but have a score, we proceed
+            if not question_data and ans.score is None:
                 continue
+
             total_questions += 1
-            is_correct = ans.answer_index == question.correct_answer
-            if is_correct:
-                correct_count += 1
+            if question_data:
+                is_correct = (ans.answer_index == question_data.get("correct_answer"))
+                if is_correct:
+                    correct_count += 1
+
             quiz_details.append({
                 "question_id": ans.question_id,
                 "submitted_answer": ans.answer_index,
-                "correct_answer": question.correct_answer,
                 "is_correct": is_correct,
-                "points": question.points if is_correct else 0,
+                "score": ans.score, 
+                "points": 100 if is_correct else 0,
             })
 
             # Save answer
             ans_obj = OlympiadAnswer(
                 participant_id=participant.id,
-                question_id=question.id,
+                question_id=ans.question_id,
                 selected_answer=ans.answer_index,
                 is_correct=is_correct,
-                points_earned=question.points if is_correct else 0,
+                points_earned=ans.score if ans.score is not None else (100 if is_correct else 0),
             )
             db.add(ans_obj)
 
