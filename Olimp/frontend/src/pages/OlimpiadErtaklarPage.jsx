@@ -1341,6 +1341,8 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
                          ertak.student_result.read_percent !== undefined ||
                          ertak.student_result.earned_coins !== undefined);
 
+    const isSeen = isCompleted || ertak.isSeen; 
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -1349,12 +1351,7 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
             onClick={onClick}
             className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden cursor-pointer transition-shadow group flex flex-col h-full relative"
         >
-            {isCompleted ? (
-                <div className="absolute top-2.5 left-2.5 z-20 bg-emerald-50 text-emerald-600 text-[10px] uppercase font-bold px-2 py-1 rounded shadow-sm border border-emerald-100 flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    O'qilgan
-                </div>
-            ) : (
+            {!isSeen && (
                 <div className="absolute top-2.5 left-2.5 z-20 bg-rose-500 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow-lg animate-pulse border border-rose-400">
                     Yangi
                 </div>
@@ -1447,7 +1444,24 @@ export default function OlimpiadErtaklarPage() {
     const [activeErtak, setActiveErtak] = useState(null);
     const [showOlympiadQuiz, setShowOlympiadQuiz] = useState(false);
     const [globalQuizResult, setGlobalQuizResult] = useState(null);
-    const [viewingResult, setViewingResult] = useState(null); // { type: 'story'|'global', data: {...}, ertak: {...} }
+    const [seenStories, setSeenStories] = useState(() => {
+        try {
+            const saved = localStorage.getItem(`seen_stories_${olympiadId}`);
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) { return []; }
+    });
+
+    useEffect(() => {
+        if (seenStories.length > 0) {
+            localStorage.setItem(`seen_stories_${olympiadId}`, JSON.stringify(seenStories));
+        }
+    }, [seenStories, olympiadId]);
+
+    const markAsSeen = (id) => {
+        if (!seenStories.includes(id)) {
+            setSeenStories(prev => [...prev, id]);
+        }
+    };
 
     useEffect(() => { loadErtaklar(); }, [olympiadId]);
 
@@ -1575,16 +1589,22 @@ export default function OlimpiadErtaklarPage() {
                                         onViewResult={() => setViewingResult({ type: 'global', data: globalQuizResult })}
                                     />
                                 )}
-                                {ertaklar.map((ertak, i) => (
-                                    <ErtakCard
-                                        key={ertak.id}
-                                        ertak={ertak}
-                                        index={i}
-                                        onClick={() => setActiveErtak(ertak)}
-                                        onViewResult={() => setViewingResult({ type: 'story', data: ertak.student_result, ertak })}
-                                        olympiadQuestions={olympiadQuestions}
-                                    />
-                                ))}
+                                {ertaklar.map((ertak, i) => {
+                                    const strId = String(ertak.id);
+                                    return (
+                                        <ErtakCard
+                                            key={strId}
+                                            ertak={{...ertak, isSeen: seenStories.includes(strId)}}
+                                            index={i}
+                                            onClick={() => {
+                                                markAsSeen(strId);
+                                                setActiveErtak(ertak);
+                                            }}
+                                            onViewResult={() => setViewingResult({ type: 'story', data: ertak.student_result, ertak })}
+                                            olympiadQuestions={olympiadQuestions}
+                                        />
+                                    );
+                                })}
                             </div>
                         );
                     })()
