@@ -596,6 +596,9 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     useEffect(() => {
+        // Do not reset if we already have a result being displayed
+        if (result) return;
+
         setQIndex(0);
         setSelected(null);
         setAnswers(Array(questions.length).fill(null));
