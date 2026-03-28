@@ -1588,17 +1588,18 @@ async def submit_reading_result(
                 # Fallback for Multiple Choice: 100 for correct, 0 for incorrect
                 item_scores.append(100.0 if q_detail["is_correct"] else 0.0)
     
-    # 2. Final session score
-    if item_scores:
-        # Mean of quiz questions
-        quiz_score = int(round(sum(item_scores) / len(item_scores)))
-    elif data.story_id:
-        # Reading-only story (no quiz) = 10 points
-        quiz_score = 10
-    else:
-        quiz_score = 0
+    # 2. Final session score (Combined: Reading Base + Quiz Average)
+    session_points = 0
+    if data.story_id:
+        # Every story task gives 10 points for the reading component
+        session_points += 10
         
-    quiz_score = min(100, max(0, quiz_score))
+    if item_scores:
+        # Quiz component adds up to 100 points (the average)
+        quiz_avg = int(round(sum(item_scores) / len(item_scores)))
+        session_points += quiz_avg
+        
+    quiz_score = min(110, max(0, session_points))
 
     # --- Reading coins ---
     reading_coins = 0 if data.wpm == 0 else (10 if data.wpm >= 60 else (5 if data.wpm >= 40 else 2))
