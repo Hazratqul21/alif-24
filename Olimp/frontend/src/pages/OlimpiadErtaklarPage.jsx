@@ -14,7 +14,7 @@ if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
 // ─── Submit to Olympiad ────────────────────────────────────────────────────────
 function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, quizAnswers = [], quizScoreDirect = null, submitted, onSubmitted, onRefresh }) {
     const [status, setStatus] = useState(submitted ? 'done' : 'idle');
- 
+
     useEffect(() => {
         if (!olympiadId || submitted) return;
         const submit = async () => {
@@ -415,14 +415,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                 </div>
                                 {scores[qIndex].recognized && (
                                     <div className="w-full bg-white/5 rounded-xl p-3 space-y-1.5 text-xs">
-                                        <div className="flex gap-2">
-                                            <span className="text-white/40 shrink-0">Siz:</span>
-                                            <span className="text-white/70 italic">"{scores[qIndex].recognized}"</span>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <span className="text-white/40 shrink-0">To'g'ri:</span>
-                                            <span className="text-emerald-400">"{scores[qIndex].correct}"</span>
-                                        </div>
+
                                     </div>
                                 )}
                                 <button onClick={nextQuestion}
@@ -1332,14 +1325,14 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
     const storyQCount = (ertak.questions || []).length;
     const globalQCount = olympiadQuestions?.length || 0;
     const qCount = storyQCount || globalQCount;
-    
-    // MUHIM: student_result ni to'g'ri tekshirish
-    const isCompleted = ertak.student_result && 
-                        (ertak.student_result.total_points !== undefined || 
-                         ertak.student_result.read_percent !== undefined ||
-                         ertak.student_result.earned_coins !== undefined);
 
-    const isSeen = isCompleted || ertak.isSeen; 
+    // MUHIM: student_result ni to'g'ri tekshirish
+    const isCompleted = ertak.student_result &&
+        (ertak.student_result.total_points !== undefined ||
+            ertak.student_result.read_percent !== undefined ||
+            ertak.student_result.earned_coins !== undefined);
+
+    const isSeen = isCompleted || ertak.isSeen;
 
     return (
         <motion.div
@@ -1583,10 +1576,10 @@ export default function OlimpiadErtaklarPage() {
                                     <TestCard
                                         questionCount={olympiadQuestions.length}
                                         isSeen={seenStories.includes('global_test')}
-                                        onClick={() => { 
+                                        onClick={() => {
                                             markAsSeen('global_test');
-                                            setActiveErtak(null); 
-                                            setShowOlympiadQuiz(true); 
+                                            setActiveErtak(null);
+                                            setShowOlympiadQuiz(true);
                                         }}
                                         globalQuizResult={globalQuizResult}
                                         onViewResult={() => setViewingResult({ type: 'global', data: globalQuizResult })}
@@ -1597,7 +1590,7 @@ export default function OlimpiadErtaklarPage() {
                                     return (
                                         <ErtakCard
                                             key={strId}
-                                            ertak={{...ertak, isSeen: seenStories.includes(strId)}}
+                                            ertak={{ ...ertak, isSeen: seenStories.includes(strId) }}
                                             index={i}
                                             onClick={() => {
                                                 markAsSeen(strId);
