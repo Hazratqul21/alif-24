@@ -30,6 +30,10 @@ const UZBEK_SET = [
   { letter: 'Z', emoji: '🦓' },
   { letter: 'L', emoji: '🌷' },
 
+
+
+
+
 ];
 
 export default function MemoryGame() {
@@ -147,7 +151,7 @@ export default function MemoryGame() {
             <span className="lmg-game">🃏 {t('memory_title')}</span>
             <span className="lmg-level">{DIFFICULTY_LEVELS[difficulty].emoji} {DIFFICULTY_LEVELS[difficulty].name}</span>
           </div>
-          <button className="lmg-icon-btn" onClick={() => initializeGame()}><RotateCcw /></button>
+          <button className="lmg-icon-btn" onClick={() => initializeGame()}><ArrowRight /></button>
         </div>
 
         <div className="lmg-stats">
