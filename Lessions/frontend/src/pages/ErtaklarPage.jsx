@@ -316,14 +316,7 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
                                 </div>
                                 {scores[qIndex].recognized && (
                                     <div className="w-full bg-white/5 rounded-xl p-3 space-y-1.5 text-xs">
-                                        <div className="flex gap-2">
-                                            <span className="text-white/40 shrink-0">Siz:</span>
-                                            <span className="text-white/70 italic">"{scores[qIndex].recognized}"</span>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <span className="text-white/40 shrink-0">To'g'ri:</span>
-                                            <span className="text-emerald-400">"{scores[qIndex].correct}"</span>
-                                        </div>
+
                                     </div>
                                 )}
                                 <button onClick={nextQuestion}
@@ -565,11 +558,10 @@ function RecordingModal({ ertak, onClose }) {
                                     const needsSpace = nextToken && nextToken.isWord;
                                     return (
                                         <span key={idx}>
-                                            <span className={`transition-colors duration-150 ${
-                                                isHighlighted
+                                            <span className={`transition-colors duration-150 ${isHighlighted
                                                     ? 'text-emerald-400 font-bold drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
                                                     : 'text-white/85'
-                                            }`}>
+                                                }`}>
                                                 {token.text}
                                             </span>
                                             {needsSpace ? ' ' : ''}
@@ -610,7 +602,7 @@ function RecordingModal({ ertak, onClose }) {
                             <div className="flex items-center gap-2 bg-white/8 border border-white/10 rounded-full px-4 py-2">
                                 <span className="w-2 h-2 bg-[#4b30fb] rounded-full animate-pulse" />
                                 <span className="text-[#4b30fb] font-mono text-base font-bold">{fmt(elapsed)}</span>
-                               
+
                             </div>
                             <div className="relative w-10 h-10 shrink-0">
                                 <div className="absolute inset-0 rounded-full bg-[#4b30fb]/25 animate-ping" />
@@ -672,11 +664,10 @@ function RecordingModal({ ertak, onClose }) {
                             {/* Tugmalar */}
                             <div className="flex gap-2">
                                 <button onClick={togglePlay}
-                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-medium text-sm transition-all ${
-                                        playing
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-medium text-sm transition-all ${playing
                                             ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
                                             : 'bg-white/8 border border-white/10 text-white hover:bg-white/15'
-                                    }`}>
+                                        }`}>
                                     {playing ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                                     {playing ? "To'xtatish" : 'Eshitish'}
                                 </button>
