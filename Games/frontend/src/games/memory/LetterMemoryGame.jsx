@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, RotateCcw, Coins } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Coins } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import coinService from '../../services/coinService';
 import './LetterMemoryGame.css';
