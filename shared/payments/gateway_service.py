@@ -241,7 +241,6 @@ class UzumGateway(BaseGateway):
 
 GATEWAY_CLASSES = {
     "payme": PaymeGateway,
-    "click": ClickGateway,
     "uzum": UzumGateway,
 }
 
