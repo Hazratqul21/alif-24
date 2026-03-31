@@ -1089,7 +1089,7 @@ const StudentDashboard = () => {
                                                     onClick={async () => {
                                                         console.log('🔔 Payment clicked, plan:', plan.id, plan.name);
                                                         try {
-                                                            const checkoutUrl = `${apiBaseUrl}/payments/checkout`;
+                                                            const checkoutUrl = '/api/v1/payments/checkout';
                                                             console.log('📡 Fetching:', checkoutUrl);
                                                             const res = await fetch(checkoutUrl, {
                                                                 method: 'POST',
