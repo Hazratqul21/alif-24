@@ -44,6 +44,9 @@ export default function OlympiadsPage() {
     const [contentUploadImage, setContentUploadImage] = useState(null);
     const [editLesson, setEditLesson] = useState(null);
     const [editLessonForm, setEditLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
+    const [editErtak, setEditErtak] = useState(null);
+    const [editErtakForm, setEditErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
+    const [editErtakQuestions, setEditErtakQuestions] = useState([]);
 
     // ── Lesson quiz questions ─────────────────────────────────────────────────
     const [lessonQuestions, setLessonQuestions] = useState([]);
@@ -732,12 +735,45 @@ const handleCreate = async () => {
         try { await olympiadService.deleteOlympiadStory(selectedOlympiad.id, id); loadContentData(); notify('success', "O'chirildi"); } catch (e) { notify('error', 'Xatolik'); }
     };
 
+    const handleEditContentErtak = (ertak) => {
+        setEditErtak(ertak);
+        setEditErtakForm({ title: ertak.title || '', content: ertak.content || '', language: ertak.language || 'uz', age_group: ertak.age_group || '6-8' });
+        setEditErtakQuestions((ertak.questions || []).map(q => ({ question: q.question || '', answer: q.answer || '' })));
+    };
+
+    const handleUpdateContentErtak = async () => {
+        if (!editErtak || !selectedOlympiad) return;
+        if (editErtakForm.title.length < 3) { notify('error', 'Sarlavha kamida 3 ta belgi'); return; }
+        try {
+            setSaving(true); setError('');
+            const payload = { ...editErtakForm, questions: editErtakQuestions.filter(q => q.question.trim()) };
+            if (contentUploadFile) {
+                const upRes = await adminService.uploadFile(contentUploadFile);
+                if (upRes.data?.url) payload.audio_url = upRes.data.url;
+            }
+            if (contentUploadImage) {
+                const upRes = await adminService.uploadFile(contentUploadImage);
+                if (upRes.data?.url) payload.image_url = upRes.data.url;
+            }
+            await olympiadService.updateOlympiadStory(selectedOlympiad.id, editErtak.id, payload);
+            notify('success', 'Ertak yangilandi!');
+            setEditErtak(null);
+            setEditErtakQuestions([]);
+            setContentUploadFile(null);
+            setContentUploadImage(null);
+            loadContentData();
+        } catch (e) {
+            const msg = parseError(e);
+            setError(msg); notify('error', msg);
+        } finally { setSaving(false); }
+    };
+
     const handlePublishLesson = async (id, currentStatus) => {
         if (!selectedOlympiad) return;
         try {
             const res = await olympiadService.publishOlympiadLesson(selectedOlympiad.id, id);
-            setContentLessons(prev => prev.map(l => l.id === id ? { ...l, is_published: res.data.is_published } : l));
-            notify('success', res.data.message || (currentStatus ? 'Yashirildi' : 'Nashr qilindi'));
+            setContentLessons(prev => prev.map(l => l.id === id ? { ...l, is_published: res.is_published } : l));
+            notify('success', res.message || (currentStatus ? 'Yashirildi' : 'Nashr qilindi'));
         } catch (e) { notify('error', 'Xatolik'); }
     };
 
@@ -745,8 +781,8 @@ const handleCreate = async () => {
         if (!selectedOlympiad) return;
         try {
             const res = await olympiadService.publishOlympiadStory(selectedOlympiad.id, id);
-            setContentErtaklar(prev => prev.map(e => e.id === id ? { ...e, is_published: res.data.is_published } : e));
-            notify('success', res.data.message || (currentStatus ? 'Yashirildi' : 'Nashr qilindi'));
+            setContentErtaklar(prev => prev.map(e => e.id === id ? { ...e, is_published: res.is_published } : e));
+            notify('success', res.message || (currentStatus ? 'Yashirildi' : 'Nashr qilindi'));
         } catch (e) { notify('error', 'Xatolik'); }
     };
 
@@ -1064,6 +1100,7 @@ const handleCreate = async () => {
                                         className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${e.is_published ? 'bg-emerald-500/10 text-emerald-400 hover:bg-red-500/10 hover:text-red-400' : 'bg-blue-500/10 text-blue-400 hover:bg-emerald-500/10 hover:text-emerald-400'}`}>
                                         {e.is_published ? 'Yashirish' : 'Share'}
                                     </button>
+                                    <button onClick={() => handleEditContentErtak(e)} className="p-2 text-gray-500 hover:text-blue-400"><Pencil className="w-4 h-4" /></button>
                                     <button onClick={() => handleDeleteContentErtak(e.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                                 </div>
                             </div>
@@ -1139,6 +1176,62 @@ const handleCreate = async () => {
                         <div className="flex justify-end gap-3 mt-6">
                             <button onClick={() => { setEditLesson(null); setContentUploadFile(null); setEditLessonQuestions([]); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
                             <button onClick={handleUpdateContentLesson} disabled={saving || !editLessonForm.title} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                                {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+                            </button>
+                        </div>
+                    </ContentModal>
+                )}
+
+                {/* Edit Ertak Modal */}
+                {editErtak && (
+                    <ContentModal title={`Ertakni tahrirlash: ${editErtak.title}`} onClose={() => { setEditErtak(null); setContentUploadFile(null); setContentUploadImage(null); setEditErtakQuestions([]); }}>
+                        <div className="space-y-3">
+                            <ContentInput label="Nomi *" value={editErtakForm.title} onChange={(v) => setEditErtakForm({ ...editErtakForm, title: v })} />
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Mazmuni *</label>
+                                <textarea value={editErtakForm.content} onChange={(e) => setEditErtakForm({ ...editErtakForm, content: e.target.value })} rows={6} className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 resize-none" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <ContentSelect label="Til" value={editErtakForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setEditErtakForm({ ...editErtakForm, language: v })} />
+                                <ContentSelect label="Yosh guruhi" value={editErtakForm.age_group} options={['4-6', '6-8', '8-10', '10-12']} onChange={(v) => setEditErtakForm({ ...editErtakForm, age_group: v })} />
+                            </div>
+                            <div className="border border-dashed border-gray-600 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
+                                    <button onClick={() => setEditErtakQuestions(prev => [...prev, { question: '', answer: '' }])} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700">
+                                        <Plus className="w-3.5 h-3.5" /> Savol qo'shish
+                                    </button>
+                                </div>
+                                {editErtakQuestions.length === 0 ? (
+                                    <p className="text-gray-500 text-xs text-center py-2">Hali savol qo'shilmagan</p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {editErtakQuestions.map((q, i) => (
+                                            <div key={i} className="bg-gray-800/60 rounded-xl p-3 space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-gray-400 text-xs font-medium">{i + 1}-savol</span>
+                                                    <button onClick={() => setEditErtakQuestions(prev => prev.filter((_, idx) => idx !== i))} className="text-gray-600 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+                                                </div>
+                                                <input value={q.question} onChange={e => setEditErtakQuestions(prev => prev.map((qq, idx) => idx === i ? { ...qq, question: e.target.value } : qq))} placeholder="Savol matni..." className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500" />
+                                                <input value={q.answer} onChange={e => setEditErtakQuestions(prev => prev.map((qq, idx) => idx === i ? { ...qq, answer: e.target.value } : qq))} placeholder="To'g'ri javob..." className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Audio fayl (yangilash)</label>
+                                <input type="file" accept="audio/*" onChange={(e) => setContentUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Muqova rasmi (yangilash)</label>
+                                <input type="file" accept="image/*" onChange={(e) => setContentUploadImage(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white" />
+                            </div>
+                        </div>
+                        {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button onClick={() => { setEditErtak(null); setContentUploadFile(null); setContentUploadImage(null); setEditErtakQuestions([]); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                            <button onClick={handleUpdateContentErtak} disabled={saving || !editErtakForm.title || !editErtakForm.content} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
                                 {saving ? 'Saqlanmoqda...' : 'Saqlash'}
                             </button>
                         </div>

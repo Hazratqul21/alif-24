@@ -735,6 +735,38 @@ async def list_olympiad_stories(
     ]
     return {"success": True, "data": items, "total": len(items)}
 
+@router.put("/{olympiad_id}/content/stories/{story_id}")
+async def update_olympiad_story(
+    olympiad_id: str,
+    story_id: str,
+    data: OlympiadStoryCreate,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update isolated story (admin only)"""
+    res = await db.execute(
+        select(OlympiadStory).where(
+            OlympiadStory.id == story_id,
+            OlympiadStory.olympiad_id == olympiad_id
+        )
+    )
+    story = res.scalars().first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+
+    story.title = data.title
+    story.content = data.content
+    story.language = data.language
+    story.age_group = data.age_group
+    story.has_audio = data.has_audio
+    story.audio_url = data.audio_url
+    story.image_url = data.image_url
+    story.questions = data.questions
+
+    await db.commit()
+    return {"success": True, "message": "Ertak yangilandi"}
+
+
 @router.delete("/{olympiad_id}/content/stories/{story_id}")
 async def delete_olympiad_story(
     olympiad_id: str,

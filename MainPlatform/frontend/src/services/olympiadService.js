@@ -79,6 +79,7 @@ const olympiadService = {
     deleteOlympiadLesson: (olympiadId, lessonId) => api.delete(`/${olympiadId}/content/lessons/${lessonId}`),
     getOlympiadStories: (olympiadId) => api.get(`/${olympiadId}/content/stories`),
     createOlympiadStory: (olympiadId, data) => api.post(`/${olympiadId}/content/stories`, data),
+    updateOlympiadStory: (olympiadId, storyId, data) => api.put(`/${olympiadId}/content/stories/${storyId}`, data),
     deleteOlympiadStory: (olympiadId, storyId) => api.delete(`/${olympiadId}/content/stories/${storyId}`),
     publishOlympiadLesson: (olympiadId, lessonId) => api.post(`/${olympiadId}/content/lessons/${lessonId}/publish`),
     publishOlympiadStory: (olympiadId, storyId) => api.post(`/${olympiadId}/content/stories/${storyId}/publish`),
