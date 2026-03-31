@@ -246,8 +246,6 @@ async def get_me(
                 "id": sp.id,
                 "grade": sp.grade,
                 "school_name": sp.school_name,
-                "region": sp.region,
-                "district": sp.district,
                 "avatar_seed": sp.avatar_seed,
                 "total_coins": sp.total_coins,
             }
