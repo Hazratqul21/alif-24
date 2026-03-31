@@ -1087,8 +1087,11 @@ const StudentDashboard = () => {
                                             {plan.price > 0 && (
                                                 <button
                                                     onClick={async () => {
+                                                        console.log('🔔 Payment clicked, plan:', plan.id, plan.name);
                                                         try {
-                                                            const res = await fetch(`${apiBaseUrl}/payments/checkout`, {
+                                                            const checkoutUrl = `${apiBaseUrl}/payments/checkout`;
+                                                            console.log('📡 Fetching:', checkoutUrl);
+                                                            const res = await fetch(checkoutUrl, {
                                                                 method: 'POST',
                                                                 credentials: 'include',
                                                                 headers: { 'Content-Type': 'application/json' },
@@ -1097,13 +1100,18 @@ const StudentDashboard = () => {
                                                                     return_url: window.location.origin + '/student-dashboard?payment=success'
                                                                 })
                                                             });
+                                                            console.log('📬 Status:', res.status);
                                                             const data = await res.json();
+                                                            console.log('📦 Data:', data);
                                                             if (data.checkout_url) {
+                                                                console.log('➡️ Redirecting to:', data.checkout_url);
                                                                 window.location.href = data.checkout_url;
                                                             } else {
+                                                                console.log('❌ No checkout_url, error:', data.detail);
                                                                 showNotif('error', data.detail || "To'lov tizimi hozir ishlamayapti");
                                                             }
                                                         } catch (e) {
+                                                            console.error('💥 Error:', e);
                                                             showNotif('error', "To'lov tizimi bilan bog'lanib bo'lmadi");
                                                         }
                                                     }}

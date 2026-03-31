@@ -246,7 +246,7 @@ async def get_me(
                 "id": sp.id,
                 "grade": sp.grade,
                 "school_name": sp.school_name,
-                "avatar_seed": sp.avatar_seed,
+                "avatar_id": sp.avatar_id,
                 "total_coins": sp.total_coins,
             }
     except Exception as e:
