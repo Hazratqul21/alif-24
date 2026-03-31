@@ -601,9 +601,10 @@ async def list_olympiad_lessons(
     
     items = [
         {
-            "id": l.id, "title": l.title, "subject": l.subject, "content": l.content, 
+            "id": l.id, "title": l.title, "subject": l.subject, "content": l.content,
             "grade_level": l.grade_level, "language": l.language, "video_url": l.video_url,
-            "attachments": l.attachments, "created_at": l.created_at.isoformat() if l.created_at else None
+            "attachments": l.attachments, "is_published": l.is_published,
+            "created_at": l.created_at.isoformat() if l.created_at else None
         } for l in lessons
     ]
     return {"success": True, "data": items, "total": len(items)}
@@ -660,6 +661,29 @@ async def delete_olympiad_lesson(
     await db.commit()
     return {"success": True, "message": "Dars o'chirildi"}
 
+@router.post("/{olympiad_id}/content/lessons/{lesson_id}/publish")
+async def publish_olympiad_lesson(
+    olympiad_id: str,
+    lesson_id: str,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle publish status of a lesson (admin only)"""
+    res = await db.execute(
+        select(OlympiadLesson).where(
+            OlympiadLesson.id == lesson_id,
+            OlympiadLesson.olympiad_id == olympiad_id
+        )
+    )
+    lesson = res.scalars().first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+    lesson.is_published = not lesson.is_published
+    await db.commit()
+    status = "nashr qilindi" if lesson.is_published else "yashirildi"
+    return {"success": True, "is_published": lesson.is_published, "message": f"Dars {status}"}
+
+
 @router.post("/{olympiad_id}/content/stories")
 async def add_olympiad_story(
     olympiad_id: str,
@@ -702,10 +726,11 @@ async def list_olympiad_stories(
     
     items = [
         {
-            "id": s.id, "title": s.title, "content": s.content, 
+            "id": s.id, "title": s.title, "content": s.content,
             "language": s.language, "age_group": s.age_group, "has_audio": s.has_audio,
             "audio_url": s.audio_url, "image_url": s.image_url, "view_count": s.view_count,
-            "questions": s.questions, "created_at": s.created_at.isoformat() if s.created_at else None
+            "questions": s.questions, "is_published": s.is_published,
+            "created_at": s.created_at.isoformat() if s.created_at else None
         } for s in stories
     ]
     return {"success": True, "data": items, "total": len(items)}
@@ -731,6 +756,29 @@ async def delete_olympiad_story(
     await db.delete(story)
     await db.commit()
     return {"success": True, "message": "Ertak o'chirildi"}
+
+
+@router.post("/{olympiad_id}/content/stories/{story_id}/publish")
+async def publish_olympiad_story(
+    olympiad_id: str,
+    story_id: str,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle publish status of a story (admin only)"""
+    res = await db.execute(
+        select(OlympiadStory).where(
+            OlympiadStory.id == story_id,
+            OlympiadStory.olympiad_id == olympiad_id
+        )
+    )
+    story = res.scalars().first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+    story.is_published = not story.is_published
+    await db.commit()
+    status = "nashr qilindi" if story.is_published else "yashirildi"
+    return {"success": True, "is_published": story.is_published, "message": f"Ertak {status}"}
 
 
 # ============================================================================

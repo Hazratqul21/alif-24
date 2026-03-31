@@ -1153,7 +1153,10 @@ async def get_olympiad_lessons(
 ):
     """Get all lessons for a specific olympiad"""
     res = await db.execute(
-        select(OlympiadLesson).where(OlympiadLesson.olympiad_id == olympiad_id)
+        select(OlympiadLesson).where(
+            OlympiadLesson.olympiad_id == olympiad_id,
+            OlympiadLesson.is_published == True
+        )
         .order_by(OlympiadLesson.created_at.desc())
     )
     lessons = res.scalars().all()
@@ -1279,7 +1282,10 @@ async def get_olympiad_stories(
 ):
     """Get all stories (ertaklar) for a specific olympiad"""
     res = await db.execute(
-        select(OlympiadStory).where(OlympiadStory.olympiad_id == olympiad_id)
+        select(OlympiadStory).where(
+            OlympiadStory.olympiad_id == olympiad_id,
+            OlympiadStory.is_published == True
+        )
         .order_by(OlympiadStory.created_at.desc())
     )
     stories = res.scalars().all()

@@ -732,6 +732,24 @@ const handleCreate = async () => {
         try { await olympiadService.deleteOlympiadStory(selectedOlympiad.id, id); loadContentData(); notify('success', "O'chirildi"); } catch (e) { notify('error', 'Xatolik'); }
     };
 
+    const handlePublishLesson = async (id, currentStatus) => {
+        if (!selectedOlympiad) return;
+        try {
+            const res = await olympiadService.publishOlympiadLesson(selectedOlympiad.id, id);
+            setContentLessons(prev => prev.map(l => l.id === id ? { ...l, is_published: res.data.is_published } : l));
+            notify('success', res.data.message || (currentStatus ? 'Yashirildi' : 'Nashr qilindi'));
+        } catch (e) { notify('error', 'Xatolik'); }
+    };
+
+    const handlePublishErtak = async (id, currentStatus) => {
+        if (!selectedOlympiad) return;
+        try {
+            const res = await olympiadService.publishOlympiadStory(selectedOlympiad.id, id);
+            setContentErtaklar(prev => prev.map(e => e.id === id ? { ...e, is_published: res.data.is_published } : e));
+            notify('success', res.data.message || (currentStatus ? 'Yashirildi' : 'Nashr qilindi'));
+        } catch (e) { notify('error', 'Xatolik'); }
+    };
+
     const addContentQuestion = () => setErtakQuestions(prev => [...prev, { question: '', answer: '' }]);
     const removeContentQuestion = (i) => setErtakQuestions(prev => prev.filter((_, idx) => idx !== i));
     const updateContentQuestion = (i, field, val) => setErtakQuestions(prev => prev.map((q, idx) => idx === i ? { ...q, [field]: val } : q));
@@ -946,7 +964,13 @@ const handleCreate = async () => {
                                 <div className="flex items-center gap-3 min-w-0">
                                     <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0"><BookOpen className="w-5 h-5 text-blue-400" /></div>
                                     <div className="min-w-0 flex-1">
-                                        <h3 className="text-white font-medium truncate">{l.title}</h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-white font-medium truncate">{l.title}</h3>
+                                            {l.is_published
+                                                ? <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Nashr qilindi</span>
+                                                : <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400 border border-gray-600">Draft</span>
+                                            }
+                                        </div>
                                         <div className="flex items-center gap-2 text-xs text-gray-500">
                                             <span>{l.subject}</span>
                                             {l.grade_level && <span>• {l.grade_level}</span>}
@@ -963,6 +987,12 @@ const handleCreate = async () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                        onClick={() => handlePublishLesson(l.id, l.is_published)}
+                                        title={l.is_published ? "Yashirish" : "Studentlarga ko'rsatish"}
+                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${l.is_published ? 'bg-emerald-500/10 text-emerald-400 hover:bg-red-500/10 hover:text-red-400' : 'bg-blue-500/10 text-blue-400 hover:bg-emerald-500/10 hover:text-emerald-400'}`}>
+                                        {l.is_published ? 'Yashirish' : 'Share'}
+                                    </button>
                                     <button onClick={() => handleEditContentLesson(l)} className="p-2 text-gray-500 hover:text-blue-400"><Pencil className="w-4 h-4" /></button>
                                     <button onClick={() => handleDeleteContentLesson(l.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                                 </div>
@@ -1014,14 +1044,28 @@ const handleCreate = async () => {
                                 <div className="flex items-center gap-3 min-w-0">
                                     <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center shrink-0"><Book className="w-5 h-5 text-purple-400" /></div>
                                     <div className="min-w-0">
-                                        <h3 className="text-white font-medium truncate">{e.title}</h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-white font-medium truncate">{e.title}</h3>
+                                            {e.is_published
+                                                ? <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Nashr qilindi</span>
+                                                : <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400 border border-gray-600">Draft</span>
+                                            }
+                                        </div>
                                         <div className="flex items-center gap-2 text-xs text-gray-500">
                                             <span>{e.language}</span><span>• {e.age_group}</span>
                                             {e.has_audio && <span>• 🔊 Audio</span>}
                                         </div>
                                     </div>
                                 </div>
-                                <button onClick={() => handleDeleteContentErtak(e.id)} className="p-2 text-gray-500 hover:text-red-400 shrink-0"><Trash2 className="w-4 h-4" /></button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                        onClick={() => handlePublishErtak(e.id, e.is_published)}
+                                        title={e.is_published ? "Yashirish" : "Studentlarga ko'rsatish"}
+                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${e.is_published ? 'bg-emerald-500/10 text-emerald-400 hover:bg-red-500/10 hover:text-red-400' : 'bg-blue-500/10 text-blue-400 hover:bg-emerald-500/10 hover:text-emerald-400'}`}>
+                                        {e.is_published ? 'Yashirish' : 'Share'}
+                                    </button>
+                                    <button onClick={() => handleDeleteContentErtak(e.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                                </div>
                             </div>
                         ))}
                     </div>

@@ -25,6 +25,8 @@ class OlympiadLesson(Base):
     video_url = Column(String(500), nullable=True)
     attachments = Column(JSON, nullable=True)  # [{name, url, size}]
 
+    is_published = Column(Boolean, default=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -52,6 +54,7 @@ class OlympiadStory(Base):
     image_url = Column(String(500), nullable=True)
     view_count = Column(Integer, default=0)
     questions = Column(JSON, nullable=True, default=list)  # [{"question": "...", "answer": "..."}]
+    is_published = Column(Boolean, default=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

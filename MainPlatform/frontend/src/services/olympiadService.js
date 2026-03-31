@@ -80,6 +80,8 @@ const olympiadService = {
     getOlympiadStories: (olympiadId) => api.get(`/${olympiadId}/content/stories`),
     createOlympiadStory: (olympiadId, data) => api.post(`/${olympiadId}/content/stories`, data),
     deleteOlympiadStory: (olympiadId, storyId) => api.delete(`/${olympiadId}/content/stories/${storyId}`),
+    publishOlympiadLesson: (olympiadId, lessonId) => api.post(`/${olympiadId}/content/lessons/${lessonId}/publish`),
+    publishOlympiadStory: (olympiadId, storyId) => api.post(`/${olympiadId}/content/stories/${storyId}/publish`),
 };
 
 export default olympiadService;
