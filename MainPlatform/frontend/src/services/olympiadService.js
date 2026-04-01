@@ -54,6 +54,19 @@ const olympiadService = {
     listQuestions: (olympiadId) => api.get(`/${olympiadId}/questions`),
     deleteQuestion: (olympiadId, questionId) => api.delete(`/${olympiadId}/questions/${questionId}`),
 
+    // ==================== ADMIN: Test Parser ====================
+    parseTextQuestions: (olympiadId, text) =>
+        api.post(`/${olympiadId}/parse-text`, { text }),
+    parseFileQuestions: (olympiadId, file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return api.post(`/${olympiadId}/parse-file`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    },
+    aiGenerateQuestions: (olympiadId, text, count = 10) =>
+        api.post(`/${olympiadId}/ai-generate`, { text, count }),
+
     // ==================== ADMIN: Reading Tasks ====================
     addReadingTask: (olympiadId, data) => api.post(`/${olympiadId}/reading-tasks`, data),
     listReadingTasks: (olympiadId) => api.get(`/${olympiadId}/reading-tasks`),

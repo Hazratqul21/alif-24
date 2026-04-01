@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Trophy, Plus, Trash2, X, Eye, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, BarChart3, FileText, AlertCircle, PenLine, RefreshCw, Target, AudioLines, Waves, Book, Globe, Pencil, Video, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Trophy, Plus, Trash2, X, Eye, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, BarChart3, FileText, AlertCircle, PenLine, RefreshCw, Target, AudioLines, Waves, Book, Globe, Pencil, Video, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2 } from 'lucide-react';
 import olympiadService from '../../services/olympiadService';
 import adminService from '../../services/adminService';
 
@@ -17,6 +17,18 @@ export default function OlympiadsPage() {
     const [questions, setQuestions] = useState([]);
     const [showAddQuestion, setShowAddQuestion] = useState(false);
     const [qForm, setQForm] = useState({ question_text: '', options: ['', '', '', ''], correct_answer: 0, points: 5 });
+
+    // Test Builder Modal
+    const [showTestBuilder, setShowTestBuilder] = useState(false);
+    const [testBuilderTab, setTestBuilderTab] = useState('file'); // 'file' | 'text' | 'ai' | 'manual'
+    const [pasteText, setPasteText] = useState('');
+    const [aiText, setAiText] = useState('');
+    const [aiCount, setAiCount] = useState(10);
+    const [parsedQuestions, setParsedQuestions] = useState([]); // preview qatori
+    const [parsePending, setParsePending] = useState(false);
+    const [parseError, setParseError] = useState('');
+    const [bulkSaving, setBulkSaving] = useState(false);
+    const fileInputRef = useRef(null);
 
     // Reading tasks
     const [readingTasks, setReadingTasks] = useState([]);
@@ -201,6 +213,104 @@ const handleCreate = async () => {
             const msg = parseError(e);
             notify('error', msg || 'Xatolik');
         }
+    };
+
+    // ---- Test Builder handlers ----
+    const openTestBuilder = (tab = 'file') => {
+        setTestBuilderTab(tab);
+        setParsedQuestions([]);
+        setPasteText('');
+        setAiText('');
+        setParseError('');
+        setShowTestBuilder(true);
+    };
+
+    const handleFileSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setParsePending(true);
+        setParseError('');
+        setParsedQuestions([]);
+        try {
+            const res = await olympiadService.parseFileQuestions(selectedOlympiad.id, file);
+            if (!res.questions?.length) { setParseError('Fayldan savollar topilmadi. Format to\'g\'riligini tekshiring.'); return; }
+            setParsedQuestions(res.questions);
+        } catch (e) {
+            setParseError(e?.response?.data?.detail || 'Faylni qayta ishlashda xatolik');
+        } finally {
+            setParsePending(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleParseText = async () => {
+        if (!pasteText.trim()) { setParseError('Matn kiriting'); return; }
+        setParsePending(true);
+        setParseError('');
+        setParsedQuestions([]);
+        try {
+            const res = await olympiadService.parseTextQuestions(selectedOlympiad.id, pasteText);
+            if (!res.questions?.length) { setParseError('Savollar topilmadi. Format to\'g\'riligini tekshiring.'); return; }
+            setParsedQuestions(res.questions);
+        } catch (e) {
+            setParseError(e?.response?.data?.detail || 'Xatolik');
+        } finally {
+            setParsePending(false);
+        }
+    };
+
+    const handleAiGenerate = async () => {
+        if (!aiText.trim()) { setParseError('Matn kiriting'); return; }
+        setParsePending(true);
+        setParseError('');
+        setParsedQuestions([]);
+        try {
+            const res = await olympiadService.aiGenerateQuestions(selectedOlympiad.id, aiText, aiCount);
+            if (!res.questions?.length) { setParseError('AI savollar yarata olmadi'); return; }
+            setParsedQuestions(res.questions);
+        } catch (e) {
+            setParseError(e?.response?.data?.detail || 'AI xatolik');
+        } finally {
+            setParsePending(false);
+        }
+    };
+
+    const removeParsedQuestion = (idx) => setParsedQuestions(pq => pq.filter((_, i) => i !== idx));
+
+    const updateParsedQuestion = (idx, field, value) => {
+        setParsedQuestions(pq => pq.map((q, i) => i === idx ? { ...q, [field]: value } : q));
+    };
+
+    const updateParsedOption = (qIdx, oIdx, value) => {
+        setParsedQuestions(pq => pq.map((q, i) => {
+            if (i !== qIdx) return q;
+            const opts = [...q.options];
+            opts[oIdx] = value;
+            return { ...q, options: opts };
+        }));
+    };
+
+    const handleBulkSave = async () => {
+        if (!parsedQuestions.length) return;
+        setBulkSaving(true);
+        let saved = 0;
+        for (const q of parsedQuestions) {
+            try {
+                await olympiadService.addQuestion(selectedOlympiad.id, {
+                    question_text: q.question_text,
+                    options: q.options,
+                    correct_answer: q.correct_answer,
+                    points: q.points || 5,
+                });
+                saved++;
+            } catch (_) {}
+        }
+        const res = await olympiadService.listQuestions(selectedOlympiad.id);
+        setQuestions(res.questions || []);
+        setBulkSaving(false);
+        setShowTestBuilder(false);
+        setParsedQuestions([]);
+        notify('success', `${saved} ta savol saqlandi!`);
     };
 
     const handleAddReadingTask = async () => {
@@ -442,7 +552,10 @@ const handleCreate = async () => {
                     <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-white font-bold flex items-center gap-2"><FileText size={18} /> Test Savollari ({questions.length})</h3>
-                            <button onClick={() => setShowAddQuestion(true)} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm"><Plus size={16} /> Savol</button>
+                            <div className="flex gap-2">
+                                <button onClick={() => openTestBuilder('file')} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"><Upload size={14} /> Test tuzish</button>
+                                <button onClick={() => setShowAddQuestion(true)} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600/30 text-indigo-400 rounded-lg text-sm border border-indigo-600/30 hover:bg-indigo-600 hover:text-white"><Plus size={14} /> Savol</button>
+                            </div>
                         </div>
                         {questions.length === 0 ? (
                             <p className="text-gray-500 text-sm text-center py-4">Savollar qo'shilmagan</p>
@@ -969,11 +1082,11 @@ const handleCreate = async () => {
                     <button
                         onClick={() => {
                             if (contentTab === 'ertaklar') setContentModal('ertak');
-                            else setShowAddQuestion(true);
+                            else openTestBuilder('file');
                         }}
                         className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
                     >
-                        <Plus className="w-4 h-4" /> Yangi {contentTab === 'ertaklar' ? 'ertak' : 'savol'}
+                        <Plus className="w-4 h-4" /> {contentTab === 'ertaklar' ? 'Yangi ertak' : 'Test tuzish'}
                     </button>
                 </div>
 
@@ -993,7 +1106,10 @@ const handleCreate = async () => {
                     <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-white font-bold flex items-center gap-2"><FileText size={18} /> Test Savollari ({questions.length})</h3>
-                            <button onClick={() => setShowAddQuestion(true)} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm"><Plus size={16} /> Savol</button>
+                            <div className="flex gap-2">
+                                <button onClick={() => openTestBuilder('file')} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"><Upload size={14} /> Test tuzish</button>
+                                <button onClick={() => setShowAddQuestion(true)} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600/30 text-indigo-400 rounded-lg text-sm border border-indigo-600/30 hover:bg-indigo-600 hover:text-white"><Plus size={14} /> Savol</button>
+                            </div>
                         </div>
                         {questions.length === 0 ? (
                             <p className="text-gray-500 text-sm text-center py-4">Savollar qo'shilmagan</p>
@@ -1276,6 +1392,155 @@ const handleCreate = async () => {
             {activeView === 'create' && renderCreate()}
             {activeView === 'detail' && renderDetail()}
             {activeView === 'content' && renderContent()}
+
+            {/* ===== TEST BUILDER MODAL ===== */}
+            {showTestBuilder && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowTestBuilder(false)}>
+                    <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-gray-950 border border-gray-700 rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="sticky top-0 z-10 bg-gray-950 border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2"><FileText size={18} className="text-emerald-400" /> Test tuzish</h3>
+                            <button onClick={() => setShowTestBuilder(false)} className="text-gray-500 hover:text-white"><X size={20} /></button>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex gap-1 px-6 pt-4 pb-0">
+                            {[
+                                { key: 'file', label: 'Fayl yuklash', icon: Upload },
+                                { key: 'text', label: 'Matn', icon: AlignJustify },
+                                { key: 'ai', label: 'AI bilan', icon: Sparkles },
+                                { key: 'manual', label: '+ Yangi savol', icon: Plus },
+                            ].map(t => (
+                                <button key={t.key} onClick={() => { setTestBuilderTab(t.key); setParsedQuestions([]); setParseError(''); }}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-sm font-medium transition-colors ${testBuilderTab === t.key ? 'bg-gray-800 text-emerald-400 border border-b-0 border-gray-700' : 'text-gray-500 hover:text-white'}`}>
+                                    <t.icon size={14} /> {t.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="bg-gray-800 mx-6 rounded-b-xl rounded-tr-xl border border-gray-700 p-5 mb-4">
+
+                            {/* FILE TAB */}
+                            {testBuilderTab === 'file' && (
+                                <div className="space-y-4">
+                                    <p className="text-gray-400 text-sm">PDF, DOCX yoki TXT faylni yuklang. Test savollari avtomatik ajratib olinadi.</p>
+                                    <label className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${parsePending ? 'border-emerald-500 bg-emerald-500/5' : 'border-gray-600 hover:border-emerald-500 hover:bg-gray-700/50'}`}>
+                                        <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt,.doc" className="hidden" onChange={handleFileSelect} disabled={parsePending} />
+                                        {parsePending ? <Loader2 size={32} className="text-emerald-400 animate-spin mb-2" /> : <Upload size={32} className="text-gray-500 mb-2" />}
+                                        <span className="text-sm text-gray-400">{parsePending ? 'Qayta ishlanmoqda...' : 'Faylni bosing yoki suring'}</span>
+                                        <span className="text-xs text-gray-600 mt-1">.pdf .docx .txt</span>
+                                    </label>
+                                    <div className="text-xs text-gray-500 bg-gray-900 rounded-lg p-3">
+                                        <p className="font-medium text-gray-400 mb-1">Tavsiya etilgan format:</p>
+                                        <pre className="text-gray-500">{`1. Savol matni\nA) variant\nB) variant\nC) variant\nD) variant`}</pre>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TEXT TAB */}
+                            {testBuilderTab === 'text' && (
+                                <div className="space-y-3">
+                                    <p className="text-gray-400 text-sm">Test savollarini quyidagi formatda kiriting:</p>
+                                    <div className="text-xs text-gray-600 bg-gray-900 rounded-lg p-2 font-mono">
+                                        {`1. Savol matni\nA) variant\nB) variant\nC) variant\nD) variant`}
+                                    </div>
+                                    <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={10}
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500 resize-none font-mono"
+                                        placeholder={"1. Savol matni\nA) variant\nB) variant\nC) variant\nD) variant\n\n2. Ikkinchi savol..."}
+                                    />
+                                    <button onClick={handleParseText} disabled={parsePending || !pasteText.trim()}
+                                        className="w-full py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                                        {parsePending ? <><Loader2 size={16} className="animate-spin" /> Qayta ishlanmoqda...</> : 'OK — Savollarni ajratib olish'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* AI TAB */}
+                            {testBuilderTab === 'ai' && (
+                                <div className="space-y-3">
+                                    <p className="text-gray-400 text-sm">Mavzu yoki matn kiriting — AI test savollarini yaratadi.</p>
+                                    <textarea value={aiText} onChange={e => setAiText(e.target.value)} rows={8}
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 resize-none"
+                                        placeholder="Mavzu yoki matn yozing... (mas: Amir Temur haqida, Pitagor teoremasi, ...)"/>
+                                    <div className="flex items-center gap-3">
+                                        <label className="text-gray-400 text-sm">Savollar soni:</label>
+                                        <input type="number" value={aiCount} onChange={e => setAiCount(Math.min(30, Math.max(1, parseInt(e.target.value) || 10)))}
+                                            min={1} max={30} className="w-20 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-purple-500" />
+                                    </div>
+                                    <button onClick={handleAiGenerate} disabled={parsePending || !aiText.trim()}
+                                        className="w-full py-2.5 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                                        {parsePending ? <><Loader2 size={16} className="animate-spin" /> AI ishlayapti...</> : <><Sparkles size={16} /> AI bilan test yaratish</>}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* MANUAL TAB */}
+                            {testBuilderTab === 'manual' && (
+                                <div className="space-y-4">
+                                    <textarea value={qForm.question_text} onChange={e => setQForm({ ...qForm, question_text: e.target.value })}
+                                        placeholder="Savol matni..." rows={2}
+                                        className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none text-sm" />
+                                    {qForm.options.map((opt, i) => (
+                                        <div key={i} className="flex items-center gap-2">
+                                            <input type="radio" name="correct_manual" checked={qForm.correct_answer === i} onChange={() => setQForm({ ...qForm, correct_answer: i })} className="accent-emerald-500" />
+                                            <span className="text-gray-400 font-bold w-6">{String.fromCharCode(65 + i)})</span>
+                                            <input value={opt} onChange={e => { const opts = [...qForm.options]; opts[i] = e.target.value; setQForm({ ...qForm, options: opts }); }}
+                                                placeholder={`${String.fromCharCode(65 + i)} variant`}
+                                                className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
+                                        </div>
+                                    ))}
+                                    <div className="flex gap-3">
+                                        <input type="number" value={qForm.points} onChange={e => setQForm({ ...qForm, points: parseInt(e.target.value) || 5 })}
+                                            className="w-24 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
+                                        <span className="text-gray-500 text-sm self-center">ball</span>
+                                    </div>
+                                    <button onClick={async () => { await handleAddQuestion(); setShowTestBuilder(false); }} className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700">Saqlash</button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Parse Error */}
+                        {parseError && (
+                            <div className="mx-6 mb-4 flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-sm">
+                                <AlertCircle size={16} /> {parseError}
+                            </div>
+                        )}
+
+                        {/* Parsed Questions Preview */}
+                        {parsedQuestions.length > 0 && (
+                            <div className="px-6 pb-6 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-white font-semibold">{parsedQuestions.length} ta savol topildi — ko'rib chiqing:</p>
+                                    <button onClick={handleBulkSave} disabled={bulkSaving}
+                                        className="flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50">
+                                        {bulkSaving ? <><Loader2 size={14} className="animate-spin" /> Saqlanmoqda...</> : <><CheckCircle size={14} /> Hammasini saqlash</>}
+                                    </button>
+                                </div>
+                                {parsedQuestions.map((q, qi) => (
+                                    <div key={qi} className="bg-gray-900 border border-gray-700 rounded-xl p-4 space-y-3">
+                                        <div className="flex items-start gap-2">
+                                            <span className="text-emerald-400 font-bold text-sm shrink-0 mt-1">{qi + 1}.</span>
+                                            <textarea value={q.question_text} onChange={e => updateParsedQuestion(qi, 'question_text', e.target.value)}
+                                                rows={2} className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500 resize-none" />
+                                            <button onClick={() => removeParsedQuestion(qi)} className="text-gray-600 hover:text-red-400 mt-1"><Trash2 size={16} /></button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 ml-5">
+                                            {q.options.map((opt, oi) => (
+                                                <div key={oi} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border ${q.correct_answer === oi ? 'border-emerald-500 bg-emerald-500/10' : 'border-gray-700 bg-gray-800'}`}>
+                                                    <input type="radio" name={`pq_correct_${qi}`} checked={q.correct_answer === oi} onChange={() => updateParsedQuestion(qi, 'correct_answer', oi)} className="accent-emerald-500 shrink-0" />
+                                                    <input value={opt} onChange={e => updateParsedOption(qi, oi, e.target.value)}
+                                                        className="flex-1 bg-transparent text-white text-xs focus:outline-none min-w-0"
+                                                        placeholder={`${String.fromCharCode(65 + oi)} variant`} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Add Question Modal */}
             {renderModal(showAddQuestion, () => setShowAddQuestion(false), 'Savol qo\'shish', (

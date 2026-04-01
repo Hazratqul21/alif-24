@@ -1104,3 +1104,187 @@ async def get_olympiad_stats(
 
 
     # NOTE: Audio upload endpoint is on olimp.alif24.uz (port 8005)
+
+
+# ============================================================================
+# TEST PARSER — Fayldan va matndan savollarni ajratib olish
+# ============================================================================
+
+import re
+import io
+from fastapi import UploadFile, File
+
+
+def _parse_questions_from_text(text: str) -> list:
+    """
+    Standart test formatidan savollarni ajratib oladi.
+    Format:
+        1. Savol matni
+        A) variant
+        B) variant
+        C) variant
+        D) variant
+    To'g'ri javob: A  (ixtiyoriy)
+    """
+    questions = []
+    # Har bir savolni raqam bilan ajratamiz
+    blocks = re.split(r'\n\s*(?=\d+[\.\)]\s)', '\n' + text.strip())
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+        lines = [l.strip() for l in block.splitlines() if l.strip()]
+        if not lines:
+            continue
+
+        # Birinchi qator — savol matni (raqamni olib tashlaymiz)
+        q_line = re.sub(r'^\d+[\.\)✍️🔹▪•]\s*', '', lines[0]).strip()
+        if not q_line:
+            continue
+
+        options = []
+        correct_idx = 0
+        correct_letter = None
+
+        for line in lines[1:]:
+            # To'g'ri javob qatori
+            m_ans = re.match(r'^(javob|answer|to.g.ri|correct)\s*[:\-]\s*([A-Da-d])', line, re.I)
+            if m_ans:
+                correct_letter = m_ans.group(2).upper()
+                continue
+            # Variant qatori: A) B) C) D) yoki A. B. C. D.
+            m_opt = re.match(r'^([A-Da-d])[\.)\s]\s*(.+)', line)
+            if m_opt:
+                options.append(m_opt.group(2).strip())
+
+        if len(options) < 2:
+            continue
+
+        if correct_letter:
+            correct_idx = ord(correct_letter) - ord('A')
+            correct_idx = max(0, min(correct_idx, len(options) - 1))
+
+        # 4 ta variantga to'ldirish
+        while len(options) < 4:
+            options.append('')
+
+        questions.append({
+            "question_text": q_line,
+            "options": options[:4],
+            "correct_answer": correct_idx,
+            "points": 5,
+            "order_index": len(questions),
+        })
+
+    return questions
+
+
+@router.post("/{olympiad_id}/parse-text")
+async def parse_test_from_text(
+    olympiad_id: str,
+    request: dict,
+    admin=Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """Matndan savollarni ajratib oladi (DB ga saqlamaydi — faqat preview uchun)"""
+    text = request.get("text", "")
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Matn bo'sh")
+    questions = _parse_questions_from_text(text)
+    return {"success": True, "questions": questions, "count": len(questions)}
+
+
+@router.post("/{olympiad_id}/parse-file")
+async def parse_test_from_file(
+    olympiad_id: str,
+    file: UploadFile = File(...),
+    admin=Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """PDF, DOCX yoki TXT fayldan savollarni ajratib oladi"""
+    content = await file.read()
+    filename = (file.filename or "").lower()
+    text = ""
+
+    try:
+        if filename.endswith(".pdf"):
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        elif filename.endswith(".docx"):
+            from docx import Document as DocxDoc
+            doc = DocxDoc(io.BytesIO(content))
+            text = "\n".join(p.text for p in doc.paragraphs)
+        elif filename.endswith(".doc"):
+            raise HTTPException(status_code=400, detail=".doc format qo'llab-quvvatlanmaydi. Iltimos, .docx yoki .pdf formatiga o'tkazing.")
+        else:
+            # TXT va boshqa matn fayllar
+            text = content.decode("utf-8", errors="ignore")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Faylni o'qishda xatolik: {str(e)}")
+
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="Fayldan matn ajratib olinmadi")
+
+    questions = _parse_questions_from_text(text)
+    return {"success": True, "questions": questions, "count": len(questions)}
+
+
+@router.post("/{olympiad_id}/ai-generate")
+async def ai_generate_questions(
+    olympiad_id: str,
+    request: dict,
+    admin=Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """AI yordamida matndan test savollarini yaratadi"""
+    from app.core.config import settings
+    from openai import AsyncAzureOpenAI
+    import json as _json
+
+    text = request.get("text", "")
+    count = min(int(request.get("count", 10)), 30)
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Matn bo'sh")
+
+    if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
+        raise HTTPException(status_code=503, detail="AI xizmati sozlanmagan")
+
+    system_prompt = (
+        f"Siz professional test tuzuvchisiz. Berilgan matn asosida {count} ta test savoli yarating. "
+        "Har bir savol uchun 4 ta variant (A, B, C, D) va to'g'ri javob indeksini (0,1,2,3) ko'rsating. "
+        "Javobni sof JSON formatida qaytaring:\n"
+        '{"questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer": 0, "points": 5}]}'
+    )
+
+    try:
+        client = AsyncAzureOpenAI(
+            azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+            api_key=settings.AZURE_OPENAI_KEY,
+            api_version=settings.AZURE_OPENAI_API_VERSION,
+        )
+        response = await client.chat.completions.create(
+            model=settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-5-chat",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text[:4000]},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.6,
+        )
+        data = _json.loads(response.choices[0].message.content)
+        raw_questions = data.get("questions", [])
+        questions = []
+        for i, q in enumerate(raw_questions):
+            questions.append({
+                "question_text": q.get("question_text", q.get("question", "")),
+                "options": q.get("options", ["", "", "", ""])[:4],
+                "correct_answer": int(q.get("correct_answer", 0)),
+                "points": int(q.get("points", 5)),
+                "order_index": i,
+            })
+        return {"success": True, "questions": questions, "count": len(questions)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI xatolik: {str(e)[:200]}")
