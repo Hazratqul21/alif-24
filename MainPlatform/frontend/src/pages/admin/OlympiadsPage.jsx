@@ -1451,8 +1451,18 @@ const handleCreate = async () => {
                             <button onClick={() => setShowTestBuilder(false)} className="text-gray-500 hover:text-white"><X size={20} /></button>
                         </div>
 
+                        {/* Test nomi */}
+                        <div className="px-6 pt-4">
+                            <input
+                                value={testSetTitle}
+                                onChange={e => setTestSetTitle(e.target.value)}
+                                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                placeholder="Test nomi (mas: Amir Temur haqida) *"
+                            />
+                        </div>
+
                         {/* Tabs */}
-                        <div className="flex gap-1 px-6 pt-4 pb-0">
+                        <div className="flex gap-1 px-6 pt-3 pb-0">
                             {[
                                 { key: 'file', label: 'Fayl yuklash', icon: Upload },
                                 { key: 'text', label: 'Matn', icon: AlignJustify },
@@ -1571,20 +1581,13 @@ const handleCreate = async () => {
                         {parsedQuestions.length > 0 && (
                             <div className="px-6 pb-6 space-y-3">
                                 <div className="flex items-center justify-between gap-3">
-                                    <div className="flex-1">
-                                        <input
-                                            value={testSetTitle}
-                                            onChange={e => setTestSetTitle(e.target.value)}
-                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
-                                            placeholder="Test nomi (mas: Amir Temur haqida)"
-                                        />
-                                    </div>
+                                    <p className="text-white font-semibold">{parsedQuestions.length} ta savol topildi — ko'rib chiqing:</p>
                                     <button onClick={handleBulkSave} disabled={bulkSaving || !testSetTitle.trim()}
-                                        className="flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 shrink-0">
+                                        className="flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 shrink-0"
+                                        title={!testSetTitle.trim() ? 'Avval test nomini kiriting' : ''}>
                                         {bulkSaving ? <><Loader2 size={14} className="animate-spin" /> Saqlanmoqda...</> : <><CheckCircle size={14} /> Saqlash</>}
                                     </button>
                                 </div>
-                                <p className="text-gray-400 text-sm">{parsedQuestions.length} ta savol topildi — ko'rib chiqing:</p>
                                 {parsedQuestions.map((q, qi) => {
                                     const qText = q.question || q.question_text || '';
                                     const correctIdx = q.correct ?? q.correct_answer ?? 0;

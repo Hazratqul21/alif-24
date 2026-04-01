@@ -856,73 +856,7 @@ async def create_olympiad_test_set(
     return {"success": True, "data": {"id": test.id, "title": test.title, "questions_count": test.questions_count}}
 
 
-@app.get("/api/v1/olympiad-tests/{test_id}")
-async def get_olympiad_test_set(
-    test_id: str,
-    admin=Depends(verify_testai_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Test to'plami tafsilotlari (savollar bilan)"""
-    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
-    test = result.scalars().first()
-    if not test:
-        raise HTTPException(404, "Test to'plami topilmadi")
-    return {
-        "success": True,
-        "data": {
-            "id": test.id,
-            "title": test.title,
-            "description": test.description,
-            "questions": test.questions,
-            "questions_count": test.questions_count,
-            "status": test.status,
-            "ai_generated": test.ai_generated,
-            "source_platform": test.source_platform,
-            "created_at": test.created_at.isoformat() if test.created_at else None,
-        }
-    }
-
-
-@app.put("/api/v1/olympiad-tests/{test_id}")
-async def update_olympiad_test_set(
-    test_id: str,
-    data: OlympiadTestSetUpdate,
-    admin=Depends(verify_testai_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Test to'plamini yangilaydi"""
-    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
-    test = result.scalars().first()
-    if not test:
-        raise HTTPException(404, "Test to'plami topilmadi")
-    if data.title is not None:
-        test.title = data.title
-    if data.description is not None:
-        test.description = data.description
-    if data.questions is not None:
-        test.questions = data.questions
-        test.questions_count = len(data.questions)
-    if data.status is not None:
-        test.status = data.status
-    await db.commit()
-    return {"success": True, "message": "Yangilandi", "id": test_id}
-
-
-@app.delete("/api/v1/olympiad-tests/{test_id}")
-async def delete_olympiad_test_set(
-    test_id: str,
-    admin=Depends(verify_testai_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Test to'plamini o'chiradi"""
-    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
-    test = result.scalars().first()
-    if not test:
-        raise HTTPException(404, "Test to'plami topilmadi")
-    await db.delete(test)
-    await db.commit()
-    return {"success": True, "message": "O'chirildi"}
-
+# --- Static sub-routes MUST come before /{test_id} to avoid 405 route conflict ---
 
 @app.post("/api/v1/olympiad-tests/parse-text")
 async def parse_olympiad_test_from_text(
@@ -1039,6 +973,76 @@ Matn:
     except Exception as e:
         logger.error(f"AI olympiad test generation failed: {e}")
         raise HTTPException(500, f"AI xatolik: {str(e)}")
+
+
+# --- Dynamic /{test_id} routes (must come AFTER all static sub-paths) ---
+
+@app.get("/api/v1/olympiad-tests/{test_id}")
+async def get_olympiad_test_set(
+    test_id: str,
+    admin=Depends(verify_testai_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test to'plami tafsilotlari (savollar bilan)"""
+    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
+    test = result.scalars().first()
+    if not test:
+        raise HTTPException(404, "Test to'plami topilmadi")
+    return {
+        "success": True,
+        "data": {
+            "id": test.id,
+            "title": test.title,
+            "description": test.description,
+            "questions": test.questions,
+            "questions_count": test.questions_count,
+            "status": test.status,
+            "ai_generated": test.ai_generated,
+            "source_platform": test.source_platform,
+            "created_at": test.created_at.isoformat() if test.created_at else None,
+        }
+    }
+
+
+@app.put("/api/v1/olympiad-tests/{test_id}")
+async def update_olympiad_test_set(
+    test_id: str,
+    data: OlympiadTestSetUpdate,
+    admin=Depends(verify_testai_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test to'plamini yangilaydi"""
+    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
+    test = result.scalars().first()
+    if not test:
+        raise HTTPException(404, "Test to'plami topilmadi")
+    if data.title is not None:
+        test.title = data.title
+    if data.description is not None:
+        test.description = data.description
+    if data.questions is not None:
+        test.questions = data.questions
+        test.questions_count = len(data.questions)
+    if data.status is not None:
+        test.status = data.status
+    await db.commit()
+    return {"success": True, "message": "Yangilandi", "id": test_id}
+
+
+@app.delete("/api/v1/olympiad-tests/{test_id}")
+async def delete_olympiad_test_set(
+    test_id: str,
+    admin=Depends(verify_testai_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test to'plamini o'chiradi"""
+    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
+    test = result.scalars().first()
+    if not test:
+        raise HTTPException(404, "Test to'plami topilmadi")
+    await db.delete(test)
+    await db.commit()
+    return {"success": True, "message": "O'chirildi"}
 
 
 # Global exception handler
