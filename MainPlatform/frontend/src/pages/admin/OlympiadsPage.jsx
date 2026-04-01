@@ -32,7 +32,7 @@ export default function OlympiadsPage() {
     const [audioPlaying, setAudioPlaying] = useState(null);
 
     // Content (Darslar / Ertaklar)
-    const [contentTab, setContentTab] = useState('lessons');
+    const [contentTab, setContentTab] = useState('ertaklar');
     const [contentLessons, setContentLessons] = useState([]);
     const [contentErtaklar, setContentErtaklar] = useState([]);
     const [contentLoading, setContentLoading] = useState(false);
@@ -968,19 +968,17 @@ const handleCreate = async () => {
                     </div>
                     <button
                         onClick={() => {
-                            if (contentTab === 'lessons') setContentModal('lesson');
-                            else if (contentTab === 'ertaklar') setContentModal('ertak');
+                            if (contentTab === 'ertaklar') setContentModal('ertak');
                             else setShowAddQuestion(true);
                         }}
                         className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
                     >
-                        <Plus className="w-4 h-4" /> Yangi {contentTab === 'lessons' ? 'dars' : contentTab === 'ertaklar' ? 'ertak' : 'savol'}
+                        <Plus className="w-4 h-4" /> Yangi {contentTab === 'ertaklar' ? 'ertak' : 'savol'}
                     </button>
                 </div>
 
                 <div className="flex gap-2 mb-6">
                     {[
-                        { key: 'lessons', label: 'Darslar', icon: BookOpen, count: contentLessons.length },
                         { key: 'ertaklar', label: 'Ertaklar', icon: Book, count: contentErtaklar.length },
                         { key: 'tests', label: 'Test', icon: FileText, count: questions.length },
                     ].map(t => (
@@ -989,53 +987,6 @@ const handleCreate = async () => {
                         </button>
                     ))}
                 </div>
-
-                {/* Lessons */}
-                {contentTab === 'lessons' && (
-                    <div className="space-y-3">
-                        {contentLessons.length === 0 ? (
-                            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center text-gray-500">Darslar yo'q</div>
-                        ) : contentLessons.map(l => (
-                            <div key={l.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 hover:border-gray-700 transition-colors flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0"><BookOpen className="w-5 h-5 text-blue-400" /></div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-white font-medium truncate">{l.title}</h3>
-                                            {l.is_published
-                                                ? <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Nashr qilindi</span>
-                                                : <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400 border border-gray-600">Draft</span>
-                                            }
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                                            <span>{l.subject}</span>
-                                            {l.grade_level && <span>• {l.grade_level}</span>}
-                                            {(l.quiz_questions?.length > 0) && (
-                                                <span className="text-indigo-400">• 🧠 {l.quiz_questions.length} savol</span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            {l.video_url && <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1"><Video size={12} /> Video</a>}
-                                            {l.attachments?.map((att, i) => (
-                                                <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-xs flex items-center gap-1"><Paperclip size={12} /> {att.name || `Fayl ${i + 1}`}</a>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0">
-                                    <button
-                                        onClick={() => handlePublishLesson(l.id, l.is_published)}
-                                        title={l.is_published ? "Yashirish" : "Studentlarga ko'rsatish"}
-                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${l.is_published ? 'bg-emerald-500/10 text-emerald-400 hover:bg-red-500/10 hover:text-red-400' : 'bg-blue-500/10 text-blue-400 hover:bg-emerald-500/10 hover:text-emerald-400'}`}>
-                                        {l.is_published ? 'Yashirish' : 'Share'}
-                                    </button>
-                                    <button onClick={() => handleEditContentLesson(l)} className="p-2 text-gray-500 hover:text-blue-400"><Pencil className="w-4 h-4" /></button>
-                                    <button onClick={() => handleDeleteContentLesson(l.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
 
                 {/* Testlar */}
                 {contentTab === 'tests' && (
