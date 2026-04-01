@@ -20,7 +20,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi import FastAPI, Request, Depends, HTTPException, UploadFile, File, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -724,6 +724,321 @@ async def register_for_olympiad(
         "success": True,
         "data": {"message": "Successfully registered"}
     }
+
+
+# ============= Olympiad Test Sets (Admin) =============
+
+import re
+import io
+
+TESTAI_ADMIN_KEYS = {
+    "hazratqul": "alif24_rahbariyat26!",
+    "nurali":    "alif24_rahbariyat26!",
+    "pedagog":   "alif24_rahbariyat26!",
+}
+
+async def verify_testai_admin(
+    x_admin_role: str = Header(..., alias="X-Admin-Role"),
+    x_admin_key:  str = Header(..., alias="X-Admin-Key"),
+):
+    role = x_admin_role.lower()
+    if role not in TESTAI_ADMIN_KEYS or x_admin_key != TESTAI_ADMIN_KEYS.get(role):
+        raise HTTPException(status_code=403, detail="Admin authentication failed")
+    return {"role": role}
+
+
+def _parse_questions_for_testai(text: str) -> list:
+    """
+    Matndan test savollarini ajratib oladi.
+    Emoji variation selector larni olib tashlab, turli formatlarni qo'llab-quvvatlaydi:
+        1. Savol    1) Savol    2️. Savol    1️⃣. Savol
+    Variantlar: A) A. (a-d harflari)
+    To'g'ri javob: A  (ixtiyoriy)
+    """
+    text = re.sub(r'[\uFE00-\uFE0F\u20E3]', '', text)
+    questions = []
+    blocks = re.split(r'\n\s*(?=\d+\s*[\.\)]\s*\S)', '\n' + text.strip())
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+        lines = [l.strip() for l in block.splitlines() if l.strip()]
+        if not lines:
+            continue
+        q_line = re.sub(r'^\d+\s*[\.\)\:\-]\s*', '', lines[0]).strip()
+        if not q_line:
+            continue
+        options, correct_idx, correct_letter = [], 0, None
+        for line in lines[1:]:
+            m_ans = re.match(r'^(javob|answer|to.g.ri|correct)\s*[:\-]\s*([A-Da-d])', line, re.I)
+            if m_ans:
+                correct_letter = m_ans.group(2).upper()
+                continue
+            m_opt = re.match(r'^([A-Da-d])[\.)\s]\s*(.+)', line)
+            if m_opt:
+                options.append(m_opt.group(2).strip())
+        if len(options) < 2:
+            continue
+        if correct_letter:
+            correct_idx = max(0, min(ord(correct_letter) - ord('A'), len(options) - 1))
+        while len(options) < 4:
+            options.append('')
+        questions.append({
+            "question": q_line,
+            "options": options[:4],
+            "correct": correct_idx,
+        })
+    return questions
+
+
+class OlympiadTestSetCreate(BaseModel):
+    olympiad_id: str
+    title: str
+    description: Optional[str] = None
+    questions: list = []
+    status: str = "draft"
+
+
+class OlympiadTestSetUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    questions: Optional[list] = None
+    status: Optional[str] = None
+
+
+@app.get("/api/v1/olympiad-tests")
+async def list_olympiad_test_sets(
+    olympiad_id: str,
+    admin=Depends(verify_testai_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Olimpiad uchun barcha test to'plamlarini qaytaradi"""
+    result = await db.execute(
+        select(SavedTest)
+        .where(SavedTest.source_platform == f"olympiad:{olympiad_id}")
+        .order_by(SavedTest.created_at.desc())
+    )
+    tests = result.scalars().all()
+    return {
+        "success": True,
+        "data": [{
+            "id": t.id,
+            "title": t.title,
+            "description": t.description,
+            "questions_count": t.questions_count,
+            "status": t.status,
+            "ai_generated": t.ai_generated,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        } for t in tests]
+    }
+
+
+@app.post("/api/v1/olympiad-tests")
+async def create_olympiad_test_set(
+    data: OlympiadTestSetCreate,
+    admin=Depends(verify_testai_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Olimpiad uchun yangi test to'plami yaratadi"""
+    test = SavedTest(
+        creator_id="admin",
+        title=data.title,
+        description=data.description,
+        questions=data.questions,
+        questions_count=len(data.questions),
+        ai_generated="no",
+        status=data.status,
+        source_platform=f"olympiad:{data.olympiad_id}",
+    )
+    db.add(test)
+    await db.commit()
+    await db.refresh(test)
+    return {"success": True, "data": {"id": test.id, "title": test.title, "questions_count": test.questions_count}}
+
+
+@app.get("/api/v1/olympiad-tests/{test_id}")
+async def get_olympiad_test_set(
+    test_id: str,
+    admin=Depends(verify_testai_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test to'plami tafsilotlari (savollar bilan)"""
+    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
+    test = result.scalars().first()
+    if not test:
+        raise HTTPException(404, "Test to'plami topilmadi")
+    return {
+        "success": True,
+        "data": {
+            "id": test.id,
+            "title": test.title,
+            "description": test.description,
+            "questions": test.questions,
+            "questions_count": test.questions_count,
+            "status": test.status,
+            "ai_generated": test.ai_generated,
+            "source_platform": test.source_platform,
+            "created_at": test.created_at.isoformat() if test.created_at else None,
+        }
+    }
+
+
+@app.put("/api/v1/olympiad-tests/{test_id}")
+async def update_olympiad_test_set(
+    test_id: str,
+    data: OlympiadTestSetUpdate,
+    admin=Depends(verify_testai_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test to'plamini yangilaydi"""
+    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
+    test = result.scalars().first()
+    if not test:
+        raise HTTPException(404, "Test to'plami topilmadi")
+    if data.title is not None:
+        test.title = data.title
+    if data.description is not None:
+        test.description = data.description
+    if data.questions is not None:
+        test.questions = data.questions
+        test.questions_count = len(data.questions)
+    if data.status is not None:
+        test.status = data.status
+    await db.commit()
+    return {"success": True, "message": "Yangilandi", "id": test_id}
+
+
+@app.delete("/api/v1/olympiad-tests/{test_id}")
+async def delete_olympiad_test_set(
+    test_id: str,
+    admin=Depends(verify_testai_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test to'plamini o'chiradi"""
+    result = await db.execute(select(SavedTest).where(SavedTest.id == test_id))
+    test = result.scalars().first()
+    if not test:
+        raise HTTPException(404, "Test to'plami topilmadi")
+    await db.delete(test)
+    await db.commit()
+    return {"success": True, "message": "O'chirildi"}
+
+
+@app.post("/api/v1/olympiad-tests/parse-text")
+async def parse_olympiad_test_from_text(
+    request: dict,
+    admin=Depends(verify_testai_admin),
+):
+    """Matndan savollarni ajratib oladi (preview uchun, DB ga saqlamaydi)"""
+    text = request.get("text", "")
+    if not text.strip():
+        raise HTTPException(400, "Matn bo'sh")
+    questions = _parse_questions_for_testai(text)
+    return {"success": True, "questions": questions, "count": len(questions)}
+
+
+@app.post("/api/v1/olympiad-tests/parse-file")
+async def parse_olympiad_test_from_file(
+    file: UploadFile = File(...),
+    admin=Depends(verify_testai_admin),
+):
+    """PDF, DOCX yoki TXT fayldan savollarni ajratib oladi"""
+    content = await file.read()
+    filename = (file.filename or "").lower()
+    text = ""
+    try:
+        if filename.endswith(".pdf"):
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        elif filename.endswith(".docx"):
+            from docx import Document as DocxDoc
+            doc = DocxDoc(io.BytesIO(content))
+            text = "\n".join(p.text for p in doc.paragraphs)
+        elif filename.endswith(".doc"):
+            raise HTTPException(400, ".doc format qo'llab-quvvatlanmaydi. .docx yoki .pdf ga o'tkazing.")
+        else:
+            text = content.decode("utf-8", errors="ignore")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(422, f"Faylni o'qishda xatolik: {str(e)}")
+    if not text.strip():
+        raise HTTPException(422, "Fayldan matn ajratib olinmadi")
+    questions = _parse_questions_for_testai(text)
+    return {"success": True, "questions": questions, "count": len(questions)}
+
+
+@app.post("/api/v1/olympiad-tests/ai-generate")
+async def ai_generate_olympiad_test(
+    request: dict,
+    admin=Depends(verify_testai_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """AI yordamida matndan test savollarini yaratadi va ixtiyoriy saqlaydi"""
+    text = request.get("text", "")
+    count = int(request.get("count", 10))
+    olympiad_id = request.get("olympiad_id", "")
+    title = request.get("title", "AI test")
+
+    if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
+        raise HTTPException(503, "AI xizmati sozlanmagan")
+
+    client = AsyncAzureOpenAI(
+        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+        api_key=settings.AZURE_OPENAI_KEY,
+        api_version=settings.AZURE_OPENAI_API_VERSION,
+    )
+
+    prompt = f"""Quyidagi matn asosida {count} ta test savoli tuz. Har bir savolda 4 ta variant bo'lsin.
+Faqat JSON formatda javob ber:
+{{
+  "questions": [
+    {{
+      "question": "Savol matni?",
+      "options": ["A variant", "B variant", "C variant", "D variant"],
+      "correct": 0
+    }}
+  ]
+}}
+
+Matn:
+{text[:3000]}"""
+
+    try:
+        response = await client.chat.completions.create(
+            model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
+            messages=[
+                {"role": "system", "content": "Sen ta'lim sohasida mutaxassis AI san. Faqat valid JSON formatda javob ber."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"}
+        )
+        ai_data = json.loads(response.choices[0].message.content)
+        questions = ai_data.get("questions", [])
+
+        saved_id = None
+        if olympiad_id:
+            test = SavedTest(
+                creator_id="admin",
+                title=title,
+                questions=questions,
+                questions_count=len(questions),
+                ai_generated="openai",
+                status=SavedTestStatus.draft.value,
+                source_platform=f"olympiad:{olympiad_id}",
+            )
+            db.add(test)
+            await db.commit()
+            await db.refresh(test)
+            saved_id = test.id
+
+        return {"success": True, "data": {"id": saved_id, "questions": questions, "count": len(questions)}}
+    except json.JSONDecodeError:
+        raise HTTPException(500, "AI javobini parse qilib bo'lmadi")
+    except Exception as e:
+        logger.error(f"AI olympiad test generation failed: {e}")
+        raise HTTPException(500, f"AI xatolik: {str(e)}")
 
 
 # Global exception handler

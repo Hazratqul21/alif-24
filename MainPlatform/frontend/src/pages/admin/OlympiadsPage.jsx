@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Trophy, Plus, Trash2, X, Eye, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, BarChart3, FileText, AlertCircle, PenLine, RefreshCw, Target, AudioLines, Waves, Book, Globe, Pencil, Video, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2 } from 'lucide-react';
 import olympiadService from '../../services/olympiadService';
 import adminService from '../../services/adminService';
+import testAiService from '../../services/testAiService';
 
 export default function OlympiadsPage() {
     const [activeView, setActiveView] = useState('list');
@@ -29,6 +30,11 @@ export default function OlympiadsPage() {
     const [parseErrMsg, setParseErrMsg] = useState('');
     const [bulkSaving, setBulkSaving] = useState(false);
     const fileInputRef = useRef(null);
+
+    // Test sets (named collections stored in TestAI)
+    const [testSets, setTestSets] = useState([]);
+    const [testSetTitle, setTestSetTitle] = useState('');
+    const [testSetsLoading, setTestSetsLoading] = useState(false);
 
     // Reading tasks
     const [readingTasks, setReadingTasks] = useState([]);
@@ -222,6 +228,7 @@ const handleCreate = async () => {
         setPasteText('');
         setAiText('');
         setParseErrMsg('');
+        setTestSetTitle('');
         setShowTestBuilder(true);
     };
 
@@ -232,9 +239,10 @@ const handleCreate = async () => {
         setParseErrMsg('');
         setParsedQuestions([]);
         try {
-            const res = await olympiadService.parseFileQuestions(selectedOlympiad.id, file);
+            const res = await testAiService.parseFileQuestions(file);
             if (!res.questions?.length) { setParseErrMsg('Fayldan savollar topilmadi. Format to\'g\'riligini tekshiring.'); return; }
             setParsedQuestions(res.questions);
+            if (!testSetTitle) setTestSetTitle(file.name.replace(/\.[^.]+$/, ''));
         } catch (e) {
             setParseErrMsg(e?.response?.data?.detail || 'Faylni qayta ishlashda xatolik');
         } finally {
@@ -249,7 +257,7 @@ const handleCreate = async () => {
         setParseErrMsg('');
         setParsedQuestions([]);
         try {
-            const res = await olympiadService.parseTextQuestions(selectedOlympiad.id, pasteText);
+            const res = await testAiService.parseTextQuestions(pasteText);
             if (!res.questions?.length) { setParseErrMsg('Savollar topilmadi. Format to\'g\'riligini tekshiring.'); return; }
             setParsedQuestions(res.questions);
         } catch (e) {
@@ -265,9 +273,10 @@ const handleCreate = async () => {
         setParseErrMsg('');
         setParsedQuestions([]);
         try {
-            const res = await olympiadService.aiGenerateQuestions(selectedOlympiad.id, aiText, aiCount);
-            if (!res.questions?.length) { setParseErrMsg('AI savollar yarata olmadi'); return; }
-            setParsedQuestions(res.questions);
+            const res = await testAiService.aiGenerateQuestions(selectedOlympiad.id, aiText, aiCount);
+            const qs = res.data?.questions || [];
+            if (!qs.length) { setParseErrMsg('AI savollar yarata olmadi'); return; }
+            setParsedQuestions(qs);
         } catch (e) {
             setParseErrMsg(e?.response?.data?.detail || 'AI xatolik');
         } finally {
@@ -292,25 +301,27 @@ const handleCreate = async () => {
 
     const handleBulkSave = async () => {
         if (!parsedQuestions.length) return;
+        if (!testSetTitle.trim()) { setParseErrMsg('Test nomini kiriting'); return; }
         setBulkSaving(true);
-        let saved = 0;
-        for (const q of parsedQuestions) {
-            try {
-                await olympiadService.addQuestion(selectedOlympiad.id, {
-                    question_text: q.question_text,
-                    options: q.options,
-                    correct_answer: q.correct_answer,
-                    points: q.points || 5,
-                });
-                saved++;
-            } catch (_) {}
+        setParseErrMsg('');
+        try {
+            // Normalize question format for TestAI (field name may be question_text or question)
+            const normalizedQs = parsedQuestions.map(q => ({
+                question: q.question || q.question_text || '',
+                options: q.options || [],
+                correct: q.correct ?? q.correct_answer ?? 0,
+            }));
+            await testAiService.createOlympiadTestSet(selectedOlympiad.id, testSetTitle.trim(), normalizedQs);
+            await loadTestSets(selectedOlympiad.id);
+            setShowTestBuilder(false);
+            setParsedQuestions([]);
+            setTestSetTitle('');
+            notify('success', `Test to'plami "${testSetTitle}" saqlandi!`);
+        } catch (e) {
+            setParseErrMsg(e?.response?.data?.detail || 'Saqlashda xatolik');
+        } finally {
+            setBulkSaving(false);
         }
-        const res = await olympiadService.listQuestions(selectedOlympiad.id);
-        setQuestions(res.questions || []);
-        setBulkSaving(false);
-        setShowTestBuilder(false);
-        setParsedQuestions([]);
-        notify('success', `${saved} ta savol saqlandi!`);
     };
 
     const handleAddReadingTask = async () => {
@@ -701,14 +712,23 @@ const handleCreate = async () => {
     };
 
     // ======================== CONTENT FUNCTIONS ========================
+    const loadTestSets = async (olympiadId) => {
+        if (!olympiadId) return;
+        try {
+            setTestSetsLoading(true);
+            const res = await testAiService.listOlympiadTestSets(olympiadId);
+            setTestSets(Array.isArray(res.data) ? res.data : []);
+        } catch (e) { console.error('loadTestSets', e); }
+        finally { setTestSetsLoading(false); }
+    };
+
     const loadContentData = async () => {
         if (!selectedOlympiad) return;
         try {
             setContentLoading(true);
-            const [lessRes, ertRes, qRes] = await Promise.allSettled([
+            const [lessRes, ertRes] = await Promise.allSettled([
                 olympiadService.getOlympiadLessons(selectedOlympiad.id),
                 olympiadService.getOlympiadStories(selectedOlympiad.id),
-                olympiadService.listQuestions(selectedOlympiad.id),
             ]);
             if (lessRes.status === 'fulfilled') {
                 const ld = lessRes.value.data || [];
@@ -718,9 +738,7 @@ const handleCreate = async () => {
                 const ed = ertRes.value.data?.ertaklar || ertRes.value.data || [];
                 setContentErtaklar(Array.isArray(ed) ? ed : []);
             }
-            if (qRes.status === 'fulfilled') {
-                setQuestions(qRes.value.questions || []);
-            }
+            await loadTestSets(selectedOlympiad.id);
         } catch (e) { console.error(e); }
         finally { setContentLoading(false); }
     };
@@ -1093,7 +1111,7 @@ const handleCreate = async () => {
                 <div className="flex gap-2 mb-6">
                     {[
                         { key: 'ertaklar', label: 'Ertaklar', icon: Book, count: contentErtaklar.length },
-                        { key: 'tests', label: 'Test', icon: FileText, count: questions.length },
+                        { key: 'tests', label: 'Test', icon: FileText, count: testSets.length },
                     ].map(t => (
                         <button key={t.key} onClick={() => setContentTab(t.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${contentTab === t.key ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-gray-400 bg-gray-900 border border-gray-800 hover:text-white'}`}>
                             <t.icon className="w-4 h-4" /> {t.label} <span className="text-xs opacity-50">({t.count})</span>
@@ -1101,39 +1119,69 @@ const handleCreate = async () => {
                     ))}
                 </div>
 
-                {/* Testlar */}
+                {/* Test to'plamlari */}
                 {contentTab === 'tests' && (
-                    <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-white font-bold flex items-center gap-2"><FileText size={18} /> Test Savollari ({questions.length})</h3>
-                            <div className="flex gap-2">
-                                <button onClick={() => openTestBuilder('file')} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"><Upload size={14} /> Test tuzish</button>
-                                <button onClick={() => setShowAddQuestion(true)} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600/30 text-indigo-400 rounded-lg text-sm border border-indigo-600/30 hover:bg-indigo-600 hover:text-white"><Plus size={14} /> Savol</button>
+                    <div className="space-y-3">
+                        {testSetsLoading ? (
+                            <div className="flex items-center justify-center py-8 text-gray-500">
+                                <Loader2 size={20} className="animate-spin mr-2" /> Yuklanmoqda...
                             </div>
-                        </div>
-                        {questions.length === 0 ? (
-                            <p className="text-gray-500 text-sm text-center py-4">Savollar qo'shilmagan</p>
-                        ) : (
-                            <div className="space-y-3">
-                                {questions.map((q, i) => (
-                                    <div key={q.id} className="bg-gray-900/50 rounded-xl p-4">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex-1">
-                                                <p className="text-white text-sm"><span className="text-indigo-400 font-bold mr-2">{i + 1}.</span>{q.question_text} <span className="text-gray-500">({q.points} ball)</span></p>
-                                                <div className="flex flex-wrap gap-2 mt-2">
-                                                    {(q.options || []).map((opt, oi) => (
-                                                        <span key={oi} className={`text-xs px-2 py-1 rounded ${oi === q.correct_answer ? 'bg-green-500/20 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
-                                                            {String.fromCharCode(65 + oi)}. {opt}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <button onClick={async () => { await olympiadService.deleteQuestion(selectedOlympiad.id, q.id); const r = await olympiadService.listQuestions(selectedOlympiad.id); setQuestions(r.questions || []); }} className="text-gray-600 hover:text-red-400 ml-2"><Trash2 size={16} /></button>
-                                        </div>
+                        ) : testSets.length === 0 ? (
+                            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center text-gray-500">
+                                <FileText size={32} className="mx-auto mb-3 opacity-30" />
+                                <p>Test to'plamlari yo'q</p>
+                                <button onClick={() => openTestBuilder('file')}
+                                    className="mt-3 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm hover:bg-emerald-700">
+                                    + Birinchi testni yaratish
+                                </button>
+                            </div>
+                        ) : testSets.map(ts => (
+                            <div key={ts.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 hover:border-gray-700 transition-colors flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center shrink-0">
+                                        <FileText className="w-5 h-5 text-indigo-400" />
                                     </div>
-                                ))}
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-white font-medium truncate">{ts.title}</h3>
+                                            {ts.status === 'published'
+                                                ? <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Nashr</span>
+                                                : <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400 border border-gray-600">Draft</span>
+                                            }
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-0.5">{ts.questions_count} ta savol{ts.ai_generated && ts.ai_generated !== 'no' ? ' · AI' : ''}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                if (ts.status === 'published') {
+                                                    await testAiService.hideOlympiadTestSet(ts.id);
+                                                } else {
+                                                    await testAiService.publishOlympiadTestSet(ts.id);
+                                                }
+                                                await loadTestSets(selectedOlympiad.id);
+                                            } catch (_) { notify('error', 'Xatolik'); }
+                                        }}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${ts.status === 'published' ? 'bg-emerald-500/10 text-emerald-400 hover:bg-red-500/10 hover:text-red-400' : 'bg-blue-500/10 text-blue-400 hover:bg-emerald-500/10 hover:text-emerald-400'}`}>
+                                        {ts.status === 'published' ? 'Yashirish' : 'Share'}
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (!confirm(`"${ts.title}" test to'plamini o'chirasizmi?`)) return;
+                                            try {
+                                                await testAiService.deleteOlympiadTestSet(ts.id);
+                                                await loadTestSets(selectedOlympiad.id);
+                                                notify('success', "O'chirildi");
+                                            } catch (_) { notify('error', 'Xatolik'); }
+                                        }}
+                                        className="p-2 text-gray-500 hover:text-red-400">
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
-                        )}
+                        ))}
                     </div>
                 )}
 
@@ -1494,7 +1542,20 @@ const handleCreate = async () => {
                                             className="w-24 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
                                         <span className="text-gray-500 text-sm self-center">ball</span>
                                     </div>
-                                    <button onClick={async () => { await handleAddQuestion(); setShowTestBuilder(false); }} className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700">Saqlash</button>
+                                    <button onClick={() => {
+                                        if (!qForm.question_text.trim()) return setParseErrMsg('Savol matnini kiriting');
+                                        if (qForm.options.some(o => !o.trim())) return setParseErrMsg("Barcha variantlarni to'ldiring");
+                                        setParsedQuestions(pq => [...pq, {
+                                            question: qForm.question_text,
+                                            question_text: qForm.question_text,
+                                            options: [...qForm.options],
+                                            correct: qForm.correct_answer,
+                                            correct_answer: qForm.correct_answer,
+                                        }]);
+                                        setQForm({ question_text: '', options: ['', '', '', ''], correct_answer: 0, points: 5 });
+                                        setParseErrMsg('');
+                                        setTestBuilderTab('file');
+                                    }} className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700">Savolni qo'shish</button>
                                 </div>
                             )}
                         </div>
@@ -1509,25 +1570,42 @@ const handleCreate = async () => {
                         {/* Parsed Questions Preview */}
                         {parsedQuestions.length > 0 && (
                             <div className="px-6 pb-6 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-white font-semibold">{parsedQuestions.length} ta savol topildi — ko'rib chiqing:</p>
-                                    <button onClick={handleBulkSave} disabled={bulkSaving}
-                                        className="flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50">
-                                        {bulkSaving ? <><Loader2 size={14} className="animate-spin" /> Saqlanmoqda...</> : <><CheckCircle size={14} /> Hammasini saqlash</>}
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex-1">
+                                        <input
+                                            value={testSetTitle}
+                                            onChange={e => setTestSetTitle(e.target.value)}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                                            placeholder="Test nomi (mas: Amir Temur haqida)"
+                                        />
+                                    </div>
+                                    <button onClick={handleBulkSave} disabled={bulkSaving || !testSetTitle.trim()}
+                                        className="flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 shrink-0">
+                                        {bulkSaving ? <><Loader2 size={14} className="animate-spin" /> Saqlanmoqda...</> : <><CheckCircle size={14} /> Saqlash</>}
                                     </button>
                                 </div>
-                                {parsedQuestions.map((q, qi) => (
+                                <p className="text-gray-400 text-sm">{parsedQuestions.length} ta savol topildi — ko'rib chiqing:</p>
+                                {parsedQuestions.map((q, qi) => {
+                                    const qText = q.question || q.question_text || '';
+                                    const correctIdx = q.correct ?? q.correct_answer ?? 0;
+                                    return (
                                     <div key={qi} className="bg-gray-900 border border-gray-700 rounded-xl p-4 space-y-3">
                                         <div className="flex items-start gap-2">
                                             <span className="text-emerald-400 font-bold text-sm shrink-0 mt-1">{qi + 1}.</span>
-                                            <textarea value={q.question_text} onChange={e => updateParsedQuestion(qi, 'question_text', e.target.value)}
+                                            <textarea value={qText} onChange={e => {
+                                                updateParsedQuestion(qi, 'question', e.target.value);
+                                                updateParsedQuestion(qi, 'question_text', e.target.value);
+                                            }}
                                                 rows={2} className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500 resize-none" />
                                             <button onClick={() => removeParsedQuestion(qi)} className="text-gray-600 hover:text-red-400 mt-1"><Trash2 size={16} /></button>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 ml-5">
-                                            {q.options.map((opt, oi) => (
-                                                <div key={oi} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border ${q.correct_answer === oi ? 'border-emerald-500 bg-emerald-500/10' : 'border-gray-700 bg-gray-800'}`}>
-                                                    <input type="radio" name={`pq_correct_${qi}`} checked={q.correct_answer === oi} onChange={() => updateParsedQuestion(qi, 'correct_answer', oi)} className="accent-emerald-500 shrink-0" />
+                                            {(q.options || []).map((opt, oi) => (
+                                                <div key={oi} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border ${correctIdx === oi ? 'border-emerald-500 bg-emerald-500/10' : 'border-gray-700 bg-gray-800'}`}>
+                                                    <input type="radio" name={`pq_correct_${qi}`} checked={correctIdx === oi} onChange={() => {
+                                                        updateParsedQuestion(qi, 'correct', oi);
+                                                        updateParsedQuestion(qi, 'correct_answer', oi);
+                                                    }} className="accent-emerald-500 shrink-0" />
                                                     <input value={opt} onChange={e => updateParsedOption(qi, oi, e.target.value)}
                                                         className="flex-1 bg-transparent text-white text-xs focus:outline-none min-w-0"
                                                         placeholder={`${String.fromCharCode(65 + oi)} variant`} />
@@ -1535,7 +1613,8 @@ const handleCreate = async () => {
                                             ))}
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

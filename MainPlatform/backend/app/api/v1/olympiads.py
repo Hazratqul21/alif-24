@@ -1118,17 +1118,23 @@ from fastapi import UploadFile, File
 def _parse_questions_from_text(text: str) -> list:
     """
     Standart test formatidan savollarni ajratib oladi.
-    Format:
-        1. Savol matni
-        A) variant
-        B) variant
-        C) variant
-        D) variant
+    Qo'llab-quvvatlangan formatlar:
+        1. Savol matni      (raqam + nuqta)
+        1) Savol matni      (raqam + qavs)
+        2️. Savol matni     (emoji variation selector bilan)
+        1️⃣. Savol matni    (keycap emoji bilan)
+    Variantlar:
+        A) B) C) D)  yoki  A. B. C. D.
     To'g'ri javob: A  (ixtiyoriy)
     """
+    # Unicode variation selector (U+FE00–FE0F) va keycap combining (U+20E3) larni olib tashlaymiz
+    # Bu emoji raqamlarni oddiy raqamlarga aylantiradi: 2️. → 2.  1️⃣. → 1.
+    text = re.sub(r'[\uFE00-\uFE0F\u20E3]', '', text)
+
     questions = []
-    # Har bir savolni raqam bilan ajratamiz
-    blocks = re.split(r'\n\s*(?=\d+[\.\)]\s)', '\n' + text.strip())
+    # Savollarni raqam bilan boshlanuvchi qatorlar orqali ajratamiz.
+    # \s* (o'rniga \s) chunki ba'zi hollarda nuqtadan so'ng bo'sh joy bo'lmasligi mumkin.
+    blocks = re.split(r'\n\s*(?=\d+\s*[\.\)]\s*\S)', '\n' + text.strip())
     for block in blocks:
         block = block.strip()
         if not block:
@@ -1137,8 +1143,8 @@ def _parse_questions_from_text(text: str) -> list:
         if not lines:
             continue
 
-        # Birinchi qator — savol matni (raqamni olib tashlaymiz)
-        q_line = re.sub(r'^\d+[\.\)✍️🔹▪•]\s*', '', lines[0]).strip()
+        # Birinchi qator — savol matni (boshidagi raqam va belgini olib tashlaymiz)
+        q_line = re.sub(r'^\d+\s*[\.\)\:\-]\s*', '', lines[0]).strip()
         if not q_line:
             continue
 
