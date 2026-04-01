@@ -26,7 +26,7 @@ export default function OlympiadsPage() {
     const [aiCount, setAiCount] = useState(10);
     const [parsedQuestions, setParsedQuestions] = useState([]); // preview qatori
     const [parsePending, setParsePending] = useState(false);
-    const [parseError, setParseError] = useState('');
+    const [parseErrMsg, setParseErrMsg] = useState('');
     const [bulkSaving, setBulkSaving] = useState(false);
     const fileInputRef = useRef(null);
 
@@ -221,7 +221,7 @@ const handleCreate = async () => {
         setParsedQuestions([]);
         setPasteText('');
         setAiText('');
-        setParseError('');
+        setParseErrMsg('');
         setShowTestBuilder(true);
     };
 
@@ -229,14 +229,14 @@ const handleCreate = async () => {
         const file = e.target.files?.[0];
         if (!file) return;
         setParsePending(true);
-        setParseError('');
+        setParseErrMsg('');
         setParsedQuestions([]);
         try {
             const res = await olympiadService.parseFileQuestions(selectedOlympiad.id, file);
-            if (!res.questions?.length) { setParseError('Fayldan savollar topilmadi. Format to\'g\'riligini tekshiring.'); return; }
+            if (!res.questions?.length) { setParseErrMsg('Fayldan savollar topilmadi. Format to\'g\'riligini tekshiring.'); return; }
             setParsedQuestions(res.questions);
         } catch (e) {
-            setParseError(e?.response?.data?.detail || 'Faylni qayta ishlashda xatolik');
+            setParseErrMsg(e?.response?.data?.detail || 'Faylni qayta ishlashda xatolik');
         } finally {
             setParsePending(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -244,32 +244,32 @@ const handleCreate = async () => {
     };
 
     const handleParseText = async () => {
-        if (!pasteText.trim()) { setParseError('Matn kiriting'); return; }
+        if (!pasteText.trim()) { setParseErrMsg('Matn kiriting'); return; }
         setParsePending(true);
-        setParseError('');
+        setParseErrMsg('');
         setParsedQuestions([]);
         try {
             const res = await olympiadService.parseTextQuestions(selectedOlympiad.id, pasteText);
-            if (!res.questions?.length) { setParseError('Savollar topilmadi. Format to\'g\'riligini tekshiring.'); return; }
+            if (!res.questions?.length) { setParseErrMsg('Savollar topilmadi. Format to\'g\'riligini tekshiring.'); return; }
             setParsedQuestions(res.questions);
         } catch (e) {
-            setParseError(e?.response?.data?.detail || 'Xatolik');
+            setParseErrMsg(e?.response?.data?.detail || 'Xatolik');
         } finally {
             setParsePending(false);
         }
     };
 
     const handleAiGenerate = async () => {
-        if (!aiText.trim()) { setParseError('Matn kiriting'); return; }
+        if (!aiText.trim()) { setParseErrMsg('Matn kiriting'); return; }
         setParsePending(true);
-        setParseError('');
+        setParseErrMsg('');
         setParsedQuestions([]);
         try {
             const res = await olympiadService.aiGenerateQuestions(selectedOlympiad.id, aiText, aiCount);
-            if (!res.questions?.length) { setParseError('AI savollar yarata olmadi'); return; }
+            if (!res.questions?.length) { setParseErrMsg('AI savollar yarata olmadi'); return; }
             setParsedQuestions(res.questions);
         } catch (e) {
-            setParseError(e?.response?.data?.detail || 'AI xatolik');
+            setParseErrMsg(e?.response?.data?.detail || 'AI xatolik');
         } finally {
             setParsePending(false);
         }
@@ -1411,7 +1411,7 @@ const handleCreate = async () => {
                                 { key: 'ai', label: 'AI bilan', icon: Sparkles },
                                 { key: 'manual', label: '+ Yangi savol', icon: Plus },
                             ].map(t => (
-                                <button key={t.key} onClick={() => { setTestBuilderTab(t.key); setParsedQuestions([]); setParseError(''); }}
+                                <button key={t.key} onClick={() => { setTestBuilderTab(t.key); setParsedQuestions([]); setParseErrMsg(''); }}
                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-sm font-medium transition-colors ${testBuilderTab === t.key ? 'bg-gray-800 text-emerald-400 border border-b-0 border-gray-700' : 'text-gray-500 hover:text-white'}`}>
                                     <t.icon size={14} /> {t.label}
                                 </button>
@@ -1500,9 +1500,9 @@ const handleCreate = async () => {
                         </div>
 
                         {/* Parse Error */}
-                        {parseError && (
+                        {parseErrMsg && (
                             <div className="mx-6 mb-4 flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-sm">
-                                <AlertCircle size={16} /> {parseError}
+                                <AlertCircle size={16} /> {parseErrMsg}
                             </div>
                         )}
 
