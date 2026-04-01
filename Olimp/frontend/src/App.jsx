@@ -12,6 +12,7 @@ import LessionsHome from './pages/LessionsHome';
 import LessonDetail from './pages/LessonDetail';
 import OlimpiadErtaklarPage from './pages/OlimpiadErtaklarPage';
 import ReadingOlympiadPage from './pages/ReadingOlympiadPage';
+import OlympiadDraftEdit from './pages/OlympiadDraftEdit';
 
 import AuthSync from './components/Auth/AuthSync';
 import { ThemeProvider } from './context/ThemeContext';
@@ -44,6 +45,9 @@ const App = () => {
 
               {/* Olympiad Builder */}
               <Route path="/admin/build" element={<OlympiadBuilder />} />
+
+              {/* Olympiad Draft Editor */}
+              <Route path="/admin/olympiads/:olympiadId/edit" element={<OlympiadDraftEdit />} />
 
               {/* Reading Admin */}
               <Route path="/admin/reading" element={<ReadingAdmin />} />

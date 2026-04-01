@@ -1095,16 +1095,10 @@ async def admin_build_olympiad(
     if admin_key != settings.ADMIN_SECRET_KEY:
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    # Determine status
+    # Always create as draft — admin publishes separately
     now = datetime.now(timezone.utc)
-    # Be flexible with naive vs aware datetimes
-    start = payload.start_date.replace(tzinfo=timezone.utc) if payload.start_date.tzinfo is None else payload.start_date    
-    
+    start = payload.start_date.replace(tzinfo=timezone.utc) if payload.start_date.tzinfo is None else payload.start_date
     status = OlympiadStatus.draft
-    if start <= now:
-        status = OlympiadStatus.active
-    else:
-        status = OlympiadStatus.upcoming
 
     # 1. Create Olympiad
     new_olympiad = Olympiad(
@@ -1141,7 +1135,228 @@ async def admin_build_olympiad(
         
     await db.commit()
     
-    return {"success": True, "olympiad_id": new_olympiad.id, "message": "Olympiad built successfully"}
+    return {"success": True, "olympiad_id": new_olympiad.id, "message": "Olympiad built successfully (draft)"}
+
+
+# ============= Admin: Draft Olympiad Management =============
+
+class QuestionPayload(BaseModel):
+    question_text: str
+    options: List[str]
+    correct_option_index: int
+    points: int = 5
+    order_index: int = 0
+
+
+class OlympiadUpdatePayload(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    time_limit_minutes: Optional[int] = None
+    difficulty: Optional[str] = None
+    min_age: Optional[int] = None
+    max_age: Optional[int] = None
+    status: Optional[str] = None  # "draft", "upcoming", "active", "completed"
+
+
+@router.get("/admin/olympiads")
+async def admin_list_olympiads(
+    db: AsyncSession = Depends(get_db),
+    admin_key: str = Header(None, alias="X-Admin-Key")
+):
+    """List all olympiads including drafts (admin only)"""
+    if admin_key != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    result = await db.execute(select(Olympiad).order_by(Olympiad.created_at.desc()))
+    olympiads = result.scalars().all()
+
+    out = []
+    for o in olympiads:
+        d = _olympiad_to_dict(o)
+        q_count = (await db.execute(
+            select(sql_func.count(OlympiadQuestion.id)).where(OlympiadQuestion.olympiad_id == o.id)
+        )).scalar() or 0
+        d["questions_count"] = q_count
+        out.append(d)
+
+    return {"success": True, "data": {"olympiads": out}}
+
+
+@router.get("/admin/olympiads/{olympiad_id}")
+async def admin_get_olympiad(
+    olympiad_id: str,
+    db: AsyncSession = Depends(get_db),
+    admin_key: str = Header(None, alias="X-Admin-Key")
+):
+    """Get olympiad with all questions (admin only)"""
+    if admin_key != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    olympiad = res.scalars().first()
+    if not olympiad:
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+
+    q_res = await db.execute(
+        select(OlympiadQuestion)
+        .where(OlympiadQuestion.olympiad_id == olympiad_id)
+        .order_by(OlympiadQuestion.order)
+    )
+    questions = q_res.scalars().all()
+
+    d = _olympiad_to_dict(olympiad)
+    d["questions"] = [_question_to_dict(q) for q in questions]
+    return {"success": True, "data": d}
+
+
+@router.put("/admin/olympiads/{olympiad_id}")
+async def admin_update_olympiad(
+    olympiad_id: str,
+    payload: OlympiadUpdatePayload,
+    db: AsyncSession = Depends(get_db),
+    admin_key: str = Header(None, alias="X-Admin-Key")
+):
+    """Update olympiad info or publish it (admin only)"""
+    if admin_key != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    olympiad = res.scalars().first()
+    if not olympiad:
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+
+    if payload.title is not None:
+        olympiad.title = payload.title
+    if payload.description is not None:
+        olympiad.description = payload.description
+    if payload.start_date is not None:
+        olympiad.start_time = payload.start_date.replace(tzinfo=timezone.utc) if payload.start_date.tzinfo is None else payload.start_date
+    if payload.end_date is not None:
+        olympiad.end_time = payload.end_date.replace(tzinfo=timezone.utc) if payload.end_date.tzinfo is None else payload.end_date
+    if payload.time_limit_minutes is not None:
+        olympiad.duration_minutes = payload.time_limit_minutes
+    if payload.difficulty is not None:
+        olympiad.difficulty = payload.difficulty
+    if payload.min_age is not None:
+        olympiad.min_age = payload.min_age
+    if payload.max_age is not None:
+        olympiad.max_age = payload.max_age
+    if payload.status is not None:
+        try:
+            olympiad.status = OlympiadStatus(payload.status)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Noto'g'ri holat: {payload.status}")
+
+    await db.commit()
+    return {"success": True, "message": "Olimpiada yangilandi"}
+
+
+@router.post("/admin/olympiads/{olympiad_id}/questions")
+async def admin_add_question(
+    olympiad_id: str,
+    payload: QuestionPayload,
+    db: AsyncSession = Depends(get_db),
+    admin_key: str = Header(None, alias="X-Admin-Key")
+):
+    """Add a question to an existing olympiad (admin only)"""
+    if admin_key != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    if not res.scalars().first():
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+
+    q = OlympiadQuestion(
+        olympiad_id=olympiad_id,
+        question_text=payload.question_text,
+        options=payload.options,
+        correct_answer=payload.correct_option_index,
+        points=payload.points,
+        order=payload.order_index,
+    )
+    db.add(q)
+
+    # Update questions_count
+    res2 = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    olympiad = res2.scalars().first()
+    count = (await db.execute(
+        select(sql_func.count(OlympiadQuestion.id)).where(OlympiadQuestion.olympiad_id == olympiad_id)
+    )).scalar() or 0
+    olympiad.questions_count = count + 1
+
+    await db.commit()
+    await db.refresh(q)
+    return {"success": True, "question": _question_to_dict(q)}
+
+
+@router.put("/admin/olympiads/{olympiad_id}/questions/{question_id}")
+async def admin_update_question(
+    olympiad_id: str,
+    question_id: str,
+    payload: QuestionPayload,
+    db: AsyncSession = Depends(get_db),
+    admin_key: str = Header(None, alias="X-Admin-Key")
+):
+    """Edit a question in an olympiad (admin only)"""
+    if admin_key != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    res = await db.execute(
+        select(OlympiadQuestion).where(
+            OlympiadQuestion.id == question_id,
+            OlympiadQuestion.olympiad_id == olympiad_id
+        )
+    )
+    q = res.scalars().first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Savol topilmadi")
+
+    q.question_text = payload.question_text
+    q.options = payload.options
+    q.correct_answer = payload.correct_option_index
+    q.points = payload.points
+    q.order = payload.order_index
+
+    await db.commit()
+    return {"success": True, "question": _question_to_dict(q)}
+
+
+@router.delete("/admin/olympiads/{olympiad_id}/questions/{question_id}")
+async def admin_delete_question(
+    olympiad_id: str,
+    question_id: str,
+    db: AsyncSession = Depends(get_db),
+    admin_key: str = Header(None, alias="X-Admin-Key")
+):
+    """Delete a question from an olympiad (admin only)"""
+    if admin_key != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    res = await db.execute(
+        select(OlympiadQuestion).where(
+            OlympiadQuestion.id == question_id,
+            OlympiadQuestion.olympiad_id == olympiad_id
+        )
+    )
+    q = res.scalars().first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Savol topilmadi")
+
+    await db.delete(q)
+
+    # Update questions_count
+    res2 = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    olympiad = res2.scalars().first()
+    if olympiad:
+        count = (await db.execute(
+            select(sql_func.count(OlympiadQuestion.id)).where(OlympiadQuestion.olympiad_id == olympiad_id)
+        )).scalar() or 0
+        olympiad.questions_count = max(0, count - 1)
+
+    await db.commit()
+    return {"success": True, "message": "Savol o'chirildi"}
 
 
 # ============= Olympiad Content: Lessons & Stories =============

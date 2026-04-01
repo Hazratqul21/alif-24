@@ -82,11 +82,12 @@ export default function OlympiadBuilder() {
                 }))
             };
 
-            await apiService.post('/olympiad/admin/build', payload, {
+            const res = await apiService.post('/olympiad/admin/build', payload, {
                 headers: { 'X-Admin-Key': adminKey }
             });
 
-            navigate('/admin/analytics');
+            const olympiadId = res.data?.olympiad_id || res.olympiad_id;
+            navigate(`/admin/olympiads/${olympiadId}/edit`);
         } catch (err) {
             setError(err.message || 'Saqlashda xatolik yuz berdi');
         } finally {
@@ -113,7 +114,7 @@ export default function OlympiadBuilder() {
                         disabled={saving}
                         className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
                     >
-                        {saving ? 'Saqlanmoqda...' : <><Save className="w-5 h-5" /> Saqlash</>}
+                        {saving ? 'Saqlanmoqda...' : <><Save className="w-5 h-5" /> Draft sifatida saqlash</>}
                     </button>
                 </div>
 
