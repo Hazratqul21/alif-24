@@ -633,15 +633,16 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
             
         if parsed.get("amount") != txn.amount:
             return {"id": rpc_id, "error": {"code": -31001, "message": "Incorrect amount"}}
-            
-        if txn.status == TransactionStatus.pending.value:
+
+        # Pending yoki processing holatida bo'lsa, CreateTransaction qabul qilamiz
+        if txn.status in (TransactionStatus.pending.value, TransactionStatus.processing.value):
             # Endi Create qilamiz
             txn.external_id = ext_id
             txn.status = TransactionStatus.processing.value
             txn.gateway_response = parsed.get("raw")
             await db.commit()
             return {"id": rpc_id, "result": {"create_time": int(txn.created_at.timestamp() * 1000), "transaction": txn.external_id, "state": 1}}
-            
+
         return {"id": rpc_id, "error": {"code": -31050, "message": "Order already processed or cancelled"}}
 
 
