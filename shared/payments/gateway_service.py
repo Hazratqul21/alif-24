@@ -162,6 +162,111 @@ class PaymeGateway(BaseGateway):
             logger.error(f"Payme webhook parse error: {e}")
             return {"error": str(e)}
 
+
+# ============================================================================
+# CLICK GATEWAY
+# ============================================================================
+
+class ClickGateway(BaseGateway):
+    """
+    Click payment gateway (Uzbekistan)
+    Docs: https://click.uz/developer
+    """
+
+    BASE_URL = "https://api.click.uz/v1"
+
+    async def create_payment(
+        self, amount: int, order_id: str, description: str, return_url: str
+    ) -> Dict[str, Any]:
+        """Click checkout URL yaratish"""
+        try:
+            headers = {
+                "Authorization": f"Token {self.secret_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "service_id": self.service_id or self.merchant_id,
+                "amount": amount,  # Click sumda
+                "transaction_id": order_id,
+                "description": description[:100],  # Max 100 chars
+            }
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.post(
+                    f"{self.BASE_URL}/merchant/invoice/create",
+                    json=payload,
+                    headers=headers,
+                )
+                data = resp.json()
+                if data.get("success"):
+                    return {
+                        "checkout_url": data.get("url", ""),
+                        "external_id": str(data.get("invoice_id", order_id)),
+                        "raw": data,
+                    }
+                return {
+                    "checkout_url": "",
+                    "external_id": order_id,
+                    "raw": data,
+                    "error": data.get("error_note", "Unknown error"),
+                }
+        except Exception as e:
+            logger.error(f"Click create payment error: {e}")
+            return {
+                "checkout_url": "",
+                "external_id": order_id,
+                "raw": {"error": str(e)},
+            }
+
+    async def check_payment(self, external_id: str) -> Dict[str, Any]:
+        """Click payment status check"""
+        try:
+            headers = {
+                "Authorization": f"Token {self.secret_key}",
+                "Content-Type": "application/json",
+            }
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    f"{self.BASE_URL}/merchant/invoice/status/{external_id}",
+                    headers=headers,
+                )
+                data = resp.json()
+                state_map = {
+                    "1": "pending",
+                    "2": "completed",
+                    "-1": "cancelled",
+                    "-2": "cancelled",
+                }
+                return {
+                    "status": state_map.get(str(data.get("state", "0")), "pending"),
+                    "raw": data,
+                }
+        except Exception as e:
+            logger.error(f"Click check error: {e}")
+            return {"status": "pending", "error": str(e)}
+
+    def verify_webhook(self, headers: Dict, body: bytes) -> bool:
+        """Click webhook verification"""
+        # Click uses different auth - verify token header
+        click_token = headers.get("x-click-token", "")
+        return click_token == self.secret_key
+
+    def parse_webhook(self, headers: Dict, body: bytes) -> Dict[str, Any]:
+        """Parse Click webhook"""
+        try:
+            data = json.loads(body)
+            return {
+                "method": "notify",
+                "order_id": data.get("merchant_trans_id"),
+                "amount": data.get("amount", 0),
+                "external_id": str(data.get("click_trans_id", "")),
+                "status": "completed" if data.get("state") == 2 else "pending",
+                "raw": data,
+            }
+        except Exception as e:
+            logger.error(f"Click webhook parse error: {e}")
+            return {"error": str(e)}
+
+
 # ============================================================================
 # UZUM GATEWAY
 # ============================================================================
@@ -241,6 +346,7 @@ class UzumGateway(BaseGateway):
 
 GATEWAY_CLASSES = {
     "payme": PaymeGateway,
+    "click": ClickGateway,
     "uzum": UzumGateway,
 }
 
