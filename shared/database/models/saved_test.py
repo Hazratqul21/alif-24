@@ -3,7 +3,7 @@ SavedTest Model — TestAI platformasida yaratilgan testlar
 O'qituvchi/admin yaratgan testlar DB ga saqlanadi
 Boshqa platformalar (Reading Competition, Assignment) dan import qilinishi mumkin
 """
-from sqlalchemy import Column, String, Integer, DateTime, Text, JSON, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, Text, JSON
 from sqlalchemy.sql import func
 import enum
 from shared.database.base import Base
@@ -21,7 +21,7 @@ class SavedTest(Base):
     __tablename__ = "saved_tests"
 
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    creator_id = Column(String(8), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    creator_id = Column(String(50), nullable=True, index=True)  # User ID or "admin" for olympiad tests
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
     subject = Column(String(200), nullable=True)
