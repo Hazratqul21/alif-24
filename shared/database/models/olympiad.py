@@ -89,6 +89,7 @@ class Olympiad(Base):
     questions_count = Column(Integer, default=20)
     status = Column(SQLEnum(OlympiadStatus), default=OlympiadStatus.draft)
     results_public = Column(Boolean, default=True)  # Natijalar ochiq
+    difficulty = Column(String(20), default="medium")  # easy, medium, hard
     
     # Tashkilotchi (moderator) — FK emas, admin role string saqlanadi
     created_by = Column(String(50), nullable=True)

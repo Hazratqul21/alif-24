@@ -6,6 +6,7 @@ Admin creates olympiads via MainPlatform admin panel.
 from fastapi import APIRouter, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect, Query, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func as sql_func, select, or_
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any
 from datetime import datetime, timezone, date, timedelta
@@ -105,8 +106,8 @@ def _olympiad_to_dict(o: Olympiad) -> dict:
     }
 
 
-def _question_to_dict(q: OlympiadQuestion) -> dict:
-    return {
+def _question_to_dict(q: OlympiadQuestion, include_answer: bool = False) -> dict:
+    result = {
         "id": q.id,
         "olympiad_id": q.olympiad_id,
         "question_text": q.question_text,
@@ -114,6 +115,9 @@ def _question_to_dict(q: OlympiadQuestion) -> dict:
         "points": q.points,
         "order_index": q.order if q.order else 0,
     }
+    if include_answer:
+        result["correct_answer"] = q.correct_answer
+    return result
 
 
 async def _resolve_student_profile(user_id: str, db: AsyncSession) -> Optional[StudentProfile]:
@@ -210,15 +214,22 @@ async def list_olympiads(
     result = await db.execute(stmt.order_by(Olympiad.created_at.desc()))
     results = result.scalars().all()
 
-    # Add participant_count for each olympiad
+    # Get all participant counts in ONE query using subquery (fixes N+1)
+    olympiad_ids = [o.id for o in results]
+    participant_counts = {}
+    if olympiad_ids:
+        count_res = await db.execute(
+            select(OlympiadParticipant.olympiad_id, sql_func.count(OlympiadParticipant.id))
+            .where(OlympiadParticipant.olympiad_id.in_(olympiad_ids))
+            .group_by(OlympiadParticipant.olympiad_id)
+        )
+        participant_counts = dict(count_res.all())
+
+    # Build output
     olympiads_out = []
     for o in results:
         d = _olympiad_to_dict(o)
-        cnt_res = await db.execute(
-            select(sql_func.count(OlympiadParticipant.id))
-            .where(OlympiadParticipant.olympiad_id == o.id)
-        )
-        d["participant_count"] = cnt_res.scalar() or 0
+        d["participant_count"] = participant_counts.get(o.id, 0)
         olympiads_out.append(d)
 
     return {
@@ -297,6 +308,14 @@ async def get_olympiad(
     db: AsyncSession = Depends(get_db)
 ):
     """Get olympiad details"""
+    # BUG-9: Prevent route conflict - reserved route names should not be treated as olympiad_id
+    reserved_routes = ["my-profile", "my-analytics", "admin", "ertaklar"]
+    if any(olympiad_id.startswith(name) for name in reserved_routes):
+        raise HTTPException(
+            status_code=404,
+            detail=f"'{olympiad_id}' endpoint not found. Use correct path."
+        )
+
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     olympiad = res.scalars().first()
     if not olympiad:
@@ -515,10 +534,14 @@ async def start_olympiad(
 async def submit_answers(
     olympiad_id: str,
     answers: List[AnswerSubmit],
-    student_id: Optional[str] = Query(None),
+    student_id: str = Query(..., description="Student user_id"),
     db: AsyncSession = Depends(get_db)
 ):
-    """Submit answers for an olympiad"""
+    """Submit answers for an olympiad - requires student_id query parameter"""
+    # Validate student_id is provided
+    if not student_id:
+        raise HTTPException(status_code=400, detail="student_id talab qilinadi")
+
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     olympiad = res.scalars().first()
     if not olympiad:
@@ -693,8 +716,11 @@ async def get_leaderboard(
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
+    # Use joinedload to avoid N+1 queries - load student profile with user in one query
     p_res = await db.execute(
-        select(OlympiadParticipant).where(
+        select(OlympiadParticipant)
+        .options(selectinload(OlympiadParticipant.student).selectinload(StudentProfile.user))
+        .where(
             OlympiadParticipant.olympiad_id == olympiad.id,
             OlympiadParticipant.status == ParticipationStatus.completed,
         )
@@ -707,13 +733,10 @@ async def get_leaderboard(
     for idx, p in enumerate(participants, 1):
         student_name = f"O'quvchi #{idx}"
         try:
-            sp_res = await db.execute(select(StudentProfile).where(StudentProfile.id == p.student_id))
-            sp = sp_res.scalars().first()
-            if sp:
-                u_res = await db.execute(select(User).where(User.id == sp.user_id))
-                u = u_res.scalars().first()
-                if u:
-                    student_name = f"{u.first_name} {u.last_name}".strip() or student_name
+            # Already loaded via joinedload - no additional queries
+            sp = p.student
+            if sp and sp.user:
+                student_name = f"{sp.user.first_name} {sp.user.last_name}".strip() or student_name
         except Exception as e:
             logging.warning(f"Failed to get student name for {p.student_id}: {e}")
 
@@ -1157,7 +1180,7 @@ class OlympiadUpdatePayload(BaseModel):
     difficulty: Optional[str] = None
     min_age: Optional[int] = None
     max_age: Optional[int] = None
-    status: Optional[str] = None  # "draft", "upcoming", "active", "completed"
+    status: Optional[str] = None  # "draft", "upcoming", "active", "finished", "cancelled"
 
 
 @router.get("/admin/olympiads")
@@ -1277,14 +1300,15 @@ async def admin_add_question(
         order=payload.order_index,
     )
     db.add(q)
+    await db.flush()  # Flush to get the new question in DB
 
-    # Update questions_count
+    # Update questions_count after flush (now includes the new question)
     res2 = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     olympiad = res2.scalars().first()
     count = (await db.execute(
         select(sql_func.count(OlympiadQuestion.id)).where(OlympiadQuestion.olympiad_id == olympiad_id)
     )).scalar() or 0
-    olympiad.questions_count = count + 1
+    olympiad.questions_count = count
 
     await db.commit()
     await db.refresh(q)
@@ -1345,15 +1369,16 @@ async def admin_delete_question(
         raise HTTPException(status_code=404, detail="Savol topilmadi")
 
     await db.delete(q)
+    await db.flush()  # Flush to remove the question from DB
 
-    # Update questions_count
+    # Update questions_count after flush (now excludes the deleted question)
     res2 = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     olympiad = res2.scalars().first()
     if olympiad:
         count = (await db.execute(
             select(sql_func.count(OlympiadQuestion.id)).where(OlympiadQuestion.olympiad_id == olympiad_id)
         )).scalar() or 0
-        olympiad.questions_count = max(0, count - 1)
+        olympiad.questions_count = count
 
     await db.commit()
     return {"success": True, "message": "Savol o'chirildi"}
