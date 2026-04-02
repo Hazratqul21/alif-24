@@ -515,7 +515,7 @@ async def start_olympiad(
 async def submit_answers(
     olympiad_id: str,
     answers: List[AnswerSubmit],
-    student_id: str = None,
+    student_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     """Submit answers for an olympiad"""
