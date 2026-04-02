@@ -570,14 +570,24 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
     if method == "CheckPerformTransaction":
         # Tranzaksiya qabul qilish tekshiruvi
         if not order_id:
+            logger.warning(f"Payme webhook: CheckPerformTransaction - order_id yo'q, params: {parsed}")
             return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
-            
+
+        # Avval ID bilan qidirish
         txn_result = await db.execute(
             select(PaymentTransaction).where(PaymentTransaction.id == order_id)
         )
         txn = txn_result.scalars().first()
-        
+
+        # Topilmasa, external_id bilan qidirish (Payme boshqacha yuborishi mumkin)
         if not txn:
+            txn_result = await db.execute(
+                select(PaymentTransaction).where(PaymentTransaction.external_id == order_id)
+            )
+            txn = txn_result.scalars().first()
+
+        if not txn:
+            logger.warning(f"Payme webhook: Transaction topilmadi. order_id={order_id}, parsed={parsed}")
             return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
             
         if txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value):
