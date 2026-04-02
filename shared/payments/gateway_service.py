@@ -66,6 +66,10 @@ class PaymeGateway(BaseGateway):
     """
     Payme Merchant API
     Docs: https://developer.help.paycom.uz/
+
+    To'liq RPC format:
+    - Authorization: Basic Login:Password
+    - method, params, id
     """
 
     @property
@@ -76,54 +80,76 @@ class PaymeGateway(BaseGateway):
     def merchant_api(self):
         return f"{self.base_url}/api"
 
+    def _get_auth_header(self) -> str:
+        """Authorization: Basic header - Payme talabiga ko'ra"""
+        # Login: Parol format - Payme Merchant ID login, secret_key parol
+        auth_string = f"{self.merchant_id}:{self.secret_key}"
+        return "Basic " + base64.b64encode(auth_string.encode()).decode()
+
+    def _make_request(self, method: str, params: Dict) -> Dict:
+        """Payme ga RPC so'rov yuborish"""
+        import httpx
+        import uuid
+
+        payload = {
+            "method": method,
+            "params": params,
+            "id": int(datetime.now(timezone.utc).timestamp() * 1000)
+        }
+
+        headers = {
+            "Authorization": self._get_auth_header(),
+            "Content-Type": "application/json",
+        }
+
+        try:
+            response = httpx.post(self.merchant_api, json=payload, headers=headers, timeout=15)
+            return response.json()
+        except Exception as e:
+            logger.error(f"Payme API error: {e}")
+            return {"error": str(e)}
+
     async def create_payment(
         self, amount: int, order_id: str, description: str, return_url: str
     ) -> Dict[str, Any]:
         """
         Payme checkout URL yaratish
-        amount: UZS so'mda (Payme tiyinda kutadi, x100 qilamiz)
+        Payme dokumentatsiyasiga ko'ra:
+        - Qadam 1: CheckPerformTransaction - tekshirish
+        - Qadam 2: CreateTransaction - yaratish (checkout ochiq uchun)
         """
-        amount_tiyin = amount * 100  # Payme tiyinda ishlaydi
+        amount_tiyin = amount * 100  # Payme tiyinda
 
-        # Payme checkout parametrlari
-        params = f"m={self.merchant_id};ac.order_id={order_id};a={amount_tiyin};c={return_url}"
+        # Payme checkout parametrlari - to'g'ri format
+        params = f"m={self.merchant_id};a={amount_tiyin};ac.order_id={order_id};c={return_url}"
         encoded = base64.b64encode(params.encode()).decode()
 
         checkout_url = f"{self.base_url}/{encoded}"
 
         return {
             "checkout_url": checkout_url,
-            "external_id": order_id,  # Payme order_id ni biz beramiz
-            "raw": {"params": params},
+            "external_id": order_id,
+            "raw": {"params": params, "encoded": encoded},
         }
 
     async def check_payment(self, external_id: str) -> Dict[str, Any]:
-        """Payme orqali to'lov holatini tekshirish"""
-        auth = base64.b64encode(f"{self.merchant_id}:{self.secret_key}".encode()).decode()
-        headers = {
-            "X-Auth": auth,
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "method": "CheckTransaction",
-            "params": {"id": external_id},
-        }
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.post(self.merchant_api, json=payload, headers=headers)
-                data = resp.json()
-                if data.get("result"):
-                    state = data["result"].get("state", 0)
-                    if state == 2:
-                        return {"status": "completed", "raw": data}
-                    elif state == 1:
-                        return {"status": "processing", "raw": data}
-                    elif state in (-1, -2):
-                        return {"status": "cancelled", "raw": data}
-                return {"status": "pending", "raw": data}
-        except Exception as e:
-            logger.error(f"Payme check error: {e}")
-            return {"status": "pending", "error": str(e)}
+        """Payme CheckTransaction - tranzaksiya holatini tekshirish"""
+        result = self._make_request("CheckTransaction", {"id": external_id})
+
+        if "error" in result:
+            return {"status": "pending", "error": result.get("error")}
+
+        if result.get("result"):
+            state = result["result"].get("state", 0)
+            # State: 0 - created, 1 - processing, 2 - completed, -1/-2 - cancelled
+            if state == 2:
+                return {"status": "completed", "raw": result}
+            elif state == 1:
+                return {"status": "processing", "raw": result}
+            elif state in (-1, -2):
+                return {"status": "cancelled", "raw": result}
+
+        return {"status": "pending", "raw": result}
 
     def verify_webhook(self, headers: Dict, body: bytes) -> bool:
         """Payme Basic Auth tekshirish"""
