@@ -1052,12 +1052,40 @@ async def admin_get_transactions(
     db: AsyncSession = Depends(get_db),
     status: Optional[str] = None,
     provider: Optional[str] = None,
+    order_id: Optional[str] = None,  # Order ID (transaction id) bo'yicha qidirish
+    external_id: Optional[str] = None,  # Gateway external ID bo'yicha qidirish
+    phone: Optional[str] = None,  # Telefon raqam bo'yicha qidirish
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    """Admin: barcha to'lovlar tarixi"""
+    """Admin: barcha to'lovlar tarixi. Order ID, external_id, yoki phone bo'yicha qidirish mumkin."""
     stmt = select(PaymentTransaction).order_by(PaymentTransaction.created_at.desc())
     count_stmt = select(func.count(PaymentTransaction.id))
+
+    # Order ID bo'yicha qidirish
+    if order_id:
+        stmt = stmt.where(PaymentTransaction.id == order_id)
+        count_stmt = count_stmt.where(PaymentTransaction.id == order_id)
+
+    # External ID (Paycom/Click dan kelgan ID) bo'yicha qidirish
+    if external_id:
+        stmt = stmt.where(PaymentTransaction.external_id.ilike(f"%{external_id}%"))
+        count_stmt = count_stmt.where(PaymentTransaction.external_id.ilike(f"%{external_id}%"))
+
+    # Telefon raqam bo'yicha qidirish
+    if phone:
+        phone_clean = phone.replace("+", "").replace(" ", "").replace("-", "")
+        user_stmt = select(User.id).where(
+            User.phone.ilike(f"%{phone_clean}%") | User.phone.ilike(f"%{phone}%")
+        )
+        user_result = await db.execute(user_stmt)
+        user_ids = [row.id for row in user_result.all()]
+        if user_ids:
+            stmt = stmt.where(PaymentTransaction.user_id.in_(user_ids))
+            count_stmt = count_stmt.where(PaymentTransaction.user_id.in_(user_ids))
+        else:
+            # Foydalanuvchi topilmasa, bo'sh natija qaytarish
+            return {"total": 0, "transactions": []}
 
     if status:
         stmt = stmt.where(PaymentTransaction.status == status)
