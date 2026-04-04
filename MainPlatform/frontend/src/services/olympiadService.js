@@ -48,6 +48,7 @@ const olympiadService = {
     getOlympiad: (id) => api.get(`/${id}`),
     updateOlympiad: (id, data) => api.put(`/${id}`, data),
     deleteOlympiad: (id) => api.delete(`/${id}`),
+    publishOlympiad: (id, publish = true) => api.post(`/${id}/publish`, { publish }),
 
     // ==================== ADMIN: Questions ====================
     addQuestion: (olympiadId, data) => api.post(`/${olympiadId}/questions`, data),

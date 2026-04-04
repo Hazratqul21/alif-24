@@ -21,6 +21,7 @@ from shared.database.models.olympiad import (
 )
 from shared.database.models.olympiad_content import OlympiadLesson, OlympiadStory
 from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
+from shared.database.models.subscription import UserSubscription, SubscriptionStatus
 from app.core.config import settings
 from app.olimp.websocket import manager
 
@@ -175,6 +176,7 @@ async def list_olympiads(
 ):
     """List all olympiads (student browsing)"""
     stmt = select(Olympiad)
+    now = datetime.now(timezone.utc)
 
     if status:
         try:
@@ -182,16 +184,21 @@ async def list_olympiads(
         except ValueError:
             return {"success": True, "data": {"olympiads": [], "total": 0}}
     else:
-        # Students should not see draft or cancelled olympiads
-        stmt = stmt.where(Olympiad.status.notin_([OlympiadStatus.draft, OlympiadStatus.cancelled]))
-        
-    # Avtomatik holat (status) filtri qo'shamiz (bazadagi status noto'g'ri bo'lsa ham ishlaydi)
-    now = datetime.now(timezone.utc)
-    if status == "upcoming":
-        stmt = stmt.where(Olympiad.start_time > now)
+        # Default: Show only upcoming, active, finished (not draft or cancelled)
+        # Auto-filter by dates: upcoming (start_time > now), active (start_time <= now < end_time), finished (end_time <= now)
+        stmt = stmt.where(
+            Olympiad.status.in_([OlympiadStatus.upcoming, OlympiadStatus.active, OlympiadStatus.finished])
+        )
+
+    # Auto-filter by dates based on status (even if explicit status is passed)
+    if not status or status == "upcoming":
+        # Show olympiads that haven't started yet
+        stmt = stmt.where((Olympiad.start_time > now) | (Olympiad.status == OlympiadStatus.upcoming))
     elif status == "active":
+        # Show olympiads that are currently running
         stmt = stmt.where(Olympiad.start_time <= now, Olympiad.end_time > now)
-    elif status == "completed":
+    elif status == "finished" or status == "completed":
+        # Show finished olympiads
         stmt = stmt.where(Olympiad.end_time <= now)
     if subject:
         stmt = stmt.where(Olympiad.subject.ilike(f"%{subject}%"))
@@ -437,12 +444,47 @@ async def register_for_olympiad(
                 detail=f"Sizning yoshingiz ({age}) ushbu olimpiada talabiga ({min_age}-{max_age} yosh) mos kelmaydi."
             )
     else:
-        # If no dob is set, we could optionally block them or let them pass. 
+        # If no dob is set, we could optionally block them or let them pass.
         # Since this is a strict age-based competition, let's require DOB.
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="Tug'ilgan sanangiz kiritilmagan. Iltimos, profilingizni to'ldiring."
         )
+
+    # Check subscription (active or free trial)
+    subscription_res = await db.execute(
+        select(UserSubscription)
+        .where(
+            UserSubscription.user_id == data.student_id,
+            UserSubscription.status == SubscriptionStatus.active.value,
+            UserSubscription.expires_at > now
+        )
+        .order_by(UserSubscription.expires_at.desc())
+    )
+    subscription = subscription_res.scalars().first()
+
+    if not subscription:
+        # Check if user has free trial (14 kun bepul)
+        # Trial: 14 kun ichida yaratilgan va muddati o'tmagan
+        from datetime import timedelta
+        trial_start = now - timedelta(days=14)
+
+        trial_sub_res = await db.execute(
+            select(UserSubscription)
+            .where(
+                UserSubscription.user_id == data.student_id,
+                UserSubscription.created_at > trial_start,
+                UserSubscription.expires_at > now  # Trial muddati o'tmagan bo'lishi kerak
+            )
+            .order_by(UserSubscription.created_at.desc())
+        )
+        trial_sub = trial_sub_res.scalars().first()
+
+        if not trial_sub:
+            raise HTTPException(
+                status_code=403,
+                detail="Olimpiadada ishtirok etish uchun obuna kerak. Iltimos, obuna sotib oling yoki 14 kun bepul sinov uchun ro'yxatdan o'ting."
+            )
 
     # Resolve student profile from user_id
     sp = await _resolve_student_profile(data.student_id, db)

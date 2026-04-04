@@ -1294,3 +1294,60 @@ async def ai_generate_questions(
         return {"success": True, "questions": questions, "count": len(questions)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI xatolik: {str(e)[:200]}")
+
+
+# ============================================================================
+# ADMIN: Publish/Unpublish endpoint
+# ============================================================================
+
+@router.post("/{olympiad_id}/publish")
+async def publish_olympiad(
+    olympiad_id: str,
+    request: dict,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Olimpiadani publish qilish yoki yashirish
+    Body: { "publish": true/false }
+    - publish=true, status=draft → upcoming
+    - publish=false, status=upcoming → draft
+    """
+    publish = request.get("publish", True)
+
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    o = res.scalars().first()
+
+    if not o:
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+
+    if publish:
+        if o.status == OlympiadStatus.draft:
+            o.status = OlympiadStatus.upcoming
+            message = "Olimpiada e'lon qilindi"
+        elif o.status == OlympiadStatus.upcoming:
+            o.status = OlympiadStatus.active
+            message = "Olimpiada boshlandi"
+        elif o.status == OlympiadStatus.active:
+            o.status = OlympiadStatus.finished
+            message = "Olimpiada tugatildi"
+        else:
+            raise HTTPException(status_code=400, detail=f"Hozirgi holatda publish qilib bo'lmaydi: {o.status.value}")
+    else:
+        # Unpublish - faqat upcomingdan draftga qaytarish mumkin
+        if o.status == OlympiadStatus.upcoming:
+            o.status = OlympiadStatus.draft
+            message = "Olimpiada yashirildi"
+        elif o.status == OlympiadStatus.finished:
+            o.status = OlympiadStatus.active
+            message = "Olimpiada qayta ochildi"
+        else:
+            raise HTTPException(status_code=400, detail=f"Hozirgi holatda yashirib bo'lmaydi: {o.status.value}")
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": message,
+        "status": o.status.value
+    }
