@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     // Check for existing session on mount
@@ -18,16 +19,23 @@ export const AuthProvider = ({ children }) => {
       // Skip profile fetch on admin routes to prevent unnecessary 401 errors
       if (window.location.pathname.startsWith('/admin')) {
         setLoading(false);
+        setAuthChecked(true);
         return;
       }
 
       try {
         const profile = await authService.getProfile();
-        setUser(profile);
-      } catch {
-        setUser(null);
+        // Only set user if we got a valid profile (not null/undefined)
+        if (profile && (profile.id || profile.user?.id)) {
+          setUser(profile);
+        }
+      } catch (err) {
+        // Don't immediately clear user - might be a temporary network issue
+        // Keep existing user state if we already have one
+        console.warn('Auth check failed:', err?.message);
       }
       setLoading(false);
+      setAuthChecked(true);
     };
     initAuth();
   }, []);

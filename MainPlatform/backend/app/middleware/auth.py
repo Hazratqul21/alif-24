@@ -21,15 +21,41 @@ security = HTTPBearer(auto_error=False)
 
 
 async def check_user_subscription(user_id: str, db: AsyncSession) -> bool:
-    """Foydalanuvchining faol va muddati o'tmagan obunasi borligini tekshirish."""
+    """Foydalanuvchining faol obunasi yoki 14 kunlik bepul trial borligini tekshirish."""
+    now = datetime.now(timezone.utc)
+
+    # 1. Active subscription tekshirish
     result = await db.execute(
         select(UserSubscription.id).where(
             UserSubscription.user_id == user_id,
             UserSubscription.status == SubscriptionStatus.active.value,
-            UserSubscription.expires_at > datetime.now(timezone.utc),
+            UserSubscription.expires_at > now,
         ).limit(1)
     )
-    return result.scalars().first() is not None
+    if result.scalars().first():
+        return True
+
+    # 2. 14 kunlik bepul trial tekshirish
+    # Trial: created_at dan 14 kun o'tguncha
+    from datetime import timedelta
+    trial_start = now - timedelta(days=14)
+
+    trial_result = await db.execute(
+        select(UserSubscription).where(
+            UserSubscription.user_id == user_id,
+            UserSubscription.created_at > trial_start,
+            # Trial obunalar odatda 0 narxli yoki "trial" deb belgilanadi
+        ).order_by(UserSubscription.created_at.desc()).limit(1)
+    )
+    trial_sub = trial_result.scalars().first()
+
+    if trial_sub:
+        # Trial muddati hali tugamagan bo'lishi kerak
+        # Trial odatda 14 kun davom etadi
+        if trial_sub.expires_at and trial_sub.expires_at > now:
+            return True
+
+    return False
 
 
 async def get_current_user(

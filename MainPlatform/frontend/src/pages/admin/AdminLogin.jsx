@@ -29,6 +29,7 @@ export default function AdminLogin({ defaultRole = null }) {
             localStorage.setItem('adminRole', data.role);
             localStorage.setItem('adminKey', data.key);
             localStorage.setItem('adminPermissions', JSON.stringify(data.permissions));
+            setPassword(''); // Clear password from memory
 
             navigate('/admin/dashboard');
         } catch (err) {
@@ -85,6 +86,7 @@ export default function AdminLogin({ defaultRole = null }) {
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Parolni kiriting..."
                                     autoFocus
+                                    autoComplete="new-password"
                                     className="w-full px-4 py-4 bg-gray-900/80 border-2 border-gray-800 rounded-2xl text-white text-center text-lg tracking-wider placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
                                 />
                                 <button

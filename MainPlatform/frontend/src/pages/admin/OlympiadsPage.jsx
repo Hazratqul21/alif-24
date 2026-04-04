@@ -351,13 +351,18 @@ const handleCreate = async () => {
         } catch (e) { notify('error', e.message || 'Xatolik'); }
     };
 
-    const handleStatusChange = async (id, newStatus) => {
+    const handleStatusChange = async (id, action) => {
         try {
-            await olympiadService.updateOlympiad(id, { status: newStatus });
-            notify('success', `Status: ${newStatus}`);
+            // action: 'publish' yoki 'unpublish'
+            const isPublish = action === 'publish';
+            const res = await olympiadService.publishOlympiad(id, isPublish);
+            notify('success', res.message || `Status: ${res.status}`);
             fetchOlympiads();
             if (selectedOlympiad?.id === id) fetchDetail(id);
-        } catch (e) { notify('error', e.message || 'Xatolik'); }
+        } catch (e) {
+            const msg = e.response?.data?.detail || e.message || 'Xatolik';
+            notify('error', msg);
+        }
     };
 
     const handleDelete = async (id) => {
@@ -529,9 +534,9 @@ const handleCreate = async () => {
                         <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded-full">{typeLabels[o.type] || o.type}</span>
                     </div>
                     <div className="flex gap-2">
-                        {o.status === 'draft' && <button onClick={() => handleStatusChange(o.id, 'upcoming')} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm">E'lon qilish</button>}
-                        {o.status === 'upcoming' && <button onClick={() => handleStatusChange(o.id, 'active')} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm">Boshlash</button>}
-                        {o.status === 'active' && <button onClick={() => handleStatusChange(o.id, 'finished')} className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm">Tugatish</button>}
+                        {o.status === 'draft' && <button onClick={() => handleStatusChange(o.id, 'publish')} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm">E'lon qilish</button>}
+                        {o.status === 'upcoming' && <button onClick={() => handleStatusChange(o.id, 'publish')} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm">Boshlash</button>}
+                        {o.status === 'active' && <button onClick={() => handleStatusChange(o.id, 'publish')} className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm">Tugatish</button>}
                         <button onClick={() => handleDelete(o.id)} className="px-3 py-1.5 bg-red-600/20 text-red-400 rounded-lg text-sm"><Trash2 size={16} /></button>
                     </div>
                 </div>

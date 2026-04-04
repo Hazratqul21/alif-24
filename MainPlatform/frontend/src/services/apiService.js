@@ -78,11 +78,12 @@ class ApiService {
             if (refreshed) return await retryFn();
           }
 
-          // Refresh failed — redirect to login
+          // Refresh failed — show login modal but don't redirect
+          // This prevents full page reload which can cause auth issues
           window.dispatchEvent(new CustomEvent('showLoginModal', {
-            detail: { message: 'Sessiya muddati tugadi. Iltimos, qayta kiring.' }
+            detail: { message: 'Sessiya tugadi. Qayta kirish talab etiladi.' }
           }));
-          window.location.href = '/';
+          // Don't do full page redirect - it causes auth state reset issues
           throw new Error('Session expired');
         }
       }

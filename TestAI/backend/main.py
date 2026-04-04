@@ -840,20 +840,27 @@ async def create_olympiad_test_set(
     db: AsyncSession = Depends(get_db),
 ):
     """Olimpiad uchun yangi test to'plami yaratadi"""
-    test = SavedTest(
-        creator_id="admin",
-        title=data.title,
-        description=data.description,
-        questions=data.questions,
-        questions_count=len(data.questions),
-        ai_generated="no",
-        status=data.status,
-        source_platform=f"olympiad:{data.olympiad_id}",
-    )
-    db.add(test)
-    await db.commit()
-    await db.refresh(test)
-    return {"success": True, "data": {"id": test.id, "title": test.title, "questions_count": test.questions_count}}
+    try:
+        logger.info(f"[OLYMPIAD-TEST] Creating test set: title={data.title}, olympiad_id={data.olympiad_id}, questions_count={len(data.questions)}")
+        test = SavedTest(
+            creator_id=f"admin:{admin.get('role', 'unknown')}",
+            title=data.title,
+            description=data.description,
+            questions=data.questions,
+            questions_count=len(data.questions),
+            ai_generated="no",
+            status=data.status,
+            source_platform=f"olympiad:{data.olympiad_id}",
+        )
+        db.add(test)
+        await db.commit()
+        await db.refresh(test)
+        logger.info(f"[OLYMPIAD-TEST] Created test set: id={test.id}, questions_count={test.questions_count}")
+        return {"success": True, "data": {"id": test.id, "title": test.title, "questions_count": test.questions_count}}
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"[OLYMPIAD-TEST] Failed to create test set: {e}")
+        raise HTTPException(500, f"Test to'plami yaratishda xatolik: {str(e)}")
 
 
 # --- Static sub-routes MUST come before /{test_id} to avoid 405 route conflict ---
@@ -954,7 +961,7 @@ Matn:
         saved_id = None
         if olympiad_id:
             test = SavedTest(
-                creator_id="admin",
+                creator_id=f"admin:{admin.get('role', 'unknown')}",
                 title=title,
                 questions=questions,
                 questions_count=len(questions),
