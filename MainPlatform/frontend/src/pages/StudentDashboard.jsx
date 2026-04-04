@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Common/Navbar';
@@ -25,6 +25,7 @@ const STORY_API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_
 
 const StudentDashboard = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { language } = useLanguage();
     const { user: authUser } = useAuth();
     const [dashboardData, setDashboardData] = useState(null);
@@ -146,6 +147,46 @@ const StudentDashboard = () => {
 
         return () => clearInterval(notifInterval);
     }, []);
+
+    // Payment return handling - check payment status on return from Payme
+    useEffect(() => {
+        const paymentStatus = searchParams.get('payment');
+        let transactionId = searchParams.get('transaction_id');
+
+        // If no transaction_id in URL, check localStorage (for direct Payme redirects)
+        if (!transactionId) {
+            transactionId = localStorage.getItem('pending_payment_txn');
+            if (transactionId) {
+                localStorage.removeItem('pending_payment_txn');
+            }
+        }
+
+        if (paymentStatus === 'success' && transactionId) {
+            // Clear URL params
+            setSearchParams({}, { replace: true });
+
+            // Check payment status via API
+            const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
+            fetch(`${apiBaseUrl}/payments/check/${transactionId}`, { credentials: 'include' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'completed') {
+                        showNotif('success', 'To\'lov muvaffaqiyatli! Obuna faollashdi.');
+                    } else if (data.status === 'processing' || data.status === 'pending') {
+                        showNotif('info', 'To\'lov jarayonda. Iltimos, kuting...');
+                    } else {
+                        showNotif('error', 'To\'lov muvaffaqiyatsiz. Qayta urinib ko\'ring.');
+                    }
+                })
+                .catch(() => {
+                    showNotif('error', 'To\'lov holatini tekshirishda xatolik');
+                });
+        } else if (paymentStatus === 'cancel') {
+            // User cancelled payment
+            setSearchParams({}, { replace: true });
+            showNotif('info', 'To\'lov bekor qilindi.');
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         if (activeTab === 'school' && mySchool === undefined) {
@@ -1104,6 +1145,10 @@ const StudentDashboard = () => {
                                                             const data = await res.json();
                                                             console.log('📦 Data:', data);
                                                             if (data.checkout_url) {
+                                                                // Save transaction_id to localStorage for return verification
+                                                                if (data.transaction_id) {
+                                                                    localStorage.setItem('pending_payment_txn', data.transaction_id);
+                                                                }
                                                                 console.log('➡️ Redirecting to:', data.checkout_url);
                                                                 window.location.href = data.checkout_url;
                                                             } else {

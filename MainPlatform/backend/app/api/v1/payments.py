@@ -540,6 +540,14 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
     body = await request.body()
     headers = dict(request.headers)
 
+    # Log incoming webhook for debugging
+    try:
+        body_str = body.decode('utf-8')[:500] if body else ''
+    except:
+        body_str = '<binary>'
+
+    logger.info(f"Payme webhook received: headers={dict(headers)}, body_preview={body_str[:200]}")
+
     # Gateway topish
     result = await db.execute(
         select(PaymentGatewayConfig).where(
@@ -549,6 +557,7 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
     )
     gw = result.scalars().first()
     if not gw:
+        logger.error("Payme webhook: Gateway not found in database")
         return {"error": {"code": -32504, "message": "Gateway not found"}}
 
     gateway = get_gateway({
@@ -558,14 +567,26 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
         "is_test_mode": gw.is_test_mode,
     })
 
-    # Auth tekshirish
-    if not gateway.verify_webhook(headers, body):
+    # Auth tekshirish - more detailed logging
+    auth_result = gateway.verify_webhook(headers, body)
+    logger.info(f"Payme webhook verify_webhook result: {auth_result}")
+
+    if not auth_result:
+        logger.warning(f"Payme webhook: Auth failed. headers={dict(headers)}")
         return {"error": {"code": -32504, "message": "Auth failed"}}
 
     parsed = gateway.parse_webhook(headers, body)
+    logger.info(f"Payme webhook parsed: {parsed}")
+
+    if "error" in parsed:
+        logger.error(f"Payme webhook parse error: {parsed['error']}")
+        return {"error": {"code": -32504, "message": "Parse error"}}
+
     method = parsed.get("method", "")
     order_id = parsed.get("order_id")
     rpc_id = parsed.get("rpc_id")
+
+    logger.info(f"Payme webhook: method={method}, order_id={order_id}, rpc_id={rpc_id}")
 
     if method == "CheckPerformTransaction":
         # Tranzaksiya qabul qilish tekshiruvi
@@ -803,6 +824,9 @@ async def webhook_click(request: Request, db: AsyncSession = Depends(get_db)):
     body = await request.body()
     headers = dict(request.headers)
 
+    # Log incoming webhook
+    logger.info(f"Click webhook received: headers={dict(headers)}, body_preview={body[:200] if body else ''}")
+
     result = await db.execute(
         select(PaymentGatewayConfig).where(
             PaymentGatewayConfig.provider == "click",
@@ -811,6 +835,7 @@ async def webhook_click(request: Request, db: AsyncSession = Depends(get_db)):
     )
     gw = result.scalars().first()
     if not gw:
+        logger.error("Click webhook: Gateway not found")
         return {"error": -1, "error_note": "Gateway not configured"}
 
     gateway = get_gateway({
@@ -821,13 +846,19 @@ async def webhook_click(request: Request, db: AsyncSession = Depends(get_db)):
         "is_test_mode": gw.is_test_mode,
     })
 
-    if not gateway.verify_webhook(headers, body):
+    auth_result = gateway.verify_webhook(headers, body)
+    logger.info(f"Click webhook verify result: {auth_result}")
+
+    if not auth_result:
+        logger.warning("Click webhook: Auth failed")
         return {"error": -1, "error_note": "Sign verification failed"}
 
     parsed = gateway.parse_webhook(headers, body)
+    logger.info(f"Click webhook parsed: {parsed}")
     order_id = parsed.get("order_id")
 
     if not order_id:
+        logger.warning("Click webhook: Order not found in parsed data")
         return {"error": -5, "error_note": "Order not found"}
 
     txn_result = await db.execute(
@@ -835,7 +866,10 @@ async def webhook_click(request: Request, db: AsyncSession = Depends(get_db)):
     )
     txn = txn_result.scalars().first()
     if not txn:
+        logger.warning(f"Click webhook: Transaction not found, order_id={order_id}")
         return {"error": -5, "error_note": "Transaction not found"}
+
+    logger.info(f"Click webhook: Found transaction {txn.id}, status={txn.status}, amount={txn.amount}")
 
     if parsed.get("method") == "prepare":
         if parsed.get("amount") != txn.amount:
@@ -870,6 +904,9 @@ async def webhook_uzum(request: Request, db: AsyncSession = Depends(get_db)):
     body = await request.body()
     headers = dict(request.headers)
 
+    # Log incoming webhook
+    logger.info(f"Uzum webhook received: headers={dict(headers)}, body_preview={body[:200] if body else ''}")
+
     result = await db.execute(
         select(PaymentGatewayConfig).where(
             PaymentGatewayConfig.provider == "uzum",
@@ -888,9 +925,11 @@ async def webhook_uzum(request: Request, db: AsyncSession = Depends(get_db)):
     })
 
     parsed = gateway.parse_webhook(headers, body)
+    logger.info(f"Uzum webhook parsed: {parsed}")
     order_id = parsed.get("order_id")
 
     if not order_id:
+        logger.warning("Uzum webhook: Order not found in parsed data")
         return {"status": "error", "message": "Order not found"}
 
     txn_result = await db.execute(
@@ -898,7 +937,10 @@ async def webhook_uzum(request: Request, db: AsyncSession = Depends(get_db)):
     )
     txn = txn_result.scalars().first()
     if not txn:
+        logger.warning(f"Uzum webhook: Transaction not found, order_id={order_id}")
         return {"status": "error", "message": "Transaction not found"}
+
+    logger.info(f"Uzum webhook: Found transaction {txn.id}, status={txn.status}, amount={txn.amount}")
 
     if parsed.get("status") == "completed":
         if parsed.get("amount") != txn.amount:
