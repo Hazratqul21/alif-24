@@ -9,6 +9,10 @@ import gameService from './services/gameService';
 // Games
 import LetterMemoryGame from './games/memory/LetterMemoryGame';
 import MathMonsterGame from './games/math/MathMonsterGame';
+import MathStichGame from './games/math/MathStich';
+import MevaMathGame from './games/math/Mevamath';
+
+
 // TODO: Tetris and Game2048 components not yet implemented
 // import Tetris from './games/Tetris';
 // import Game2048 from './games/Game2048';
@@ -56,7 +60,13 @@ const AppRoutes = () => {
       <Route path="/math-monster" element={<MathMonsterGame />} />
       <Route path="/math" element={<MathMonsterGame />} />
 
-      
+      {/* Math Stich (Matchstick Puzzle) */}
+      <Route path="/math-stich" element={<MathStichGame />} />
+      <Route path="/gugurt" element={<MathStichGame />} />
+
+      {/* Meva Math (Logic) */}
+      <Route path="/meva-math" element={<MevaMathGame />} />
+      <Route path="/mantiq" element={<MevaMathGame />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -83,9 +93,10 @@ const GameSelection = () => {
       console.error("Error loading games:", err);
       // Fallback state if backend is empty/offline
       setGamesList([
-        { id: 1, title: "Xotira O'yini", icon: "🧠", path: "/memory", bg_color: "from-pink-500 to-rose-600", shadow_color: "rgba(244,63,94,0.4)" },
-        { id: 2, title: "Matematika", icon: "🤖", path: "/math-monster", bg_color: "from-green-500 to-emerald-600", shadow_color: "rgba(16,185,129,0.4)" },
-       
+        { id: 1, title: "Matematika", image: "/math.jpg", path: "/math-monster", bg_color: "from-green-500 to-emerald-600", shadow_color: "rgba(16,185,129,0.4)" },
+        { id: 2, title: "Xotira o'yini", image: "/xotr.jpg", path: "/memory", bg_color: "from-pink-500 to-rose-600", shadow_color: "rgba(244,63,94,0.4)" },
+        { id: 3, title: "Matematik gugurt", image: "/spichki.jpg", path: "/math-stich", bg_color: "from-amber-500 to-orange-600", shadow_color: "rgba(245,158,11,0.4)" },
+        { id: 4, title: "Qiziqarli sonlar", image: "/mantiqmath.jpg", path: "/meva-math", bg_color: "from-indigo-500 to-purple-600", shadow_color: "rgba(99,102,241,0.4)" },
       ]);
     } finally {
       setLoading(false);
@@ -144,6 +155,7 @@ const GameSelection = () => {
                 key={game.id || i}
                 title={game.title}
                 icon={game.icon || "🎮"}
+                image={game.image}
                 href={game.path || `/${game.slug || game.id}`}
                 color={game.bg_color || "from-blue-500 to-indigo-600"}
                 shadow={game.shadow_color || "rgba(59,130,246,0.4)"}
@@ -156,14 +168,20 @@ const GameSelection = () => {
   );
 };
 
-const GameCard = ({ title, icon, href, color, shadow }) => (
+const GameCard = ({ title, icon, image, href, color, shadow }) => (
   <Link
     to={href}
-    className={`block bg-gradient-to-br ${color} rounded-2xl p-6 hover:scale-105 transition-all duration-300 border border-white/10`}
+    className={`block bg-gradient-to-br ${color} rounded-2xl overflow-hidden hover:scale-105 transition-all duration-300 border border-white/10`}
     style={{ boxShadow: `0 8px 30px ${shadow || 'rgba(75,48,251,0.3)'}` }}
   >
-    <div className="text-4xl text-center mb-3">{icon}</div>
-    <div className="text-white font-bold text-center text-lg">{title}</div>
+    {image ? (
+      <div className="w-full aspect-[4/3] overflow-hidden">
+        <img src={image} alt={title} className="w-full h-full object-cover" />
+      </div>
+    ) : (
+      <div className="text-4xl text-center pt-6 pb-3">{icon}</div>
+    )}
+    <div className="text-white font-bold text-center text-lg px-4 py-4">{title}</div>
   </Link>
 );
 
