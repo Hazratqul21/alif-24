@@ -166,6 +166,11 @@ class PaymeGateway(BaseGateway):
     def verify_webhook(self, headers: Dict, body: bytes) -> bool:
         """Payme Basic Auth tekshirish"""
         try:
+            # Test rejimida - hamma so'rovlarni qabul qilamiz
+            if self.is_test:
+                logger.info("Payme verify_webhook: Test mode - allowing request without auth check")
+                return True
+
             auth_header = headers.get("authorization", "") or headers.get("Authorization", "")
             if not auth_header:
                 logger.warning("Payme verify_webhook: No Authorization header")
@@ -179,12 +184,6 @@ class PaymeGateway(BaseGateway):
                         logger.warning(f"Payme verify_webhook: Invalid Basic auth format: {decoded}")
                         return False
                     _, key = parts
-
-                    # In test mode, allow any key for easier testing
-                    if self.is_test:
-                        logger.info("Payme verify_webhook: Test mode - allowing request")
-                        return True
-
                     return key == self.secret_key
                 except Exception as e:
                     logger.error(f"Payme verify_webhook: Base64 decode error: {e}")
