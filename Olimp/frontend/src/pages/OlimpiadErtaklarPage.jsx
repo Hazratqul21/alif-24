@@ -1464,6 +1464,7 @@ export default function OlimpiadErtaklarPage() {
 
             const [storiesRes, questionsRes] = await Promise.allSettled([
                 apiService.get(url),
+                // Bu endpoint endi OlympiadQuestion + TestAI published testlarini birga qaytaradi
                 apiService.get(`/olympiad/${olympiadId}/questions`),
             ]);
 
