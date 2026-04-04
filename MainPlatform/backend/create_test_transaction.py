@@ -2,9 +2,12 @@ import asyncio
 import os
 import sys
 
-# `.env` fayldan bevosita o'qiymiz (agar kerak bo'lsa)
-from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+# `.env` fayldan bevosita o'qiymiz
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+except ImportError:
+    pass
 
 # Ota papkani path ga qo'shamiz to shared ni import qila olish uchun
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
