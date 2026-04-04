@@ -117,14 +117,26 @@ class PaymeGateway(BaseGateway):
         Payme dokumentatsiyasiga ko'ra:
         - Qadam 1: CheckPerformTransaction - tekshirish
         - Qadam 2: CreateTransaction - yaratish (checkout ochiq uchun)
+
+        URL format: https://checkout.paycom.uz/{base64 encoded params}
+        Params: m={merchant_id};a={amount_tiyin};ac.order_id={order_id};c={return_url}
         """
         amount_tiyin = amount * 100  # Payme tiyinda
 
+        # Ensure return_url is properly formatted with ? prefix
+        if return_url and "?" not in return_url.split("/")[-1]:
+            # return_url already has query params or is just a path
+            pass
+
         # Payme checkout parametrlari - to'g'ri format
+        # m = merchant_id, a = amount (tiyinda), ac = account (order_id), c = callback URL
         params = f"m={self.merchant_id};a={amount_tiyin};ac.order_id={order_id};c={return_url}"
         encoded = base64.b64encode(params.encode()).decode()
 
         checkout_url = f"{self.base_url}/{encoded}"
+
+        logger.info(f"Payme checkout URL generated: {checkout_url}")
+        logger.info(f"Payme params: merchant_id={self.merchant_id}, amount={amount_tiyin}, order_id={order_id}, return_url={return_url}, is_test={self.is_test}")
 
         return {
             "checkout_url": checkout_url,
