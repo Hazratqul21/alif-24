@@ -166,11 +166,8 @@ class PaymeGateway(BaseGateway):
     def verify_webhook(self, headers: Dict, body: bytes) -> bool:
         """Payme Basic Auth tekshirish"""
         try:
-            # Test rejimida - hamma so'rovlarni qabul qilamiz
-            if self.is_test:
-                logger.info("Payme verify_webhook: Test mode - allowing request without auth check")
-                return True
-
+            # Sandbox explicitly tests authentication with invalid credentials.
+            # We must ALWAYS verify auth, even in test mode.
             auth_header = headers.get("authorization", "") or headers.get("Authorization", "")
             if not auth_header:
                 logger.warning("Payme verify_webhook: No Authorization header")

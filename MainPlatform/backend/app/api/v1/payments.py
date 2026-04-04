@@ -574,20 +574,28 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
         auth_result = gateway.verify_webhook(headers, body)
         logger.info(f"Payme webhook verify_webhook result: {auth_result}")
 
+        # Id olish (auth error uchun kerak)
+        try:
+            parsed_body = json.loads(body)
+            rpc_id = parsed_body.get("id")
+        except:
+            rpc_id = None
+
         if not auth_result:
             logger.warning(f"Payme webhook: Auth failed. headers={dict(headers)}")
-            return {"error": {"code": -32504, "message": "Auth failed"}}
+            return {"id": rpc_id, "error": {"code": -32504, "message": "Auth failed"}}
 
         parsed = gateway.parse_webhook(headers, body)
         logger.info(f"Payme webhook parsed: {parsed}")
 
         if "error" in parsed:
             logger.error(f"Payme webhook parse error: {parsed['error']}")
-            return {"error": {"code": -32504, "message": "Parse error"}}
+            return {"id": rpc_id, "error": {"code": -32504, "message": "Parse error"}}
 
         method = parsed.get("method", "")
         order_id = parsed.get("order_id")
-        rpc_id = parsed.get("rpc_id")
+        # rpc_id already parsed above, but can be extracted again if needed
+        rpc_id = parsed.get("rpc_id") or rpc_id
 
         logger.info(f"Payme webhook: method={method}, order_id={order_id}, rpc_id={rpc_id}")
 
@@ -744,10 +752,11 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
 
             elif txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value, TransactionStatus.refunded.value):
                 # Already cancelled — idempotency
+                state = -2 if txn.status == TransactionStatus.refunded.value else -1
                 return {"id": rpc_id, "result": {
                     "transaction": txn.external_id,
                     "cancel_time": int(txn.completed_at.timestamp() * 1000) if txn.completed_at else int(datetime.now(timezone.utc).timestamp() * 1000),
-                    "state": -1 if txn.status == TransactionStatus.cancelled.value else -2
+                    "state": state
                 }}
 
             # Agar boshqa holat bo'lsa
@@ -804,7 +813,7 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
                     "cancel_time": cancel_time,
                     "transaction": txn.external_id,
                     "state": state,
-                    "reason": reason
+                    "reason": reason if reason != 0 else None
                 }
             }
 
