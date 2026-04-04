@@ -437,7 +437,17 @@ function OlympiadTestResultModal({ result, onClose }) {
     const wrongAnswers = (result.total_questions || 0) - (result.correct_answers || 0);
     return (
         <div className="space-y-6 text-center py-4">
-            <div className="text-5xl mt-2 mb-2">🎯</div>
+            {/* Vaqt o'tib ketganda xabar */}
+            {result.time_expired && (
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-start gap-3 text-left">
+                    <span className="text-2xl shrink-0">⏱️</span>
+                    <div>
+                        <p className="text-amber-800 font-bold text-sm mb-0.5">Musobaqa vaqti o'tib ketgan</p>
+                        <p className="text-amber-700/70 text-xs">Natijangiz qayd etilmadi, lekin o'z natijangizni ko'rishingiz mumkin.</p>
+                    </div>
+                </div>
+            )}
+            <div className="text-5xl mt-2 mb-2">{result.time_expired ? '⏳' : '🎯'}</div>
             <h2 className="text-[#1a1a2e] font-bold text-2xl">Test natijasi!</h2>
             <div className="grid grid-cols-2 gap-4 text-left">
                 <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
@@ -457,24 +467,29 @@ function OlympiadTestResultModal({ result, onClose }) {
                     <p className="text-amber-600 font-extrabold text-2xl">{result.quiz_score ?? 0}</p>
                 </div>
             </div>
-            <div className="bg-gradient-to-br from-yellow-100/50 to-orange-100/50 border border-yellow-200 rounded-2xl p-5 flex flex-col items-center justify-center">
-                <p className="text-amber-900/40 text-[10px] uppercase font-bold tracking-widest mb-2">Yig'ilgan coinlar</p>
-                <div className="flex items-center gap-3">
-                    <p className="text-4xl font-black text-amber-600">+{result.quiz_coins ?? 0}</p>
-                    <span className="text-4xl">🪙</span>
-                </div>
-            </div>
 
-            <div className="space-y-2">
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center">
-                    <span className="text-slate-500 text-sm font-medium">Jami olimpiada balli</span>
-                    <span className="text-[#1a1a2e] font-extrabold text-lg">{result.total_score ?? 0}</span>
-                </div>
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center">
-                    <span className="text-slate-500 text-sm font-medium">Jami yig'ilgan coinlar</span>
-                    <span className="text-amber-600 font-extrabold text-lg flex items-center gap-1.5">{result.total_coins ?? 0} 🪙</span>
-                </div>
-            </div>
+            {!result.time_expired && (
+                <>
+                    <div className="bg-gradient-to-br from-yellow-100/50 to-orange-100/50 border border-yellow-200 rounded-2xl p-5 flex flex-col items-center justify-center">
+                        <p className="text-amber-900/40 text-[10px] uppercase font-bold tracking-widest mb-2">Yig'ilgan coinlar</p>
+                        <div className="flex items-center gap-3">
+                            <p className="text-4xl font-black text-amber-600">+{result.quiz_coins ?? 0}</p>
+                            <span className="text-4xl">🪙</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center">
+                            <span className="text-slate-500 text-sm font-medium">Jami olimpiada balli</span>
+                            <span className="text-[#1a1a2e] font-extrabold text-lg">{result.total_score ?? 0}</span>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center">
+                            <span className="text-slate-500 text-sm font-medium">Jami yig'ilgan coinlar</span>
+                            <span className="text-amber-600 font-extrabold text-lg flex items-center gap-1.5">{result.total_coins ?? 0} 🪙</span>
+                        </div>
+                    </div>
+                </>
+            )}
 
             <button
                 onClick={onClose}
@@ -660,7 +675,34 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
             if (onRefresh) onRefresh();
         } catch (err) {
             console.error('Olympiad quiz submit error:', err);
-            setError(err.message || 'Xatolik yuz berdi');
+            const errMsg = err.message || 'Xatolik yuz berdi';
+
+            // Vaqt o'tib ketgan bo'lsa, mahalliy natijani hisoblang va ko'rsating
+            const isTimeExpired = errMsg.includes("vaqti o'tib") || errMsg.includes("musobaqa vaqti") || errMsg.includes("muddat");
+            if (isTimeExpired) {
+                // Correct_answer mavjud bo'lsa hisoblash (TestAI savollar uchun)
+                let correctCount = 0;
+                questions.forEach((q, idx) => {
+                    if (q.correct_answer !== undefined && answers[idx] === q.correct_answer) {
+                        correctCount++;
+                    }
+                });
+                const total = questions.length;
+                const quizPct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+
+                setResult({
+                    time_expired: true,
+                    correct_answers: correctCount,
+                    total_questions: total,
+                    quiz_score: quizPct,
+                    elapsed_seconds: elapsedSeconds,
+                    quiz_coins: 0,
+                    total_score: 0,
+                    total_coins: 0,
+                });
+            } else {
+                setError(errMsg);
+            }
         } finally {
             setSubmitting(false);
         }
