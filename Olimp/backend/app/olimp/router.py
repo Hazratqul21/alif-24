@@ -20,6 +20,7 @@ from shared.database.models.olympiad import (
     OlympiadSubject, OlympiadType
 )
 from shared.database.models.olympiad_content import OlympiadLesson, OlympiadStory
+from shared.database.models.saved_test import SavedTest, SavedTestStatus
 from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
 from shared.database.models.subscription import UserSubscription, SubscriptionStatus
 from app.core.config import settings
@@ -371,23 +372,51 @@ async def list_questions(
     olympiad_id: str,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all questions for an olympiad (for quiz UI)"""
+    """Get all questions for an olympiad (for quiz UI).
+    Includes both OlympiadQuestion (admin panel) and SavedTest (TestAI) published questions."""
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     olympiad = res.scalars().first()
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
+    # 1. OlympiadQuestion jadvalidagi savollar (MainPlatform admin panelidan)
     q_res = await db.execute(
         select(OlympiadQuestion).where(OlympiadQuestion.olympiad_id == olympiad.id)
         .order_by(OlympiadQuestion.order)
     )
     questions = q_res.scalars().all()
+    result_questions = [_question_to_dict(q) for q in questions]
+
+    # 2. TestAI (SavedTest) dan published testlarning savollarini ham qo'shamiz
+    try:
+        st_res = await db.execute(
+            select(SavedTest).where(
+                SavedTest.source_platform == f"olympiad:{olympiad_id}",
+                SavedTest.status == SavedTestStatus.published.value
+            ).order_by(SavedTest.created_at)
+        )
+        saved_tests = st_res.scalars().all()
+        offset = len(result_questions)
+        for st in saved_tests:
+            qs = st.questions or []
+            for idx, q in enumerate(qs):
+                result_questions.append({
+                    "id": f"testai_{st.id}_{idx}",
+                    "olympiad_id": olympiad_id,
+                    "question_text": q.get("question") or q.get("question_text") or "",
+                    "options": q.get("options", []),
+                    "correct_answer": q.get("correct", q.get("correct_answer", 0)),
+                    "points": q.get("points", 5),
+                    "order_index": offset + idx,
+                })
+    except Exception as e:
+        logger.warning(f"SavedTest savollarini yuklashda xatolik: {e}")
 
     return {
         "success": True,
         "data": {
-            "questions": [_question_to_dict(q) for q in questions],
-            "total": len(questions)
+            "questions": result_questions,
+            "total": len(result_questions)
         }
     }
 
