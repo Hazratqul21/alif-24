@@ -119,6 +119,11 @@ const GameSelection = () => {
     }
   };
 
+  // Calculate main domain based on environment for the "Back to Home" link
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const mainDomain = isLocalhost ? 'http://localhost:5173' : 'https://alif24.uz';
+  const homeUrl = `${mainDomain}/dashboard`;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative overflow-hidden">
       {/* Animated background stars */}
@@ -145,7 +150,7 @@ const GameSelection = () => {
               <p className="text-xs text-white/50">games.alif24.uz</p>
             </div>
           </div>
-          <a href="https://alif24.uz" className="text-white/60 hover:text-white text-sm transition-colors">← Bosh sahifa</a>
+          <a href={homeUrl} className="text-white/60 hover:text-white text-sm transition-colors">← Bosh sahifa</a>
         </div>
       </div>
 
