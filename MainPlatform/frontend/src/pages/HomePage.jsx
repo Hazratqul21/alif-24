@@ -29,23 +29,23 @@ const HomePage = () => {
 
   const baseT = translations[language] || translations.uz;
   const t = { ...baseT, ...(dynamicDict[language] || {}) };
-  
+
   const defaultGames = [
-    { id: 1, title: t.game_read,         rating: 74, image: '/oqi.jpg',   category: 'alifbe',  type: 'lessons' },
-    { id: 2, title: t.game_homework,      rating: 67, image: '/matem.jpg', category: 'math',    type: 'lessons' },
-    { id: 3, title: t.game_uz_alphabet,   rating: 76, image: '/alifbe.jpg',  category: 'harflar', type: 'lessons' },
-    { id: 4, title: t.game_en_alphabet,   rating: 87, image: '/texno.jpg',   category: 'letters', type: 'lessons' },
-    { id: 5, title: t.game_ru_alphabet,   rating: 66, image: '/bukv.jpg',    category: 'harflar', type: 'lessons' },
-    { id: 6, title: t.game_memory_game,   rating: 74, image: '/xotira.jpg',  category: 'letters', type: 'games'   },
+    { id: 1, title: t.game_read, rating: 74, image: '/oqi.jpg', category: 'alifbe', type: 'lessons' },
+    { id: 2, title: t.game_homework, rating: 67, image: '/matem.jpg', category: 'math', type: 'lessons' },
+    { id: 3, title: t.game_uz_alphabet, rating: 76, image: '/alifbe.jpg', category: 'harflar', type: 'lessons' },
+    { id: 4, title: t.game_en_alphabet, rating: 87, image: '/texno.jpg', category: 'letters', type: 'lessons' },
+    { id: 5, title: t.game_ru_alphabet, rating: 66, image: '/bukv.jpg', category: 'harflar', type: 'lessons' },
+    { id: 6, title: t.game_memory_game, rating: 74, image: '/xotira.jpg', category: 'letters', type: 'games' },
   ];
-  
+
   const [gamesList, setGamesList] = useState(defaultGames);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     // Fetch dynamic content from Admin Panel
     apiService.getPublicContent().then(res => {
       if (res?.data) {
@@ -54,31 +54,31 @@ const HomePage = () => {
         if (typeof remoteData === 'string') {
           try { remoteData = JSON.parse(remoteData); } catch (e) { }
         }
-        
+
         // 1. Override translations dynamically
         if (remoteData?.translations) {
           setDynamicDict(remoteData.translations);
         }
-        
+
         // 2. Override games array dynamically
         if (remoteData?.games && Array.isArray(remoteData.games)) {
           setGamesList(remoteData.games);
         }
       }
     }).catch(console.error);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const categories = [
-    { id: 'harflar',     nameKey: 'letters',    icon: Camera },
-    { id: 'harflar',     nameKey: 'letters',    icon: Type },
-    { id: 'alifbe',      nameKey: 'alphabet',   icon: BookOpen },
-    { id: 'math',        nameKey: 'math',       icon: Calculator },
-    { id: 'texnika',     nameKey: 'technique',  icon: Car },
-    { id: 'informatika', nameKey: 'informatics',icon: Monitor },
-    { id: 'tabiat',      nameKey: 'nature',     icon: TreePine },
-    { id: 'boshqalar',   nameKey: 'others',     icon: Gem },
+    { id: 'harflar', nameKey: 'letters', icon: Camera },
+    { id: 'harflar', nameKey: 'letters', icon: Type },
+    { id: 'alifbe', nameKey: 'alphabet', icon: BookOpen },
+    { id: 'math', nameKey: 'math', icon: Calculator },
+    { id: 'texnika', nameKey: 'technique', icon: Car },
+    { id: 'informatika', nameKey: 'informatics', icon: Monitor },
+    { id: 'tabiat', nameKey: 'nature', icon: TreePine },
+    { id: 'boshqalar', nameKey: 'others', icon: Gem },
 
   ];
 
@@ -109,7 +109,7 @@ const HomePage = () => {
 
   const filteredItems = gamesList.filter(item => {
     const matchesMain = mainFilter === 'all' || item.type === mainFilter;
-    const matchesCat  = categoryFilter === 'all' || item.category === categoryFilter;
+    const matchesCat = categoryFilter === 'all' || item.category === categoryFilter;
     return matchesMain && matchesCat;
   });
 
@@ -129,9 +129,9 @@ const HomePage = () => {
     if (gid === '3') return redirectToPlatform('https://harf.alif24.uz');
     if (gid === '4') return redirectToPlatform('https://harf.alif24.uz', '/eharf');
     if (gid === '5') return redirectToPlatform('https://harf.alif24.uz', '/rharf');
-    if (gid === '6') return redirectToPlatform('https://ss.alif24.uz');
-    if (gid === '7') return redirectToPlatform('https://ss.alif24.uz');
-    redirectToPlatform(game.type === 'lessons' ? 'https://lessions.alif24.uz' : 'https://ss.alif24.uz');
+    if (gid === '6') return redirectToPlatform('https://games.alif24.uz');
+    if (gid === '7') return redirectToPlatform('https://games.alif24.uz');
+    redirectToPlatform(game.type === 'lessons' ? 'https://lessions.alif24.uz' : 'https://games.alif24.uz');
   };
 
   const handleCategoryClick = (id) => {
@@ -145,23 +145,23 @@ const HomePage = () => {
       {/* ── Animated stars ─────────────────────────────────────────────────────── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[
-          ['5%','10%','w-1 h-1','0s','2s'],['15%','25%','w-1.5 h-1.5','0.5s','3s'],
-          ['8%','45%','w-1 h-1','1s','2.5s'],['20%','60%','w-2 h-2','1.5s','3.5s'],
-          ['12%','75%','w-1 h-1','0.8s','2.8s'],['25%','90%','w-1.5 h-1.5','2s','3.2s'],
-          ['35%','5%','w-1 h-1','1.2s','2.3s'],['40%','18%','w-2 h-2','0.3s','3.8s'],
-          ['38%','35%','w-1 h-1','2.2s','2.6s'],['45%','52%','w-1.5 h-1.5','0.9s','3.4s'],
-          ['42%','68%','w-1 h-1','1.7s','2.9s'],['48%','82%','w-2 h-2','0.6s','3.1s'],
-          ['55%','12%','w-1.5 h-1.5','1.4s','2.7s'],['60%','28%','w-1 h-1','2.5s','3.3s'],
-          ['65%','55%','w-1 h-1','1.9s','3.6s'],['62%','72%','w-1.5 h-1.5','0.7s','2.2s'],
-          ['75%','8%','w-2 h-2','1.1s','2.5s'],['80%','22%','w-1 h-1','0.2s','3.9s'],
-          ['85%','50%','w-1 h-1','1.6s','3.2s'],['82%','65%','w-2 h-2','0.1s','2.6s'],
-        ].map(([top,left,sz,d,dur], i) => (
+          ['5%', '10%', 'w-1 h-1', '0s', '2s'], ['15%', '25%', 'w-1.5 h-1.5', '0.5s', '3s'],
+          ['8%', '45%', 'w-1 h-1', '1s', '2.5s'], ['20%', '60%', 'w-2 h-2', '1.5s', '3.5s'],
+          ['12%', '75%', 'w-1 h-1', '0.8s', '2.8s'], ['25%', '90%', 'w-1.5 h-1.5', '2s', '3.2s'],
+          ['35%', '5%', 'w-1 h-1', '1.2s', '2.3s'], ['40%', '18%', 'w-2 h-2', '0.3s', '3.8s'],
+          ['38%', '35%', 'w-1 h-1', '2.2s', '2.6s'], ['45%', '52%', 'w-1.5 h-1.5', '0.9s', '3.4s'],
+          ['42%', '68%', 'w-1 h-1', '1.7s', '2.9s'], ['48%', '82%', 'w-2 h-2', '0.6s', '3.1s'],
+          ['55%', '12%', 'w-1.5 h-1.5', '1.4s', '2.7s'], ['60%', '28%', 'w-1 h-1', '2.5s', '3.3s'],
+          ['65%', '55%', 'w-1 h-1', '1.9s', '3.6s'], ['62%', '72%', 'w-1.5 h-1.5', '0.7s', '2.2s'],
+          ['75%', '8%', 'w-2 h-2', '1.1s', '2.5s'], ['80%', '22%', 'w-1 h-1', '0.2s', '3.9s'],
+          ['85%', '50%', 'w-1 h-1', '1.6s', '3.2s'], ['82%', '65%', 'w-2 h-2', '0.1s', '2.6s'],
+        ].map(([top, left, sz, d, dur], i) => (
           <div key={i}
             className={`absolute ${sz} bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]`}
             style={{ top, left, animationDelay: d, animationDuration: dur }} />
         ))}
         {/* Comets */}
-        {[['0s','10%'],['5s','30%'],['10s','50%']].map(([d, top], i) => (
+        {[['0s', '10%'], ['5s', '30%'], ['10s', '50%']].map(([d, top], i) => (
           <div key={i}
             className="absolute w-1 h-1 bg-white rounded-full shadow-[0_0_10px_2px_rgba(255,255,255,0.8),0_0_20px_4px_rgba(100,200,255,0.6)]"
             style={{ animation: 'comet 6s linear infinite', animationDelay: d, top, left: '-50px' }} />
@@ -272,9 +272,9 @@ const HomePage = () => {
             </button>
 
             {[
-              { key: 'all',     icon: Home,     label: t.all },
+              { key: 'all', icon: Home, label: t.all },
               { key: 'lessons', icon: BookOpen, label: t.lessons },
-              { key: 'games',   icon: Gamepad2, label: t.games },
+              { key: 'games', icon: Gamepad2, label: t.games },
             ].map(({ key, icon: Icon, label }) => (
               <button
                 key={key}
