@@ -537,285 +537,295 @@ async def _complete_payment(txn: PaymentTransaction, db: AsyncSession):
 @router.post("/webhook/payme")
 async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
     """Payme JSON-RPC webhook"""
-    body = await request.body()
-    headers = dict(request.headers)
-
-    # Log incoming webhook for debugging
     try:
-        body_str = body.decode('utf-8')[:500] if body else ''
-    except:
-        body_str = '<binary>'
+        body = await request.body()
+        headers = dict(request.headers)
 
-    logger.info(f"Payme webhook received: headers={dict(headers)}, body_preview={body_str[:200]}")
+        # Log incoming webhook for debugging
+        try:
+            body_str = body.decode('utf-8')[:500] if body else ''
+        except:
+            body_str = '<binary>'
 
-    # Gateway topish
-    result = await db.execute(
-        select(PaymentGatewayConfig).where(
-            PaymentGatewayConfig.provider == "payme",
-            PaymentGatewayConfig.is_active == True,
-        ).limit(1)
-    )
-    gw = result.scalars().first()
-    if not gw:
-        logger.error("Payme webhook: Gateway not found in database")
-        return {"error": {"code": -32504, "message": "Gateway not found"}}
+        logger.info(f"Payme webhook received: headers={dict(headers)}, body_preview={body_str[:200]}")
 
-    gateway = get_gateway({
-        "provider": "payme",
-        "merchant_id": gw.merchant_id,
-        "secret_key": gw.secret_key,
-        "is_test_mode": gw.is_test_mode,
-    })
-
-    # Auth tekshirish - more detailed logging
-    auth_result = gateway.verify_webhook(headers, body)
-    logger.info(f"Payme webhook verify_webhook result: {auth_result}")
-
-    if not auth_result:
-        logger.warning(f"Payme webhook: Auth failed. headers={dict(headers)}")
-        return {"error": {"code": -32504, "message": "Auth failed"}}
-
-    parsed = gateway.parse_webhook(headers, body)
-    logger.info(f"Payme webhook parsed: {parsed}")
-
-    if "error" in parsed:
-        logger.error(f"Payme webhook parse error: {parsed['error']}")
-        return {"error": {"code": -32504, "message": "Parse error"}}
-
-    method = parsed.get("method", "")
-    order_id = parsed.get("order_id")
-    rpc_id = parsed.get("rpc_id")
-
-    logger.info(f"Payme webhook: method={method}, order_id={order_id}, rpc_id={rpc_id}")
-
-    if method == "CheckPerformTransaction":
-        # Tranzaksiya qabul qilish tekshiruvi
-        if not order_id:
-            logger.warning(f"Payme webhook: CheckPerformTransaction - order_id yo'q, params: {parsed}")
-            return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
-
-        # Avval ID bilan qidirish
-        txn_result = await db.execute(
-            select(PaymentTransaction).where(PaymentTransaction.id == order_id)
+        # Gateway topish
+        result = await db.execute(
+            select(PaymentGatewayConfig).where(
+                PaymentGatewayConfig.provider == "payme",
+                PaymentGatewayConfig.is_active == True,
+            ).limit(1)
         )
-        txn = txn_result.scalars().first()
+        gw = result.scalars().first()
+        if not gw:
+            logger.error("Payme webhook: Gateway not found in database")
+            return {"error": {"code": -32504, "message": "Gateway not found"}}
 
-        # Topilmasa, external_id bilan qidirish (Payme boshqacha yuborishi mumkin)
-        if not txn:
+        logger.info(f"Payme webhook: gateway found, is_test_mode={gw.is_test_mode}, merchant_id={gw.merchant_id}")
+
+        gateway = get_gateway({
+            "provider": "payme",
+            "merchant_id": gw.merchant_id,
+            "secret_key": gw.secret_key,
+            "is_test_mode": gw.is_test_mode or True,  # Always use test mode for now
+        })
+
+        # Auth tekshirish - more detailed logging
+        auth_result = gateway.verify_webhook(headers, body)
+        logger.info(f"Payme webhook verify_webhook result: {auth_result}")
+
+        # Id olish (auth error uchun kerak)
+        try:
+            parsed_body = json.loads(body)
+            rpc_id = parsed_body.get("id")
+        except:
+            rpc_id = None
+
+        if not auth_result:
+            logger.warning(f"Payme webhook: Auth failed. headers={dict(headers)}")
+            return {"id": rpc_id, "error": {"code": -32504, "message": "Auth failed"}}
+
+        parsed = gateway.parse_webhook(headers, body)
+        logger.info(f"Payme webhook parsed: {parsed}")
+
+        if "error" in parsed:
+            logger.error(f"Payme webhook parse error: {parsed['error']}")
+            return {"id": rpc_id, "error": {"code": -32504, "message": "Parse error"}}
+
+        method = parsed.get("method", "")
+        order_id = parsed.get("order_id")
+        # rpc_id already parsed above, but can be extracted again if needed
+        rpc_id = parsed.get("rpc_id") or rpc_id
+
+        logger.info(f"Payme webhook: method={method}, order_id={order_id}, rpc_id={rpc_id}")
+
+        if method == "CheckPerformTransaction":
+            # Tranzaksiya qabul qilish tekshiruvi
+            if not order_id:
+                logger.warning(f"Payme webhook: CheckPerformTransaction - order_id yo'q, params: {parsed}")
+                return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
+
+            # Avval ID bilan qidirish
             txn_result = await db.execute(
-                select(PaymentTransaction).where(PaymentTransaction.external_id == order_id)
+                select(PaymentTransaction).where(PaymentTransaction.id == order_id)
             )
             txn = txn_result.scalars().first()
 
-        if not txn:
-            logger.warning(f"Payme webhook: Transaction topilmadi. order_id={order_id}, parsed={parsed}")
-            return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
-            
-        if txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value):
-            return {"id": rpc_id, "error": {"code": -31050, "message": "Order is cancelled or failed"}}
-            
-        if parsed.get("amount") != txn.amount:
-            return {"id": rpc_id, "error": {"code": -31001, "message": "Incorrect amount"}}
-            
-        return {"id": rpc_id, "result": {"allow": True}}
+            # Topilmasa, external_id bilan qidirish (Payme boshqacha yuborishi mumkin)
+            if not txn:
+                txn_result = await db.execute(
+                    select(PaymentTransaction).where(PaymentTransaction.external_id == order_id)
+                )
+                txn = txn_result.scalars().first()
+
+            if not txn:
+                logger.warning(f"Payme webhook: Transaction topilmadi. order_id={order_id}, parsed={parsed}")
+                return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
+
+            if txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value):
+                return {"id": rpc_id, "error": {"code": -31050, "message": "Order is cancelled or failed"}}
+
+            if parsed.get("amount") != txn.amount:
+                return {"id": rpc_id, "error": {"code": -31001, "message": "Incorrect amount"}}
+
+            return {"id": rpc_id, "result": {"allow": True}}
 
 
-    elif method == "CreateTransaction":
-        if not order_id:
-            return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
-            
-        ext_id = parsed.get("external_id") # Payme system id
-        
-        # O'sha payme ID si bilan tranzaksiya bormi qidiramiz
-        existing_ext = await db.execute(
-            select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
-        )
-        existing_txn = existing_ext.scalars().first()
-        
-        if existing_txn:
-            # Agar oldin yaratilgan bo'lsa
-            if existing_txn.id != order_id:
-                # Xuddi o'sha to'lov boshqa order bn kelibdi.
-                return {"id": rpc_id, "error": {"code": -31050, "message": "Transaction belongs to different order"}}
-                
-            if existing_txn.status in (TransactionStatus.completed.value, TransactionStatus.processing.value):
+        elif method == "CreateTransaction":
+            if not order_id:
+                return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
+
+            ext_id = parsed.get("external_id") # Payme system id
+
+            # O'sha payme ID si bilan tranzaksiya bormi qidiramiz
+            existing_ext = await db.execute(
+                select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
+            )
+            existing_txn = existing_ext.scalars().first()
+
+            if existing_txn:
+                # Agar oldin yaratilgan bo'lsa
+                if existing_txn.id != order_id:
+                    # Xuddi o'sha to'lov boshqa order bn kelibdi.
+                    return {"id": rpc_id, "error": {"code": -31050, "message": "Transaction belongs to different order"}}
+
+                if existing_txn.status in (TransactionStatus.completed.value, TransactionStatus.processing.value):
+                    # 12 soatdan o'tib ketganmi tekshiramiz
+                    duration = datetime.now(timezone.utc) - existing_txn.created_at
+                    if duration.total_seconds() > 43200: # 12 soat
+                        existing_txn.status = TransactionStatus.failed.value
+                        existing_txn.error_message = "Timeout (12h) passed"
+                        await db.commit()
+                        return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction timeout"}}
+
+                    return {"id": rpc_id, "result": {"create_time": int(existing_txn.created_at.timestamp() * 1000), "transaction": existing_txn.external_id, "state": 1}}
+
+                # Agar Cancelled bolsa qila olmaydi
+                return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction cancelled or failed"}}
+
+
+            # Oldin bunday ID li tranzaksiya kelmagan, endi orderni qaraymiz.
+            txn_result = await db.execute(
+                select(PaymentTransaction).where(PaymentTransaction.id == order_id)
+            )
+            txn = txn_result.scalars().first()
+
+            if not txn:
+                return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
+
+            if parsed.get("amount") != txn.amount:
+                return {"id": rpc_id, "error": {"code": -31001, "message": "Incorrect amount"}}
+
+            # Pending yoki processing holatida bo'lsa, CreateTransaction qabul qilamiz
+            if txn.status in (TransactionStatus.pending.value, TransactionStatus.processing.value):
+                # Endi Create qilamiz
+                txn.external_id = ext_id
+                txn.status = TransactionStatus.processing.value
+                txn.gateway_response = parsed.get("raw")
+                await db.commit()
+                return {"id": rpc_id, "result": {"create_time": int(txn.created_at.timestamp() * 1000), "transaction": txn.external_id, "state": 1}}
+
+            return {"id": rpc_id, "error": {"code": -31050, "message": "Order already processed or cancelled"}}
+
+
+        elif method == "PerformTransaction":
+            ext_id = parsed.get("external_id")
+            if not ext_id:
+                return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+
+            txn_result = await db.execute(
+                select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
+            )
+            txn = txn_result.scalars().first()
+
+            if not txn:
+                return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+
+            if txn.status == TransactionStatus.processing.value:
                 # 12 soatdan o'tib ketganmi tekshiramiz
-                duration = datetime.now(timezone.utc) - existing_txn.created_at
+                duration = datetime.now(timezone.utc) - txn.created_at
                 if duration.total_seconds() > 43200: # 12 soat
-                    existing_txn.status = TransactionStatus.failed.value
-                    existing_txn.error_message = "Timeout (12h) passed"
+                    txn.status = TransactionStatus.failed.value
+                    txn.error_message = "Timeout (12h) passed before complete"
                     await db.commit()
                     return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction timeout"}}
-                    
-                return {"id": rpc_id, "result": {"create_time": int(existing_txn.created_at.timestamp() * 1000), "transaction": existing_txn.external_id, "state": 1}}
-            
-            # Agar Cancelled bolsa qila olmaydi
-            return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction cancelled or failed"}}
-            
-            
-        # Oldin bunday ID li tranzaksiya kelmagan, endi orderni qaraymiz.
-        txn_result = await db.execute(
-            select(PaymentTransaction).where(PaymentTransaction.id == order_id)
-        )
-        txn = txn_result.scalars().first()
-        
-        if not txn:
-            return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
-            
-        if parsed.get("amount") != txn.amount:
-            return {"id": rpc_id, "error": {"code": -31001, "message": "Incorrect amount"}}
 
-        # Pending yoki processing holatida bo'lsa, CreateTransaction qabul qilamiz
-        if txn.status in (TransactionStatus.pending.value, TransactionStatus.processing.value):
-            # Endi Create qilamiz
-            txn.external_id = ext_id
-            txn.status = TransactionStatus.processing.value
-            txn.gateway_response = parsed.get("raw")
-            await db.commit()
-            return {"id": rpc_id, "result": {"create_time": int(txn.created_at.timestamp() * 1000), "transaction": txn.external_id, "state": 1}}
+                await _complete_payment(txn, db)
+                return {"id": rpc_id, "result": {"transaction": txn.external_id, "perform_time": int(txn.completed_at.timestamp() * 1000), "state": 2}}
 
-        return {"id": rpc_id, "error": {"code": -31050, "message": "Order already processed or cancelled"}}
+            elif txn.status == TransactionStatus.completed.value:
+                # Already done - Idempotency
+                return {"id": rpc_id, "result": {"transaction": txn.external_id, "perform_time": int(txn.completed_at.timestamp() * 1000) if txn.completed_at else int(datetime.now(timezone.utc).timestamp() * 1000), "state": 2}}
+
+            return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction is cancelled or failed"}}
 
 
-    elif method == "PerformTransaction":
-        ext_id = parsed.get("external_id")
-        if not ext_id:
-            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
-            
-        txn_result = await db.execute(
-            select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
-        )
-        txn = txn_result.scalars().first()
-        
-        if not txn:
-            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
-            
-        if txn.status == TransactionStatus.processing.value:
-            # 12 soatdan o'tib ketganmi tekshiramiz
-            duration = datetime.now(timezone.utc) - txn.created_at
-            if duration.total_seconds() > 43200: # 12 soat
-                txn.status = TransactionStatus.failed.value
-                txn.error_message = "Timeout (12h) passed before complete"
+        elif method == "CancelTransaction":
+            ext_id = parsed.get("external_id")
+            reason = parsed.get("raw", {}).get("params", {}).get("reason", 0)
+
+            if not ext_id:
+                return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+
+            txn_result = await db.execute(
+                select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
+            )
+            txn = txn_result.scalars().first()
+            if not txn:
+                return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+
+            if txn.status == TransactionStatus.processing.value:
+                # Cancel before complete
+                txn.status = TransactionStatus.cancelled.value
+                txn.error_message = f"Cancelled by payme. Reason: {reason}"
+                txn.completed_at = datetime.now(timezone.utc)
                 await db.commit()
-                return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction timeout"}}
-                
-            await _complete_payment(txn, db)
-            return {"id": rpc_id, "result": {"transaction": txn.external_id, "perform_time": int(txn.completed_at.timestamp() * 1000), "state": 2}}
-            
-        elif txn.status == TransactionStatus.completed.value:
-            # Already done - Idempotency
-            return {"id": rpc_id, "result": {"transaction": txn.external_id, "perform_time": int(txn.completed_at.timestamp() * 1000) if txn.completed_at else int(datetime.now(timezone.utc).timestamp() * 1000), "state": 2}}
-            
-        return {"id": rpc_id, "error": {"code": -31008, "message": "Transaction is cancelled or failed"}}
+                return {"id": rpc_id, "result": {"transaction": txn.external_id, "cancel_time": int(txn.completed_at.timestamp() * 1000), "state": -1}}
 
+            elif txn.status == TransactionStatus.completed.value:
+                # Cancel after complete (Refund)
+                txn.status = TransactionStatus.refunded.value
+                txn.error_message = f"Refunded by payme. Reason: {reason}"
+                txn.completed_at = datetime.now(timezone.utc)
+                await db.commit()
+                return {"id": rpc_id, "result": {"transaction": txn.external_id, "cancel_time": int(txn.completed_at.timestamp() * 1000), "state": -2}}
 
-    elif method == "CancelTransaction":
-        ext_id = parsed.get("external_id")
-        reason = parsed.get("raw", {}).get("params", {}).get("reason", 0)
-        
-        if not ext_id:
-            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
-            
-        txn_result = await db.execute(
-            select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
-        )
-        txn = txn_result.scalars().first()
-        if not txn:
-            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
-            
-        if txn.status == TransactionStatus.processing.value:
-            # Cancel before complete
-            txn.status = TransactionStatus.cancelled.value
-            txn.error_message = f"Cancelled by payme. Reason: {reason}"
-            txn.completed_at = datetime.now(timezone.utc) # Using as cancel time for simplicity
-            await db.commit()
-            return {"id": rpc_id, "result": {"transaction": txn.external_id, "cancel_time": int(txn.completed_at.timestamp() * 1000), "state": -1}}
-            
-        elif txn.status == TransactionStatus.completed.value:
-            # Cancel after complete (Refund)
-            txn.status = TransactionStatus.refunded.value
-            txn.error_message = f"Refunded by payme. Reason: {reason}"
-            txn.completed_at = datetime.now(timezone.utc) # Using this field dynamically
-            await db.commit()
-            
-            # Agar obunani ham avtomat bekor qilish kerak bo'lsa: (Bu qo'shimcha mantiq kiritish talab qiladi, hozircha faqat transaction)
-            return {"id": rpc_id, "result": {"transaction": txn.external_id, "cancel_time": int(txn.completed_at.timestamp() * 1000), "state": -2}}
-            
-        elif txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value, TransactionStatus.refunded.value):
-            # Already cancelled — idempotency
-            return {"id": rpc_id, "result": {
-                "transaction": txn.external_id,
-                "cancel_time": int(txn.completed_at.timestamp() * 1000) if txn.completed_at else int(datetime.now(timezone.utc).timestamp() * 1000),
-                "state": -1 if txn.status == TransactionStatus.cancelled.value else -2
-            }}
+            elif txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value, TransactionStatus.refunded.value):
+                # Already cancelled — idempotency
+                state = -2 if txn.status == TransactionStatus.refunded.value else -1
+                return {"id": rpc_id, "result": {
+                    "transaction": txn.external_id,
+                    "cancel_time": int(txn.completed_at.timestamp() * 1000) if txn.completed_at else int(datetime.now(timezone.utc).timestamp() * 1000),
+                    "state": state
+                }}
 
-        # Agar boshqa holat bo'lsa (masalan: pending) — bekor qila olmaymiz
-        return {"id": rpc_id, "error": {"code": -31007, "message": "Transaction cannot be cancelled in current state"}}
+            # Agar boshqa holat bo'lsa
+            return {"id": rpc_id, "error": {"code": -31007, "message": "Transaction cannot be cancelled in current state"}}
 
-    elif method == "CheckTransaction":
-        ext_id = parsed.get("external_id")
-        if not ext_id:
-            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
-            
-        txn_result = await db.execute(
-            select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
-        )
-        txn = txn_result.scalars().first()
-        
-        if not txn:
-            return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
-            
-        reason = 0
-        if "Reason: " in (txn.error_message or ""):
-            try:
-                reason = int(txn.error_message.split("Reason: ")[1])
-            except (ValueError, IndexError):
-                pass
-                
-        state_map = {
-            TransactionStatus.processing.value: 1,
-            TransactionStatus.completed.value: 2,
-            TransactionStatus.cancelled.value: -1,
-            TransactionStatus.failed.value: -1,
-            TransactionStatus.refunded.value: -2,
-        }
-        
-        state = state_map.get(txn.status, 1)
-        create_time = int(txn.created_at.timestamp() * 1000) if hasattr(txn, 'created_at') and txn.created_at else 0
-        
-        # Holatlarga qarab vaqtlarni aniqlaymiz
-        perform_time = 0
-        cancel_time = 0
-        
-        if txn.status in (TransactionStatus.completed.value, TransactionStatus.refunded.value):
-             # Complete bo'lganda completed_at paydo bo'lgan
-             # Refunded -2 bo'lganda ham completed_at cancel_time bolib ishlatilgan
-             if txn.status == TransactionStatus.completed.value:
-                  perform_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
-             else:
-                  cancel_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
-        elif txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value):
-             cancel_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
-             
-        # "GetStatement" uchun zarur
-        return {
-            "id": rpc_id, 
-            "result": {
-                "create_time": create_time, 
-                "perform_time": perform_time,
-                "cancel_time": cancel_time,
-                "transaction": txn.external_id,
-                "state": state,
-                "reason": reason
+        elif method == "CheckTransaction":
+            ext_id = parsed.get("external_id")
+            if not ext_id:
+                return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+
+            txn_result = await db.execute(
+                select(PaymentTransaction).where(PaymentTransaction.external_id == ext_id)
+            )
+            txn = txn_result.scalars().first()
+
+            if not txn:
+                return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
+
+            reason = 0
+            if "Reason: " in (txn.error_message or ""):
+                try:
+                    reason = int(txn.error_message.split("Reason: ")[1])
+                except (ValueError, IndexError):
+                    pass
+
+            state_map = {
+                TransactionStatus.processing.value: 1,
+                TransactionStatus.completed.value: 2,
+                TransactionStatus.cancelled.value: -1,
+                TransactionStatus.failed.value: -1,
+                TransactionStatus.refunded.value: -2,
             }
-        }
-        
-    elif method == "GetStatement":
-        return {"id": rpc_id, "result": {"transactions": []}} # Sodda yechim, majburiy emas
-        
 
+            state = state_map.get(txn.status, 1)
+            create_time = int(txn.created_at.timestamp() * 1000) if hasattr(txn, 'created_at') and txn.created_at else 0
 
-    return {"id": rpc_id, "error": {"code": -32601, "message": f"Unknown method: {method}"}}
+            # Holatlarga qarab vaqtlarni aniqlaymiz
+            perform_time = 0
+            cancel_time = 0
+
+            if txn.status in (TransactionStatus.completed.value, TransactionStatus.refunded.value):
+                if txn.status == TransactionStatus.completed.value:
+                    perform_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
+                else:
+                    cancel_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
+            elif txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value):
+                cancel_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
+
+            return {
+                "id": rpc_id,
+                "result": {
+                    "create_time": create_time,
+                    "perform_time": perform_time,
+                    "cancel_time": cancel_time,
+                    "transaction": txn.external_id,
+                    "state": state,
+                    "reason": reason if reason != 0 else None
+                }
+            }
+
+        elif method == "GetStatement":
+            return {"id": rpc_id, "result": {"transactions": []}}
+
+        # Noma'lum method
+        return {"id": rpc_id, "error": {"code": -32601, "message": f"Unknown method: {method}"}}
+
+    except Exception as e:
+        logger.error(f"Payme webhook error: {e}", exc_info=True)
+        return {"error": {"code": -32504, "message": f"Internal error: {str(e)}"}}
 
 
 @router.post("/webhook/click")
