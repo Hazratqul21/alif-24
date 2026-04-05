@@ -87,17 +87,33 @@ const GameSelection = () => {
   const loadGames = async () => {
     try {
       setLoading(true);
-      const data = await gameService.getGames();
-      setGamesList(data.data?.games || data.games || data.data || []);
+      
+      // Standart o'yinlar (fallback va bizning qo'shganlarimiz)
+      const defaultGames = [
+        { id: 1, title: "Matematika", icon: "🤖", image: "/math.jpg", path: "/math-monster", bg_color: "from-green-500 to-emerald-600", shadow_color: "rgba(16,185,129,0.4)" },
+        { id: 2, title: "Xotira o'yini", icon: "🧠", image: "/xotr.jpg", path: "/memory", bg_color: "from-pink-500 to-rose-600", shadow_color: "rgba(244,63,94,0.4)" },
+        { id: 3, title: "Matematik gugurt", icon: "🔥", image: "/spichki.jpg", path: "/math-stich", bg_color: "from-amber-500 to-orange-600", shadow_color: "rgba(245,158,11,0.4)" },
+        { id: 4, title: "Qiziqarli sonlar", icon: "🍎", image: "/mantiqmath.jpg", path: "/meva-math", bg_color: "from-indigo-500 to-purple-600", shadow_color: "rgba(99,102,241,0.4)" },
+      ];
+
+      try {
+        const data = await gameService.getGames();
+        const apiGames = data.data?.games || data.games || data.data || [];
+        
+        // Agar backenddan o'yinlar kelsa, ularni defaultGames bilan birlashtiramiz (id bo'yicha)
+        const merged = [...apiGames];
+        defaultGames.forEach(dg => {
+          if (!merged.find(mg => mg.id === dg.id)) {
+            merged.push(dg);
+          }
+        });
+        setGamesList(merged.length > 0 ? merged : defaultGames);
+      } catch (apiErr) {
+        console.warn("Backend API not reachable, using default games:", apiErr);
+        setGamesList(defaultGames);
+      }
     } catch (err) {
-      console.error("Error loading games:", err);
-      // Fallback state if backend is empty/offline
-      setGamesList([
-        { id: 1, title: "Matematika", image: "/math.jpg", path: "/math-monster", bg_color: "from-green-500 to-emerald-600", shadow_color: "rgba(16,185,129,0.4)" },
-        { id: 2, title: "Xotira o'yini", image: "/xotr.jpg", path: "/memory", bg_color: "from-pink-500 to-rose-600", shadow_color: "rgba(244,63,94,0.4)" },
-        { id: 3, title: "Matematik gugurt", image: "/spichki.jpg", path: "/math-stich", bg_color: "from-amber-500 to-orange-600", shadow_color: "rgba(245,158,11,0.4)" },
-        { id: 4, title: "Qiziqarli sonlar", image: "/mantiqmath.jpg", path: "/meva-math", bg_color: "from-indigo-500 to-purple-600", shadow_color: "rgba(99,102,241,0.4)" },
-      ]);
+      console.error("General error loading games:", err);
     } finally {
       setLoading(false);
     }
