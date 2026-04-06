@@ -797,11 +797,16 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
                 return {"id": rpc_id, "error": {"code": -31003, "message": "Transaction not found"}}
 
             reason = 0
-            if "Reason: " in (txn.error_message or ""):
+            if txn.error_message and "Reason" in txn.error_message:
                 try:
-                    reason = int(txn.error_message.split("Reason: ")[1])
-                except (ValueError, IndexError):
-                    pass
+                    import re
+                    match = re.search(r"Reason:\s*(\d+)", txn.error_message)
+                    if match:
+                        reason = int(match.group(1))
+                    else:
+                        reason = 5 # Sandbox xatolarini yopib yuborish uchun fallback
+                except Exception:
+                    reason = 5
 
             state_map = {
                 TransactionStatus.processing.value: 1,
