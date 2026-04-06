@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CreditCard, Plus, Settings, Trash2, Edit2, Eye, EyeOff, CheckCircle, XCircle, AlertTriangle, TrendingUp, RefreshCw, Shield } from 'lucide-react';
+import { CreditCard, Plus, Settings, Trash2, Edit2, Eye, EyeOff, CheckCircle, XCircle, AlertTriangle, TrendingUp, RefreshCw, Shield, FlaskConical, Copy, Check } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 const PROVIDERS = [
@@ -18,6 +18,12 @@ export default function AdminPayments() {
     const [showForm, setShowForm] = useState(false);
     const [editGw, setEditGw] = useState(null);
     const [form, setForm] = useState({ provider: 'payme', name: '', description: '', merchant_id: '', secret_key: '', service_id: '', is_active: true, is_test_mode: true, is_default: false, sort_order: 0 });
+
+    // Sandbox test
+    const [sandboxAmount, setSandboxAmount] = useState(15000);
+    const [sandboxLoading, setSandboxLoading] = useState(false);
+    const [sandboxResult, setSandboxResult] = useState(null);
+    const [copied, setCopied] = useState(null);
 
     useEffect(() => { loadAll(); }, []);
 
@@ -77,6 +83,24 @@ export default function AdminPayments() {
         if (!confirm(`"${gw.name}" gateway'ni o'chirishni xohlaysizmi?`)) return;
         try { await adminService.deletePaymentGateway(gw.id); loadAll(); }
         catch (e) { alert('Xatolik'); }
+    };
+
+    const handleSandboxCreate = async () => {
+        setSandboxLoading(true);
+        setSandboxResult(null);
+        try {
+            const res = await adminService.createSandboxOrder({ amount: sandboxAmount });
+            setSandboxResult(res?.data || res);
+        } catch (e) {
+            setSandboxResult({ error: e?.response?.data?.detail || e.message });
+        }
+        setSandboxLoading(false);
+    };
+
+    const handleCopy = (text, key) => {
+        navigator.clipboard.writeText(text);
+        setCopied(key);
+        setTimeout(() => setCopied(null), 2000);
     };
 
     const handleToggle = async (gw, field) => {
@@ -154,6 +178,76 @@ export default function AdminPayments() {
                             </div>
                         );
                     })}
+
+                    {/* Sandbox Test Card */}
+                    <div className="bg-gray-900 border border-amber-500/20 rounded-2xl p-5 mt-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                                <FlaskConical size={20} className="text-amber-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-white font-bold">Payme Sandbox Test</h3>
+                                <p className="text-gray-500 text-xs">test.paycom.uz uchun test order yaratish</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-end gap-3 mb-4">
+                            <div className="flex-1">
+                                <label className="text-gray-400 text-xs block mb-1">Summa (UZS)</label>
+                                <input
+                                    type="number"
+                                    value={sandboxAmount}
+                                    onChange={e => setSandboxAmount(Number(e.target.value) || 0)}
+                                    className="w-full bg-gray-800 text-white rounded-xl px-4 py-2.5 border border-gray-700 text-sm"
+                                />
+                            </div>
+                            <button
+                                onClick={handleSandboxCreate}
+                                disabled={sandboxLoading || !sandboxAmount}
+                                className="bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-amber-700 disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                            >
+                                {sandboxLoading ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <FlaskConical size={14} />
+                                )}
+                                Yangi Test Order
+                            </button>
+                        </div>
+
+                        {sandboxResult && !sandboxResult.error && (
+                            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                                <p className="text-emerald-400 font-bold text-sm mb-3">Test order tayyor!</p>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between bg-gray-800/50 rounded-lg px-3 py-2">
+                                        <div>
+                                            <span className="text-gray-400 text-xs">ID zaказа</span>
+                                            <p className="text-white font-mono font-bold">{sandboxResult.order_id}</p>
+                                        </div>
+                                        <button onClick={() => handleCopy(sandboxResult.order_id, 'id')} className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-gray-700">
+                                            {copied === 'id' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-between bg-gray-800/50 rounded-lg px-3 py-2">
+                                        <div>
+                                            <span className="text-gray-400 text-xs">Сумма оплаты (tiyin)</span>
+                                            <p className="text-white font-mono font-bold">{sandboxResult.amount_tiyin?.toLocaleString()}</p>
+                                        </div>
+                                        <button onClick={() => handleCopy(String(sandboxResult.amount_tiyin), 'tiyin')} className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-gray-700">
+                                            {copied === 'tiyin' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <p className="text-gray-500 text-xs mt-3">Shu ma'lumotlarni test.paycom.uz sandbox paneliga kiriting</p>
+                            </div>
+                        )}
+
+                        {sandboxResult?.error && (
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                                <p className="text-red-400 text-sm font-medium">{sandboxResult.error}</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 

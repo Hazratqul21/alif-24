@@ -190,6 +190,7 @@ const adminService = {
     deletePaymentGateway: (id) => axios.delete(`${API_URL}/payments/admin/gateways/${id}`, { headers: getAdminHeaders() }),
     getPaymentTransactions: (params) => axios.get(`${API_URL}/payments/admin/transactions`, { params, headers: getAdminHeaders() }),
     getPaymentStats: () => axios.get(`${API_URL}/payments/admin/payments-stats`, { headers: getAdminHeaders() }),
+    createSandboxOrder: (data) => axios.post(`${API_URL}/payments/admin/gateways/sandbox-order`, data, { headers: getAdminHeaders() }),
 };
 
 export default adminService;
