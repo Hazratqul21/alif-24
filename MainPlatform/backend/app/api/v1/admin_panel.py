@@ -1014,7 +1014,7 @@ async def update_table_row(
         set_parts = []
         params = {"row_id": row_id}
         for key, value in data.items():
-            if key in ("id", "created_at"):  # Don't allow changing these
+            if key in ("id", "created_at", "updated_at"):  # Don't allow changing these
                 continue
             if key not in col_types:
                 continue
@@ -1034,12 +1034,19 @@ async def update_table_row(
             # Parse ISO datetime strings for timestamp/date columns
             if col_type in ("timestamp without time zone", "timestamp with time zone", "date") and isinstance(value, str) and value:
                 try:
-                    # NOTE: fromisoformat can parse most ISO formats
-                    # e.g. "2026-03-17T12:00" or "2026-03-17T12:00:00"
                     from datetime import datetime
                     value = datetime.fromisoformat(value)
                 except Exception:
                     pass  # let DB handle invalid format errors
+
+            # Handle JSON/JSONB columns — accept both string and dict/list
+            if col_type in ("json", "jsonb"):
+                if isinstance(value, str):
+                    try:
+                        import json as _json
+                        value = _json.loads(value)
+                    except (ValueError, TypeError):
+                        pass  # keep as-is, DB will reject if invalid
 
             safe_key = key.replace('"', '')  # prevent SQL injection in key
             set_parts.append(f'"{safe_key}" = :val_{safe_key}')

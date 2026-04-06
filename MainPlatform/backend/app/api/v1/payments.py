@@ -755,18 +755,28 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
 
             elif txn.status == TransactionStatus.completed.value:
                 # Cancel after complete (Refund)
+                # completed_at = asl to'lov vaqti (perform_time uchun kerak), o'zgartirmaymiz
+                cancel_time_now = datetime.now(timezone.utc)
                 txn.status = TransactionStatus.refunded.value
-                txn.error_message = f"Refunded by payme. Reason: {reason}"
-                txn.completed_at = datetime.now(timezone.utc)
+                txn.error_message = f"Refunded by payme. Reason: {reason}. Cancel_at: {cancel_time_now.isoformat()}"
                 await db.commit()
-                return {"id": rpc_id, "result": {"transaction": txn.external_id, "cancel_time": int(txn.completed_at.timestamp() * 1000), "state": -2}}
+                return {"id": rpc_id, "result": {"transaction": txn.external_id, "cancel_time": int(cancel_time_now.timestamp() * 1000), "state": -2}}
 
             elif txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value, TransactionStatus.refunded.value):
                 # Already cancelled — idempotency
                 state = -2 if txn.status == TransactionStatus.refunded.value else -1
+                # Refund uchun cancel_time ni error_message dan olamiz
+                if txn.status == TransactionStatus.refunded.value and txn.error_message and "Cancel_at: " in txn.error_message:
+                    try:
+                        cancel_iso = txn.error_message.split("Cancel_at: ")[1]
+                        c_time = int(datetime.fromisoformat(cancel_iso).timestamp() * 1000)
+                    except (ValueError, IndexError):
+                        c_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else int(datetime.now(timezone.utc).timestamp() * 1000)
+                else:
+                    c_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else int(datetime.now(timezone.utc).timestamp() * 1000)
                 return {"id": rpc_id, "result": {
                     "transaction": txn.external_id,
-                    "cancel_time": int(txn.completed_at.timestamp() * 1000) if txn.completed_at else int(datetime.now(timezone.utc).timestamp() * 1000),
+                    "cancel_time": c_time,
                     "state": state
                 }}
 
@@ -808,11 +818,20 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
             perform_time = 0
             cancel_time = 0
 
-            if txn.status in (TransactionStatus.completed.value, TransactionStatus.refunded.value):
-                if txn.status == TransactionStatus.completed.value:
-                    perform_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
+            if txn.status == TransactionStatus.completed.value:
+                perform_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
+            elif txn.status == TransactionStatus.refunded.value:
+                # Refund: completed_at = asl to'lov vaqti (perform_time)
+                perform_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else create_time
+                # cancel_time ni error_message dan olamiz
+                if txn.error_message and "Cancel_at: " in txn.error_message:
+                    try:
+                        cancel_iso = txn.error_message.split("Cancel_at: ")[1]
+                        cancel_time = int(datetime.fromisoformat(cancel_iso).timestamp() * 1000)
+                    except (ValueError, IndexError):
+                        cancel_time = perform_time + 1000
                 else:
-                    cancel_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
+                    cancel_time = perform_time + 1000
             elif txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value):
                 cancel_time = int(txn.completed_at.timestamp() * 1000) if txn.completed_at else 0
 
@@ -1255,7 +1274,17 @@ async def admin_create_sandbox_order(
     if not user:
         raise HTTPException(status_code=400, detail="Bazada birorta ham foydalanuvchi yo'q")
 
-    # 2. Yangi test tranzaksiya yaratamiz (ID avtomatik generatsiya bo'ladi)
+    # 2. Eski sandbox orderlarni tozalaymiz
+    old_result = await db.execute(
+        select(PaymentTransaction).where(
+            PaymentTransaction.description == "Sandbox testi uchun maxsus to'lov"
+        )
+    )
+    for old_txn in old_result.scalars().all():
+        await db.delete(old_txn)
+    await db.commit()
+
+    # 3. Yangi test tranzaksiya yaratamiz (ID avtomatik generatsiya bo'ladi)
     txn = PaymentTransaction(
         user_id=user.id,
         provider=data.provider,
