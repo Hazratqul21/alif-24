@@ -526,7 +526,7 @@ const StudentDashboard = () => {
                             {mySub?.has_subscription ? (
                                 <span className="bg-emerald-400/30 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => setShowSubModal(true)}>✅ {mySub.subscription?.plan_name || 'Obuna'}</span>
                             ) : (
-                                <span className="bg-yellow-400/30 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => {
+                                <span className="bg-yellow-400/30 px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => {
                                     setShowSubModal(true);
                                     if (subPlans.length === 0) {
                                         setSubLoading(true);
