@@ -1235,7 +1235,6 @@ async def admin_payment_stats(
 # ============================================================================
 
 class SandboxOrderRequest(BaseModel):
-    order_id: str = "11223344"
     amount: int = 15000
     provider: str = "payme"
 
@@ -1256,18 +1255,8 @@ async def admin_create_sandbox_order(
     if not user:
         raise HTTPException(status_code=400, detail="Bazada birorta ham foydalanuvchi yo'q")
 
-    # 2. Eski order ni o'chiramiz (agar bor bo'lsa)
-    old_result = await db.execute(
-        select(PaymentTransaction).where(PaymentTransaction.id == data.order_id)
-    )
-    old_txn = old_result.scalars().first()
-    if old_txn:
-        await db.delete(old_txn)
-        await db.commit()
-
-    # 3. Yangi test tranzaksiya yaratamiz
+    # 2. Yangi test tranzaksiya yaratamiz (ID avtomatik generatsiya bo'ladi)
     txn = PaymentTransaction(
-        id=data.order_id,
         user_id=user.id,
         provider=data.provider,
         amount=data.amount,
@@ -1276,15 +1265,16 @@ async def admin_create_sandbox_order(
     )
     db.add(txn)
     await db.commit()
+    await db.refresh(txn)
 
-    logger.info(f"Sandbox order created by admin '{admin.get('role')}': id={data.order_id}, amount={data.amount}")
+    logger.info(f"Sandbox order created by admin '{admin.get('role')}': id={txn.id}, amount={data.amount}")
 
     return {
-        "order_id": data.order_id,
+        "order_id": txn.id,
         "amount": data.amount,
         "amount_tiyin": data.amount * 100,
         "provider": data.provider,
         "status": "ready",
         "user": f"{user.first_name} {user.last_name}",
-        "message": f"Test order tayyor! Payme Sandbox'da: ID={data.order_id}, Summa={data.amount * 100} tiyin",
+        "message": f"Test order tayyor! Payme Sandbox'da: ID={txn.id}, Summa={data.amount * 100} tiyin",
     }
