@@ -625,7 +625,8 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
             if txn.status in (TransactionStatus.cancelled.value, TransactionStatus.failed.value):
                 return {"id": rpc_id, "error": {"code": -31050, "message": "Order is cancelled or failed"}}
 
-            if parsed.get("amount") != txn.amount:
+            # Payme sends amount in tiyin, txn.amount is in sum
+            if parsed.get("amount") != txn.amount * 100:
                 return {"id": rpc_id, "error": {"code": -31001, "message": "Incorrect amount"}}
 
             return {"id": rpc_id, "result": {"allow": True}}
@@ -673,8 +674,13 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
             if not txn:
                 return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
 
-            if parsed.get("amount") != txn.amount:
+            # Payme sends amount in tiyin, txn.amount is in sum
+            if parsed.get("amount") != txn.amount * 100:
                 return {"id": rpc_id, "error": {"code": -31001, "message": "Incorrect amount"}}
+
+            # Agar order allaqachon boshqa Payme tranzaksiyasiga biriktirilgan bo'lsa, rad etamiz
+            if txn.status == TransactionStatus.processing.value and txn.external_id and txn.external_id != ext_id:
+                return {"id": rpc_id, "error": {"code": -31050, "message": "Order is bound to another transaction"}}
 
             # Pending yoki processing holatida bo'lsa, CreateTransaction qabul qilamiz
             if txn.status in (TransactionStatus.pending.value, TransactionStatus.processing.value):

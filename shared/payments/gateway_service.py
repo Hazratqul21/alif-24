@@ -209,10 +209,11 @@ class PaymeGateway(BaseGateway):
             if not order_id:
                 order_id = params.get("id") or params.get("order_id")
 
-            # Amount parsing - handle both tiyin (int) and string
+            # Amount parsing — Payme ALWAYS sends amount in tiyin
+            # We keep it in tiyin here; the webhook handler converts for comparison
             amount = params.get("amount", 0)
             try:
-                amount = int(amount) // 100  # Convert from tiyin to sum
+                amount = int(amount)
             except (ValueError, TypeError):
                 logger.warning(f"Payme parse_webhook: Could not parse amount: {amount}")
                 amount = 0
