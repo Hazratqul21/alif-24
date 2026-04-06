@@ -203,9 +203,14 @@ async def checkout(
         )
 
         transaction.checkout_url = result.get("checkout_url")
-        transaction.external_id = result.get("external_id")
+        # Payme uchun external_id ni SET QILMAYMIZ — uni Payme o'zi
+        # CreateTransaction webhook'ida yuboradi. Aks holda checkout
+        # o'z order_id'ni external_id ga yozib qo'yadi va keyingi
+        # CreateTransaction -31050 bilan rad etiladi.
+        if gateway.provider != "payme":
+            transaction.external_id = result.get("external_id")
         transaction.gateway_response = result.get("raw")
-        transaction.status = TransactionStatus.processing.value
+        transaction.status = TransactionStatus.pending.value
         await db.commit()
 
         return {
