@@ -6,6 +6,7 @@ import Navbar from '../components/Common/Navbar';
 import coinService from '../services/coinService';
 import { studentService } from '../services/studentService';
 import notificationService from '../services/notificationService';
+import apiService from '../services/apiService';
 import organizationService from '../services/organizationService';
 // Olympiad student UI is on olimp.alif24.uz (separate platform)
 import {
@@ -16,7 +17,7 @@ import {
     ChevronRight, Plus, X, Eye, Lock, Globe, Palette, Moon, Sun,
     Image, Flag, Gift, Zap, Shield, HelpCircle, MessageCircle,
     Home, Book, ClipboardList, Medal, Activity, TrendingDown, Bot, Coins, Flame, Languages, Laptop, Mic,
-    School, School as SchoolIcon, UserPlus, LogIn
+    School, School as SchoolIcon, UserPlus, LogIn, Tag, Loader2
 } from 'lucide-react';
 
 const STORY_API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
@@ -61,6 +62,14 @@ const StudentDashboard = () => {
     const [showSubModal, setShowSubModal] = useState(false);
     const [subPlans, setSubPlans] = useState([]);
     const [subLoading, setSubLoading] = useState(false);
+
+    // Promo code states (plan.id bo'yicha)
+    const [promoOpen, setPromoOpen] = useState({});
+    const [sdPromoCode, setSdPromoCode] = useState({});
+    const [sdPromoResult, setSdPromoResult] = useState({});
+    const [sdPromoLoading, setSdPromoLoading] = useState({});
+    const [sdPromoError, setSdPromoError] = useState({});
+    const [sdApplyingPromo, setSdApplyingPromo] = useState({});
 
     // TTS + Recording states for story modal
     const [storyPlaying, setStoryPlaying] = useState(false);
@@ -1102,7 +1111,13 @@ const StudentDashboard = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {subPlans.map(plan => (
+                                    {subPlans.map(plan => {
+                                        const result = sdPromoResult[plan.id];
+                                        const hasDiscount = result?.promo_type === 'discount' && result?.discount_percent > 0;
+                                        const discountedPrice = hasDiscount ? Math.max(0, plan.price - Math.floor(plan.price * result.discount_percent / 100)) : plan.price;
+                                        const isFreePromo = result?.promo_type === 'free_days' || result?.promo_type === 'plan';
+
+                                        return (
                                         <div key={plan.id} className="border border-gray-200 rounded-xl p-4 hover:border-indigo-300 transition-all">
                                             <div className="flex items-start justify-between mb-2">
                                                 <div>
@@ -1110,9 +1125,16 @@ const StudentDashboard = () => {
                                                     {plan.description && <p className="text-xs text-gray-500 mt-0.5">{plan.description}</p>}
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-xl font-black text-indigo-600">
-                                                        {plan.price ? `${plan.price.toLocaleString()} UZS` : 'Bepul'}
-                                                    </p>
+                                                    {hasDiscount ? (
+                                                        <>
+                                                            <p className="text-sm text-gray-400 line-through">{plan.price.toLocaleString()} UZS</p>
+                                                            <p className="text-xl font-black text-green-600">{discountedPrice.toLocaleString()} UZS</p>
+                                                        </>
+                                                    ) : (
+                                                        <p className="text-xl font-black text-indigo-600">
+                                                            {plan.price ? `${plan.price.toLocaleString()} UZS` : 'Bepul'}
+                                                        </p>
+                                                    )}
                                                     <p className="text-[10px] text-gray-400">{plan.duration_days} kun</p>
                                                 </div>
                                             </div>
@@ -1120,48 +1142,163 @@ const StudentDashboard = () => {
                                                 <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md text-[10px] font-medium">{plan.max_children} bola</span>
                                                 <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md text-[10px] font-medium">{plan.duration_days} kunlik</span>
                                             </div>
+
+                                            {/* Promo code section */}
                                             {plan.price > 0 && (
+                                                <div className="mb-3">
+                                                    {!promoOpen[plan.id] && !result ? (
+                                                        <button
+                                                            onClick={() => setPromoOpen(p => ({ ...p, [plan.id]: true }))}
+                                                            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 transition-colors"
+                                                        >
+                                                            <Tag size={13} />
+                                                            Promokod bormi?
+                                                        </button>
+                                                    ) : !result ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="text"
+                                                                value={sdPromoCode[plan.id] || ''}
+                                                                onChange={e => setSdPromoCode(p => ({ ...p, [plan.id]: e.target.value.toUpperCase() }))}
+                                                                onKeyDown={e => {
+                                                                    if (e.key === 'Enter') {
+                                                                        const code = (sdPromoCode[plan.id] || '').trim();
+                                                                        if (!code) return;
+                                                                        setSdPromoLoading(p => ({ ...p, [plan.id]: true }));
+                                                                        setSdPromoError(p => ({ ...p, [plan.id]: null }));
+                                                                        apiService.get(`/payments/promo/${encodeURIComponent(code)}`)
+                                                                            .then(res => setSdPromoResult(p => ({ ...p, [plan.id]: res.promo })))
+                                                                            .catch(err => setSdPromoError(p => ({ ...p, [plan.id]: err?.response?.detail || err?.message || "Promokod noto'g'ri" })))
+                                                                            .finally(() => setSdPromoLoading(p => ({ ...p, [plan.id]: false })));
+                                                                    }
+                                                                }}
+                                                                placeholder="Promokodni kiriting..."
+                                                                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400 uppercase"
+                                                            />
+                                                            <button
+                                                                onClick={() => {
+                                                                    const code = (sdPromoCode[plan.id] || '').trim();
+                                                                    if (!code) return;
+                                                                    setSdPromoLoading(p => ({ ...p, [plan.id]: true }));
+                                                                    setSdPromoError(p => ({ ...p, [plan.id]: null }));
+                                                                    apiService.get(`/payments/promo/${encodeURIComponent(code)}`)
+                                                                        .then(res => setSdPromoResult(p => ({ ...p, [plan.id]: res.promo })))
+                                                                        .catch(err => setSdPromoError(p => ({ ...p, [plan.id]: err?.response?.detail || err?.message || "Promokod noto'g'ri" })))
+                                                                        .finally(() => setSdPromoLoading(p => ({ ...p, [plan.id]: false })));
+                                                                }}
+                                                                disabled={sdPromoLoading[plan.id] || !(sdPromoCode[plan.id] || '').trim()}
+                                                                className="bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                                            >
+                                                                {sdPromoLoading[plan.id] ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSdPromoCode(p => ({ ...p, [plan.id]: '' }));
+                                                                    setSdPromoResult(p => ({ ...p, [plan.id]: null }));
+                                                                    setSdPromoError(p => ({ ...p, [plan.id]: null }));
+                                                                    setPromoOpen(p => ({ ...p, [plan.id]: false }));
+                                                                }}
+                                                                className="text-gray-400 hover:text-gray-600 p-1"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <CheckCircle size={14} className="text-green-600" />
+                                                                <span className="text-xs font-medium text-green-700">{result.message}</span>
+                                                            </div>
+                                                            <button onClick={() => {
+                                                                setSdPromoCode(p => ({ ...p, [plan.id]: '' }));
+                                                                setSdPromoResult(p => ({ ...p, [plan.id]: null }));
+                                                                setSdPromoError(p => ({ ...p, [plan.id]: null }));
+                                                                setPromoOpen(p => ({ ...p, [plan.id]: false }));
+                                                            }} className="text-gray-400 hover:text-gray-600">
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {sdPromoError[plan.id] && (
+                                                        <p className="text-xs text-red-500 mt-1">{sdPromoError[plan.id]}</p>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Free promo apply button */}
+                                            {isFreePromo && (
                                                 <button
                                                     onClick={async () => {
-                                                        console.log('🔔 Payment clicked, plan:', plan.id, plan.name);
+                                                        const code = (sdPromoCode[plan.id] || '').trim();
+                                                        if (!code) return;
+                                                        setSdApplyingPromo(p => ({ ...p, [plan.id]: true }));
+                                                        try {
+                                                            await apiService.post(`/payments/promo/${encodeURIComponent(code)}/apply`);
+                                                            if (refreshSubscription) refreshSubscription();
+                                                            setShowSubModal(false);
+                                                            showNotif('success', result.message);
+                                                        } catch (err) {
+                                                            setSdPromoError(p => ({ ...p, [plan.id]: err?.response?.detail || err?.message || "Xatolik" }));
+                                                        } finally {
+                                                            setSdApplyingPromo(p => ({ ...p, [plan.id]: false }));
+                                                        }
+                                                    }}
+                                                    disabled={sdApplyingPromo[plan.id]}
+                                                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-2.5 rounded-xl font-bold text-sm hover:from-green-600 hover:to-emerald-700 transition-all shadow-md flex items-center justify-center gap-2 mb-2"
+                                                >
+                                                    {sdApplyingPromo[plan.id] ? (
+                                                        <Loader2 size={16} className="animate-spin" />
+                                                    ) : (
+                                                        <>🎁 Faollashtirish — {result.message}</>
+                                                    )}
+                                                </button>
+                                            )}
+
+                                            {/* Payment button */}
+                                            {plan.price > 0 && !isFreePromo && (
+                                                <button
+                                                    onClick={async () => {
                                                         try {
                                                             const checkoutUrl = '/api/v1/payments/checkout';
-                                                            console.log('📡 Fetching:', checkoutUrl);
+                                                            const body = {
+                                                                plan_config_id: plan.id,
+                                                                return_url: window.location.origin + '/student-dashboard?payment=success'
+                                                            };
+                                                            if (result?.promo_type === 'discount' && sdPromoCode[plan.id]) {
+                                                                body.promo_code = sdPromoCode[plan.id];
+                                                            }
                                                             const res = await fetch(checkoutUrl, {
                                                                 method: 'POST',
                                                                 credentials: 'include',
                                                                 headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({
-                                                                    plan_config_id: plan.id,
-                                                                    return_url: window.location.origin + '/student-dashboard?payment=success'
-                                                                })
+                                                                body: JSON.stringify(body)
                                                             });
-                                                            console.log('📬 Status:', res.status);
                                                             const data = await res.json();
-                                                            console.log('📦 Data:', data);
                                                             if (data.checkout_url) {
-                                                                // Save transaction_id to localStorage for return verification
                                                                 if (data.transaction_id) {
                                                                     localStorage.setItem('pending_payment_txn', data.transaction_id);
                                                                 }
-                                                                console.log('➡️ Redirecting to:', data.checkout_url);
                                                                 window.location.href = data.checkout_url;
                                                             } else {
-                                                                console.log('❌ No checkout_url, error:', data.detail);
                                                                 showNotif('error', data.detail || "To'lov tizimi hozir ishlamayapti");
                                                             }
                                                         } catch (e) {
-                                                            console.error('💥 Error:', e);
+                                                            console.error('Payment error:', e);
                                                             showNotif('error', "To'lov tizimi bilan bog'lanib bo'lmadi");
                                                         }
                                                     }}
                                                     className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2.5 rounded-xl font-bold text-sm hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md flex items-center justify-center gap-2"
                                                 >
-                                                    💳 To'lov qilish — {plan.price.toLocaleString()} UZS
+                                                    {hasDiscount ? (
+                                                        <>💳 To'lov qilish — <span className="line-through opacity-60 mr-1">{plan.price.toLocaleString()}</span> {discountedPrice.toLocaleString()} UZS</>
+                                                    ) : (
+                                                        <>💳 To'lov qilish — {plan.price.toLocaleString()} UZS</>
+                                                    )}
                                                 </button>
                                             )}
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
 
