@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
+import apiService from '../services/apiService';
 
 const AuthContext = createContext(null);
 
@@ -12,6 +13,18 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [subscription, setSubscription] = useState(null);
+
+  const fetchSubscription = async () => {
+    try {
+      const response = await apiService.get('/coins/subscription/my');
+      setSubscription(response);
+      return response;
+    } catch (err) {
+      console.warn('Subscription fetch failed:', err?.message);
+      return null;
+    }
+  };
 
   useEffect(() => {
     // Check for existing session on mount
@@ -28,6 +41,7 @@ export const AuthProvider = ({ children }) => {
         // Only set user if we got a valid profile (not null/undefined)
         if (profile && (profile.id || profile.user?.id)) {
           setUser(profile);
+          await fetchSubscription();
         }
       } catch (err) {
         // Don't immediately clear user - might be a temporary network issue
@@ -51,6 +65,7 @@ export const AuthProvider = ({ children }) => {
       const data = await authService.login(email, password);
       // Backend automatically sets HttpOnly Cookies now.
       setUser(data.user);
+      await fetchSubscription();
       return data;
     } catch (err) {
       setError(err.message || 'Login failed');
@@ -68,6 +83,7 @@ export const AuthProvider = ({ children }) => {
       const data = await authService.register(userData);
       // Backend automatically sets HttpOnly Cookies now.
       setUser(data.user);
+      await fetchSubscription();
       return data;
     } catch (err) {
       setError(err.message || 'Registration failed');
@@ -85,6 +101,7 @@ export const AuthProvider = ({ children }) => {
       // Continue with logout even if API call fails
     }
     setUser(null);
+    setSubscription(null);
   };
 
   /**
@@ -99,6 +116,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    subscription,
     loading,
     error,
     isAuthenticated: !!user,
@@ -116,6 +134,8 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateProfile,
+    fetchSubscription,
+    refreshSubscription: fetchSubscription,
     clearError: () => setError(null)
   };
 

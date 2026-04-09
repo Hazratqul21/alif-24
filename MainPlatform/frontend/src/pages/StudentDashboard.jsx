@@ -27,7 +27,7 @@ const StudentDashboard = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { language } = useLanguage();
-    const { user: authUser } = useAuth();
+    const { user: authUser, subscription: mySub, refreshSubscription } = useAuth();
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -60,7 +60,6 @@ const StudentDashboard = () => {
     // Subscription states
     const [showSubModal, setShowSubModal] = useState(false);
     const [subPlans, setSubPlans] = useState([]);
-    const [mySub, setMySub] = useState(null);
     const [subLoading, setSubLoading] = useState(false);
 
     // TTS + Recording states for story modal
@@ -130,11 +129,6 @@ const StudentDashboard = () => {
             setCoinBalance(data);
         }).catch(() => { });
 
-        // Fetch subscription info
-        const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
-        fetch(`${apiBaseUrl}/coins/subscription/my`, { credentials: 'include' })
-            .then(r => r.json()).then(d => setMySub(d)).catch(() => { });
-
         // Notification polling har 30 sek
         const notifInterval = setInterval(async () => {
             try {
@@ -172,6 +166,7 @@ const StudentDashboard = () => {
                 .then(data => {
                     if (data.status === 'completed') {
                         showNotif('success', 'To\'lov muvaffaqiyatli! Obuna faollashdi.');
+                        if (refreshSubscription) refreshSubscription();
                     } else if (data.status === 'processing' || data.status === 'pending') {
                         showNotif('info', 'To\'lov jarayonda. Iltimos, kuting...');
                     } else {

@@ -48,6 +48,7 @@ import SmartAuthPrompt from './components/Auth/SmartAuthPrompt';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import ToastManager from './components/Common/ToastManager';
+import GlobalSubscriptionModal from './components/Common/GlobalSubscriptionModal';
 import { useAuth } from './context/AuthContext';
 
 // Helper component to auto-open login modal when navigating to /login
@@ -124,6 +125,7 @@ const App = () => {
         <LanguageProvider>
           <AuthProvider>
             <ToastManager />
+            <GlobalSubscriptionModal />
             <AppRoutes />
           </AuthProvider>
         </LanguageProvider>
