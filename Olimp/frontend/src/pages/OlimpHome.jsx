@@ -97,7 +97,7 @@ export default function OlimpHome() {
                             <span className="hidden sm:inline">Profil & Coinlar</span>
                         </button>
                         <a
-                            href="https://alif24.uz"
+                            href="https://alif24.uz/student-dashboard"
                             className="text-sm font-medium text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-white transition-colors ml-2"
                         >
                             ← Qaytish

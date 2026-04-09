@@ -36,8 +36,10 @@ import AdminPayments from './pages/admin/AdminPayments';
 
 // Sub-platform redirect helper (Harf, Games, etc. now live on their own subdomains)
 const PlatformRedirect = ({ baseUrl, path = '' }) => {
-  // HttpOnly cookies bilan token URL orqali emas, avtomatik cookie orqali yuboriladi
-  window.location.href = `${baseUrl}${path}`;
+  // Use replace to prevent "Back" button redirect loop
+  React.useEffect(() => {
+    window.location.replace(`${baseUrl}${path}`);
+  }, [baseUrl, path]);
   return null;
 };
 

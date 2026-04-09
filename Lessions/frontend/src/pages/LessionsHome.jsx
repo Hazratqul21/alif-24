@@ -80,7 +80,7 @@ export default function LessionsHome() {
                             <BookMarked className="w-4 h-4" />
                             Ertaklar
                         </Link>
-                        <a href="https://alif24.uz" className="text-sm text-white/60 hover:text-white transition-colors">
+                        <a href="https://alif24.uz/student-dashboard" className="text-sm text-white/60 hover:text-white transition-colors">
                             ← Bosh sahifa
                         </a>
                     </div>

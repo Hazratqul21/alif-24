@@ -832,10 +832,10 @@ export default function ErtaklarPage() {
                         </div>
                         <h1 className="text-xl font-bold text-white">Ertaklar</h1>
                     </div>
-                    <Link to="https://alif24.uz"
+                    <a href="https://alif24.uz/student-dashboard"
                         className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
                         <ArrowLeft className="w-4 h-4" /> Ortga
-                    </Link>
+                    </a>
                 </div>
             </header>
 

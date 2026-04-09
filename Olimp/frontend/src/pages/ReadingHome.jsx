@@ -851,7 +851,7 @@ export default function ReadingHome() {
                         </div>
                     </div>
                     {!hasToken && (
-                        <a href="https://alif24.uz" className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-xl hover:bg-emerald-700 transition-colors">
+                        <a href="https://alif24.uz/student-dashboard" className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-xl hover:bg-emerald-700 transition-colors">
                             Kirish
                         </a>
                     )}
@@ -898,7 +898,7 @@ export default function ReadingHome() {
 
                         {!hasToken && (
                             <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6 text-center">
-                                <p className="text-amber-400 text-sm">Musobaqada ishtirok etish uchun <a href="https://alif24.uz" className="underline font-bold">tizimga kiring</a></p>
+                                <p className="text-amber-400 text-sm">Musobaqada ishtirok etish uchun <a href="https://alif24.uz/student-dashboard" className="underline font-bold">tizimga kiring</a></p>
                             </div>
                         )}
 
