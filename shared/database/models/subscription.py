@@ -101,7 +101,8 @@ class UserSubscription(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    user = relationship("User", backref="subscriptions")
+    user = relationship("User", foreign_keys=[user_id], backref="subscriptions")
+    creator = relationship("User", foreign_keys=[created_by])
     plan_config = relationship("SubscriptionPlanConfig", back_populates="subscriptions")
 
     def __repr__(self):
