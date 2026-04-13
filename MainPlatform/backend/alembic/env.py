@@ -20,12 +20,30 @@ from shared.database import Base
 from shared.database.models import *  # Import all shared models
 
 # Platform-specific models (Alembic autogenerate uchun)
-from MainPlatform.backend.app.models.ai_cache import *  # noqa
-from MainPlatform.backend.app.models.reading_analysis import *  # noqa
-from Olimp.backend.app.gamification.models import *  # noqa
-from Olimp.backend.app.social.models import *  # noqa
-from Lessions.backend.app.lessons.models import *  # noqa
-from CRM.backend.app.crm.models import *  # noqa
+# Docker ichida konteyner faqat o'z kodini ko'radi, shuning uchun xavfsiz import
+_platform_imports = [
+    "MainPlatform.backend.app.models.ai_cache",
+    "MainPlatform.backend.app.models.reading_analysis",
+    "Olimp.backend.app.gamification.models",
+    "Olimp.backend.app.social.models",
+    "Lessions.backend.app.lessons.models",
+    "CRM.backend.app.crm.models",
+]
+for _mod in _platform_imports:
+    try:
+        __import__(_mod)
+    except ModuleNotFoundError:
+        pass
+
+# Docker ichida: local app models (konteyner o'z papkasida)
+try:
+    from app.models.ai_cache import *  # noqa
+except (ModuleNotFoundError, ImportError):
+    pass
+try:
+    from app.models.reading_analysis import *  # noqa
+except (ModuleNotFoundError, ImportError):
+    pass
 
 # this is the Alembic Config object
 config = context.config
