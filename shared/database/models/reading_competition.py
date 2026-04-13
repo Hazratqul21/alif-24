@@ -73,11 +73,12 @@ class ReadingCompetition(Base):
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
 
-    created_by = Column(String(50), nullable=True)
+    created_by = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
+    creator = relationship("User", foreign_keys=[created_by])
     tasks = relationship("ReadingTask", back_populates="competition", cascade="all, delete-orphan")
     sessions = relationship("ReadingSession", back_populates="competition", cascade="all, delete-orphan")
     test = relationship("CompetitionTest", back_populates="competition", uselist=False, cascade="all, delete-orphan")

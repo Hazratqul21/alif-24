@@ -21,11 +21,11 @@ class StudentProfile(Base):
     user_id = Column(String(8), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
     
     # Ota-ona bilan aloqa
-    parent_user_id = Column(String(8), ForeignKey("users.id"), nullable=True)
+    parent_user_id = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     relationship_type = Column(SQLEnum(ChildRelationship), default=ChildRelationship.guardian)
 
     # Tashkilot bilan bog'lanish
-    organization_id = Column(String(8), ForeignKey("organization_profiles.id"), nullable=True)
+    organization_id = Column(String(8), ForeignKey("organization_profiles.id", ondelete="SET NULL"), nullable=True)
     
     # Ta'lim ma'lumotlari
     grade = Column(String(20), nullable=True)
@@ -34,7 +34,7 @@ class StudentProfile(Base):
     # Gamification (o'yin elementlari)
     level = Column(Integer, default=1)
     total_points = Column(Integer, default=0)
-    total_coins = Column(Integer, default=0)
+    total_coins = Column(Integer, default=0)  # Cached from StudentCoin.current_balance — faqat coin_service orqali yangilang
     current_streak = Column(Integer, default=0)     # Joriy ketma-ketlik (kun)
     longest_streak = Column(Integer, default=0)     # Eng uzun ketma-ketlik
     

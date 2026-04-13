@@ -5,7 +5,7 @@ Olympiad Models - Olimpiada tizimi (to'liq versiya)
 Only moderators can create olympiads.
 Only monthly subscribers can participate.
 """
-from sqlalchemy import Column, String, Boolean, Integer, Float, DateTime, Date, Text, ForeignKey, Enum as SQLEnum, JSON
+from sqlalchemy import Column, String, Boolean, Integer, Float, DateTime, Text, ForeignKey, Enum as SQLEnum, JSON, Index, UniqueConstraint, event
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -61,6 +61,11 @@ class Olympiad(Base):
     Only monthly subscribers can participate.
     """
     __tablename__ = "olympiads"
+    __table_args__ = (
+        Index("ix_olympiad_status", "status"),
+        Index("ix_olympiad_subject", "subject"),
+        Index("ix_olympiad_created_at", "created_at"),
+    )
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
     
@@ -74,7 +79,7 @@ class Olympiad(Base):
     
     # Yosh chegarasi
     min_age = Column(Integer, default=4)
-    max_age = Column(Integer, default=7)
+    max_age = Column(Integer, default=18)
     grade_level = Column(String(20), nullable=True)  # "1-sinf", "2-sinf", etc.
     
     # Vaqt
@@ -91,8 +96,11 @@ class Olympiad(Base):
     results_public = Column(Boolean, default=True)  # Natijalar ochiq
     difficulty = Column(String(20), default="medium")  # easy, medium, hard
     
-    # Tashkilotchi (moderator) — FK emas, admin role string saqlanadi
-    created_by = Column(String(50), nullable=True)
+    # Banner rasm (URL yoki fayl yo'li)
+    banner_image = Column(String(500), nullable=True)
+
+    # Tashkilotchi (moderator)
+    created_by = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -118,9 +126,12 @@ class OlympiadQuestion(Base):
     Olympiad question - Test savollari
     """
     __tablename__ = "olympiad_questions"
+    __table_args__ = (
+        Index("ix_question_olympiad_id", "olympiad_id"),
+    )
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    olympiad_id = Column(String(8), ForeignKey("olympiads.id"), nullable=False)
+    olympiad_id = Column(String(8), ForeignKey("olympiads.id", ondelete="CASCADE"), nullable=False)
     
     # Savol ma'lumotlari
     question_text = Column(Text, nullable=False)
@@ -151,10 +162,15 @@ class OlympiadParticipant(Base):
     Only students with active monthly subscription can participate.
     """
     __tablename__ = "olympiad_participants"
+    __table_args__ = (
+        UniqueConstraint("olympiad_id", "student_id", name="uq_participant_olympiad_student"),
+        Index("ix_participant_olympiad_id", "olympiad_id"),
+        Index("ix_participant_student_id", "student_id"),
+    )
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    olympiad_id = Column(String(8), ForeignKey("olympiads.id"), nullable=False)
-    student_id = Column(String(8), ForeignKey("student_profiles.id"), nullable=False)
+    olympiad_id = Column(String(8), ForeignKey("olympiads.id", ondelete="CASCADE"), nullable=False)
+    student_id = Column(String(8), ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False)
     
     # Status
     status = Column(SQLEnum(ParticipationStatus), default=ParticipationStatus.registered)
@@ -182,6 +198,8 @@ class OlympiadParticipant(Base):
     quiz_score = Column(Integer, default=0)              # savollar bali (0-100)
     reading_attempts = Column(Integer, default=0)        # o'qish urinishlari
     
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
     # Relationships
     olympiad = relationship("Olympiad", back_populates="participants")
     student = relationship("StudentProfile", backref="olympiad_participations")
@@ -200,10 +218,15 @@ class OlympiadAnswer(Base):
     Olympiad answer - Qatnashchining javoblari
     """
     __tablename__ = "olympiad_answers"
+    __table_args__ = (
+        UniqueConstraint("participant_id", "question_id", name="uq_answer_participant_question"),
+        Index("ix_answer_participant_id", "participant_id"),
+        Index("ix_answer_question_id", "question_id"),
+    )
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    participant_id = Column(String(8), ForeignKey("olympiad_participants.id"), nullable=False)
-    question_id = Column(String(8), ForeignKey("olympiad_questions.id"), nullable=False)
+    participant_id = Column(String(8), ForeignKey("olympiad_participants.id", ondelete="CASCADE"), nullable=False)
+    question_id = Column(String(8), ForeignKey("olympiad_questions.id", ondelete="CASCADE"), nullable=False)
     
     # Javob
     selected_answer = Column(Integer, nullable=True)  # 0, 1, 2, 3 yoki null (javob berilmagan)
@@ -230,9 +253,12 @@ class OlympiadReadingTask(Base):
     o'quvchi o'qiydi, ovozi yoziladi, admin baholaydi.
     """
     __tablename__ = "olympiad_reading_tasks"
+    __table_args__ = (
+        Index("ix_reading_task_olympiad_id", "olympiad_id"),
+    )
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    olympiad_id = Column(String(8), ForeignKey("olympiads.id"), nullable=False)
+    olympiad_id = Column(String(8), ForeignKey("olympiads.id", ondelete="CASCADE"), nullable=False)
     
     # Matn
     title = Column(String(300), nullable=False)  # "Hikoya: Kichkintoy va Quyosh"
@@ -271,11 +297,15 @@ class OlympiadReadingSubmission(Base):
     - Admin bahosi
     """
     __tablename__ = "olympiad_reading_submissions"
+    __table_args__ = (
+        Index("ix_reading_sub_participant_id", "participant_id"),
+        Index("ix_reading_sub_task_id", "reading_task_id"),
+    )
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    participant_id = Column(String(8), ForeignKey("olympiad_participants.id"), nullable=False)
-    reading_task_id = Column(String(8), ForeignKey("olympiad_reading_tasks.id"), nullable=True)
-    story_id = Column(String(8), ForeignKey("olympiad_stories.id"), nullable=True)
+    participant_id = Column(String(8), ForeignKey("olympiad_participants.id", ondelete="CASCADE"), nullable=False)
+    reading_task_id = Column(String(8), ForeignKey("olympiad_reading_tasks.id", ondelete="SET NULL"), nullable=True)
+    story_id = Column(String(8), ForeignKey("olympiad_stories.id", ondelete="SET NULL"), nullable=True)
     
     # O'qish natijasi
     audio_url = Column(String(500), nullable=True)   # Yozilgan audio fayl URL
@@ -294,7 +324,7 @@ class OlympiadReadingSubmission(Base):
     admin_accuracy_score = Column(Integer, nullable=True)        # Aniqlik (0-10)
     admin_total_score = Column(Integer, nullable=True)           # Umumiy (0-30)
     admin_notes = Column(Text, nullable=True)                    # Admin izohi
-    graded_by = Column(String(50), nullable=True)                 # Admin role string
+    graded_by = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     graded_at = Column(DateTime(timezone=True), nullable=True)
     
     # Hisoblangan umumiy ball (test + o'qish + admin)
@@ -310,6 +340,21 @@ class OlympiadReadingSubmission(Base):
     
     def __repr__(self):
         return f"<OlympiadReadingSubmission wpm={self.words_per_minute}>"
+
+
+# ============================================================
+# EVENT LISTENERS
+# ============================================================
+
+def _auto_word_count(mapper, connection, target):
+    """OlympiadReadingTask.word_count ni text_content dan avtomatik hisoblaydi"""
+    if target.text_content:
+        target.word_count = len(target.text_content.split())
+    else:
+        target.word_count = 0
+
+event.listen(OlympiadReadingTask, "before_insert", _auto_word_count)
+event.listen(OlympiadReadingTask, "before_update", _auto_word_count)
 
 
 __all__ = [

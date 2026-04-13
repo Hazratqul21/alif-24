@@ -21,12 +21,12 @@ class TeacherProfile(Base):
     user_id = Column(String(8), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
     
     # Tashkilot bilan bog'lanish
-    organization_id = Column(String(8), ForeignKey("organization_profiles.id"), nullable=True)
+    organization_id = Column(String(8), ForeignKey("organization_profiles.id", ondelete="SET NULL"), nullable=True)
     
     # Tekshiruv
     verification_status = Column(SQLEnum(TeacherStatus), default=TeacherStatus.pending)
     verified_at = Column(DateTime(timezone=True), nullable=True)
-    verified_by = Column(String(8), ForeignKey("users.id"), nullable=True)
+    verified_by = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     rejection_reason = Column(Text, nullable=True)
     
     # Kasbiy ma'lumotlar

@@ -100,14 +100,14 @@ class ClassroomInvitation(Base):
 
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
     classroom_id = Column(String(8), ForeignKey("classrooms.id", ondelete="CASCADE"), nullable=False)
-    invited_by = Column(String(8), ForeignKey("users.id"), nullable=False)
+    invited_by = Column(String(8), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     # Taklif qilingan o'quvchi identifikatori
     invitation_type = Column(SQLEnum(InvitationType), nullable=False)
     identifier = Column(String(255), nullable=False)  # phone, email yoki user_id
 
     # Agar user topilsa, bog'lanadi
-    student_user_id = Column(String(8), ForeignKey("users.id"), nullable=True)
+    student_user_id = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     status = Column(SQLEnum(InvitationStatus), default=InvitationStatus.pending)
     message = Column(Text, nullable=True)  # O'qituvchi xabari

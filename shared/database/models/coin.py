@@ -59,7 +59,7 @@ class StudentCoin(Base):
     __tablename__ = "student_coins"
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    student_id = Column(String(8), ForeignKey("student_profiles.id"), nullable=False, unique=True)
+    student_id = Column(String(8), ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False, unique=True)
     
     # Balans
     total_earned = Column(Integer, default=0)      # Jami yig'ilgan
@@ -103,7 +103,7 @@ class CoinTransaction(Base):
     __tablename__ = "coin_transactions"
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    student_coin_id = Column(String(8), ForeignKey("student_coins.id"), nullable=False)
+    student_coin_id = Column(String(8), ForeignKey("student_coins.id", ondelete="CASCADE"), nullable=False)
     
     # Tranzaksiya ma'lumotlari
     type = Column(SQLEnum(TransactionType), nullable=False)
@@ -136,7 +136,7 @@ class CoinWithdrawal(Base):
     __tablename__ = "coin_withdrawals"
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    student_coin_id = Column(String(8), ForeignKey("student_coins.id"), nullable=False)
+    student_coin_id = Column(String(8), ForeignKey("student_coins.id", ondelete="CASCADE"), nullable=False)
     
     # Yechib olish ma'lumotlari
     coin_amount = Column(Integer, nullable=False)  # Necha coin
@@ -144,12 +144,12 @@ class CoinWithdrawal(Base):
     status = Column(SQLEnum(WithdrawalStatus), default=WithdrawalStatus.pending)
     
     # Ota-ona ma'lumotlari (to'lov oluvchi)
-    parent_id = Column(String(8), ForeignKey("parent_profiles.id"), nullable=False)
+    parent_id = Column(String(8), ForeignKey("parent_profiles.id", ondelete="CASCADE"), nullable=False)
     payment_method = Column(String(50), nullable=True)  # "click", "payme", "uzum", "bank_card"
     payment_details = Column(String(500), nullable=True) # Karta raqami yoki telefon
     
     # Admin tomonidan
-    processed_by = Column(String(8), ForeignKey("users.id"), nullable=True)
+    processed_by = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     processed_at = Column(DateTime(timezone=True), nullable=True)
     rejection_reason = Column(String(500), nullable=True)
     
@@ -214,8 +214,8 @@ class PrizeRedemption(Base):
     __tablename__ = "prize_redemptions"
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    student_coin_id = Column(String(8), ForeignKey("student_coins.id"), nullable=False)
-    prize_id = Column(String(8), ForeignKey("prizes.id"), nullable=False)
+    student_coin_id = Column(String(8), ForeignKey("student_coins.id", ondelete="CASCADE"), nullable=False)
+    prize_id = Column(String(8), ForeignKey("prizes.id", ondelete="CASCADE"), nullable=False)
     
     # Ma'lumotlar
     coin_spent = Column(Integer, nullable=False)

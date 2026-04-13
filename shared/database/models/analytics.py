@@ -2,7 +2,7 @@
 Analytics Models - Geolocation, Audit Log, Admin Notifications
 Alif24 Smart Admin Panel uchun
 """
-from sqlalchemy import Column, String, Boolean, DateTime, Float, Integer, Text, JSON, Index
+from sqlalchemy import Column, String, Boolean, DateTime, Float, Integer, Text, JSON, Index, ForeignKey
 from sqlalchemy.sql import func
 import uuid
 from shared.database.base import Base
@@ -16,7 +16,7 @@ class UserGeoLog(Base):
     __tablename__ = "user_geo_logs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(8), nullable=False, index=True)
+    user_id = Column(String(8), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     
     # IP ma'lumotlari
     ip_address = Column(String(45), nullable=True)  # IPv6 uchun 45 char

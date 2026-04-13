@@ -11,14 +11,15 @@ olimp.alif24.uz (Olimp Platform, port 8005) to handle high load separately.
 """
 
 import logging
-from typing import Optional, List
+import re
+import io
+from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, and_, desc, asc
-from pydantic import BaseModel, Field
-from typing import Dict, Any
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from shared.database import get_db
 from shared.database.models import (
@@ -38,10 +39,12 @@ router = APIRouter()
 # ADMIN AUTH (same as admin_panel.py)
 # ============================================================================
 
+import os as _os
+_ADMIN_SECRET = _os.getenv("ADMIN_SECRET_KEY", "change_me_in_env")
 ADMIN_KEYS = {
-    "hazratqul": "alif24_rahbariyat26!",
-    "nurali": "alif24_rahbariyat26!",
-    "pedagog": "alif24_rahbariyat26!",
+    "hazratqul": _ADMIN_SECRET,
+    "nurali": _ADMIN_SECRET,
+    "pedagog": _ADMIN_SECRET,
 }
 
 async def verify_admin_olympiad(
@@ -73,6 +76,8 @@ def olympiad_to_dict(o: Olympiad, participant_count: int = 0) -> dict:
         "questions_count": o.questions_count,
         "status": o.status.value if o.status else "draft",
         "results_public": o.results_public,
+        "difficulty": o.difficulty or "medium",
+        "banner_image": o.banner_image,
         "created_by": o.created_by,
         "participant_count": participant_count,
         "created_at": o.created_at.isoformat() if o.created_at else None,
@@ -118,11 +123,24 @@ def reading_task_to_dict(rt: OlympiadReadingTask, hide_answers: bool = False) ->
 # SCHEMAS
 # ============================================================================
 
+def _validate_banner_url(v: Optional[str]) -> Optional[str]:
+    """Banner URL ni tekshirish — bo'sh string yoki valid URL bo'lishi kerak"""
+    if v is None or v == "":
+        return v
+    v = v.strip()
+    if len(v) > 500:
+        raise ValueError("Banner URL 500 belgidan oshmasligi kerak")
+    if not (v.startswith("http://") or v.startswith("https://") or v.startswith("/")):
+        raise ValueError("Banner URL http://, https:// yoki / bilan boshlanishi kerak")
+    return v
+
+
 class OlympiadCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=300)
     description: Optional[str] = None
     subject: str = "general"
     type: str = "test"  # test, reading, mixed
+    difficulty: str = "medium"  # easy, medium, hard
     min_age: int = 4
     max_age: int = 18
     grade_level: Optional[str] = None
@@ -134,6 +152,31 @@ class OlympiadCreate(BaseModel):
     max_participants: int = Field(default=500, ge=1, le=100000)
     questions_count: int = 20
     results_public: bool = True
+    banner_image: Optional[str] = None
+
+    @field_validator("banner_image")
+    @classmethod
+    def validate_banner(cls, v):
+        return _validate_banner_url(v)
+
+    @field_validator("difficulty")
+    @classmethod
+    def validate_difficulty(cls, v):
+        if v not in ("easy", "medium", "hard"):
+            raise ValueError("difficulty faqat 'easy', 'medium' yoki 'hard' bo'lishi mumkin")
+        return v
+
+    @model_validator(mode="after")
+    def validate_dates(self):
+        if self.start_time and self.registration_start:
+            if self.registration_start > self.start_time:
+                raise ValueError("Ro'yxatdan o'tish boshlanishi olimpiada boshlanishidan oldin bo'lishi kerak")
+        if self.end_time and self.start_time:
+            if self.end_time <= self.start_time:
+                raise ValueError("Tugash vaqti boshlanish vaqtidan keyin bo'lishi kerak")
+        if self.min_age > self.max_age:
+            raise ValueError("Minimal yosh maximal yoshdan kichik bo'lishi kerak")
+        return self
 
 
 class OlympiadUpdate(BaseModel):
@@ -141,6 +184,7 @@ class OlympiadUpdate(BaseModel):
     description: Optional[str] = None
     subject: Optional[str] = None
     type: Optional[str] = None
+    difficulty: Optional[str] = None
     min_age: Optional[int] = None
     max_age: Optional[int] = None
     grade_level: Optional[str] = None
@@ -153,6 +197,19 @@ class OlympiadUpdate(BaseModel):
     questions_count: Optional[int] = None
     results_public: Optional[bool] = None
     status: Optional[str] = None
+    banner_image: Optional[str] = None
+
+    @field_validator("banner_image")
+    @classmethod
+    def validate_banner(cls, v):
+        return _validate_banner_url(v)
+
+    @field_validator("difficulty")
+    @classmethod
+    def validate_difficulty(cls, v):
+        if v is not None and v not in ("easy", "medium", "hard"):
+            raise ValueError("difficulty faqat 'easy', 'medium' yoki 'hard' bo'lishi mumkin")
+        return v
 
 
 class QuestionCreate(BaseModel):
@@ -200,6 +257,49 @@ class GradeReading(BaseModel):
 
 
 # ============================================================================
+# PUBLIC: Active Olympiad Banners (for student popup)
+# Defined BEFORE /{olympiad_id} routes to avoid path parameter conflicts.
+# ============================================================================
+
+@router.get("/public/active-banners")
+async def get_active_olympiad_banners(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Public endpoint — faol olimpiadalarning bannerlarini qaytaradi.
+    Student dashboard uchun popup ko'rsatish maqsadida.
+    Faqat active/upcoming statusdagi va banner_image bor olimpiadalar.
+    """
+    result = await db.execute(
+        select(Olympiad)
+        .where(
+            Olympiad.status.in_([OlympiadStatus.active, OlympiadStatus.upcoming]),
+            Olympiad.banner_image.isnot(None),
+            Olympiad.banner_image != "",
+        )
+        .order_by(desc(Olympiad.created_at))
+        .limit(5)
+    )
+    olympiads = result.scalars().all()
+
+    banners = []
+    for o in olympiads:
+        banners.append({
+            "id": o.id,
+            "title": o.title,
+            "description": o.description,
+            "banner_image": o.banner_image,
+            "registration_start": o.registration_start.isoformat() if o.registration_start else None,
+            "start_time": o.start_time.isoformat() if o.start_time else None,
+            "end_time": o.end_time.isoformat() if o.end_time else None,
+            "difficulty": o.difficulty or "medium",
+            "status": o.status.value if o.status else "upcoming",
+        })
+
+    return {"success": True, "banners": banners}
+
+
+# ============================================================================
 # ADMIN: OLYMPIAD CRUD
 # ============================================================================
 
@@ -232,6 +332,7 @@ async def create_olympiad(
         description=data.description,
         subject=subject,
         type=oly_type,
+        difficulty=data.difficulty,
         min_age=data.min_age,
         max_age=data.max_age,
         grade_level=data.grade_level,
@@ -243,6 +344,7 @@ async def create_olympiad(
         max_participants=data.max_participants,
         questions_count=data.questions_count,
         results_public=data.results_public,
+        banner_image=data.banner_image,
         status=OlympiadStatus.draft,
         created_by=admin["role"],
     )
@@ -271,28 +373,50 @@ async def list_olympiads(
     db: AsyncSession = Depends(get_db),
 ):
     """List olympiads (admin only)"""
-    base = select(Olympiad)
-
+    filters = []
     if status:
-        base = base.where(Olympiad.status == OlympiadStatus(status))
+        try:
+            filters.append(Olympiad.status == OlympiadStatus(status))
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Noto'g'ri status: {status}")
     if type:
-        base = base.where(Olympiad.type == OlympiadType(type))
+        try:
+            filters.append(Olympiad.type == OlympiadType(type))
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Noto'g'ri type: {type}")
     if subject:
-        base = base.where(Olympiad.subject == OlympiadSubject(subject))
+        try:
+            filters.append(Olympiad.subject == OlympiadSubject(subject))
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Noto'g'ri subject: {subject}")
     if search:
-        base = base.where(Olympiad.title.ilike(f"%{search}%"))
+        filters.append(Olympiad.title.ilike(f"%{search}%"))
 
-    total = await db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    count_q = select(func.count(Olympiad.id)).where(*filters) if filters else select(func.count(Olympiad.id))
+    total = await db.scalar(count_q) or 0
 
-    result = await db.execute(base.order_by(desc(Olympiad.created_at)).offset(offset).limit(limit))
-    olympiads = result.scalars().all()
+    participant_count_sq = (
+        select(
+            OlympiadParticipant.olympiad_id,
+            func.count(OlympiadParticipant.id).label("pc")
+        )
+        .group_by(OlympiadParticipant.olympiad_id)
+        .subquery()
+    )
 
-    items = []
-    for o in olympiads:
-        pc = await db.scalar(
-            select(func.count(OlympiadParticipant.id)).where(OlympiadParticipant.olympiad_id == o.id)
-        ) or 0
-        items.append(olympiad_to_dict(o, pc))
+    query = (
+        select(Olympiad, func.coalesce(participant_count_sq.c.pc, 0).label("participant_count"))
+        .outerjoin(participant_count_sq, Olympiad.id == participant_count_sq.c.olympiad_id)
+        .where(*filters)
+        .order_by(desc(Olympiad.created_at))
+        .offset(offset)
+        .limit(limit)
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    items = [olympiad_to_dict(o, pc) for o, pc in rows]
 
     return {"success": True, "olympiads": items, "total": total}
 
@@ -348,10 +472,19 @@ async def update_olympiad(
                 value = OlympiadStatus(value)
             except ValueError:
                 raise HTTPException(status_code=400, detail=f"Noto'g'ri status holati: {value}")
+        elif field == "banner_image":
+            value = value if value else None
         setattr(o, field, value)
 
-    await db.commit()
-    return {"success": True, "message": "Olimpiada yangilandi"}
+    try:
+        await db.commit()
+        await db.refresh(o)
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Olimpiada yangilashda xatolik: {e}")
+        raise HTTPException(status_code=500, detail=f"Olimpiada yangilashda xatolik: {str(e)}")
+
+    return {"success": True, "olympiad": olympiad_to_dict(o), "message": "Olimpiada yangilandi"}
 
 
 @router.delete("/{olympiad_id}")
@@ -551,9 +684,9 @@ async def delete_reading_task(
     return {"success": True, "message": "O'qish vazifasi o'chirildi"}
 
 
-    # NOTE: Student-facing endpoints (register, start, submit-test, submit-reading,
-    # complete, my-result, upload-audio) are handled by the separate Olimp platform
-    # at olimp.alif24.uz (port 8005) to avoid load on MainPlatform.
+# NOTE: Student-facing endpoints (register, start, submit-test, submit-reading,
+# complete, my-result, upload-audio) are handled by the separate Olimp platform
+# at olimp.alif24.uz (port 8005) to avoid load on MainPlatform.
 
 
 # ============================================================================
@@ -1103,16 +1236,12 @@ async def get_olympiad_stats(
     }
 
 
-    # NOTE: Audio upload endpoint is on olimp.alif24.uz (port 8005)
+# NOTE: Audio upload endpoint is on olimp.alif24.uz (port 8005)
 
 
 # ============================================================================
 # TEST PARSER — Fayldan va matndan savollarni ajratib olish
 # ============================================================================
-
-import re
-import io
-from fastapi import UploadFile, File
 
 
 def _parse_questions_from_text(text: str) -> list:
@@ -1208,7 +1337,10 @@ async def parse_test_from_file(
     db: AsyncSession = Depends(get_db),
 ):
     """PDF, DOCX yoki TXT fayldan savollarni ajratib oladi"""
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
     content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail=f"Fayl hajmi 10 MB dan oshmasligi kerak (hozirgi: {len(content) // (1024*1024)} MB)")
     filename = (file.filename or "").lower()
     text = ""
 
@@ -1344,7 +1476,12 @@ async def publish_olympiad(
         else:
             raise HTTPException(status_code=400, detail=f"Hozirgi holatda yashirib bo'lmaydi: {o.status.value}")
 
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Olimpiada publish xatolik: {e}")
+        raise HTTPException(status_code=500, detail=f"Holat o'zgartirishda xatolik: {str(e)}")
 
     return {
         "success": True,

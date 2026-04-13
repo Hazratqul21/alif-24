@@ -28,7 +28,7 @@ class NotificationLog(Base):
     __tablename__ = "notification_logs"
 
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
-    user_id = Column(String(8), ForeignKey("users.id"), nullable=True)
+    user_id = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     notification_type = Column(SQLEnum(NotificationType), nullable=False)
     recipient = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)

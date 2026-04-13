@@ -4,11 +4,13 @@ Barcha platformalar uchun bir xil Base class
 UUID o'rniga 8 xonalik ID ishlatiladi
 """
 from sqlalchemy import Column, String, event
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 from shared.database.id_generator import generate_8_digit_id
 
-# Base class - Barcha modellar shu class'dan meros oladi
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Base class - Barcha modellar shu class'dan meros oladi"""
+    pass
 
 
 class BaseModel(Base):

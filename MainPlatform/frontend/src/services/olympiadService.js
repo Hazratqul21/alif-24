@@ -44,6 +44,21 @@ api.interceptors.response.use(
 const olympiadService = {
     // ==================== ADMIN: Olympiad CRUD ====================
     createOlympiad: (data) => api.post('', data),
+
+    // ==================== ADMIN: Banner Upload ====================
+    uploadBanner: async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const resp = await axios.post(`${API_URL}/uploads/admin-file`, formData, {
+                headers: { ...getAdminHeaders() },
+            });
+            return resp.data;
+        } catch (err) {
+            const detail = err.response?.data?.detail || err.message || 'Banner yuklashda xatolik';
+            throw new Error(detail);
+        }
+    },
     listOlympiads: (params = {}) => api.get('', { params }),
     getOlympiad: (id) => api.get(`/${id}`),
     updateOlympiad: (id, data) => api.put(`/${id}`, data),
@@ -61,9 +76,7 @@ const olympiadService = {
     parseFileQuestions: (olympiadId, file) => {
         const formData = new FormData();
         formData.append('file', file);
-        return api.post(`/${olympiadId}/parse-file`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        return api.post(`/${olympiadId}/parse-file`, formData);
     },
     aiGenerateQuestions: (olympiadId, text, count = 10) =>
         api.post(`/${olympiadId}/ai-generate`, { text, count }),

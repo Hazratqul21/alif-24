@@ -68,10 +68,12 @@ class ApiService {
         return this.handleResponse(resp);
     }
 
-    async postForm(endpoint, formData) {
+    async postForm(endpoint, formData, options = {}) {
+        const headers = { ...this.getHeaders(true), ...(options.headers || {}) };
         const resp = await fetch(this._buildUrl(endpoint), {
             method: "POST",
             credentials: "include",
+            headers,
             body: formData,
         });
         return this.handleResponse(resp);

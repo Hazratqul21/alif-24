@@ -99,7 +99,11 @@ export default function OlympiadsPage() {
         min_age: 4, max_age: 18, grade_level: '',
         registration_start: '', registration_end: '', start_time: '', end_time: '',
         duration_minutes: 30, max_participants: 500, questions_count: 20, results_public: true,
+        banner_image: '',
     });
+    const [bannerFile, setBannerFile] = useState(null);
+    const [bannerPreview, setBannerPreview] = useState(null);
+    const [bannerUploading, setBannerUploading] = useState(false);
 
     const notify = (type, message) => {
         setNotification({ type, message });
@@ -157,8 +161,24 @@ const handleCreate = async () => {
             return d.toISOString();
         };
 
+        // Banner rasmni avval yuklash
+        let bannerUrl = createForm.banner_image || '';
+        if (bannerFile) {
+            setBannerUploading(true);
+            try {
+                const uploadRes = await olympiadService.uploadBanner(bannerFile);
+                bannerUrl = uploadRes.url || '';
+            } catch (uploadErr) {
+                notify('error', 'Banner rasmni yuklashda xatolik: ' + (uploadErr.message || ''));
+                setBannerUploading(false);
+                return;
+            }
+            setBannerUploading(false);
+        }
+
         const payload = {
             ...createForm,
+            banner_image: bannerUrl,
             registration_start: toISO(createForm.registration_start),
             registration_end: toISO(createForm.registration_end || createForm.registration_start),
             start_time: toISO(createForm.start_time),
@@ -189,7 +209,11 @@ const handleCreate = async () => {
             start_time: '', end_time: '',
             duration_minutes: 30, max_participants: 500,
             questions_count: 20, results_public: true,
+            banner_image: '',
         });
+        if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+        setBannerFile(null);
+        setBannerPreview(null);
         setActiveView('list');
 
     } catch (e) {
@@ -313,10 +337,11 @@ const handleCreate = async () => {
             }));
             await testAiService.createOlympiadTestSet(selectedOlympiad.id, testSetTitle.trim(), normalizedQs);
             await loadTestSets(selectedOlympiad.id);
+            const savedTitle = testSetTitle.trim();
             setShowTestBuilder(false);
             setParsedQuestions([]);
             setTestSetTitle('');
-            notify('success', `Test to'plami "${testSetTitle}" saqlandi!`);
+            notify('success', `Test to'plami "${savedTitle}" saqlandi!`);
         } catch (e) {
             setParseErrMsg(e?.response?.data?.detail || 'Saqlashda xatolik');
         } finally {
@@ -411,7 +436,7 @@ const handleCreate = async () => {
             ) : (
                 <div className="grid gap-4">
                     {olympiads.map(o => (
-                        <div key={o.id || Math.random()} className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 hover:bg-gray-800/70 transition cursor-pointer" onClick={() => {
+                        <div key={o.id} className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 hover:bg-gray-800/70 transition cursor-pointer" onClick={() => {
                             if (!o?.id) {
                                 notify('error', 'Olimpiada ID topilmadi');
                                 return;
@@ -515,7 +540,49 @@ const handleCreate = async () => {
                         <input type="datetime-local" value={createForm.end_time} onChange={e => setCreateForm({ ...createForm, end_time: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
                     </div>
                 </div>
-                <button onClick={handleCreate} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition">Yaratish</button>
+                {/* Banner rasm yuklash */}
+                <div>
+                    <label className="text-sm text-gray-400 mb-1 block flex items-center gap-2"><Image className="w-4 h-4" /> Olimpiada banneri (ixtiyoriy)</label>
+                    <div className="mt-2">
+                        {bannerPreview ? (
+                            <div className="relative">
+                                <img src={bannerPreview} alt="Banner preview" className="w-full h-48 object-cover rounded-xl border border-gray-700" />
+                                <button
+                                    onClick={() => { if (bannerPreview) URL.revokeObjectURL(bannerPreview); setBannerFile(null); setBannerPreview(null); setCreateForm({ ...createForm, banner_image: '' }); }}
+                                    className="absolute top-2 right-2 p-1 bg-red-600 rounded-full hover:bg-red-700 transition"
+                                >
+                                    <X className="w-4 h-4 text-white" />
+                                </button>
+                            </div>
+                        ) : (
+                            <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer hover:border-emerald-500 transition bg-gray-900/30">
+                                <Upload className="w-8 h-8 text-gray-500 mb-2" />
+                                <span className="text-sm text-gray-500">Banner rasmni yuklash uchun bosing</span>
+                                <span className="text-xs text-gray-600 mt-1">PNG, JPG, WEBP (max 5MB)</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            if (file.size > 5 * 1024 * 1024) {
+                                                notify('error', 'Fayl hajmi 5MB dan oshmasligi kerak');
+                                                return;
+                                            }
+                                            if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+                                            setBannerFile(file);
+                                            setBannerPreview(URL.createObjectURL(file));
+                                        }
+                                    }}
+                                />
+                            </label>
+                        )}
+                    </div>
+                    {bannerUploading && <p className="text-sm text-emerald-400 mt-2 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Banner yuklanmoqda...</p>}
+                </div>
+
+                <button onClick={handleCreate} disabled={bannerUploading} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition disabled:opacity-50">{bannerUploading ? 'Banner yuklanmoqda...' : 'Yaratish'}</button>
             </div>
         </div>
     );
@@ -659,11 +726,16 @@ const handleCreate = async () => {
                                             <div className="flex items-center gap-2">
                                                 {sub.audio_url && (
                                                     <button onClick={() => {
-                                                        if (audioPlaying === sub.submission_id) { setAudioPlaying(null); } else {
+                                                        if (audioPlaying === sub.submission_id) {
+                                                            if (window._currentAudio) { window._currentAudio.pause(); window._currentAudio = null; }
+                                                            setAudioPlaying(null);
+                                                        } else {
+                                                            if (window._currentAudio) { window._currentAudio.pause(); }
                                                             const audio = new Audio(sub.audio_url);
+                                                            window._currentAudio = audio;
                                                             audio.play();
                                                             setAudioPlaying(sub.submission_id);
-                                                            audio.onended = () => setAudioPlaying(null);
+                                                            audio.onended = () => { setAudioPlaying(null); window._currentAudio = null; };
                                                         }
                                                     }} className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
                                                         {audioPlaying === sub.submission_id ? <Pause size={16} /> : <Play size={16} />}
@@ -942,14 +1014,9 @@ const handleCreate = async () => {
                     {Object.entries(questionTypeConfig).map(([type, cfg]) => (
                         <button
                             key={type}
-                            onClick={() => addLessonQ(setter)}
+                            onClick={() => setter(prev => [...prev, { ...emptyLessonQ(), type }])}
                             title={cfg.label}
                             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${cfg.bg} ${cfg.color} hover:opacity-80 transition-opacity`}
-                            // Override type on add by wrapping:
-                            onClickCapture={(e) => {
-                                e.stopPropagation();
-                                setter(prev => [...prev, { ...emptyLessonQ(), type }]);
-                            }}
                         >
                             <cfg.icon size={12} /> {cfg.label}
                         </button>

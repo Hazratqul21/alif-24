@@ -7,11 +7,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 
-import sys
-from pathlib import Path
-project_root = Path(__file__).parent.parent.parent.parent.parent
-sys.path.insert(0, str(project_root))
-
 from shared.database.base import Base
 from shared.database.id_generator import generate_8_digit_id
 

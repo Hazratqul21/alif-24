@@ -17,7 +17,15 @@ from alembic import context
 
 # Import shared database
 from shared.database import Base
-from shared.database.models import *  # Import all models
+from shared.database.models import *  # Import all shared models
+
+# Platform-specific models (Alembic autogenerate uchun)
+from MainPlatform.backend.app.models.ai_cache import *  # noqa
+from MainPlatform.backend.app.models.reading_analysis import *  # noqa
+from Olimp.backend.app.gamification.models import *  # noqa
+from Olimp.backend.app.social.models import *  # noqa
+from Lessions.backend.app.lessons.models import *  # noqa
+from CRM.backend.app.crm.models import *  # noqa
 
 # this is the Alembic Config object
 config = context.config

@@ -12,7 +12,6 @@ Endpoints:
 - GET /competitions/{id}/leaderboard — Umumiy natijalar (4 guruh)
 """
 
-import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Response as FastAPIResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -38,7 +37,6 @@ from shared.database.models.reading_competition import (
 from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
 from shared.auth import verify_token
 from shared.services.storage_service import get_storage_service
-from shared.services.azure_speech_service import speech_service
 from shared.subscription import require_feature, SubscriptionInfo
 
 router = APIRouter()
@@ -513,6 +511,9 @@ async def submit_reading(
     session.score_questions = scores["score_questions"]
     session.total_score = scores["total_score"]
 
+    # Flush before aggregation to ensure current session is visible in queries
+    await db.flush()
+
     # Get student profile
     sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == student.id))
     sp = sp_res.scalars().first()
@@ -537,7 +538,7 @@ async def submit_reading(
             )
             db.add(tx)
 
-            sp.total_coins = (sp.total_coins or 0) + coins_total
+            sp.total_coins = student_coin.current_balance
         except Exception as e:
             logger.error(f"Reading coin award error: {e}")
 
@@ -986,8 +987,12 @@ async def analyze_voice_recording(
     if not session.audio_url:
         raise HTTPException(status_code=400, detail="Avval ovoz yozuvini yuklang")
 
-    # Task va original matnni olish
-    task_res = await db.execute(select(ReadingTask).where(ReadingTask.id == session.task_id))
+    # Task va original matnni olish (eager-load competition to avoid async lazy-load)
+    task_res = await db.execute(
+        select(ReadingTask)
+        .options(selectinload(ReadingTask.competition))
+        .where(ReadingTask.id == session.task_id)
+    )
     task = task_res.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Hikoya topilmadi")

@@ -93,7 +93,7 @@ class UserSubscription(Base):
     amount_paid = Column(Integer, default=0)  # UZS
 
     # Admin tomonidan kim berdi
-    created_by = Column(String(50), nullable=True)  # admin role: "hazratqul", "nurali"
+    created_by = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     notes = Column(Text, nullable=True)
 
     # Vaqt tamg'alari

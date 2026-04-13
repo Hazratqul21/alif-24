@@ -91,7 +91,7 @@ class User(Base):
     # Bolalar uchun (PIN-based auth)
     username = Column(String(50), unique=True, nullable=True, index=True)
     pin_code = Column(String(6), nullable=True)  # 4-6 raqamli PIN
-    parent_id = Column(String(8), ForeignKey("users.id"), nullable=True)
+    parent_id = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     # Asosiy ma'lumotlar
     first_name = Column(String(100), nullable=False)
@@ -197,5 +197,6 @@ __all__ = [
     "AccountStatus",
     "TeacherStatus",
     "ChildRelationship",
+    "Gender",
     "Language"
 ]

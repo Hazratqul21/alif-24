@@ -22,9 +22,7 @@ class ParentProfile(Base):
     # Shaxsiy ma'lumotlar
     occupation = Column(String(200), nullable=True)
     
-    # Obuna
-    subscription_plan = Column(String(50), default="free")  # free, basic, premium
-    subscription_expires_at = Column(DateTime(timezone=True), nullable=True)
+    # Bolalar soni chegarasi
     max_children_allowed = Column(Integer, default=3)
     
     # Bildirishnoma sozlamalari
@@ -47,7 +45,7 @@ class ParentProfile(Base):
     user = relationship("User", back_populates="parent_profile", foreign_keys=[user_id])
     
     def __repr__(self):
-        return f"<ParentProfile user_id={self.user_id} plan={self.subscription_plan}>"
+        return f"<ParentProfile user_id={self.user_id} max_children={self.max_children_allowed}>"
 
 
 __all__ = ["ParentProfile"]

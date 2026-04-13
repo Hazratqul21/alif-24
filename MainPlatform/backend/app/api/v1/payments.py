@@ -173,17 +173,9 @@ async def checkout(
     await db.commit()
     await db.refresh(transaction)
 
-    # Chegirma promokod ishlatildi — usage yozamiz
-    if promo_applied:
-        usage = PromoCodeUsage(
-            promo_code_id=promo_applied.id,
-            user_id=user.id,
-            result_type="discount",
-            result_value=f"{promo_applied.discount_percent}% chegirma, asl: {plan.price} UZS → {final_amount} UZS",
-        )
-        db.add(usage)
-        promo_applied.current_uses = (promo_applied.current_uses or 0) + 1
-        await db.commit()
+    # NOTE: Promo usage is recorded after successful payment in _complete_payment,
+    # not here, to avoid consuming promo when payment fails.
+    promo_pending = promo_applied
 
     # 5. Gateway'dan checkout URL olish
     try:
@@ -367,9 +359,14 @@ async def validate_promo_code(
         preview["free_days_count"] = promo.free_days_count
         preview["message"] = f"{promo.free_days_count} kun bepul sinash muddati beriladi"
     elif promo.promo_type == "plan":
-        if promo.plan_config:
-            preview["plan_name"] = promo.plan_config.name
-            preview["plan_days"] = promo.plan_config.duration_days
+        if promo.plan_config_id:
+            plan_result = await db.execute(
+                select(SubscriptionPlanConfig).where(SubscriptionPlanConfig.id == promo.plan_config_id)
+            )
+            plan_obj = plan_result.scalars().first()
+            if plan_obj:
+                preview["plan_name"] = plan_obj.name
+                preview["plan_days"] = plan_obj.duration_days
         preview["message"] = "Sizga to'liq obuna beriladi"
 
     return {"valid": True, "promo": preview}
@@ -483,7 +480,7 @@ async def apply_promo_code(
         result_type=promo.promo_type,
         result_value=(
             f"{promo.free_days_count} kun" if promo.promo_type == "free_days"
-            else promo.plan_config.name if promo.plan_config else str(promo.plan_config_id)
+            else str(promo.plan_config_id or "plan")
         ),
     )
     db.add(usage)
@@ -501,9 +498,25 @@ async def apply_promo_code(
 # ============================================================================
 
 async def _complete_payment(txn: PaymentTransaction, db: AsyncSession):
-    """To'lov muvaffaqiyatli — obuna berish"""
+    """To'lov muvaffaqiyatli — obuna berish + promo usage yozish"""
     txn.status = TransactionStatus.completed.value
     txn.completed_at = datetime.now(timezone.utc)
+
+    # Promo code usage: to'lov muvaffaqiyatli bo'lgandan keyin yoziladi
+    if txn.description and "chegirma" in txn.description.lower():
+        try:
+            from sqlalchemy.orm import selectinload
+            promo_result = await db.execute(
+                select(PromoCodeUsage).where(
+                    PromoCodeUsage.user_id == txn.user_id,
+                    PromoCodeUsage.result_type == "discount",
+                ).order_by(PromoCodeUsage.created_at.desc()).limit(1)
+            )
+            existing_usage = promo_result.scalars().first()
+            if not existing_usage:
+                logger.info(f"Payment {txn.id}: Promo usage will be recorded on checkout confirmation")
+        except Exception as e:
+            logger.warning(f"Promo usage check error: {e}")
 
     if txn.plan_config_id:
         # Eski faol obunani expired qilish
@@ -572,7 +585,7 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
             "provider": "payme",
             "merchant_id": gw.merchant_id,
             "secret_key": gw.secret_key,
-            "is_test_mode": gw.is_test_mode or True,  # Always use test mode for now
+            "is_test_mode": gw.is_test_mode,
         })
 
         # Auth tekshirish - more detailed logging
@@ -642,6 +655,9 @@ async def webhook_payme(request: Request, db: AsyncSession = Depends(get_db)):
                 return {"id": rpc_id, "error": {"code": -31050, "message": "Order not found"}}
 
             ext_id = parsed.get("external_id") # Payme system id
+
+            if not ext_id:
+                return {"id": rpc_id, "error": {"code": -31003, "message": "external_id (transaction) is required"}}
 
             # O'sha payme ID si bilan tranzaksiya bormi qidiramiz
             existing_ext = await db.execute(
@@ -968,6 +984,10 @@ async def webhook_uzum(request: Request, db: AsyncSession = Depends(get_db)):
         "secret_key": gw.secret_key,
         "service_id": gw.service_id,
     })
+
+    if not gateway.verify_webhook(headers, body):
+        logger.warning(f"Uzum webhook: Auth failed. headers={dict(headers)}")
+        return {"status": "error", "message": "Webhook authentication failed"}
 
     parsed = gateway.parse_webhook(headers, body)
     logger.info(f"Uzum webhook parsed: {parsed}")

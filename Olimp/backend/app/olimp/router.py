@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, WebSocket, WebSoc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func as sql_func, select, or_
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional, Any
 from datetime import datetime, timezone, date, timedelta
 import logging
@@ -32,23 +32,64 @@ router = APIRouter()
 
 
 class BuilderQuestionItem(BaseModel):
-    question_text: str
-    options: List[str]
-    correct_option_index: int
-    points: int = 5
-    order_index: int = 0
+    question_text: str = Field(..., min_length=1)
+    options: List[str] = Field(..., min_length=2, max_length=6)
+    correct_option_index: int = Field(..., ge=0)
+    points: int = Field(default=5, ge=1, le=100)
+    order_index: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def validate_correct_index_bounds(self):
+        if self.correct_option_index >= len(self.options):
+            raise ValueError(
+                f"correct_option_index ({self.correct_option_index}) options sonidan ({len(self.options)}) kichik bo'lishi kerak"
+            )
+        return self
     
+def _validate_banner_url(v: Optional[str]) -> Optional[str]:
+    if v is None or v == "":
+        return v
+    v = v.strip()
+    if len(v) > 500:
+        raise ValueError("Banner URL 500 belgidan oshmasligi kerak")
+    if not (v.startswith("http://") or v.startswith("https://") or v.startswith("/")):
+        raise ValueError("Banner URL http://, https:// yoki / bilan boshlanishi kerak")
+    return v
+
+
 class BuilderPayload(BaseModel):
-    title: str
+    title: str = Field(..., min_length=3)
     description: Optional[str] = None
     start_date: datetime
     end_date: datetime
-    time_limit_minutes: int = 30
+    time_limit_minutes: int = Field(default=30, ge=1, le=1440)
     difficulty: str = "medium"
-    min_age: int = 4
-    max_age: int = 18
-    total_point: int
+    min_age: int = Field(default=4, ge=1, le=100)
+    max_age: int = Field(default=18, ge=1, le=100)
+    total_point: int = Field(..., ge=0)
+    banner_image: Optional[str] = None
     questions: List[BuilderQuestionItem]
+
+    @field_validator("banner_image")
+    @classmethod
+    def validate_banner(cls, v):
+        return _validate_banner_url(v)
+
+    @field_validator("difficulty")
+    @classmethod
+    def validate_difficulty(cls, v):
+        if v not in ("easy", "medium", "hard"):
+            raise ValueError("difficulty faqat 'easy', 'medium' yoki 'hard' bo'lishi mumkin")
+        return v
+
+    @model_validator(mode="after")
+    def validate_dates_and_ages(self):
+        if self.end_date <= self.start_date:
+            raise ValueError("Tugash vaqti boshlanish vaqtidan keyin bo'lishi kerak")
+        if self.min_age > self.max_age:
+            raise ValueError("Minimal yosh maximal yoshdan kichik bo'lishi kerak")
+        return self
+
 
 # ============= Admin Auth =============
 
@@ -104,6 +145,8 @@ def _olympiad_to_dict(o: Olympiad) -> dict:
         "questions_count": o.questions_count,
         "status": o.status.value if o.status else "draft",
         "results_public": o.results_public,
+        "difficulty": o.difficulty or "medium",
+        "banner_image": o.banner_image,
         "created_at": o.created_at.isoformat() if o.created_at else None,
     }
 
@@ -157,11 +200,11 @@ async def _award_coins(student_id: str, amount: int, tx_type: TransactionType,
     )
     db.add(tx)
 
-    # Also update StudentProfile.total_coins
+    # Sync cached total_coins in StudentProfile
     sp_res = await db.execute(select(StudentProfile).where(StudentProfile.id == student_id))
     sp = sp_res.scalars().first()
     if sp:
-        sp.total_coins = (sp.total_coins or 0) + amount
+        sp.total_coins = student_coin.current_balance
 
     return student_coin.current_balance
 
@@ -192,17 +235,19 @@ async def list_olympiads(
         )
 
     # Auto-filter by dates based on status (even if explicit status is passed)
-    if not status or status == "upcoming":
-        # Show olympiads that haven't started yet
+    if status == "upcoming":
         stmt = stmt.where((Olympiad.start_time > now) | (Olympiad.status == OlympiadStatus.upcoming))
     elif status == "active":
-        # Show olympiads that are currently running
         stmt = stmt.where(Olympiad.start_time <= now, Olympiad.end_time > now)
     elif status == "finished" or status == "completed":
-        # Show finished olympiads
         stmt = stmt.where(Olympiad.end_time <= now)
+
     if subject:
-        stmt = stmt.where(Olympiad.subject.ilike(f"%{subject}%"))
+        try:
+            subject_enum = OlympiadSubject(subject)
+            stmt = stmt.where(Olympiad.subject == subject_enum)
+        except ValueError:
+            pass
 
     if student_id:
         user_res = await db.execute(select(User).where(User.id == student_id))
@@ -405,7 +450,6 @@ async def list_questions(
                     "olympiad_id": olympiad_id,
                     "question_text": q.get("question") or q.get("question_text") or "",
                     "options": q.get("options", []),
-                    "correct_answer": q.get("correct", q.get("correct_answer", 0)),
                     "points": q.get("points", 5),
                     "order_index": offset + idx,
                 })
@@ -680,7 +724,6 @@ async def submit_answers(
         result_details.append({
             "question_id": answer.question_id,
             "submitted_answer": answer.answer_index,
-            "correct_answer": question.correct_answer,
             "is_correct": is_correct,
             "points_earned": points
         })
@@ -1210,7 +1253,8 @@ async def admin_build_olympiad(
         status=status,
         difficulty=payload.difficulty,
         min_age=payload.min_age,
-        max_age=payload.max_age
+        max_age=payload.max_age,
+        banner_image=payload.banner_image,
     )
     db.add(new_olympiad)
     await db.flush() # get ID
@@ -1243,15 +1287,28 @@ class QuestionPayload(BaseModel):
 
 
 class OlympiadUpdatePayload(BaseModel):
-    title: Optional[str] = None
+    title: Optional[str] = Field(default=None, min_length=3)
     description: Optional[str] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    time_limit_minutes: Optional[int] = None
+    time_limit_minutes: Optional[int] = Field(default=None, ge=1, le=1440)
     difficulty: Optional[str] = None
-    min_age: Optional[int] = None
-    max_age: Optional[int] = None
-    status: Optional[str] = None  # "draft", "upcoming", "active", "finished", "cancelled"
+    min_age: Optional[int] = Field(default=None, ge=1, le=100)
+    max_age: Optional[int] = Field(default=None, ge=1, le=100)
+    status: Optional[str] = None
+    banner_image: Optional[str] = None
+
+    @field_validator("banner_image")
+    @classmethod
+    def validate_banner(cls, v):
+        return _validate_banner_url(v)
+
+    @field_validator("difficulty")
+    @classmethod
+    def validate_difficulty(cls, v):
+        if v is not None and v not in ("easy", "medium", "hard"):
+            raise ValueError("difficulty faqat 'easy', 'medium' yoki 'hard' bo'lishi mumkin")
+        return v
 
 
 @router.get("/admin/olympiads")
@@ -1337,6 +1394,8 @@ async def admin_update_olympiad(
         olympiad.min_age = payload.min_age
     if payload.max_age is not None:
         olympiad.max_age = payload.max_age
+    if payload.banner_image is not None:
+        olympiad.banner_image = payload.banner_image if payload.banner_image else None
     if payload.status is not None:
         try:
             olympiad.status = OlympiadStatus(payload.status)
@@ -1605,10 +1664,12 @@ async def get_olympiad_stories(
     global_quiz_result = None
     
     if student_id:
+        sp = await _resolve_student_profile(student_id, db)
+        resolved_student_id = sp.id if sp else str(student_id)
         p_res = await db.execute(
             select(OlympiadParticipant).where(
                 OlympiadParticipant.olympiad_id == olympiad_id,
-                OlympiadParticipant.student_id == str(student_id)
+                OlympiadParticipant.student_id == resolved_student_id
             )
         )
         participant = p_res.scalars().first()
@@ -1708,6 +1769,7 @@ async def evaluate_story_quiz_text(
     story_id: str,
     question_index: int = Query(...),
     recognized_text: str = Form(...),
+    student_id: str = Query(..., description="Student user_id for auth"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -1718,6 +1780,12 @@ async def evaluate_story_quiz_text(
     import os
     import difflib
     import httpx
+
+    if not student_id:
+        raise HTTPException(status_code=401, detail="student_id talab qilinadi")
+    user_res = await db.execute(select(User).where(User.id == student_id))
+    if not user_res.scalars().first():
+        raise HTTPException(status_code=401, detail="Foydalanuvchi topilmadi")
 
     res = await db.execute(
         select(OlympiadStory).where(OlympiadStory.id == story_id)

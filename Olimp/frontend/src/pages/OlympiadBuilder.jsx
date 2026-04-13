@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { motion, Reorder } from 'framer-motion';
-import { GripVertical, Plus, Trash2, Save, ArrowLeft, Lightbulb } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Reorder } from 'framer-motion';
+import { GripVertical, Plus, Trash2, Save, ArrowLeft, Lightbulb, Upload, X, Loader2, Image } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import apiService from '../services/apiService';
 
@@ -21,6 +21,12 @@ export default function OlympiadBuilder() {
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    // Banner upload
+    const [bannerFile, setBannerFile] = useState(null);
+    const [bannerPreview, setBannerPreview] = useState(null);
+    const [bannerUploading, setBannerUploading] = useState(false);
+    const bannerInputRef = useRef(null);
 
     const addQuestion = () => {
         setQuestions([
@@ -54,8 +60,8 @@ export default function OlympiadBuilder() {
             setError('');
             setSaving(true);
             const adminKey = localStorage.getItem('adminKey');
+            if (!adminKey) throw new Error("Admin autentifikatsiya topilmadi. Qaytadan kiring.");
 
-            // Validate
             if (!title || !startDate || !endDate) throw new Error("Asosiy maydonlarni to'ldiring");
             for (let i = 0; i < questions.length; i++) {
                 const q = questions[i];
@@ -63,21 +69,39 @@ export default function OlympiadBuilder() {
                 if (q.options.some(o => !o)) throw new Error(`${i + 1}-savol variantlari to'liq emas`);
             }
 
+            let bannerUrl = '';
+            if (bannerFile) {
+                setBannerUploading(true);
+                try {
+                    const formData = new FormData();
+                    formData.append('file', bannerFile);
+                    const uploadRes = await apiService.postForm('/uploads/admin-file', formData, {
+                        headers: { 'X-Admin-Key': adminKey }
+                    });
+                    bannerUrl = uploadRes.url || '';
+                } catch (uploadErr) {
+                    throw new Error('Banner yuklashda xatolik: ' + (uploadErr.message || ''));
+                } finally {
+                    setBannerUploading(false);
+                }
+            }
+
             const payload = {
                 title,
                 description,
                 start_date: new Date(startDate).toISOString(),
                 end_date: new Date(endDate).toISOString(),
-                time_limit_minutes: parseInt(timeLimit),
+                time_limit_minutes: parseInt(timeLimit) || 30,
                 difficulty,
-                min_age: parseInt(minAge),
-                max_age: parseInt(maxAge),
-                total_point: questions.reduce((sum, q) => sum + parseInt(q.points), 0),
+                min_age: parseInt(minAge) || 4,
+                max_age: parseInt(maxAge) || 18,
+                total_point: questions.reduce((sum, q) => sum + (parseInt(q.points) || 0), 0),
+                banner_image: bannerUrl || undefined,
                 questions: questions.map((q, idx) => ({
                     question_text: q.text,
                     options: q.options,
-                    correct_option_index: parseInt(q.correctOption),
-                    points: parseInt(q.points),
+                    correct_option_index: parseInt(q.correctOption) || 0,
+                    points: parseInt(q.points) || 5,
                     order_index: idx
                 }))
             };
@@ -85,6 +109,8 @@ export default function OlympiadBuilder() {
             const res = await apiService.post('/olympiad/admin/build', payload, {
                 headers: { 'X-Admin-Key': adminKey }
             });
+
+            if (bannerPreview) URL.revokeObjectURL(bannerPreview);
 
             const olympiadId = res.data?.olympiad_id || res.olympiad_id;
             navigate(`/admin/olympiads/${olympiadId}/edit`);
@@ -111,10 +137,10 @@ export default function OlympiadBuilder() {
                     </div>
                     <button
                         onClick={handleSave}
-                        disabled={saving}
+                        disabled={saving || bannerUploading}
                         className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
                     >
-                        {saving ? 'Saqlanmoqda...' : <><Save className="w-5 h-5" /> Draft sifatida saqlash</>}
+                        {saving || bannerUploading ? (bannerUploading ? 'Banner yuklanmoqda...' : 'Saqlanmoqda...') : <><Save className="w-5 h-5" /> Draft sifatida saqlash</>}
                     </button>
                 </div>
 
@@ -220,6 +246,49 @@ export default function OlympiadBuilder() {
                     </div>
                 </div>
 
+                {/* Banner Upload */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+                    <h2 className="text-lg font-bold flex items-center gap-2 border-b border-white/10 pb-4">
+                        <Image className="w-5 h-5 text-emerald-400" /> Olimpiada banneri (ixtiyoriy)
+                    </h2>
+                    {bannerPreview ? (
+                        <div className="relative">
+                            <img src={bannerPreview} alt="Banner preview" className="w-full h-48 object-cover rounded-xl border border-white/10" />
+                            <button
+                                onClick={() => { if (bannerPreview) URL.revokeObjectURL(bannerPreview); setBannerFile(null); setBannerPreview(null); if (bannerInputRef.current) bannerInputRef.current.value = ''; }}
+                                className="absolute top-2 right-2 p-1.5 bg-red-600 rounded-full hover:bg-red-700 transition"
+                            >
+                                <X className="w-4 h-4 text-white" />
+                            </button>
+                        </div>
+                    ) : (
+                        <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-white/20 rounded-xl cursor-pointer hover:border-emerald-500 transition bg-slate-900/30">
+                            <Upload className="w-8 h-8 text-white/30 mb-2" />
+                            <span className="text-sm text-white/40">Banner rasmni yuklash uchun bosing</span>
+                            <span className="text-xs text-white/20 mt-1">PNG, JPG, WEBP (max 5MB)</span>
+                            <input
+                                ref={bannerInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        if (file.size > 5 * 1024 * 1024) {
+                                            setError('Fayl hajmi 5MB dan oshmasligi kerak');
+                                            return;
+                                        }
+                                        if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+                                        setBannerFile(file);
+                                        setBannerPreview(URL.createObjectURL(file));
+                                    }
+                                }}
+                            />
+                        </label>
+                    )}
+                    {bannerUploading && <p className="text-sm text-emerald-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Banner yuklanmoqda...</p>}
+                </div>
+
                 {/* Questions Builder */}
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -275,12 +344,12 @@ export default function OlympiadBuilder() {
                                         {q.options.map((opt, optIdx) => (
                                             <div
                                                 key={optIdx}
-                                                className={`flex items-center gap-3 p-2 rounded-xl border ${q.correctOption == optIdx ? 'bg-indigo-600/20 border-indigo-500' : 'bg-slate-900/50 border-white/10 focus-within:border-white/30'} transition-colors`}
+                                                className={`flex items-center gap-3 p-2 rounded-xl border ${q.correctOption === optIdx ? 'bg-indigo-600/20 border-indigo-500' : 'bg-slate-900/50 border-white/10 focus-within:border-white/30'} transition-colors`}
                                             >
                                                 <input
                                                     type="radio"
                                                     name={`correct-${q.id}`}
-                                                    checked={q.correctOption == optIdx}
+                                                    checked={q.correctOption === optIdx}
                                                     onChange={() => updateQuestion(q.id, 'correctOption', optIdx)}
                                                     className="w-4 h-4 text-indigo-600 bg-slate-900 border-white/20 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer"
                                                 />
