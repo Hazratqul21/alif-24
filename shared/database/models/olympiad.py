@@ -204,6 +204,7 @@ class OlympiadParticipant(Base):
     olympiad = relationship("Olympiad", back_populates="participants")
     student = relationship("StudentProfile", backref="olympiad_participations")
     answers = relationship("OlympiadAnswer", back_populates="participant", cascade="all, delete-orphan")
+    reading_submissions = relationship("OlympiadReadingSubmission", back_populates="participant", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<OlympiadParticipant rank={self.rank}>"
@@ -334,7 +335,7 @@ class OlympiadReadingSubmission(Base):
     submitted_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
-    participant = relationship("OlympiadParticipant", backref="reading_submissions")
+    participant = relationship("OlympiadParticipant", back_populates="reading_submissions")
     reading_task = relationship("OlympiadReadingTask", back_populates="submissions")
     story = relationship("OlympiadStory")
     
