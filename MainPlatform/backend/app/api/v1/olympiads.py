@@ -500,8 +500,13 @@ async def delete_olympiad(
     if not o:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
-    await db.delete(o)
-    await db.commit()
+    try:
+        await db.delete(o)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Olimpiada o'chirishda xatolik: {e}")
+        raise HTTPException(status_code=500, detail=f"Olimpiada o'chirishda xatolik: {str(e)}")
     return {"success": True, "message": "Olimpiada o'chirildi"}
 
 
