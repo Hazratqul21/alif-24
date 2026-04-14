@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CreditCard, Plus, Settings, Trash2, Edit2, Eye, EyeOff, CheckCircle, XCircle, AlertTriangle, TrendingUp, RefreshCw, Shield, FlaskConical, Copy, Check } from 'lucide-react';
+import { CreditCard, Plus, Settings, Trash2, Edit2, CheckCircle, XCircle, TrendingUp, RefreshCw, Shield, FlaskConical, Copy, Check } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 const PROVIDERS = [
@@ -55,7 +55,11 @@ export default function AdminPayments() {
         e.preventDefault();
         try {
             if (editGw) {
-                await adminService.updatePaymentGateway(editGw.id, form);
+                const payload = { ...form };
+                if (!payload.merchant_id) delete payload.merchant_id;
+                if (!payload.secret_key) delete payload.secret_key;
+                if (!payload.service_id) delete payload.service_id;
+                await adminService.updatePaymentGateway(editGw.id, payload);
             } else {
                 await adminService.createPaymentGateway(form);
             }

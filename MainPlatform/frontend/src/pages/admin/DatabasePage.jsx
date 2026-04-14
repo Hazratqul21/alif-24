@@ -46,8 +46,14 @@ export default function DatabasePage() {
         }
     };
 
+    const getRowId = (row) => {
+        if (row.id !== undefined) return row.id;
+        const pkCol = columns.find(c => c.name === 'id') || columns[0];
+        return pkCol ? row[pkCol.name] : Object.values(row)[0];
+    };
+
     const handleEdit = (row) => {
-        setEditingRow(row.id || Object.values(row)[0]);
+        setEditingRow(getRowId(row));
         setEditValues({ ...row });
     };
 
@@ -66,7 +72,7 @@ export default function DatabasePage() {
     };
 
     const handleDelete = async (row) => {
-        const rowId = row.id || Object.values(row)[0];
+        const rowId = getRowId(row);
         if (!confirm(`Rostdan o'chirmoqchimisiz? ID: ${rowId}`)) return;
         try {
             await adminService.deleteTableRow(selectedTable, rowId);
@@ -113,8 +119,8 @@ export default function DatabasePage() {
             <div className="flex-1 bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex flex-col min-w-0">
                 <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                     <div>
-                        <h2 className="text-white font-medium">{selectedTable}</h2>
-                        <p className="text-gray-500 text-xs">{total} ta qator • {columns.length} ta ustun</p>
+                        <h2 className="text-white font-medium">{selectedTable || 'Jadval tanlang'}</h2>
+                        <p className="text-gray-500 text-xs">{selectedTable ? `${total} ta qator • ${columns.length} ta ustun` : 'Chap paneldan jadval tanlang'}</p>
                     </div>
                 </div>
 
@@ -136,7 +142,7 @@ export default function DatabasePage() {
                             </thead>
                             <tbody>
                                 {rows.map((row, i) => {
-                                    const rowId = row.id || Object.values(row)[0];
+                                    const rowId = getRowId(row);
                                     const isEditing = editingRow === rowId;
 
                                     return (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Send, Users, Bell, UserCheck, Radio, Megaphone, Trophy, Tag, Newspaper, ChevronDown, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Search, Send, Users, Bell, UserCheck, Radio, Megaphone, Trophy, Tag, Newspaper, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 const TEMPLATES = [

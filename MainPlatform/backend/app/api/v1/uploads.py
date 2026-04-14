@@ -99,15 +99,24 @@ async def upload_admin_file(
     Upload a file from admin panel (no size limit).
     Uses X-Admin-Role / X-Admin-Key auth.
     """
+    MAX_ADMIN_SIZE = 50 * 1024 * 1024  # 50 MB
+
     ext = os.path.splitext(file.filename)[1] if file.filename else ""
     safe_filename = f"{uuid.uuid4().hex}{ext}"
     file_path = os.path.join(UPLOAD_DIR, safe_filename)
 
     total_size = 0
-    with open(file_path, "wb") as f:
-        while chunk := await file.read(1024 * 1024):
-            total_size += len(chunk)
-            f.write(chunk)
+    try:
+        with open(file_path, "wb") as f:
+            while chunk := await file.read(1024 * 1024):
+                total_size += len(chunk)
+                if total_size > MAX_ADMIN_SIZE:
+                    raise HTTPException(status_code=413, detail="Fayl hajmi 50 MB dan oshmasligi kerak")
+                f.write(chunk)
+    except HTTPException:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise
 
     file_url = f"/api/uploads/{safe_filename}"
 

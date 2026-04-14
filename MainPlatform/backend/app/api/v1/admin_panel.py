@@ -577,6 +577,8 @@ async def list_users(
     db: AsyncSession = Depends(get_db)
 ):
     """List users with filters"""
+    if not has_permission(admin, "users"):
+        raise HTTPException(status_code=403, detail="Foydalanuvchilarni ko'rish uchun ruxsat yo'q")
     stmt = select(User).order_by(User.created_at.desc())
     count_stmt = select(func.count(User.id))
     
@@ -637,6 +639,8 @@ async def get_user_details(
     db: AsyncSession = Depends(get_db)
 ):
     """Get detailed user information"""
+    if not has_permission(admin, "users"):
+        raise HTTPException(status_code=403, detail="Foydalanuvchi tafsilotlarini ko'rish uchun ruxsat yo'q")
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
     if not user:
@@ -751,12 +755,12 @@ async def update_user(
         try:
             user.status = AccountStatus(data.status.lower())
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail=f"Noto'g'ri status: {data.status}")
     if data.role:
         try:
             user.role = UserRole(data.role.lower())
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail=f"Noto'g'ri rol: {data.role}")
     
     user.updated_at = datetime.now(timezone.utc)
     await db.commit()
@@ -1500,24 +1504,51 @@ async def universal_create(
     await _validate_table_name(table_name, db)
 
     try:
-        columns = list(data.keys())
-        values = list(data.values())
-        
+        # Validate column names against actual table schema
+        valid_cols_result = await db.execute(text("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = :tbl
+        """), {"tbl": table_name})
+        valid_columns = {row[0] for row in valid_cols_result.fetchall()}
+
+        columns = []
+        values = []
+        for key, val in data.items():
+            safe_key = key.replace('"', '')
+            if safe_key not in valid_columns:
+                raise HTTPException(status_code=400, detail=f"Noma'lum ustun: {safe_key}")
+            columns.append(safe_key)
+            values.append(val)
+
+        if not columns:
+            raise HTTPException(status_code=400, detail="Ma'lumot kiritilmagan")
+
         col_names = ', '.join([f'"{c}"' for c in columns])
         placeholders = ', '.join([f':val_{i}' for i in range(len(values))])
         
         params = {f"val_{i}": v for i, v in enumerate(values)}
-        
+
+        pk_result = await db.execute(text("""
+            SELECT column_name FROM information_schema.key_column_usage
+            WHERE table_schema = 'public' AND table_name = :tbl AND constraint_name LIKE '%pkey%'
+            LIMIT 1
+        """), {"tbl": table_name})
+        pk_row = pk_result.first()
+        returning_col = pk_row[0] if pk_row else "id"
+
         result = await db.execute(
-            text(f'INSERT INTO "{table_name}" ({col_names}) VALUES ({placeholders}) RETURNING id'),
+            text(f'INSERT INTO "{table_name}" ({col_names}) VALUES ({placeholders}) RETURNING "{returning_col}"'),
             params
         )
         new_id = result.scalar()
         await db.commit()
         
         return {"message": "Yaratildi", "table": table_name, "id": new_id}
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
+        logger.exception("Admin DB create failed")
         raise HTTPException(status_code=500, detail=f"Xato: {str(e)}")
 
 
@@ -1943,8 +1974,8 @@ async def assign_subscription(
         started_at=now,
         expires_at=now + timedelta(days=plan.duration_days),
         amount_paid=data.amount_paid,
-        created_by=admin["role"],
-        notes=data.notes,
+        created_by=None,
+        notes=f"[{admin['role']}] {data.notes or ''}".strip(),
     )
     db.add(subscription)
     await db.commit()

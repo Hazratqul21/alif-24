@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-    BookOpen, Plus, Trash2, X, Edit, Eye, ChevronLeft, Trophy,
+    BookOpen, Plus, Trash2, X, Edit, ChevronLeft, Trophy,
     Calendar, Users, Clock, CheckCircle, FileText, BarChart3,
     Image, Save, AlertCircle, Video
 } from 'lucide-react';
@@ -706,15 +706,17 @@ function ResultsView({ compId }) {
     const [loading, setLoading] = useState(true);
     const [group, setGroup] = useState('');
 
-    useEffect(() => { loadResults(); }, [group]);
-
     const loadResults = async () => {
         try {
             setLoading(true);
             const { data } = await adminService.getCompetitionResults(compId, { group: group || undefined, limit: 100 });
             setResults(data.results || []);
-        } catch { } finally { setLoading(false); }
+        } catch (err) {
+            console.error('Results load error:', err);
+        } finally { setLoading(false); }
     };
+
+    useEffect(() => { loadResults(); }, [compId, group]);
 
     return (
         <div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CreditCard, Plus, Trash2, X, Users, TrendingUp, Edit2, UserPlus, Search, Ban, Check, Settings, ToggleLeft, ToggleRight, Tag, Clock, Star, Layers, Eye } from 'lucide-react';
+import { CreditCard, Plus, Trash2, X, Users, TrendingUp, Edit2, UserPlus, Search, Ban, Check, Tag, Layers, Eye } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 export default function AdminSubscriptions() {
@@ -182,7 +182,7 @@ export default function AdminSubscriptions() {
     const filteredSubs = subs.filter(sub => {
         if (!searchQuery) return true;
         const q = searchQuery.toLowerCase();
-        return (sub.user_name?.toLowerCase().includes(q) || sub.user_phone?.includes(q) || sub.user_id?.includes(q) || sub.plan_name?.toLowerCase().includes(q));
+        return (sub.user_name?.toLowerCase().includes(q) || sub.user_phone?.includes(q) || String(sub.user_id ?? '').includes(q) || sub.plan_name?.toLowerCase().includes(q));
     });
 
     if (loading) {

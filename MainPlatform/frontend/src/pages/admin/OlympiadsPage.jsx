@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Trophy, Plus, Trash2, X, Eye, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, BarChart3, FileText, AlertCircle, PenLine, RefreshCw, Target, AudioLines, Waves, Book, Globe, Pencil, Video, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2 } from 'lucide-react';
+import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2 } from 'lucide-react';
 import olympiadService from '../../services/olympiadService';
 import adminService from '../../services/adminService';
 import testAiService from '../../services/testAiService';

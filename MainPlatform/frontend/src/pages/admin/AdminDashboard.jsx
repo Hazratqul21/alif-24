@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, GraduationCap, UserCheck, TrendingUp, Clock, Globe, MapPin, Smartphone, Monitor, Tablet, CreditCard, AlertTriangle, Activity, Bell, ChevronRight, RefreshCw, Zap, Crown, Star, BarChart3, Eye } from 'lucide-react';
+import { Users, GraduationCap, UserCheck, TrendingUp, Clock, Globe, MapPin, Smartphone, Monitor, Tablet, CreditCard, AlertTriangle, Activity, Bell, RefreshCw, Zap, Crown, Star, BarChart3, Eye } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 const StatCard = ({ icon: Icon, label, value, color, subtext, trend }) => (
@@ -71,8 +71,8 @@ export default function AdminDashboard() {
         );
     }
 
-    const maxRegionUsers = geo?.regions?.length > 0 ? Math.max(...geo.regions.map(r => r.unique_users)) : 1;
-    const maxDeviceVal = geo?.devices ? Math.max(...Object.values(geo.devices), 1) : 1;
+    const maxRegionUsers = geo?.regions?.length > 0 ? Math.max(1, ...geo.regions.map(r => Number(r.unique_users) || 0)) : 1;
+    const maxDeviceVal = geo?.devices ? Math.max(1, ...Object.values(geo.devices).map(v => Number(v) || 0)) : 1;
 
     return (
         <div>

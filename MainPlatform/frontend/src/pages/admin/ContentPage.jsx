@@ -14,7 +14,7 @@ export default function ContentPage() {
     const [rawJsonText, setRawJsonText] = useState('{}');
 
     const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
-    const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '6-8' });
+    const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '5-7' });
     const [ertakQuestions, setErtakQuestions] = useState([]); // [{question:'',answer:''}]
     const [uploadFile, setUploadFile] = useState(null);
     const [uploadImage, setUploadImage] = useState(null);

@@ -254,7 +254,9 @@ export default function UsersPage() {
                         {Object.entries(detailModal.user || {}).map(([k, v]) => (
                             <div key={k} className="flex justify-between py-1.5 border-b border-gray-800">
                                 <span className="text-gray-400">{k}</span>
-                                <span className="text-white font-mono text-xs">{v ?? '—'}</span>
+                                <span className="text-white font-mono text-xs max-w-[60%] truncate" title={typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')}>
+                                    {v == null ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                </span>
                             </div>
                         ))}
                         {detailModal.profile && (
@@ -263,7 +265,9 @@ export default function UsersPage() {
                                 {Object.entries(detailModal.profile).map(([k, v]) => (
                                     <div key={k} className="flex justify-between py-1.5 border-b border-gray-800">
                                         <span className="text-gray-400">{k}</span>
-                                        <span className="text-white font-mono text-xs">{v ?? '—'}</span>
+                                        <span className="text-white font-mono text-xs max-w-[60%] truncate" title={typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')}>
+                                            {v == null ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                        </span>
                                     </div>
                                 ))}
                             </>
