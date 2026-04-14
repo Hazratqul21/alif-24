@@ -43,10 +43,8 @@ const PlatformRedirect = ({ baseUrl, path = '' }) => {
   return null;
 };
 
-import DashboardLayout from './components/Dashboard/DashboardLayout';
 import LoginModal from './components/Auth/LoginModal';
 import RegisterModal from './components/Auth/RegisterModal';
-import SmartAuthPrompt from './components/Auth/SmartAuthPrompt';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import ToastManager from './components/Common/ToastManager';
@@ -67,13 +65,10 @@ const LoginRoute = () => {
       const redirectUrl = urlParams.get('redirect');
 
       if (redirectUrl) {
-        // Validate redirect URL — only allow alif24.uz subdomains or localhost
         try {
           const parsed = new URL(redirectUrl);
-          const isAllowed =
-            parsed.hostname.endsWith('alif24.uz') ||
-            parsed.hostname === 'localhost' ||
-            parsed.hostname === '127.0.0.1';
+          const ALLOWED_HOSTS = ['alif24.uz', 'www.alif24.uz', 'olimp.alif24.uz', 'harf.alif24.uz', 'games.alif24.uz', 'testai.alif24.uz', 'crm.alif24.uz', 'lessions.alif24.uz', 'localhost', '127.0.0.1'];
+          const isAllowed = ALLOWED_HOSTS.includes(parsed.hostname);
 
           if (isAllowed) {
             // Loop protection: check redirect counter

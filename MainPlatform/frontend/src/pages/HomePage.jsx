@@ -72,14 +72,13 @@ const HomePage = () => {
 
   const categories = [
     { id: 'harflar', nameKey: 'letters', icon: Camera },
-    { id: 'harflar', nameKey: 'letters', icon: Type },
+    { id: 'letters', nameKey: 'letters', icon: Type },
     { id: 'alifbe', nameKey: 'alphabet', icon: BookOpen },
     { id: 'math', nameKey: 'math', icon: Calculator },
     { id: 'texnika', nameKey: 'technique', icon: Car },
     { id: 'informatika', nameKey: 'informatics', icon: Monitor },
     { id: 'tabiat', nameKey: 'nature', icon: TreePine },
     { id: 'boshqalar', nameKey: 'others', icon: Gem },
-
   ];
 
   const catColors = [

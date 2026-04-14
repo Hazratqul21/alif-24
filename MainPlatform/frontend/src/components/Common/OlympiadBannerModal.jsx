@@ -28,7 +28,8 @@ const OlympiadBannerModal = () => {
                 const activeBanners = res.banners || [];
                 if (activeBanners.length === 0) return;
 
-                const dismissed = JSON.parse(sessionStorage.getItem(DISMISSED_KEY) || '[]');
+                let dismissed = [];
+                try { dismissed = JSON.parse(sessionStorage.getItem(DISMISSED_KEY) || '[]'); } catch { sessionStorage.removeItem(DISMISSED_KEY); }
                 const newBanners = activeBanners.filter(b => !dismissed.includes(b.id));
 
                 if (newBanners.length > 0) {
@@ -45,7 +46,8 @@ const OlympiadBannerModal = () => {
     }, [isAuthenticated, isAdminPage]);
 
     const handleClose = useCallback(() => {
-        const dismissed = JSON.parse(sessionStorage.getItem(DISMISSED_KEY) || '[]');
+        let dismissed = [];
+        try { dismissed = JSON.parse(sessionStorage.getItem(DISMISSED_KEY) || '[]'); } catch { /* corrupted */ }
         const ids = banners.map(b => b.id);
         sessionStorage.setItem(DISMISSED_KEY, JSON.stringify([...new Set([...dismissed, ...ids])]));
         setIsOpen(false);

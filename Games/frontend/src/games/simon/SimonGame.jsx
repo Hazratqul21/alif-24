@@ -23,6 +23,16 @@ export default function SimonGame() {
 
   const audioCtx = useRef(null);
   const nextRoundTimer = useRef(null);
+  const cancelledRef = useRef(false);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+    return () => {
+      cancelledRef.current = true;
+      if (nextRoundTimer.current) clearTimeout(nextRoundTimer.current);
+      if (audioCtx.current) { try { audioCtx.current.close(); } catch {} audioCtx.current = null; }
+    };
+  }, []);
 
   useEffect(() => {
     if (score > highScore) {
@@ -67,11 +77,14 @@ export default function SimonGame() {
     setSequence(newSequence);
 
     for (let i = 0; i < newSequence.length; i++) {
+      if (cancelledRef.current) return;
       await new Promise(resolve => setTimeout(resolve, speed * 0.2));
+      if (cancelledRef.current) return;
       const colorId = newSequence[i];
       setActiveColor(colorId);
       playSound(COLORS[colorId].sound);
       await new Promise(resolve => setTimeout(resolve, speed * 0.8));
+      if (cancelledRef.current) return;
       setActiveColor(null);
     }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Filter, RefreshCw } from 'lucide-react';
 import CRMBoard from '../components/crm/CRMBoard';
 import LeadModal from '../components/crm/LeadModal';
@@ -11,11 +11,12 @@ const CRMPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingLead, setEditingLead] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const debounceRef = useRef(null);
 
-    const fetchLeads = async () => {
+    const fetchLeads = async (query) => {
         setIsLoading(true);
         try {
-            const data = await crmService.getLeads({ search: searchQuery });
+            const data = await crmService.getLeads({ search: query ?? searchQuery });
             setLeads(data);
         } catch (error) {
             console.error("Failed to fetch leads:", error);
@@ -25,8 +26,10 @@ const CRMPage = () => {
     };
 
     useEffect(() => {
-        fetchLeads();
-    }, [searchQuery]); // Re-fetch on search change
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => fetchLeads(searchQuery), 400);
+        return () => clearTimeout(debounceRef.current);
+    }, [searchQuery]);
 
     const handleCreateLead = async (formData) => {
         try {

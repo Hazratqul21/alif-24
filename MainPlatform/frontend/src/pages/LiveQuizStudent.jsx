@@ -37,6 +37,7 @@ const LiveQuizStudent = () => {
   const timerRef = useRef(null);
   const pollRef = useRef(null);
   const startTimeRef = useRef(null);
+  const autoSubmittedRef = useRef(false);
 
   // ====== JOIN ======
   const handleJoin = async () => {
@@ -114,6 +115,16 @@ const LiveQuizStudent = () => {
       console.error('Fetch results error:', err);
     }
   };
+
+  useEffect(() => {
+    if (phase === 'playing' && timeLeft === 0 && selectedAnswer === null && !autoSubmittedRef.current) {
+      autoSubmittedRef.current = true;
+      setPhase('answered');
+    }
+    if (phase !== 'playing') {
+      autoSubmittedRef.current = false;
+    }
+  }, [phase, timeLeft, selectedAnswer]);
 
   // Poll for question changes (when waiting or after answering)
   useEffect(() => {

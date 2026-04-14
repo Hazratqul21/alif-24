@@ -10,7 +10,7 @@ export default function LessonDetail() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => { loadLesson(); }, [id]);
+    useEffect(() => { loadLesson(); }, [id, olympiadId]);
 
     const loadLesson = async () => {
         try {

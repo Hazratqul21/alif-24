@@ -43,14 +43,18 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
       const data = res.data;
       // Backend automatically sets HttpOnly Cookies now.
 
-      // Check for redirect param
       const urlParams = new URLSearchParams(window.location.search);
       const redirectUrl = urlParams.get('redirect');
 
       if (redirectUrl) {
-        // Since we use Wildcard cookies (.alif24.uz), simply redirect.
-        window.location.href = redirectUrl;
-        return;
+        try {
+          const parsed = new URL(redirectUrl, window.location.origin);
+          const ALLOWED_HOSTS = ['alif24.uz', 'www.alif24.uz', 'olimp.alif24.uz', 'harf.alif24.uz', 'games.alif24.uz', 'testai.alif24.uz', 'crm.alif24.uz', 'lessions.alif24.uz', 'localhost', '127.0.0.1'];
+          if (ALLOWED_HOSTS.includes(parsed.hostname)) {
+            window.location.href = redirectUrl;
+            return;
+          }
+        } catch { /* invalid URL, ignore */ }
       }
 
       window.location.href = '/student-dashboard';
@@ -89,9 +93,14 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
       }
 
       if (redirectUrl) {
-        // Since we use Wildcard cookies (.alif24.uz), simply redirect.
-        window.location.href = redirectUrl;
-        return;
+        try {
+          const parsed = new URL(redirectUrl, window.location.origin);
+          const ALLOWED_HOSTS = ['alif24.uz', 'www.alif24.uz', 'olimp.alif24.uz', 'harf.alif24.uz', 'games.alif24.uz', 'testai.alif24.uz', 'crm.alif24.uz', 'lessions.alif24.uz', 'localhost', '127.0.0.1'];
+          if (ALLOWED_HOSTS.includes(parsed.hostname)) {
+            window.location.href = redirectUrl;
+            return;
+          }
+        } catch { /* invalid URL, ignore */ }
       }
 
       // Redirect based on role

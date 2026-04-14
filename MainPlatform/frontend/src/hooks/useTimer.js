@@ -11,6 +11,9 @@ export const useTimer = (initialTime = 0, countDown = false, onComplete = null) 
   const [time, setTime] = useState(initialTime);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef(null);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
   useEffect(() => {
     if (isRunning) {
@@ -19,7 +22,7 @@ export const useTimer = (initialTime = 0, countDown = false, onComplete = null) 
           if (countDown) {
             if (prev <= 1) {
               setIsRunning(false);
-              if (onComplete) onComplete();
+              if (onCompleteRef.current) onCompleteRef.current();
               return 0;
             }
             return prev - 1;
@@ -34,7 +37,7 @@ export const useTimer = (initialTime = 0, countDown = false, onComplete = null) 
         clearInterval(intervalRef.current);
       }
     };
-  }, [isRunning, countDown, onComplete]);
+  }, [isRunning, countDown]);
 
   const start = useCallback(() => {
     setIsRunning(true);

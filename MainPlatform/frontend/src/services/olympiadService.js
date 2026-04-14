@@ -50,7 +50,7 @@ const olympiadService = {
         const formData = new FormData();
         formData.append('file', file);
         try {
-            const resp = await axios.post(`${API_URL}/uploads/admin-file`, formData, {
+            const resp = await axios.post(`${API_URL}/upload/admin-file`, formData, {
                 headers: { ...getAdminHeaders() },
             });
             return resp.data;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 
 /**
@@ -7,36 +7,87 @@ import { useParams, Link } from 'react-router-dom';
 export default function QuizPlayPage() {
     const { quizId } = useParams();
     const [playerName] = useState(() => sessionStorage.getItem('quizPlayerName') || 'Mehmon');
-    const [status, setStatus] = useState('waiting'); // waiting, question, answered, results, finished
+    const [status, setStatus] = useState('waiting');
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [questionIndex, setQuestionIndex] = useState(0);
     const [totalQuestions, setTotalQuestions] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [score, setScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
+    const pollRef = useRef(null);
 
-    // Poll for quiz status (in production, replace with WebSocket)
-    useEffect(() => {
-        // Placeholder: showing waiting screen until quiz starts
-        setStatus('waiting');
-    }, [quizId]);
+    const processQuizData = useCallback((data) => {
+        if (!data) return;
 
-    // Timer countdown — only depends on `status` to avoid re-creating interval every tick
+        if (data.status === 'finished') {
+            setStatus('finished');
+            if (data.score !== undefined) setScore(data.score);
+            return;
+        }
+
+        if (data.status === 'waiting') {
+            setStatus('waiting');
+            return;
+        }
+
+        if (data.status === 'active' && data.question) {
+            setCurrentQuestion(data.question);
+            setQuestionIndex(data.question_index ?? questionIndex);
+            setTotalQuestions(data.total_questions ?? totalQuestions);
+            setTimeLeft(data.question.time_limit || 30);
+            setSelectedAnswer(null);
+            setStatus('question');
+        }
+    }, [questionIndex, totalQuestions]);
+
     useEffect(() => {
-        if (status !== 'question') return;
-        if (timeLeft <= 0) return;
+        if (!quizId) return;
+
+        const poll = async () => {
+            try {
+                const res = await fetch(`/api/v1/quiz/${quizId}/status?player=${encodeURIComponent(playerName)}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                processQuizData(data);
+            } catch { /* network error, keep polling */ }
+        };
+
+        poll();
+        pollRef.current = setInterval(poll, 2000);
+        return () => clearInterval(pollRef.current);
+    }, [quizId, playerName, processQuizData]);
+
+    useEffect(() => {
+        if (status !== 'question' || timeLeft <= 0) return;
         const timer = setInterval(() => setTimeLeft(t => {
             if (t <= 1) { clearInterval(timer); return 0; }
             return t - 1;
         }), 1000);
         return () => clearInterval(timer);
-    }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [status, timeLeft > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        if (status === 'question' && timeLeft === 0 && selectedAnswer === null) {
+            setStatus('answered');
+        }
+    }, [status, timeLeft, selectedAnswer]);
 
     const handleAnswer = (index) => {
         if (status !== 'question' || selectedAnswer !== null) return;
         setSelectedAnswer(index);
         setStatus('answered');
-        // In production: send answer to server
+
+        fetch(`/api/v1/quiz/${quizId}/answer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                player_name: playerName,
+                question_index: questionIndex,
+                answer_index: index,
+            }),
+        }).then(r => r.json()).then(data => {
+            if (data.score !== undefined) setScore(data.score);
+        }).catch(() => {});
     };
 
     const optionColors = [

@@ -75,8 +75,11 @@ export default function OlympiadBuilder() {
                 try {
                     const formData = new FormData();
                     formData.append('file', bannerFile);
-                    const uploadRes = await apiService.postForm('/uploads/admin-file', formData, {
-                        headers: { 'X-Admin-Key': adminKey }
+                    const uploadRes = await apiService.postForm('/upload/admin-file', formData, {
+                        headers: {
+                            'X-Admin-Key': adminKey,
+                            'X-Admin-Role': localStorage.getItem('adminRole') || '',
+                        }
                     });
                     bannerUrl = uploadRes.url || '';
                 } catch (uploadErr) {

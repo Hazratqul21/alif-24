@@ -104,10 +104,20 @@ export default function OlympiadsPage() {
     const [bannerFile, setBannerFile] = useState(null);
     const [bannerPreview, setBannerPreview] = useState(null);
     const [bannerUploading, setBannerUploading] = useState(false);
+    const notifyTimerRef = useRef(null);
+    const audioRef = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+            if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+        };
+    }, []);
 
     const notify = (type, message) => {
         setNotification({ type, message });
-        setTimeout(() => setNotification(null), 4000);
+        if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+        notifyTimerRef.current = setTimeout(() => setNotification(null), 4000);
     };
 
     const fetchOlympiads = useCallback(async () => {
@@ -727,15 +737,15 @@ const handleCreate = async () => {
                                                 {sub.audio_url && (
                                                     <button onClick={() => {
                                                         if (audioPlaying === sub.submission_id) {
-                                                            if (window._currentAudio) { window._currentAudio.pause(); window._currentAudio = null; }
+                                                            if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
                                                             setAudioPlaying(null);
                                                         } else {
-                                                            if (window._currentAudio) { window._currentAudio.pause(); }
+                                                            if (audioRef.current) { audioRef.current.pause(); }
                                                             const audio = new Audio(sub.audio_url);
-                                                            window._currentAudio = audio;
+                                                            audioRef.current = audio;
                                                             audio.play();
                                                             setAudioPlaying(sub.submission_id);
-                                                            audio.onended = () => { setAudioPlaying(null); window._currentAudio = null; };
+                                                            audio.onended = () => { setAudioPlaying(null); audioRef.current = null; };
                                                         }
                                                     }} className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
                                                         {audioPlaying === sub.submission_id ? <Pause size={16} /> : <Play size={16} />}
