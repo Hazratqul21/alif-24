@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2 } from 'lucide-react';
+import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2, Search, ChevronLeft, ArrowRight, Filter } from 'lucide-react';
 import olympiadService from '../../services/olympiadService';
 import adminService from '../../services/adminService';
 import testAiService from '../../services/testAiService';
@@ -95,7 +95,7 @@ export default function OlympiadsPage() {
 
     // Create form
     const [createForm, setCreateForm] = useState({
-        title: '', description: '', subject: 'general', type: 'test',
+        title: '', description: '', subject: 'general', type: 'test', difficulty: 'medium',
         min_age: 4, max_age: 18, grade_level: '',
         registration_start: '', registration_end: '', start_time: '', end_time: '',
         duration_minutes: 30, max_participants: 500, questions_count: 20, results_public: true,
@@ -104,6 +104,28 @@ export default function OlympiadsPage() {
     const [bannerFile, setBannerFile] = useState(null);
     const [bannerPreview, setBannerPreview] = useState(null);
     const [bannerUploading, setBannerUploading] = useState(false);
+    const [wizardStep, setWizardStep] = useState(1);
+    const [listFilter, setListFilter] = useState('all');
+    const [listSearch, setListSearch] = useState('');
+
+    const GRADE_OPTIONS = [
+        { value: '', label: 'Tanlanmagan' },
+        { value: '1-sinf', label: '1-sinf' }, { value: '2-sinf', label: '2-sinf' },
+        { value: '3-sinf', label: '3-sinf' }, { value: '4-sinf', label: '4-sinf' },
+        { value: '5-sinf', label: '5-sinf' }, { value: '6-sinf', label: '6-sinf' },
+        { value: '7-sinf', label: '7-sinf' }, { value: '8-sinf', label: '8-sinf' },
+        { value: '9-sinf', label: '9-sinf' }, { value: '10-sinf', label: '10-sinf' },
+        { value: '11-sinf', label: '11-sinf' }, { value: 'aralash', label: 'Barcha sinflar' },
+    ];
+
+    const SUBJECT_OPTIONS = [
+        { value: 'general', label: 'Umumiy bilim' },
+        { value: 'math', label: 'Matematika' },
+        { value: 'uzbek', label: "O'zbek tili" },
+        { value: 'russian', label: 'Rus tili' },
+        { value: 'english', label: 'Ingliz tili' },
+        { value: 'logic', label: 'Mantiq' },
+    ];
     const notifyTimerRef = useRef(null);
     const audioRef = useRef(null);
 
@@ -156,22 +178,53 @@ export default function OlympiadsPage() {
 
    // handleCreate funksiyasini shu ko'rinishga o'zgartiring:
 
-const handleCreate = async () => {
-    if (!createForm.title || !createForm.registration_start || !createForm.start_time) {
-        return notify('error', 'Sarlavha, ro\'yxatdan o\'tish va boshlanish sanasi kerak');
+const resetCreateForm = () => {
+    setCreateForm({
+        title: '', description: '', subject: 'general', type: 'test', difficulty: 'medium',
+        min_age: 4, max_age: 18, grade_level: '',
+        registration_start: '', registration_end: '', start_time: '', end_time: '',
+        duration_minutes: 30, max_participants: 500, questions_count: 20, results_public: true,
+        banner_image: '',
+    });
+    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+    setBannerFile(null);
+    setBannerPreview(null);
+    setWizardStep(1);
+};
+
+const validateWizardStep = (step) => {
+    const f = createForm;
+    if (step === 1) {
+        if (!f.title || f.title.trim().length < 3) { notify('error', 'Sarlavha kamida 3 ta belgi bo\'lishi kerak'); return false; }
+        if (!f.type) { notify('error', 'Olimpiada turini tanlang'); return false; }
+        if (!f.subject) { notify('error', 'Fanni tanlang'); return false; }
     }
+    if (step === 2) {
+        if (!f.registration_start) { notify('error', "Ro'yxatdan o'tish boshlanish sanasini kiriting"); return false; }
+        if (!f.start_time) { notify('error', 'Olimpiada boshlanish sanasini kiriting'); return false; }
+        const now = new Date();
+        const regStart = new Date(f.registration_start);
+        const startTime = new Date(f.start_time);
+        if (regStart < now) { notify('error', "Ro'yxatdan o'tish boshlanishi o'tgan sanada bo'lishi mumkin emas"); return false; }
+        if (f.registration_end && new Date(f.registration_end) < regStart) { notify('error', "Ro'yxatdan o'tish tugashi boshlanishidan keyin bo'lishi kerak"); return false; }
+        if (regStart > startTime) { notify('error', "Ro'yxatdan o'tish olimpiada boshlanishidan oldin bo'lishi kerak"); return false; }
+        if (f.end_time && new Date(f.end_time) <= startTime) { notify('error', 'Tugash vaqti boshlanish vaqtidan keyin bo\'lishi kerak'); return false; }
+        if (f.min_age > f.max_age) { notify('error', 'Minimal yosh maximal yoshdan kichik bo\'lishi kerak'); return false; }
+        if (f.duration_minutes < 1 || f.duration_minutes > 1440) { notify('error', 'Davomiylik 1 dan 1440 minutgacha bo\'lishi kerak'); return false; }
+    }
+    return true;
+};
+
+const handleCreate = async () => {
+    if (!validateWizardStep(1) || !validateWizardStep(2)) return;
     try {
-        // datetime-local inputlar timezone o'z ichiga olmaydi — ISO 8601 formatga o'tkazamiz
+        setSaving(true);
         const toISO = (v) => {
             if (!v) return v;
-            // Agar allaqachon 'Z' yoki '+' bo'lsa, o'zgartirmaymiz
             if (v.includes('Z') || v.includes('+')) return v;
-            // Local timezone offset qo'shamiz
-            const d = new Date(v);
-            return d.toISOString();
+            return new Date(v).toISOString();
         };
 
-        // Banner rasmni avval yuklash
         let bannerUrl = createForm.banner_image || '';
         if (bannerFile) {
             setBannerUploading(true);
@@ -181,55 +234,58 @@ const handleCreate = async () => {
             } catch (uploadErr) {
                 notify('error', 'Banner rasmni yuklashda xatolik: ' + (uploadErr.message || ''));
                 setBannerUploading(false);
+                setSaving(false);
                 return;
             }
             setBannerUploading(false);
         }
 
+        const startTime = toISO(createForm.start_time);
+        const endTimeRaw = createForm.end_time
+            ? toISO(createForm.end_time)
+            : new Date(new Date(createForm.start_time).getTime() + createForm.duration_minutes * 60000).toISOString();
+
         const payload = {
             ...createForm,
             banner_image: bannerUrl,
             registration_start: toISO(createForm.registration_start),
-            registration_end: toISO(createForm.registration_end || createForm.registration_start),
-            start_time: toISO(createForm.start_time),
-            end_time: toISO(createForm.end_time || createForm.start_time),
+            registration_end: toISO(createForm.registration_end || createForm.start_time),
+            start_time: startTime,
+            end_time: endTimeRaw,
         };
-        console.log('[OlympiadsPage] create payload:', payload);
         const res = await olympiadService.createOlympiad(payload);
-        console.log('[OlympiadsPage] create response:', res);
 
-        // Validate response — backend returns { success: true, olympiad: {...} }
         if (!res || !res.success) {
-            const errMsg = res?.error?.message || res?.detail || 'Server javob bermadi';
-            notify('error', `Yaratishda xatolik: ${errMsg}`);
-            console.error('[OlympiadsPage] create returned non-success:', res);
+            const errDetail = res?.detail;
+            let errMsg = 'Server javob bermadi';
+            if (typeof errDetail === 'string') errMsg = errDetail;
+            else if (Array.isArray(errDetail)) errMsg = errDetail.map(e => e.msg || e.message || JSON.stringify(e)).join('; ');
+            else if (res?.error?.message) errMsg = res.error.message;
+            notify('error', errMsg);
             return;
         }
 
-        notify('success', 'Olimpiada yaratildi!');
-
-        // 1) Avval listni serverdan yangilash
+        notify('success', 'Olimpiada muvaffaqiyatli yaratildi! Endi savol va kontent qo\'shishingiz mumkin.');
         await fetchOlympiads();
 
-        // 2) Keyin formni tozalab listga o'tish
-        setCreateForm({
-            title: '', description: '', subject: 'general', type: 'test',
-            min_age: 4, max_age: 18, grade_level: '',
-            registration_start: '', registration_end: '',
-            start_time: '', end_time: '',
-            duration_minutes: 30, max_participants: 500,
-            questions_count: 20, results_public: true,
-            banner_image: '',
-        });
-        if (bannerPreview) URL.revokeObjectURL(bannerPreview);
-        setBannerFile(null);
-        setBannerPreview(null);
-        setActiveView('list');
-
+        const newOlympiad = res.olympiad;
+        if (newOlympiad?.id) {
+            setSelectedOlympiad(newOlympiad);
+            fetchDetail(newOlympiad.id);
+            setActiveView('detail');
+        } else {
+            setActiveView('list');
+        }
+        resetCreateForm();
     } catch (e) {
-        const msg = parseError(e) || e.message || 'Xatolik';
+        const raw = e.response?.data?.detail;
+        let msg;
+        if (typeof raw === 'string') msg = raw;
+        else if (Array.isArray(raw)) msg = raw.map(d => d.msg || '').join('; ');
+        else msg = parseError(e) || e.message || 'Xatolik yuz berdi';
         notify('error', msg);
-        console.error('[OlympiadsPage] create error:', e.response?.status, e.response?.data || e.message);
+    } finally {
+        setSaving(false);
     }
 };
 
@@ -428,49 +484,80 @@ const handleCreate = async () => {
     const typeLabels = { test: 'Test', reading: "O'qish", mixed: 'Aralash' };
 
     // ======================== RENDER: LIST ========================
+    const filteredOlympiads = olympiads
+        .filter(o => listFilter === 'all' || o.status === listFilter)
+        .filter(o => !listSearch || (o.title || '').toLowerCase().includes(listSearch.toLowerCase()))
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+    const statusFilterButtons = [
+        { key: 'all', label: 'Hammasi' },
+        { key: 'draft', label: 'Qoralama' },
+        { key: 'upcoming', label: 'Kelgusi' },
+        { key: 'active', label: 'Faol' },
+        { key: 'finished', label: 'Tugagan' },
+    ];
+
     const renderList = () => (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-white flex items-center gap-3"><Trophy className="text-amber-400" /> Olimpiadalar</h1>
-                <button onClick={() => setActiveView('create')} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition font-medium text-sm">
+                <button onClick={() => { resetCreateForm(); setActiveView('create'); }} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition font-medium text-sm">
                     <Plus size={18} /> Yangi olimpiada
                 </button>
             </div>
+            {/* Filter + Search */}
+            <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex gap-2 flex-wrap">
+                    {statusFilterButtons.map(f => (
+                        <button key={f.key} onClick={() => setListFilter(f.key)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${listFilter === f.key ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                            {f.label}
+                        </button>
+                    ))}
+                </div>
+                <div className="relative flex-1 max-w-xs">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <input value={listSearch} onChange={e => setListSearch(e.target.value)} placeholder="Qidirish..."
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-9 pr-3 py-1.5 text-white text-sm outline-none focus:ring-1 focus:ring-emerald-500" />
+                </div>
+            </div>
             {loading ? (
                 <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" /></div>
-            ) : olympiads.length === 0 ? (
+            ) : filteredOlympiads.length === 0 ? (
                 <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-12 text-center">
                     <Trophy size={48} className="mx-auto mb-3 text-gray-600" />
-                    <p className="text-gray-500">Hozircha olimpiadalar yo'q</p>
+                    <p className="text-gray-500">{olympiads.length === 0 ? 'Hozircha olimpiadalar yo\'q' : 'Mos olimpiada topilmadi'}</p>
                 </div>
             ) : (
                 <div className="grid gap-4">
-                    {olympiads.map(o => (
-                        <div key={o.id} className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 hover:bg-gray-800/70 transition cursor-pointer" onClick={() => {
-                            if (!o?.id) {
-                                notify('error', 'Olimpiada ID topilmadi');
-                                return;
-                            }
+                    {filteredOlympiads.map(o => (
+                        <div key={o.id} className="bg-gray-800/50 border border-gray-700 rounded-2xl overflow-hidden hover:bg-gray-800/70 transition cursor-pointer" onClick={() => {
+                            if (!o?.id) { notify('error', 'Olimpiada ID topilmadi'); return; }
                             setSelectedOlympiad(o);
                             fetchDetail(o.id);
                             setActiveView('detail');
                         }}>
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <h3 className="text-white font-bold text-lg">{o.title}</h3>
-                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[o.status] || ''}`}>{o.status}</span>
-                                        <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded-full">{typeLabels[o.type] || o.type}</span>
+                            <div className="flex">
+                                {o.banner_image && (
+                                    <img src={o.banner_image} alt="" className="w-28 h-24 object-cover flex-shrink-0 hidden sm:block" />
+                                )}
+                                <div className="flex-1 p-4 flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                            <h3 className="text-white font-bold">{o.title}</h3>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[o.status] || ''}`}>{o.status}</span>
+                                            <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full">{typeLabels[o.type] || o.type}</span>
+                                        </div>
+                                        {o.description && <p className="text-gray-400 text-sm mb-1.5 line-clamp-1">{o.description}</p>}
+                                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                                            <span className="flex items-center gap-1"><Users size={14} /> {o.participant_count || 0}/{o.max_participants}</span>
+                                            <span className="flex items-center gap-1"><Clock size={14} /> {o.duration_minutes} min</span>
+                                            {o.grade_level && <span>{o.grade_level}</span>}
+                                            {o.start_time && <span>{new Date(o.start_time).toLocaleDateString('uz')}</span>}
+                                        </div>
                                     </div>
-                                    {o.description && <p className="text-gray-400 text-sm mb-2 line-clamp-1">{o.description}</p>}
-                                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                                        <span className="flex items-center gap-1"><Users size={14} /> {o.participant_count || 0}/{o.max_participants}</span>
-                                        <span className="flex items-center gap-1"><Clock size={14} /> {o.duration_minutes} min</span>
-                                        {o.grade_level && <span>{o.grade_level}</span>}
-                                        {o.start_time && <span>{new Date(o.start_time).toLocaleDateString('uz')}</span>}
-                                    </div>
+                                    <ChevronRight size={20} className="text-gray-600 mt-2 flex-shrink-0" />
                                 </div>
-                                <ChevronRight size={20} className="text-gray-600 mt-2" />
                             </div>
                         </div>
                     ))}
@@ -479,127 +566,206 @@ const handleCreate = async () => {
         </div>
     );
 
-    // ======================== RENDER: CREATE ========================
+    // ======================== RENDER: CREATE (Step-by-Step Wizard) ========================
+    const inputCls = "w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-emerald-500 transition";
+    const labelCls = "text-sm text-gray-400 mb-1 block";
+    const wizardSteps = [
+        { num: 1, label: 'Asosiy' },
+        { num: 2, label: 'Vaqt va sozlamalar' },
+        { num: 3, label: "Banner va ko'rish" },
+    ];
+
     const renderCreate = () => (
         <div className="space-y-6 max-w-2xl">
             <div className="flex items-center gap-3">
-                <button onClick={() => setActiveView('list')} className="text-gray-400 hover:text-white">← Ortga</button>
-                <h1 className="text-xl font-bold text-white">Yangi Olimpiada</h1>
+                <button onClick={() => { if (wizardStep > 1) setWizardStep(wizardStep - 1); else setActiveView('list'); }} className="text-gray-400 hover:text-white flex items-center gap-1">
+                    <ChevronLeft size={18} /> {wizardStep > 1 ? 'Oldingi' : 'Ortga'}
+                </button>
+                <h1 className="text-xl font-bold text-white flex-1">Yangi Olimpiada</h1>
+                <span className="text-xs text-gray-500">{wizardStep}/3 bosqich</span>
             </div>
-            <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6 space-y-4">
-                <div>
-                    <label className="text-sm text-gray-400 mb-1 block">Sarlavha *</label>
-                    <input value={createForm.title} onChange={e => setCreateForm({ ...createForm, title: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Matematika Olimpiadasi 2026" />
-                </div>
-                <div>
-                    <label className="text-sm text-gray-400 mb-1 block">Tavsif</label>
-                    <textarea value={createForm.description} onChange={e => setCreateForm({ ...createForm, description: e.target.value })} rows={3} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none resize-none" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Turi</label>
-                        <select value={createForm.type} onChange={e => setCreateForm({ ...createForm, type: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
-                            <option value="test">Test</option>
-                            <option value="reading">O'qish</option>
-                            <option value="mixed">Aralash</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Fan</label>
-                        <select value={createForm.subject} onChange={e => setCreateForm({ ...createForm, subject: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
-                            <option value="general">O'qish</option>
-                            <option value="math">Matematika</option>
-                            <option value="uzbek">O'zbek tili</option>
-                            <option value="russian">Rus tili</option>
-                            <option value="english">Ingliz tili</option>
-                            <option value="logic">Mantiq</option>
-                        </select>
-                    </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                    <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Sinf</label>
-                        <input value={createForm.grade_level} onChange={e => setCreateForm({ ...createForm, grade_level: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" placeholder="2-sinf" />
-                    </div>
-                    <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Davomiyligi (min)</label>
-                        <input type="number" value={createForm.duration_minutes} onChange={e => setCreateForm({ ...createForm, duration_minutes: parseInt(e.target.value) || 30 })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
-                    </div>
-                    <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Max ishtirokchilar</label>
-                        <input type="number" value={createForm.max_participants} onChange={e => setCreateForm({ ...createForm, max_participants: parseInt(e.target.value) || 500 })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
-                    </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Ro'yxatdan o'tish boshlanishi *</label>
-                        <input type="datetime-local" value={createForm.registration_start} onChange={e => setCreateForm({ ...createForm, registration_start: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
-                    </div>
-                    <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Ro'yxatdan o'tish tugashi</label>
-                        <input type="datetime-local" value={createForm.registration_end} onChange={e => setCreateForm({ ...createForm, registration_end: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
-                    </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Olimpiada boshlanishi *</label>
-                        <input type="datetime-local" value={createForm.start_time} onChange={e => setCreateForm({ ...createForm, start_time: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
-                    </div>
-                    <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Olimpiada tugashi</label>
-                        <input type="datetime-local" value={createForm.end_time} onChange={e => setCreateForm({ ...createForm, end_time: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none" />
-                    </div>
-                </div>
-                {/* Banner rasm yuklash */}
-                <div>
-                    <label className="text-sm text-gray-400 mb-1 block flex items-center gap-2"><Image className="w-4 h-4" /> Olimpiada banneri (ixtiyoriy)</label>
-                    <div className="mt-2">
-                        {bannerPreview ? (
-                            <div className="relative">
-                                <img src={bannerPreview} alt="Banner preview" className="w-full h-48 object-cover rounded-xl border border-gray-700" />
-                                <button
-                                    onClick={() => { if (bannerPreview) URL.revokeObjectURL(bannerPreview); setBannerFile(null); setBannerPreview(null); setCreateForm({ ...createForm, banner_image: '' }); }}
-                                    className="absolute top-2 right-2 p-1 bg-red-600 rounded-full hover:bg-red-700 transition"
-                                >
-                                    <X className="w-4 h-4 text-white" />
-                                </button>
-                            </div>
-                        ) : (
-                            <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer hover:border-emerald-500 transition bg-gray-900/30">
-                                <Upload className="w-8 h-8 text-gray-500 mb-2" />
-                                <span className="text-sm text-gray-500">Banner rasmni yuklash uchun bosing</span>
-                                <span className="text-xs text-gray-600 mt-1">PNG, JPG, WEBP (max 5MB)</span>
-                                <input
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/webp,image/gif"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                            const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-                                            if (!allowedTypes.includes(file.type)) {
-                                                notify('error', 'Faqat PNG, JPG, WEBP, GIF rasm formatlari ruxsat etilgan');
-                                                e.target.value = '';
-                                                return;
-                                            }
-                                            if (file.size > 5 * 1024 * 1024) {
-                                                notify('error', 'Fayl hajmi 5MB dan oshmasligi kerak');
-                                                e.target.value = '';
-                                                return;
-                                            }
-                                            if (bannerPreview) URL.revokeObjectURL(bannerPreview);
-                                            setBannerFile(file);
-                                            setBannerPreview(URL.createObjectURL(file));
-                                        }
-                                    }}
-                                />
-                            </label>
-                        )}
-                    </div>
-                    {bannerUploading && <p className="text-sm text-emerald-400 mt-2 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Banner yuklanmoqda...</p>}
-                </div>
 
-                <button onClick={handleCreate} disabled={bannerUploading} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition disabled:opacity-50">{bannerUploading ? 'Banner yuklanmoqda...' : 'Yaratish'}</button>
+            {/* Wizard progress */}
+            <div className="flex gap-2">
+                {wizardSteps.map(s => (
+                    <div key={s.num} className={`flex-1 text-center py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        wizardStep === s.num ? 'bg-emerald-600 text-white' : wizardStep > s.num ? 'bg-emerald-600/20 text-emerald-400' : 'bg-gray-800 text-gray-500'
+                    }`} onClick={() => { if (s.num < wizardStep || (s.num === wizardStep + 1 && validateWizardStep(wizardStep))) setWizardStep(s.num); }}>
+                        {s.num}. {s.label}
+                    </div>
+                ))}
+            </div>
+
+            <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6 space-y-4">
+
+                {/* ── STEP 1: Asosiy ma'lumotlar ── */}
+                {wizardStep === 1 && (<>
+                    <div>
+                        <label className={labelCls}>Sarlavha *</label>
+                        <input value={createForm.title} onChange={e => setCreateForm({ ...createForm, title: e.target.value })} className={inputCls} placeholder="Matematika Olimpiadasi 2026" />
+                    </div>
+                    <div>
+                        <label className={labelCls}>Tavsif</label>
+                        <textarea value={createForm.description} onChange={e => setCreateForm({ ...createForm, description: e.target.value })} rows={3} className={inputCls + " resize-none"} placeholder="Olimpiada haqida qisqacha ma'lumot..." />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className={labelCls}>Turi *</label>
+                            <select value={createForm.type} onChange={e => setCreateForm({ ...createForm, type: e.target.value })} className={inputCls}>
+                                <option value="test">Test</option>
+                                <option value="reading">O'qish</option>
+                                <option value="mixed">Aralash</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Fan *</label>
+                            <select value={createForm.subject} onChange={e => setCreateForm({ ...createForm, subject: e.target.value })} className={inputCls}>
+                                {SUBJECT_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className={labelCls}>Qiyinlik darajasi</label>
+                            <select value={createForm.difficulty} onChange={e => setCreateForm({ ...createForm, difficulty: e.target.value })} className={inputCls}>
+                                <option value="easy">Oson</option>
+                                <option value="medium">O'rtacha</option>
+                                <option value="hard">Qiyin</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Sinf darajasi</label>
+                            <select value={createForm.grade_level} onChange={e => setCreateForm({ ...createForm, grade_level: e.target.value })} className={inputCls}>
+                                {GRADE_OPTIONS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <button onClick={() => { if (validateWizardStep(1)) setWizardStep(2); }}
+                        className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition flex items-center justify-center gap-2">
+                        Keyingi <ArrowRight size={18} />
+                    </button>
+                </>)}
+
+                {/* ── STEP 2: Vaqt va sozlamalar ── */}
+                {wizardStep === 2 && (<>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className={labelCls}>Ro'yxatdan o'tish boshlanishi *</label>
+                            <input type="datetime-local" value={createForm.registration_start} onChange={e => setCreateForm({ ...createForm, registration_start: e.target.value })} className={inputCls} />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Ro'yxatdan o'tish tugashi</label>
+                            <input type="datetime-local" value={createForm.registration_end} onChange={e => setCreateForm({ ...createForm, registration_end: e.target.value })} className={inputCls} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className={labelCls}>Olimpiada boshlanishi *</label>
+                            <input type="datetime-local" value={createForm.start_time} onChange={e => setCreateForm({ ...createForm, start_time: e.target.value })} className={inputCls} />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Olimpiada tugashi</label>
+                            <input type="datetime-local" value={createForm.end_time} onChange={e => setCreateForm({ ...createForm, end_time: e.target.value })} className={inputCls} />
+                            <p className="text-xs text-gray-600 mt-1">Bo'sh qoldirsangiz, davomiylik asosida hisoblanadi</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
+                            <label className={labelCls}>Davomiyligi (min)</label>
+                            <input type="number" min={1} max={1440} value={createForm.duration_minutes} onChange={e => setCreateForm({ ...createForm, duration_minutes: Math.max(1, parseInt(e.target.value) || 30) })} className={inputCls} />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Max ishtirokchilar</label>
+                            <input type="number" min={1} value={createForm.max_participants} onChange={e => setCreateForm({ ...createForm, max_participants: Math.max(1, parseInt(e.target.value) || 500) })} className={inputCls} />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Savollar soni</label>
+                            <input type="number" min={1} max={200} value={createForm.questions_count} onChange={e => setCreateForm({ ...createForm, questions_count: Math.max(1, parseInt(e.target.value) || 20) })} className={inputCls} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className={labelCls}>Minimal yosh</label>
+                            <input type="number" min={1} max={99} value={createForm.min_age} onChange={e => setCreateForm({ ...createForm, min_age: Math.max(1, parseInt(e.target.value) || 4) })} className={inputCls} />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Maksimal yosh</label>
+                            <input type="number" min={1} max={99} value={createForm.max_age} onChange={e => setCreateForm({ ...createForm, max_age: Math.max(1, parseInt(e.target.value) || 18) })} className={inputCls} />
+                        </div>
+                    </div>
+                    <div className="flex items-center justify-between bg-gray-900/50 rounded-xl px-4 py-3 border border-gray-700">
+                        <div>
+                            <p className="text-white text-sm font-medium">Natijalar ochiq</p>
+                            <p className="text-gray-500 text-xs">Ishtirokchilar natijalarni ko'rishi mumkinmi?</p>
+                        </div>
+                        <button onClick={() => setCreateForm({ ...createForm, results_public: !createForm.results_public })}
+                            className={`w-12 h-6 rounded-full transition-colors relative ${createForm.results_public ? 'bg-emerald-600' : 'bg-gray-600'}`}>
+                            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${createForm.results_public ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                        </button>
+                    </div>
+                    <button onClick={() => { if (validateWizardStep(2)) setWizardStep(3); }}
+                        className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition flex items-center justify-center gap-2">
+                        Keyingi <ArrowRight size={18} />
+                    </button>
+                </>)}
+
+                {/* ── STEP 3: Banner + Ko'rib chiqish ── */}
+                {wizardStep === 3 && (<>
+                    {/* Banner upload */}
+                    <div>
+                        <label className={labelCls + " flex items-center gap-2"}><Image className="w-4 h-4" /> Olimpiada banneri (ixtiyoriy)</label>
+                        <div className="mt-2">
+                            {bannerPreview ? (
+                                <div className="relative">
+                                    <img src={bannerPreview} alt="Banner preview" className="w-full h-48 object-cover rounded-xl border border-gray-700" />
+                                    <button onClick={() => { if (bannerPreview) URL.revokeObjectURL(bannerPreview); setBannerFile(null); setBannerPreview(null); setCreateForm({ ...createForm, banner_image: '' }); }}
+                                        className="absolute top-2 right-2 p-1 bg-red-600 rounded-full hover:bg-red-700 transition"><X className="w-4 h-4 text-white" /></button>
+                                </div>
+                            ) : (
+                                <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer hover:border-emerald-500 transition bg-gray-900/30">
+                                    <Upload className="w-8 h-8 text-gray-500 mb-2" />
+                                    <span className="text-sm text-gray-500">Banner rasmni yuklash uchun bosing</span>
+                                    <span className="text-xs text-gray-600 mt-1">PNG, JPG, WEBP, GIF (max 5MB)</span>
+                                    <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+                                        const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+                                        if (!allowedTypes.includes(file.type)) { notify('error', 'Faqat PNG, JPG, WEBP, GIF ruxsat etilgan'); e.target.value = ''; return; }
+                                        if (file.size > 5 * 1024 * 1024) { notify('error', 'Fayl 5MB dan oshmasligi kerak'); e.target.value = ''; return; }
+                                        if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+                                        setBannerFile(file);
+                                        setBannerPreview(URL.createObjectURL(file));
+                                    }} />
+                                </label>
+                            )}
+                        </div>
+                        {bannerUploading && <p className="text-sm text-emerald-400 mt-2 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Banner yuklanmoqda...</p>}
+                    </div>
+
+                    {/* Review summary */}
+                    <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700 space-y-2">
+                        <h3 className="text-white font-bold text-sm mb-3">Yaratish oldidan tekshiring</h3>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                            <div className="text-gray-500">Sarlavha</div><div className="text-white font-medium">{createForm.title || '—'}</div>
+                            <div className="text-gray-500">Turi</div><div className="text-white">{typeLabels[createForm.type] || createForm.type}</div>
+                            <div className="text-gray-500">Fan</div><div className="text-white">{SUBJECT_OPTIONS.find(s => s.value === createForm.subject)?.label || createForm.subject}</div>
+                            <div className="text-gray-500">Qiyinlik</div><div className="text-white">{{ easy: 'Oson', medium: "O'rtacha", hard: 'Qiyin' }[createForm.difficulty] || createForm.difficulty}</div>
+                            <div className="text-gray-500">Sinf</div><div className="text-white">{createForm.grade_level || 'Tanlanmagan'}</div>
+                            <div className="text-gray-500">Yosh</div><div className="text-white">{createForm.min_age}–{createForm.max_age}</div>
+                            <div className="text-gray-500">Davomiyligi</div><div className="text-white">{createForm.duration_minutes} min</div>
+                            <div className="text-gray-500">Max ishtirokchi</div><div className="text-white">{createForm.max_participants}</div>
+                            <div className="text-gray-500">Savollar soni</div><div className="text-white">{createForm.questions_count}</div>
+                            <div className="text-gray-500">Natijalar</div><div className="text-white">{createForm.results_public ? 'Ochiq' : 'Yashirin'}</div>
+                            <div className="text-gray-500">Boshlanishi</div><div className="text-white">{createForm.start_time ? new Date(createForm.start_time).toLocaleString('uz') : '—'}</div>
+                            <div className="text-gray-500">Ro'yxatdan o'tish</div><div className="text-white">{createForm.registration_start ? new Date(createForm.registration_start).toLocaleString('uz') : '—'}</div>
+                        </div>
+                    </div>
+
+                    <button onClick={handleCreate} disabled={saving || bannerUploading}
+                        className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                        {saving ? <><Loader2 className="w-5 h-5 animate-spin" /> Yaratilmoqda...</> : bannerUploading ? <><Loader2 className="w-5 h-5 animate-spin" /> Banner yuklanmoqda...</> : <><CheckCircle size={18} /> Olimpiadani yaratish</>}
+                    </button>
+                </>)}
             </div>
         </div>
     );
