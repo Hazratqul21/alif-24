@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Reorder } from 'framer-motion';
 import { GripVertical, Plus, Trash2, Save, ArrowLeft, Lightbulb, Upload, X, Loader2, Image } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -27,6 +27,12 @@ export default function OlympiadBuilder() {
     const [bannerPreview, setBannerPreview] = useState(null);
     const [bannerUploading, setBannerUploading] = useState(false);
     const bannerInputRef = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+        };
+    }, [bannerPreview]);
 
     const addQuestion = () => {
         setQuestions([
@@ -272,13 +278,20 @@ export default function OlympiadBuilder() {
                             <input
                                 ref={bannerInputRef}
                                 type="file"
-                                accept="image/*"
+                                accept="image/png,image/jpeg,image/webp,image/gif"
                                 className="hidden"
                                 onChange={(e) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
+                                        const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+                                        if (!allowedTypes.includes(file.type)) {
+                                            setError('Faqat PNG, JPG, WEBP, GIF rasm formatlari ruxsat etilgan');
+                                            e.target.value = '';
+                                            return;
+                                        }
                                         if (file.size > 5 * 1024 * 1024) {
                                             setError('Fayl hajmi 5MB dan oshmasligi kerak');
+                                            e.target.value = '';
                                             return;
                                         }
                                         if (bannerPreview) URL.revokeObjectURL(bannerPreview);

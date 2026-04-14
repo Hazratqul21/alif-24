@@ -571,13 +571,20 @@ const handleCreate = async () => {
                                 <span className="text-xs text-gray-600 mt-1">PNG, JPG, WEBP (max 5MB)</span>
                                 <input
                                     type="file"
-                                    accept="image/*"
+                                    accept="image/png,image/jpeg,image/webp,image/gif"
                                     className="hidden"
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
+                                            const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+                                            if (!allowedTypes.includes(file.type)) {
+                                                notify('error', 'Faqat PNG, JPG, WEBP, GIF rasm formatlari ruxsat etilgan');
+                                                e.target.value = '';
+                                                return;
+                                            }
                                             if (file.size > 5 * 1024 * 1024) {
                                                 notify('error', 'Fayl hajmi 5MB dan oshmasligi kerak');
+                                                e.target.value = '';
                                                 return;
                                             }
                                             if (bannerPreview) URL.revokeObjectURL(bannerPreview);
@@ -616,6 +623,55 @@ const handleCreate = async () => {
                         {o.status === 'active' && <button onClick={() => handleStatusChange(o.id, 'publish')} className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm">Tugatish</button>}
                         <button onClick={() => handleDelete(o.id)} className="px-3 py-1.5 bg-red-600/20 text-red-400 rounded-lg text-sm"><Trash2 size={16} /></button>
                     </div>
+                </div>
+
+                {/* Banner rasm ko'rsatish + yangilash */}
+                <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-white font-bold flex items-center gap-2"><Image className="w-4 h-4" /> Banner rasm</h3>
+                    </div>
+                    {o.banner_image ? (
+                        <div className="relative group">
+                            <img src={o.banner_image} alt="Olimpiada banneri" className="w-full h-48 object-cover rounded-xl border border-gray-700" />
+                            <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition cursor-pointer rounded-xl">
+                                <span className="flex items-center gap-2 text-white text-sm font-medium"><Upload className="w-4 h-4" /> Almashtiirsh</span>
+                                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+                                    if (!allowedTypes.includes(file.type)) { notify('error', 'Faqat PNG, JPG, WEBP, GIF'); return; }
+                                    if (file.size > 5 * 1024 * 1024) { notify('error', 'Fayl hajmi 5MB dan oshmasligi kerak'); return; }
+                                    try {
+                                        const uploadRes = await olympiadService.uploadBanner(file);
+                                        const newUrl = uploadRes.url || '';
+                                        await olympiadService.updateOlympiad(o.id, { banner_image: newUrl });
+                                        setSelectedOlympiad({ ...o, banner_image: newUrl });
+                                        notify('success', 'Banner yangilandi!');
+                                    } catch (err) { notify('error', 'Banner yangilashda xatolik: ' + (err.message || '')); }
+                                }} />
+                            </label>
+                        </div>
+                    ) : (
+                        <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer hover:border-emerald-500 transition bg-gray-900/30">
+                            <Upload className="w-8 h-8 text-gray-500 mb-2" />
+                            <span className="text-sm text-gray-500">Banner rasm qo'shish</span>
+                            <span className="text-xs text-gray-600 mt-1">PNG, JPG, WEBP, GIF (max 5MB)</span>
+                            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+                                if (!allowedTypes.includes(file.type)) { notify('error', 'Faqat PNG, JPG, WEBP, GIF'); return; }
+                                if (file.size > 5 * 1024 * 1024) { notify('error', 'Fayl hajmi 5MB dan oshmasligi kerak'); return; }
+                                try {
+                                    const uploadRes = await olympiadService.uploadBanner(file);
+                                    const newUrl = uploadRes.url || '';
+                                    await olympiadService.updateOlympiad(o.id, { banner_image: newUrl });
+                                    setSelectedOlympiad({ ...o, banner_image: newUrl });
+                                    notify('success', 'Banner qo\'shildi!');
+                                } catch (err) { notify('error', 'Banner yuklashda xatolik: ' + (err.message || '')); }
+                            }} />
+                        </label>
+                    )}
                 </div>
 
                 <div className="flex justify-center">

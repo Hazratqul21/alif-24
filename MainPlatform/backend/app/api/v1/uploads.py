@@ -89,6 +89,14 @@ async def upload_assignment_file(
     }
 
 
+ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.ico'}
+ALLOWED_IMAGE_MIMES = {
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
+    'image/x-icon', 'image/vnd.microsoft.icon',
+}
+ALLOWED_DOC_EXTENSIONS = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.csv', '.mp3', '.mp4', '.wav', '.ogg'}
+
+
 @router.post("/admin-file")
 async def upload_admin_file(
     request: Request,
@@ -96,12 +104,26 @@ async def upload_admin_file(
     admin: Dict = Depends(verify_admin_upload),
 ):
     """
-    Upload a file from admin panel (no size limit).
+    Upload a file from admin panel.
     Uses X-Admin-Role / X-Admin-Key auth.
     """
     MAX_ADMIN_SIZE = 50 * 1024 * 1024  # 50 MB
 
-    ext = os.path.splitext(file.filename)[1] if file.filename else ""
+    ext = (os.path.splitext(file.filename)[1] if file.filename else "").lower()
+    all_allowed = ALLOWED_IMAGE_EXTENSIONS | ALLOWED_DOC_EXTENSIONS
+    if ext and ext not in all_allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ruxsat etilmagan fayl turi: {ext}. Ruxsat: {', '.join(sorted(all_allowed))}"
+        )
+
+    if file.content_type and file.content_type.startswith("image/"):
+        if file.content_type not in ALLOWED_IMAGE_MIMES:
+            raise HTTPException(status_code=400, detail=f"Ruxsat etilmagan rasm turi: {file.content_type}")
+
+    if ext == '.svg':
+        raise HTTPException(status_code=400, detail="SVG fayllar xavfsizlik sababli ruxsat etilmagan")
+
     safe_filename = f"{uuid.uuid4().hex}{ext}"
     file_path = os.path.join(UPLOAD_DIR, safe_filename)
 
