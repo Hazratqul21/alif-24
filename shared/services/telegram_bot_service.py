@@ -135,7 +135,7 @@ class TelegramBotService:
         if not tg_user:
             return {
                 "success": False, 
-                "message": "Bu raqam Telegram bot bilan bog'lanmagan. Iltimos, avval @Alif24Bot ni ishga tushuring."
+                "message": "Bu raqam Telegram bot bilan bog'lanmagan. Iltimos, avval @alif24platform_bot ni ishga tushuring."
             }
         
         # Delete all existing unverified codes for this phone

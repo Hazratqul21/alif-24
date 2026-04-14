@@ -394,10 +394,24 @@ Maxfiylik: privacy@alif24.uz
       if (response.success) {
         setStep('verify');
       } else {
-        setError(response.message || "Kod yuborishda xatolik");
+        const msg = response.message || "";
+        if (msg.includes("bog'lanmagan") || msg.includes("ulanmagan")) {
+          setError(
+            <span>
+              Telefon raqam Telegram botga ulanmagan. Iltimos, avval{" "}
+              <a href="https://t.me/alif24platform_bot" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                @alif24platform_bot
+              </a>{" "}
+              ga kirib <b>/start</b> tugmasini bosing va raqamingizni yuboring.
+            </span>
+          );
+        } else {
+          setError(msg || "Kod yuborishda xatolik");
+        }
       }
     } catch (err) {
-      if (err.message && err.message.includes("Telegram botga ulanmagan")) {
+      const msg = err.message || "";
+      if (msg.includes("bog'lanmagan") || msg.includes("ulanmagan")) {
         setError(
           <span>
             Telefon raqam Telegram botga ulanmagan. Iltimos, avval{" "}
@@ -408,7 +422,7 @@ Maxfiylik: privacy@alif24.uz
           </span>
         );
       } else {
-        setError(err.message || "Kod yuborishda xatolik yuz berdi");
+        setError(msg || "Kod yuborishda xatolik yuz berdi");
       }
     } finally {
       setLoading(false);

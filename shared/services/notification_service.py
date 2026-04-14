@@ -16,7 +16,7 @@ class NotificationService:
     def __init__(self, db: AsyncSession):
         self.db = db
         # Read from environment variables with fallback to old hardcoded values
-        self.telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "8379431489:AAH2xUGuEy0_FZV8vnN8_vyIII13VqDPryU")
+        self.telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
         self.eskiz_email = os.getenv("ESKIZ_EMAIL", "")
         self.eskiz_password = os.getenv("ESKIZ_PASSWORD", "")
         self.smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
