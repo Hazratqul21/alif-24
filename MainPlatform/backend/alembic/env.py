@@ -27,7 +27,6 @@ _platform_imports = [
     "Olimp.backend.app.gamification.models",
     "Olimp.backend.app.social.models",
     "Lessions.backend.app.lessons.models",
-    "CRM.backend.app.crm.models",
 ]
 for _mod in _platform_imports:
     try:

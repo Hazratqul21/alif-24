@@ -34,9 +34,8 @@ ALIF24_SYSTEM_PROMPT = """Sen Alif24 ta'lim platformasining yordamchi botisan. Q
 4. TestAI — AI yordamida test yaratish va yechish
 5. Live Quiz — Jonli viktorinalar o'qituvchi va o'quvchilar uchun
 6. Games — Ta'limiy o'yinlar (Math Monster, Letter Memory)
-7. CRM — Ta'lim tashkilotlari uchun boshqaruv tizimi
-8. Olimp — Olimpiada masalalari va musobaqalar
-9. Lessions — Video darslar va ertaklar
+7. Olimp — Olimpiada masalalari va musobaqalar
+8. Lessions — Video darslar va ertaklar
 
 👥 Rollar:
 - O'quvchi (Student) — o'rganish, o'yinlar, testlar

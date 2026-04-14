@@ -126,7 +126,7 @@ const TestCreator = () => {
     if (callbackUrl && savedTestId) {
       try {
         const url = new URL(callbackUrl, window.location.origin);
-        const ALLOWED_HOSTS = ['alif24.uz', 'www.alif24.uz', 'olimp.alif24.uz', 'harf.alif24.uz', 'games.alif24.uz', 'testai.alif24.uz', 'crm.alif24.uz', 'lessions.alif24.uz', 'localhost', '127.0.0.1'];
+        const ALLOWED_HOSTS = ['alif24.uz', 'www.alif24.uz', 'olimp.alif24.uz', 'harf.alif24.uz', 'games.alif24.uz', 'testai.alif24.uz', 'lessions.alif24.uz', 'localhost', '127.0.0.1'];
         if (!ALLOWED_HOSTS.includes(url.hostname)) return;
         url.searchParams.set('test_id', savedTestId);
         window.location.href = url.toString();

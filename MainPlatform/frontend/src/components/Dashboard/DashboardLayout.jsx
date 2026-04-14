@@ -42,7 +42,6 @@ const DashboardLayout = ({ children }) => {
     if (isSuperAdmin || isAdmin) {
       return [
         { icon: <Home className="w-5 h-5" />, label: t('home') || 'Bosh sahifa', href: '/organization-dashboard' },
-        { icon: <TrendingUp className="w-5 h-5" />, label: 'CRM Lidlar', href: '/crm' },
         { icon: <Users className="w-5 h-5" />, label: t('nav_users') || 'Foydalanuvchilar', href: '/organization-dashboard' },
         { icon: <BarChart3 className="w-5 h-5" />, label: t('nav_analytics') || 'Statistika', href: '/organization-dashboard' },
       ];
@@ -51,7 +50,6 @@ const DashboardLayout = ({ children }) => {
     if (isOrganization) {
       return [
         { icon: <Home className="w-5 h-5" />, label: "Bosh sahifa", href: '/organization-dashboard' },
-        { icon: <TrendingUp className="w-5 h-5" />, label: 'CRM / Lidlar', href: '/crm' },
         { icon: <Users className="w-5 h-5" />, label: "O'qituvchilar", href: '/organization-dashboard' },
         { icon: <BookOpen className="w-5 h-5" />, label: "Materiallar", href: '/organization-dashboard' },
       ];

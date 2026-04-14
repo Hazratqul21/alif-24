@@ -121,7 +121,6 @@ else:
         "https://olimp.alif24.uz",
         "https://games.alif24.uz",
         "https://admin.alif24.uz",
-        "https://crm.alif24.uz",
         "https://harf.alif24.uz",
         "http://localhost:3000",
         "http://localhost:5173",

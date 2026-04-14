@@ -49,7 +49,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
       if (redirectUrl) {
         try {
           const parsed = new URL(redirectUrl, window.location.origin);
-          const ALLOWED_HOSTS = ['alif24.uz', 'www.alif24.uz', 'olimp.alif24.uz', 'harf.alif24.uz', 'games.alif24.uz', 'testai.alif24.uz', 'crm.alif24.uz', 'lessions.alif24.uz', 'localhost', '127.0.0.1'];
+          const ALLOWED_HOSTS = ['alif24.uz', 'www.alif24.uz', 'olimp.alif24.uz', 'harf.alif24.uz', 'games.alif24.uz', 'testai.alif24.uz', 'lessions.alif24.uz', 'localhost', '127.0.0.1'];
           if (ALLOWED_HOSTS.includes(parsed.hostname)) {
             window.location.href = redirectUrl;
             return;
@@ -95,7 +95,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
       if (redirectUrl) {
         try {
           const parsed = new URL(redirectUrl, window.location.origin);
-          const ALLOWED_HOSTS = ['alif24.uz', 'www.alif24.uz', 'olimp.alif24.uz', 'harf.alif24.uz', 'games.alif24.uz', 'testai.alif24.uz', 'crm.alif24.uz', 'lessions.alif24.uz', 'localhost', '127.0.0.1'];
+          const ALLOWED_HOSTS = ['alif24.uz', 'www.alif24.uz', 'olimp.alif24.uz', 'harf.alif24.uz', 'games.alif24.uz', 'testai.alif24.uz', 'lessions.alif24.uz', 'localhost', '127.0.0.1'];
           if (ALLOWED_HOSTS.includes(parsed.hostname)) {
             window.location.href = redirectUrl;
             return;

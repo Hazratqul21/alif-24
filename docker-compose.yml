@@ -137,39 +137,6 @@ services:
     networks:
       - alif24-network
 
-  # CRM Platform
-  crm-backend:
-    build:
-      context: .
-      dockerfile: CRM/backend/Dockerfile
-    container_name: crm-backend
-    restart: always
-    env_file:
-      - .env
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
-      - CORS_ORIGINS=${CORS_ORIGINS:-}
-    ports:
-      - "127.0.0.1:8003:8003"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - alif24-network
-
-  crm-frontend:
-    build:
-      context: ./CRM/frontend
-      dockerfile: Dockerfile
-    container_name: crm-frontend
-    restart: always
-    ports:
-      - "5176:80"
-    networks:
-      - alif24-network
-
   # Games Platform
   games-backend:
     build:
@@ -288,8 +255,6 @@ services:
       - harf-backend
       - testai-frontend
       - testai-backend
-      - crm-frontend
-      - crm-backend
       - games-frontend
       - games-backend
       - olimp-frontend

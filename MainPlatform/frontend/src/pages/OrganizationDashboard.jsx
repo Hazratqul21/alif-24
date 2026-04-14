@@ -6,7 +6,7 @@ import Navbar from '../components/Common/Navbar';
 import organizationService from '../services/organizationService';
 import {
   BarChart3, Users, BookOpen, Settings, Search, Plus, TrendingUp,
-  Building, LogOut, FileText, UserPlus, PieChart, Trash2, X, Check,
+  Building, LogOut, FileText, UserPlus, Trash2, X, Check,
   Eye, ChevronRight, GraduationCap, Play, Paperclip
 } from 'lucide-react';
 
@@ -345,12 +345,6 @@ const OrganizationDashboard = () => {
                 </button>
                 <button onClick={() => setActiveTab('classrooms')} className="flex items-center gap-3 bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
                   <Building size={20} /><span className="font-medium text-sm">Sinflar</span>
-                </button>
-                <button onClick={() => {
-                  // HttpOnly cookies .alif24.uz domenida avtomatik yuboriladi
-                  window.location.href = 'https://crm.alif24.uz';
-                }} className="flex items-center gap-3 bg-gradient-to-br from-pink-500 to-rose-600 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
-                  <PieChart size={20} /><span className="font-medium text-sm">CRM Panel</span>
                 </button>
               </div>
             </div>
