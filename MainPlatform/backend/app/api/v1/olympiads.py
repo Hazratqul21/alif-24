@@ -346,7 +346,7 @@ async def create_olympiad(
         results_public=data.results_public,
         banner_image=data.banner_image,
         status=OlympiadStatus.draft,
-        created_by=admin["role"],
+        created_by=None,
     )
     db.add(olympiad)
     try:
@@ -1140,7 +1140,7 @@ async def grade_reading_submission(
     sub.admin_accuracy_score = data.accuracy_score
     sub.admin_total_score = data.pronunciation_score + data.fluency_score + data.accuracy_score
     sub.admin_notes = data.notes
-    sub.graded_by = admin["role"]
+    sub.graded_by = None
     sub.graded_at = datetime.now(timezone.utc)
 
     await db.commit()

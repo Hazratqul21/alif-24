@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Trophy, Clock, CheckCircle, X, Phone, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Users, CheckCircle, X, Phone } from 'lucide-react';
 import apiService from '../services/apiService';
 
 export default function OlympiadAdmin() {

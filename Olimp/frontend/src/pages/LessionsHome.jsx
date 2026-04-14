@@ -29,6 +29,7 @@ export default function LessionsHome() {
     const loadLessons = async () => {
         try {
             setLoading(true);
+            setError(null);
             const params = {};
             if (subjectFilter) params.subject = subjectFilter;
             const data = await apiService.get(`/olympiad/${olympiadId}/content/lessons`, params);

@@ -59,7 +59,7 @@ export default function OlympiadDraftEdit() {
         setForm({
             question_text: q.question_text,
             options: [...q.options],
-            correct_option_index: q.correct_answer ?? 0,
+            correct_option_index: q.correct_option_index ?? q.correct_answer ?? 0,
             points: q.points,
             order_index: q.order_index ?? 0,
         });
@@ -276,14 +276,14 @@ export default function OlympiadDraftEdit() {
                                         <div
                                             key={oi}
                                             className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border ${
-                                                q.correct_answer === oi
+                                                (q.correct_option_index ?? q.correct_answer) === oi
                                                     ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                                                     : 'bg-slate-900/50 border-white/5 text-white/60'
                                             }`}
                                         >
                                             <span className="font-bold w-5">{String.fromCharCode(65 + oi)})</span>
                                             {opt}
-                                            {q.correct_answer === oi && <Check className="w-3 h-3 ml-auto" />}
+                                            {(q.correct_option_index ?? q.correct_answer) === oi && <Check className="w-3 h-3 ml-auto" />}
                                         </div>
                                     ))}
                                 </div>

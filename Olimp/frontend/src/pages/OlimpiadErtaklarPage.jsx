@@ -1477,6 +1477,8 @@ export default function OlimpiadErtaklarPage() {
     const [activeErtak, setActiveErtak] = useState(null);
     const [showOlympiadQuiz, setShowOlympiadQuiz] = useState(false);
     const [globalQuizResult, setGlobalQuizResult] = useState(null);
+    const [viewingResult, setViewingResult] = useState(null);
+
     const [seenStories, setSeenStories] = useState(() => {
         try {
             const saved = localStorage.getItem(`seen_stories_${olympiadId}`);

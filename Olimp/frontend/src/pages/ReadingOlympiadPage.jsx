@@ -237,7 +237,7 @@ function LeaderboardTable({ leaderboard, loading, currentUserId }) {
                         <tbody>
                             {leaderboard.map((entry) => {
                                 const userId = localStorage.getItem('userId');
-                                const isMe = entry.student_id === userId || entry.student_id === currentUserId;
+                                const isMe = String(entry.student_id) === String(userId) || String(entry.student_id) === String(currentUserId);
                                 const medalColors = { 1: 'text-yellow-400', 2: 'text-gray-300', 3: 'text-amber-600' };
                                 const rowBg = isMe ? 'bg-indigo-600/20 border-l-2 border-l-indigo-500' : entry.rank <= 3 ? 'bg-white/5' : '';
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, Calendar, Users, ChevronRight, Search, BookOpen, User, Coins } from 'lucide-react';
+import { Trophy, Calendar, Users, ChevronRight, Search, BookOpen, Coins } from 'lucide-react';
 import apiService from '../services/apiService';
 import ProfileSection from '../components/ProfileSection';
 import HeroSection from '../components/HeroSection';
@@ -66,8 +66,8 @@ export default function OlimpHome() {
     };
 
     const filtered = olympiads.filter(o =>
-        o.title?.toLowerCase().includes(search.toLowerCase()) ||
-        o.subject?.toLowerCase().includes(search.toLowerCase())
+        (o.title || '').toLowerCase().includes(search.toLowerCase()) ||
+        (o.subject || '').toLowerCase().includes(search.toLowerCase())
     );
 
     return (

@@ -184,7 +184,7 @@ export default function OlympiadDetail() {
             }
             loadLeaderboard();
         } catch (err) {
-            setError(err.message);
+            setRegError(err.message || 'Javoblarni yuborishda xatolik');
         }
     };
 
@@ -196,6 +196,7 @@ export default function OlympiadDetail() {
             let startTime = startTimeStr ? new Date(startTimeStr).getTime() : Date.now();
             let durationSeconds = olympiad.duration_minutes * 60;
             
+            let interval;
             const updateTimer = () => {
                 const now = Date.now();
                 const elapsedSeconds = Math.floor((now - startTime) / 1000);
@@ -203,9 +204,8 @@ export default function OlympiadDetail() {
                 
                 if (remaining <= 0) {
                     setTimeRemaining(0);
-                    clearInterval(interval);
+                    if (interval) clearInterval(interval);
                     if (!submitted) {
-                        alert('Vaqt tugadi! Javoblar avtomat yuborilmoqda...');
                         handleSubmit();
                     }
                 } else {
@@ -214,7 +214,7 @@ export default function OlympiadDetail() {
             };
             
             updateTimer();
-            const interval = setInterval(updateTimer, 1000);
+            interval = setInterval(updateTimer, 1000);
             setTimerIntervalId(interval);
             
             return () => clearInterval(interval);

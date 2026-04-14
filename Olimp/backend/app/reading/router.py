@@ -1286,9 +1286,15 @@ async def update_competition(
     update_fields = data.model_dump(exclude_unset=True)
     for key, value in update_fields.items():
         if key == "status" and value:
-            setattr(comp, key, CompetitionStatus(value))
+            try:
+                setattr(comp, key, CompetitionStatus(value))
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Noto'g'ri status: {value}")
         elif key in ("start_date", "end_date") and value:
-            setattr(comp, key, date_type.fromisoformat(value))
+            try:
+                setattr(comp, key, date_type.fromisoformat(value))
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Noto'g'ri sana formati: {value}")
         else:
             setattr(comp, key, value)
 

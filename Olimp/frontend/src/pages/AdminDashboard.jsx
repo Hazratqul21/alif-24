@@ -60,7 +60,7 @@ export default function AdminDashboard() {
     ];
 
     const scoreDist = data?.score_distribution || {};
-    const maxDist = Math.max(...Object.values(scoreDist), 1);
+    const maxDist = Math.max(...Object.values(scoreDist).map(v => Number(v) || 0), 1);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
                                         initial={{ height: 0 }}
                                         animate={{ height: `${heightPct}%` }}
                                         transition={{ duration: 0.8, delay: idx * 0.1 }}
-                                        className={`w-full rounded-t-xl bg-gradient-to-t ${colors[idx]} shadow-lg`}
+                                        className={`w-full rounded-t-xl bg-gradient-to-t ${colors[idx % colors.length]} shadow-lg`}
                                     />
                                     <span className="text-white/50 text-xs">{range}</span>
                                 </div>

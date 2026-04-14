@@ -15,6 +15,7 @@ export default function LessonDetail() {
     const loadLesson = async () => {
         try {
             setLoading(true);
+            setError(null);
             const data = await apiService.get(`/olympiad/${olympiadId}/content/lessons/${id}`);
             setLesson(data.data || data);
         } catch (err) { setError(err.message); }

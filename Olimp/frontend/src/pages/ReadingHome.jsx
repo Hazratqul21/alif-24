@@ -77,6 +77,8 @@ function QuizModal({ compId, task, onClose, readingStats, readingTranscript, rea
             if (reloadTasks) reloadTasks();
         } catch (err) {
             console.error("Natijani saqlashda xatolik:", err);
+        } finally {
+            setSavingResult(false);
         }
     };
 
