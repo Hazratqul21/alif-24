@@ -3,6 +3,7 @@ Health Check Endpoint - Platform Health Monitoring
 Alif24 Platform - Health Check API
 """
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select, func
 from datetime import datetime, timezone
@@ -74,11 +75,14 @@ async def database_health(db: AsyncSession = Depends(get_db)):
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "error": "Database connection failed",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
 
 
 @router.get("/ping")

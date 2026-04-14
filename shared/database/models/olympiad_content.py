@@ -59,7 +59,7 @@ class OlympiadStory(Base):
     audio_url = Column(String(500), nullable=True)
     image_url = Column(String(500), nullable=True)
     view_count = Column(Integer, default=0)
-    questions = Column(JSON, nullable=True, default=list)  # [{"question": "...", "answer": "..."}]
+    questions = Column(JSON, nullable=True, default=lambda: [])  # [{"question": "...", "answer": "..."}]
     is_published = Column(Boolean, default=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

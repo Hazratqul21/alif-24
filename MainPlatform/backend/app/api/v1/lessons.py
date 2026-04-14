@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 
 from shared.database import get_db
 from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, Lesson
-from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, Lesson
 from shared.database.models.classroom import Classroom, ClassroomStudent, ClassroomStudentStatus
 from app.middleware.auth import get_current_user
 from shared.subscription import require_feature, SubscriptionInfo

@@ -102,7 +102,7 @@ class AdminNotification(Base):
     action_url = Column(String(500), nullable=True)    # /admin/users/12345678
     
     is_read = Column(Boolean, default=False)
-    read_by = Column(JSON, default=list)               # ["hazratqul", "nurali"]
+    read_by = Column(JSON, default=lambda: [])               # ["hazratqul", "nurali"]
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

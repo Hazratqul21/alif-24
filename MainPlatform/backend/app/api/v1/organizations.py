@@ -25,7 +25,7 @@ from shared.database import get_db
 from shared.database.models import (
     User, UserRole, AccountStatus, TeacherStatus,
     TeacherProfile, StudentProfile, Lesson,
-    Classroom, ClassroomStudent
+    Classroom, ClassroomStudent, ClassroomStudentStatus
 )
 from shared.database.models.organization import OrganizationProfile
 from app.middleware.auth import get_current_user
@@ -702,7 +702,7 @@ async def list_org_classrooms(
         student_count = await db.scalar(
             select(func.count(ClassroomStudent.id)).where(
                 ClassroomStudent.classroom_id == c.id,
-                ClassroomStudent.status == "active"
+                ClassroomStudent.status == ClassroomStudentStatus.active
             )
         ) or 0
         

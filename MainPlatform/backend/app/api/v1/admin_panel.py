@@ -50,14 +50,12 @@ async def _log_audit(db, role, action, **kwargs):
     except Exception as e:
         logger.warning(f"Audit log yozishda xatolik: {e}")
 
-# Admin Secret Keys from environment
+_ADMIN_SECRET = os.getenv("ADMIN_SECRET_KEY", "alif24_rahbariyat26!")
 ADMIN_KEYS = {
-    "hazratqul": "alif24_rahbariyat26!",
-    "nurali": "alif24_rahbariyat26!",
-    "pedagog": "alif24_rahbariyat26!",
+    "hazratqul": _ADMIN_SECRET,
+    "nurali": _ADMIN_SECRET,
+    "pedagog": _ADMIN_SECRET,
 }
-
-# nurali = hazratqul (bir xil huquqlar)
 ROLE_PERMISSIONS = {
     "hazratqul": ["all"],
     "nurali": ["all"],  # nurali endi super admin
@@ -1498,9 +1496,10 @@ async def universal_create(
     """Universal create endpoint for super admin"""
     if not has_permission(admin, "all"):
         raise HTTPException(status_code=403, detail="Faqat super admin")
-    
+
+    await _validate_table_name(table_name, db)
+
     try:
-        # Build INSERT statement dynamically
         columns = list(data.keys())
         values = list(data.values())
         

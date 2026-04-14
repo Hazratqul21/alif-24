@@ -455,7 +455,7 @@ async def child_login(
     user_repo = UserRepository(db)
     parent = await user_repo.get_by_phone(data.parent_phone)
     if not parent:
-        raise UnauthorizedError(detail="Parent account not found")
+        raise UnauthorizedError("Parent account not found")
         
     # Get children
     children = await user_repo.get_children(parent.id)

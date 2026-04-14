@@ -1066,8 +1066,8 @@ async def admin_create_gateway(
         for gw in existing.scalars().all():
             gw.is_default = False
 
-    # Webhook URL avtomatik
-    base_url = "https://api.alif24.uz/api/v1"
+    import os as _os
+    base_url = _os.getenv("WEBHOOK_BASE_URL", "https://api.alif24.uz/api/v1")
     webhook_url = f"{base_url}/payments/webhook/{data.provider}"
 
     gw = PaymentGatewayConfig(

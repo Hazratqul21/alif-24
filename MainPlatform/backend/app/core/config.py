@@ -19,10 +19,10 @@ class Settings:
         "postgresql+asyncpg://postgres:alif24_secure_password@postgres:5432/alif24"
     )
 
-    # JWT
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "super_secure_jwt_secret_key_for_local_development_only_12345")
+    # JWT — .env da albatta o'rnating! Default faqat dev uchun.
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "dev_only_jwt_secret_CHANGE_IN_PRODUCTION")
     JWT_EXPIRES_IN: str = os.getenv("JWT_EXPIRES_IN", "7d")
-    JWT_REFRESH_SECRET: str = os.getenv("JWT_REFRESH_SECRET", "super_secure_refresh_secret_key_for_local_development_only_67890")
+    JWT_REFRESH_SECRET: str = os.getenv("JWT_REFRESH_SECRET", "dev_only_refresh_secret_CHANGE_IN_PRODUCTION")
     JWT_REFRESH_EXPIRES_IN: str = os.getenv("JWT_REFRESH_EXPIRES_IN", "30d")
     JWT_ALGORITHM: str = "HS256"
 
@@ -48,9 +48,9 @@ class Settings:
     # Admin & Security
     ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "alif24_rahbariyat26!")
 
-    # Telegram
-    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "8379431489:AAH2xUGuEy0_FZV8vnN8_vyIII13VqDPryU")
-    TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "234413715")
+    # Telegram — .env dan olinadi
+    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
 
     # Eskiz SMS (optional)
     ESKIZ_EMAIL: Optional[str] = os.getenv("ESKIZ_EMAIL", None)

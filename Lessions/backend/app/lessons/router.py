@@ -247,9 +247,6 @@ async def update_progress(
         )
         db.add(progress)
 
-    if data.progress_percent >= 100:
-        lesson.completion_count += 1
-
     await db.commit()
     await db.refresh(progress)
 
@@ -441,8 +438,11 @@ async def evaluate_quiz_answer(
     try:
         audio_bytes = await audio.read()
         lang = ertak.language or "uz"
-        recognized_text = await speech_service.speech_to_text(audio_data=audio_bytes, language=lang)
-        recognized_text = recognized_text.strip().lower()
+        stt_result = await speech_service.speech_to_text(audio_data=audio_bytes, language=lang)
+        if isinstance(stt_result, dict):
+            recognized_text = (stt_result.get("transcript", "") or "").strip().lower()
+        else:
+            recognized_text = (str(stt_result) if stt_result else "").strip().lower()
     except Exception as e:
         logger.warning(f"STT failed: {e}")
         recognized_text = ""

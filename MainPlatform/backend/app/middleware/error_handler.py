@@ -62,9 +62,7 @@ async def error_handler(request: Request, exc: Exception):
             "success": False,
             "error": {
                 "code": "INTERNAL_ERROR",
-                "type": type(exc).__name__,
-                "message": str(exc) if str(exc) else "An unexpected error occurred",
-                "path": request.url.path,
+                "message": "Ichki server xatoligi yuz berdi",
             },
             "timestamp": datetime.now(timezone.utc).isoformat()
         }

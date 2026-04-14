@@ -30,7 +30,7 @@ class SavedTest(Base):
     language = Column(String(10), default="uz")
     status = Column(String(20), default=SavedTestStatus.draft.value)
     # Questions: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]
-    questions = Column(JSON, default=list)
+    questions = Column(JSON, default=lambda: [])
     questions_count = Column(Integer, default=0)
     # AI orqali yaratilganmi
     ai_generated = Column(String(10), default="no")  # "no", "openai", "manual"

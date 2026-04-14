@@ -163,10 +163,10 @@ async def telegram_stats(
     """Telegram bot statistikasi (admin only)"""
     total_users = await db.scalar(select(func.count(TelegramUser.id)))
     active_notify = await db.scalar(
-        select(func.count(TelegramUser.id)).filter(TelegramUser.notifications_enabled == True)
+        select(func.count(TelegramUser.id)).where(TelegramUser.notifications_enabled == True)
     )
     linked_users = await db.scalar(
-        select(func.count(TelegramUser.id)).filter(TelegramUser.user_id.isnot(None))
+        select(func.count(TelegramUser.id)).where(TelegramUser.user_id.isnot(None))
     )
     
     return {

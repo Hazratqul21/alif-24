@@ -20,6 +20,7 @@ sys.path.insert(0, str(project_root))
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

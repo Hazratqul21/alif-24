@@ -17,6 +17,6 @@ class Story(Base):
     image_url = Column(String(500), nullable=True) # Rasm yuklanishi uchun qator
     view_count = Column(Integer, default=0)
     # Savollar: [{"question": "...", "answer": "..."}]
-    questions = Column(JSON, nullable=True, default=list)
+    questions = Column(JSON, nullable=True, default=lambda: [])
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

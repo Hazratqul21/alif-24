@@ -9,10 +9,12 @@ import secrets
 from pathlib import Path
 from typing import Dict, Any
 
+import os as _os
+_ADMIN_SECRET = _os.getenv("ADMIN_SECRET_KEY", "alif24_rahbariyat26!")
 ADMIN_KEYS = {
-    "hazratqul": "alif24_rahbariyat26!",
-    "nurali": "alif24_rahbariyat26!",
-    "pedagog": "alif24_rahbariyat26!",
+    "hazratqul": _ADMIN_SECRET,
+    "nurali": _ADMIN_SECRET,
+    "pedagog": _ADMIN_SECRET,
 }
 
 async def verify_admin_upload(
