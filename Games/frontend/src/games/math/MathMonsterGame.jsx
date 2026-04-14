@@ -80,11 +80,12 @@ const MatematikaSarguzashti = () => {
     return 0;
   };
 
-  const generateQuestion = (diff) => {
+  const generateQuestion = (diff, levelOverride) => {
     const diffSettings = difficulties.find(d => d.id === diff);
+    const effectiveLevel = levelOverride !== undefined ? levelOverride : currentLevel;
 
     // 10-leveldan keyin 3 talik misollar
-    if (currentLevel > 10) {
+    if (effectiveLevel > 10) {
       const operations = [
         { op1: '+', op2: '+' },
         { op1: '+', op2: '-' },
@@ -184,7 +185,7 @@ const MatematikaSarguzashti = () => {
     setCurrentLevel(levelNum);
     setQuestionNumber(1);
     setCorrectAnswers(0);
-    generateQuestion(difficulty);
+    generateQuestion(difficulty, levelNum);
   };
 
   const checkAnswer = (selectedAnswer) => {

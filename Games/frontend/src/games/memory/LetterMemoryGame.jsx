@@ -176,7 +176,7 @@ export default function MemoryGame() {
         </div>
 
         <div className="lmg-progress">
-          <div className="lmg-progress-bar" style={{ width: `${(matched.length / cards.length) * 100}%` }} />
+          <div className="lmg-progress-bar" style={{ width: `${cards.length > 0 ? (matched.length / cards.length) * 100 : 0}%` }} />
         </div>
 
         <div className="lmg-hint">

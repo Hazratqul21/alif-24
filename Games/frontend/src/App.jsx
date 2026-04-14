@@ -11,6 +11,11 @@ import LetterMemoryGame from './games/memory/LetterMemoryGame';
 import MathMonsterGame from './games/math/MathMonsterGame';
 import MathStichGame from './games/math/MathStich';
 import MevaMathGame from './games/math/Mevamath';
+import CryptoGame from './games/crypto/CryptoGame';
+import SimonGame from './games/simon/SimonGame';
+import FlashMemoryGame from './games/flash/FlashMemoryGame';
+import BoghinQuruvchi from './games/bugiin/BoghinQuruvchi';
+import DiktantGame from './games/diktant/DiktantGame';
 
 
 // TODO: Tetris and Game2048 components not yet implemented
@@ -68,6 +73,21 @@ const AppRoutes = () => {
       <Route path="/meva-math" element={<MevaMathGame />} />
       <Route path="/mantiq" element={<MevaMathGame />} />
 
+      {/* Crypto (Yashirin so'z) */}
+      <Route path="/crypto" element={<CryptoGame />} />
+
+      {/* Simon Says (Tez esla) */}
+      <Route path="/simon" element={<SimonGame />} />
+
+      {/* Flash Memory (Flash xotira) */}
+      <Route path="/flash" element={<FlashMemoryGame />} />
+
+      {/* Bo'g'in Pazl */}
+      <Route path="/bugiin" element={<BoghinQuruvchi />} />
+
+      {/* Diktant O'yini */}
+      <Route path="/diktant" element={<DiktantGame />} />
+
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -78,7 +98,6 @@ const AppRoutes = () => {
 const GameSelection = () => {
   const [gamesList, setGamesList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadGames();
@@ -94,6 +113,11 @@ const GameSelection = () => {
         { id: 2, title: "Xotira o'yini", icon: "🧠", image: "/xotr.jpg", path: "/memory", bg_color: "from-pink-500 to-rose-600", shadow_color: "rgba(244,63,94,0.4)" },
         { id: 3, title: "Matematik gugurt", icon: "🔥", image: "/spichki.jpg", path: "/math-stich", bg_color: "from-amber-500 to-orange-600", shadow_color: "rgba(245,158,11,0.4)" },
         { id: 4, title: "Qiziqarli sonlar", icon: "🍎", image: "/mantiqmath.jpg", path: "/meva-math", bg_color: "from-indigo-500 to-purple-600", shadow_color: "rgba(99,102,241,0.4)" },
+        { id: 5, title: "Yashirin so'z", icon: "🔐", image: "/crypto.jpg", path: "/crypto", bg_color: "from-indigo-500 to-purple-600", shadow_color: "rgba(99,102,241,0.4)" },
+        { id: 6, title: "Tez esla", icon: "🎮", image: "/simon.jpg", path: "/simon", bg_color: "from-blue-500 to-cyan-600", shadow_color: "rgba(37,99,235,0.4)" },
+        { id: 7, title: "Flash xotira", icon: "🧠", image: "/flash.jpg", path: "/flash", bg_color: "from-indigo-500 to-blue-600", shadow_color: "rgba(99,102,241,0.4)" },
+        { id: 8, title: "Bo'g'in pazl", icon: "🧩", image: "/bugiin.jpg", path: "/bugiin", bg_color: "from-purple-500 to-indigo-600", shadow_color: "rgba(139,92,246,0.4)" },
+        { id: 9, title: "Diktant o'yini", icon: "🎵", image: "/diktant.jpg", path: "/diktant", bg_color: "from-rose-500 to-pink-600", shadow_color: "rgba(244,63,94,0.4)" },
       ];
 
       try {
@@ -204,19 +228,6 @@ const GameCard = ({ title, icon, image, href, color, shadow }) => (
     )}
     <div className="text-white font-bold text-center text-lg px-4 py-4">{title}</div>
   </Link>
-);
-
-const ComingSoon = ({ game }) => (
-  <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] flex items-center justify-center">
-    <div className="text-center text-white">
-      <div className="text-6xl mb-4">🚧</div>
-      <h1 className="text-3xl font-bold mb-2">{game}</h1>
-      <p className="text-white/50">Tez kunda...</p>
-      <Link to="/" className="mt-4 inline-block bg-gradient-to-r from-[#4b30fb] to-[#764ba2] px-6 py-2 rounded-xl hover:scale-105 transition-transform">
-        Orqaga
-      </Link>
-    </div>
-  </div>
 );
 
 export default App;

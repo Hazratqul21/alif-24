@@ -1,7 +1,9 @@
 /* Letter Memory Game - Pure CSS styles for React+Vite */
 
-/* Reset va asosiy */
-* {
+/* Reset scoped to memory game container */
+.lmg-container *,
+.lmg-container *::before,
+.lmg-container *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;

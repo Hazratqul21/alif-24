@@ -843,7 +843,8 @@ function LevelSelect({ completed, onSelect }) {
     const diffGroups = [
         { label: "🟢 Oson", desc: "Operand raqamini o'zgartir", range: [0, 29], color: "#4ade80" },
         { label: "🟠 O'rta", desc: "Natija raqamini o'zgartir", range: [30, 59], color: "#fb923c" },
-        { label: "🟣 Qiyin", desc: "Belgi + raqam birga o'zgaradi", range: [60, 93], color: "#c084fc" },
+        { label: "🟣 Qiyin", desc: "Belgi + raqam birga o'zgaradi", range: [60, 79], color: "#c084fc" },
+        { label: "🔴 Ekspert", desc: "Uch qismli tenglamalar", range: [80, 99], color: "#f87171" },
     ];
 
     return (
