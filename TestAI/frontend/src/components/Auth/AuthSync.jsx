@@ -23,7 +23,10 @@ const AuthSync = ({ children, enforceLogin = true }) => {
             }
 
             try {
-                await apiService.get('/auth/me');
+                const user = await apiService.get('/auth/me');
+                if (!user || !user.id) {
+                    throw new Error('Not authenticated');
+                }
                 sessionStorage.removeItem(REDIRECT_KEY);
                 setIsChecked(true);
             } catch (err) {

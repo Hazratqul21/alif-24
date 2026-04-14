@@ -19,9 +19,11 @@ const AuthSync = ({ children, enforceLogin = true }) => {
             }
 
             try {
-                // Ping the backend using the apiService which includes credentials (cookies)
-                await apiService.get('/auth/me');
-                setIsChecked(true); // Session is valid
+                const user = await apiService.get('/auth/me');
+                if (!user || !user.id) {
+                    throw new Error('Not authenticated');
+                }
+                setIsChecked(true);
             } catch (err) {
                 // We don't have a valid session, redirect to main platform login
                 const currentUrl = encodeURIComponent(window.location.href);

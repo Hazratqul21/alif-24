@@ -46,7 +46,7 @@ class AuthService {
    */
   async getProfile() {
     const response = await apiService.get('/auth/me');
-    return response.data;
+    return response?.data ?? response;
   }
 
   /**
@@ -61,7 +61,7 @@ class AuthService {
    */
   async updateProfile(updates) {
     const response = await apiService.put('/auth/me', updates);
-    return response.data;
+    return response?.data ?? response;
   }
 
   /**

@@ -23,9 +23,10 @@ const AuthSync = ({ children, enforceLogin = true }) => {
             }
 
             try {
-                // Ping the backend using the apiService which includes credentials (cookies)
-                await apiService.get('/auth/me');
-                // Session is valid — reset redirect counter
+                const user = await apiService.get('/auth/me');
+                if (!user || !user.id) {
+                    throw new Error('Not authenticated');
+                }
                 sessionStorage.removeItem(REDIRECT_KEY);
                 setIsChecked(true);
             } catch (err) {
