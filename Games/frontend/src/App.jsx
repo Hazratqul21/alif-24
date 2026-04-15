@@ -106,7 +106,7 @@ const GameSelection = () => {
   const loadGames = async () => {
     try {
       setLoading(true);
-      
+
       // Standart o'yinlar (fallback va bizning qo'shganlarimiz)
       const defaultGames = [
         { id: 1, title: "Matematika", icon: "🤖", image: "/math.jpg", path: "/math-monster", bg_color: "from-green-500 to-emerald-600", shadow_color: "rgba(16,185,129,0.4)" },
@@ -117,13 +117,13 @@ const GameSelection = () => {
         { id: 6, title: "Tez esla", icon: "🎮", image: "/simon.jpg", path: "/simon", bg_color: "from-blue-500 to-cyan-600", shadow_color: "rgba(37,99,235,0.4)" },
         { id: 7, title: "Flash xotira", icon: "🧠", image: "/flash.jpg", path: "/flash", bg_color: "from-indigo-500 to-blue-600", shadow_color: "rgba(99,102,241,0.4)" },
         { id: 8, title: "Bo'g'in pazl", icon: "🧩", image: "/bugiin.jpg", path: "/bugiin", bg_color: "from-purple-500 to-indigo-600", shadow_color: "rgba(139,92,246,0.4)" },
-        { id: 9, title: "Diktant o'yini", icon: "🎵", image: "/diktant.jpg", path: "/diktant", bg_color: "from-rose-500 to-pink-600", shadow_color: "rgba(244,63,94,0.4)" },
+        /*{ id: 9, title: "Diktant o'yini", icon: "🎵", image: "/diktant.jpg", path: "/diktant", bg_color: "from-rose-500 to-pink-600", shadow_color: "rgba(244,63,94,0.4)" },*/
       ];
 
       try {
         const data = await gameService.getGames();
         const apiGames = data.data?.games || data.games || data.data || [];
-        
+
         // Agar backenddan o'yinlar kelsa, ularni defaultGames bilan birlashtiramiz (id bo'yicha)
         const merged = [...apiGames];
         defaultGames.forEach(dg => {
