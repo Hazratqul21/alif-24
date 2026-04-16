@@ -706,16 +706,61 @@ async def submit_answers(
     result_details = []
     total_points = 0
 
+    # Pre-fetch SavedTests for this olympiad to handle TestAI questions efficiently
+    st_res = await db.execute(
+        select(SavedTest).where(SavedTest.source_platform == f"olympiad:{olympiad_id}")
+    )
+    saved_tests_map = {st.id: st for st in st_res.scalars().all()}
+
     for answer in answers:
-        q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == answer.question_id))
-        question = q_res.scalars().first()
-        if not question:
+        question_data = None
+        is_olympiad_q = False
+        
+        if str(answer.question_id).startswith("testai_"):
+            # Handle TestAI questions: testai_{st_id}_{idx}
+            parts = answer.question_id.split("_")
+            if len(parts) >= 3:
+                st_id, q_idx_str = parts[1], parts[2]
+                try:
+                    q_idx = int(q_idx_str)
+                    st_obj = saved_tests_map.get(st_id)
+                    if not st_obj:
+                        # Fallback for dynamic lookup
+                        q_st = await db.execute(select(SavedTest).where(SavedTest.id == st_id))
+                        st_obj = q_st.scalars().first()
+                    
+                    if st_obj and st_obj.questions and 0 <= q_idx < len(st_obj.questions):
+                        st_q = st_obj.questions[q_idx]
+                        question_data = {
+                            "correct_answer": st_q.get("correct") if st_q.get("correct") is not None else st_q.get("answer_index"),
+                            "points": st_q.get("points", 5)
+                        }
+                except (ValueError, IndexError):
+                    continue
+        else:
+            # Standard OlympiadQuestion lookup
+            q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == answer.question_id))
+            question = q_res.scalars().first()
+            if question:
+                question_data = {
+                    "correct_answer": question.correct_answer,
+                    "points": question.points
+                }
+                is_olympiad_q = True
+
+        if not question_data:
             continue
 
-        is_correct = answer.answer_index == question.correct_answer
-        points = question.points if is_correct else 0
+        # Type-safe comparison (ensure both are ints)
+        try:
+            is_correct = int(answer.answer_index) == int(question_data["correct_answer"])
+        except (ValueError, TypeError):
+            is_correct = False
+
+        points = question_data["points"] if is_correct else 0
         total_score += points
-        total_points += question.points
+        total_points += question_data["points"]
+        
         if is_correct:
             correct_count += 1
         else:
@@ -728,11 +773,11 @@ async def submit_answers(
             "points_earned": points
         })
 
-        # Save individual answer if participant exists
-        if participant:
+        # Save to OlympiadAnswer only for persistent OlympiadQuestion (due to FK constraints)
+        if participant and is_olympiad_q:
             ans_obj = OlympiadAnswer(
                 participant_id=participant.id,
-                question_id=question.id,
+                question_id=answer.question_id,
                 selected_answer=answer.answer_index,
                 is_correct=is_correct,
                 points_earned=points,
@@ -1951,7 +1996,11 @@ async def submit_reading_result(
 
             total_questions += 1
             if question_data:
-                is_correct = (ans.answer_index == question_data.get("correct_answer"))
+                try:
+                    is_correct = (int(ans.answer_index) == int(question_data.get("correct_answer")))
+                except (ValueError, TypeError):
+                    is_correct = False
+                
                 if is_correct:
                     correct_count += 1
 
@@ -2004,11 +2053,11 @@ async def submit_reading_result(
     # 2. Final session score
     reading_base = 10 if (data.story_id or data.wpm > 0) else 0
     
-    # Quiz sum (each question is 0-100)
-    quiz_sum = int(round(sum(item_scores))) if item_scores else 0
+    # Quiz average (each question is 0-100)
+    quiz_avg = sum(item_scores) / len(item_scores) if item_scores else 0
     
-    # Total points for this submission: 10 (reading) + Quiz Sum
-    total_session_points = reading_base + quiz_sum
+    # Total points for this submission: 10 (reading) + Quiz Average
+    total_session_points = int(round(reading_base + quiz_avg))
     
     # For compatibility/legacy we keep quiz_score as the total of this session
     quiz_score = total_session_points
@@ -2020,7 +2069,6 @@ async def submit_reading_result(
         quiz_coins = correct_count
     else:
         # Use average to decide coins if no answers provided directly
-        quiz_avg = quiz_sum / len(item_scores) if (item_scores and len(item_scores) > 0) else quiz_sum
         quiz_coins = 15 if quiz_avg >= 80 else (8 if quiz_avg >= 50 else 3)
         
     total_new_coins = reading_coins + quiz_coins
