@@ -1873,8 +1873,8 @@ async def evaluate_story_quiz_text(
                     f"To'g'ri javob: {correct_answer}\n"
                     f"Bola aytgan: {recognized_clean}\n\n"
                     "Bolaning javobi ma'nosi jihatidan to'g'ri javobga qanchalik mos kelishini "
-                    "0 dan 100 gacha faqat bitta butun son bilan baholang. "
-                    "100 = to'liq mos, 0 = mutlaqo noto'g'ri. "
+                    "0 dan 10 gacha faqat bitta butun son bilan baholang. "
+                    "10 = to'liq mos, 0 = mutlaqo noto'g'ri. "
                     "Faqat son qaytaring, boshqa hech narsa yozmang."
                 )
                 resp = await client.post(
@@ -1889,8 +1889,8 @@ async def evaluate_story_quiz_text(
                 )
                 if resp.status_code == 200:
                     raw = resp.json()["choices"][0]["message"]["content"].strip()
-                    digits = "".join(filter(str.isdigit, raw))[:3]
-                    score = max(0, min(100, int(digits or "0")))
+                    digits = "".join(filter(str.isdigit, raw))[:2]
+                    score = max(0, min(10, int(digits or "0")))
                     ai_used = True
         except Exception as e:
             logger.warning(f"AI evaluation failed, falling back to difflib: {e}")
@@ -1905,8 +1905,13 @@ async def evaluate_story_quiz_text(
             correct_words = set(c_lower.split())
             recognized_words = set(r_lower.split())
             keyword_ratio = len(correct_words & recognized_words) / len(correct_words) if correct_words else 0
-            score = int((ratio * 0.5 + keyword_ratio * 0.5) * 100)
-            score = min(100, max(0, score))
+            # Scale to 0-10
+            raw_score = (ratio * 0.5 + keyword_ratio * 0.5) * 10
+            score = min(10, max(0, int(round(raw_score))))
+
+    # Minimum 2 ball — bola nimadir javob bergan bo'lsa
+    if recognized_clean and score < 2:
+        score = 2
 
     return {
         "success": True,
@@ -1914,7 +1919,7 @@ async def evaluate_story_quiz_text(
             "recognized_text": recognized_clean,
             "correct_answer": correct_answer,
             "score": score,
-            "passed": score >= 60,
+            "passed": score >= 6,
             "ai_evaluated": ai_used,
         }
     }
@@ -2078,7 +2083,7 @@ async def submit_reading_result(
                 "submitted_answer": ans.answer_index,
                 "is_correct": is_correct,
                 "score": ans.score, 
-                "points": 100 if is_correct else 0,
+                "points": 10 if is_correct else 0,
             })
 
             # Save answer only if it's a real OlympiadQuestion AND it's the FIRST attempt
@@ -2088,7 +2093,7 @@ async def submit_reading_result(
                     question_id=ans.question_id,
                     selected_answer=ans.answer_index,
                     is_correct=is_correct,
-                    points_earned=ans.score if ans.score is not None else (100 if is_correct else 0),
+                    points_earned=ans.score if ans.score is not None else (10 if is_correct else 0),
                 )
                 db.add(ans_obj)
 
@@ -2111,8 +2116,8 @@ async def submit_reading_result(
             if ans_score is not None:
                 item_scores.append(float(ans_score))
             else:
-                # Fallback for Multiple Choice: 100 for correct, 0 for incorrect
-                item_scores.append(100.0 if q_detail["is_correct"] else 0.0)
+                # Fallback for Multiple Choice: 10 for correct, 0 for incorrect
+                item_scores.append(10.0 if q_detail["is_correct"] else 0.0)
     
     # 2. Final session score
     reading_base = 10 if (data.story_id or data.wpm > 0) else 0
@@ -2212,6 +2217,7 @@ async def submit_reading_result(
             avg_comp_score = 0
             
         participant.total_score = int(total_points_sum)
+        logger.info(f"AGGREGATION: participant={participant.id}, total_score={total_points_sum}, all_subs_count={len(all_subs)}, coins={total_coins}")
         participant.reading_wpm = avg_wpm
         participant.reading_percent = avg_percent
         participant.reading_time_seconds = int(total_duration)
