@@ -1825,7 +1825,7 @@ async def evaluate_story_quiz_text(
     story_id: str,
     question_index: int = Query(...),
     recognized_text: str = Form(...),
-    student_id: str = Query(..., description="Student user_id for auth"),
+    student_id: Optional[str] = Query(None, description="Student user_id for auth"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -1837,11 +1837,10 @@ async def evaluate_story_quiz_text(
     import difflib
     import httpx
 
-    if not student_id:
-        raise HTTPException(status_code=401, detail="student_id talab qilinadi")
-    user_res = await db.execute(select(User).where(User.id == student_id))
-    if not user_res.scalars().first():
-        raise HTTPException(status_code=401, detail="Foydalanuvchi topilmadi")
+    if student_id:
+        user_res = await db.execute(select(User).where(User.id == student_id))
+        if not user_res.scalars().first():
+            raise HTTPException(status_code=401, detail="Foydalanuvchi topilmadi")
 
     res = await db.execute(
         select(OlympiadStory).where(OlympiadStory.id == story_id)
@@ -2137,7 +2136,7 @@ async def submit_reading_result(
     submission.words_per_minute = data.wpm
     submission.read_percent = data.read_percent
     submission.reading_duration_seconds = data.reading_time_seconds
-    submission.comprehension_score = quiz_sum
+    submission.comprehension_score = correct_count
     submission.comprehension_total = total_questions
     submission.total_points = total_session_points
     submission.submitted_at = datetime.now(timezone.utc)
@@ -2177,7 +2176,7 @@ async def submit_reading_result(
         total_comp_qs = sum(s.comprehension_total or 0 for s in all_subs)
         
         if total_comp_qs > 0:
-            avg_comp_score = (total_comp_score / (total_comp_qs * 100)) * 100 # Overall %
+            avg_comp_score = (total_comp_score / total_comp_qs) * 100 # Overall % correct
         else:
             avg_comp_score = 0
             
