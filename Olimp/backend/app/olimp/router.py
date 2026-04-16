@@ -2138,18 +2138,21 @@ async def submit_reading_result(
                 # Fallback for Multiple Choice: 100 for correct, 0 for incorrect
                 item_scores.append(100.0 if q_detail["is_correct"] else 0.0)
     
-    # 2. Final session score
-    reading_base = 10 if (data.story_id or data.wpm > 0) else 0
-    
-    # Quiz score: each correct answer = 5 points
-    test_points = correct_count * 5
-    
-    # Quiz average (each question is 0-100) - for comprehension tracking
-    quiz_avg = sum(item_scores) / len(item_scores) if item_scores else 0
-    
-    # Total points for this submission: reading_base + test_points
-    total_session_points = int(round(reading_base + test_points))
-    logger.info(f"STORY TOTAL: base={reading_base}, test_points={test_points}, correct={correct_count}, result={total_session_points}")
+    # 2. Final session score — two different formulas
+    if data.story_id:
+        # ── ERTAK (Story) ──
+        # O'qish uchun 10 ball + savollar o'rtachasi (0-100)
+        reading_base = 10
+        quiz_avg = sum(item_scores) / len(item_scores) if item_scores else 0
+        total_session_points = int(round(reading_base + quiz_avg))
+        logger.info(f"STORY SCORE: base={reading_base}, quiz_avg={quiz_avg}, total={total_session_points}")
+    else:
+        # ── TEST ──
+        # Har bir to'g'ri javob = 5 ball
+        reading_base = 0
+        quiz_avg = 0
+        total_session_points = correct_count * 5
+        logger.info(f"TEST SCORE: correct={correct_count}, per_correct=5, total={total_session_points}")
     
     # quiz_score for frontend display
     quiz_score = total_session_points
@@ -2195,9 +2198,29 @@ async def submit_reading_result(
         submission.submitted_at = datetime.now(timezone.utc)
         submission.earned_coins = int(total_new_coins)
     else:
-        # Re-take: we don't update the official scores or coins in the DB, 
-        # but the function will still return the calculated current scores below.
-        logger.info(f"Re-take detected for participant {participant.id}, skipping DB update for scores/coins.")
+        # Re-take: return FIRST attempt results from DB, don't save anything new
+        logger.info(f"Re-take detected for participant {participant.id}, returning first attempt results.")
+        participant.reading_attempts = (participant.reading_attempts or 0) + 1
+        await db.commit()
+        
+        return {
+            "success": True,
+            "data": {
+                "quiz_score": submission.total_points or 0,
+                "total_score": participant.total_score or 0,
+                "correct_answers": submission.comprehension_score or 0,
+                "total_questions": submission.comprehension_total or 0,
+                "wpm": submission.words_per_minute or 0,
+                "read_percent": submission.read_percent or 0,
+                "reading_time_seconds": submission.reading_duration_seconds or 0,
+                "reading_coins": 0,
+                "quiz_coins": 0,
+                "total_coins": 0,
+                "attempt": participant.reading_attempts,
+                "quiz_details": [],
+                "is_retake": True,
+            }
+        }
 
     # Ensure current submission is flushed to DB before aggregation
     db.add(participant)
