@@ -667,8 +667,12 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
             };
 
             const res = await apiService.post(url, payload);
+            // The backend returns { success: true, data: { ... } }
+            // apiService (axios) returns the body in res.data
+            const resultData = res.data?.data || res.data || {};
+            
             setResult({
-                ...(res.data || {}),
+                ...resultData,
                 elapsed_seconds: elapsedSeconds,
             });
             // Refresh story list so card turns green

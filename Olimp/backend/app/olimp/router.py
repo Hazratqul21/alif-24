@@ -858,9 +858,12 @@ async def submit_answers(
         return {
             "success": True,
             "data": {
+                "quiz_score": total_score,
                 "total_score": total_score,
                 "total_questions": len(answers),
                 "correct_answers": correct_count,
+                "quiz_coins": coins,
+                "total_coins": coins,
                 "coins_earned": coins,
                 "results": result_details
             }
@@ -1967,6 +1970,33 @@ async def submit_reading_result(
     if olympiad.start_time and now < olympiad.start_time:
         raise HTTPException(status_code=400, detail="Kechirasiz, musobaqa hali boshlanmagan.")
 
+    # --- Check for existing submission first (to avoid duplicate scoring/coins) ---
+    submission_existed = False
+    submission = None
+    if data.story_id:
+        sub_res = await db.execute(
+            select(OlympiadReadingSubmission).where(
+                OlympiadReadingSubmission.participant_id == participant.id,
+                or_(
+                    OlympiadReadingSubmission.reading_task_id == data.story_id,
+                    OlympiadReadingSubmission.story_id == data.story_id
+                )
+            )
+        )
+        submission = sub_res.scalars().first()
+        submission_existed = submission is not None
+    else:
+        # Global Olympiad Test (no story_id)
+        sub_res = await db.execute(
+            select(OlympiadReadingSubmission).where(
+                OlympiadReadingSubmission.participant_id == participant.id,
+                OlympiadReadingSubmission.story_id == None,
+                OlympiadReadingSubmission.reading_task_id == None
+            )
+        )
+        submission = sub_res.scalars().first()
+        submission_existed = submission is not None
+
     # --- Quiz scoring (100 ball tizimida) ---
     correct_count = 0
     total_questions = 0
@@ -2027,8 +2057,8 @@ async def submit_reading_result(
                 "points": 100 if is_correct else 0,
             })
 
-            # Save answer only if it's a real database question to avoid FK violation
-            if question:
+            # Save answer only if it's a real database question AND it's the FIRST attempt
+            if question and not submission_existed:
                 ans_obj = OlympiadAnswer(
                     participant_id=participant.id,
                     question_id=ans.question_id,
@@ -2037,11 +2067,6 @@ async def submit_reading_result(
                     points_earned=ans.score if ans.score is not None else (100 if is_correct else 0),
                 )
                 db.add(ans_obj)
-            else:
-                # For dynamic story questions, we don't save to OlympiadAnswer table 
-                # because they don't have a record in olympiad_questions table.
-                # Their score is already being tracked via quiz_details/item_scores.
-                pass
 
 
     # Revised Formula (Quiz-Only average or 10 points for reading)
@@ -2090,41 +2115,17 @@ async def submit_reading_result(
     total_new_coins = reading_coins + quiz_coins
 
     # --- Save/Update Submission per Story or General Test ---
-    if data.story_id:
-        sub_res = await db.execute(
-            select(OlympiadReadingSubmission).where(
-                OlympiadReadingSubmission.participant_id == participant.id,
-                or_(
-                    OlympiadReadingSubmission.reading_task_id == data.story_id,
-                    OlympiadReadingSubmission.story_id == data.story_id
-                )
-            )
-        )
-        submission = sub_res.scalars().first()
-        submission_existed = submission is not None
-        
-        if not submission:
-            is_task = (await db.execute(select(OlympiadReadingTask).where(OlympiadReadingTask.id == data.story_id))).scalars().first() is not None
+    if not submission:
+        if data.story_id:
+            is_task_res = await db.execute(select(OlympiadReadingTask).where(OlympiadReadingTask.id == data.story_id))
+            is_task = is_task_res.scalars().first() is not None
             submission = OlympiadReadingSubmission(
                 participant_id=participant.id,
                 reading_task_id=data.story_id if is_task else None,
                 story_id=data.story_id if not is_task else None,
             )
             db.add(submission)
-
-    else:
-        # Global Olympiad Test (no story_id)
-        sub_res = await db.execute(
-            select(OlympiadReadingSubmission).where(
-                OlympiadReadingSubmission.participant_id == participant.id,
-                OlympiadReadingSubmission.story_id == None,
-                OlympiadReadingSubmission.reading_task_id == None
-            )
-        )
-        submission = sub_res.scalars().first()
-        submission_existed = submission is not None
-        
-        if not submission:
+        else:
             submission = OlympiadReadingSubmission(
                 participant_id=participant.id,
                 story_id=None,
@@ -2132,17 +2133,20 @@ async def submit_reading_result(
             )
             db.add(submission)
 
-    # Always update scores on the submission object (whether new or existing)
-    submission.words_per_minute = data.wpm
-    submission.read_percent = data.read_percent
-    submission.reading_duration_seconds = data.reading_time_seconds
-    submission.comprehension_score = correct_count
-    submission.comprehension_total = total_questions
-    submission.total_points = total_session_points
-    submission.submitted_at = datetime.now(timezone.utc)
-    
+    # Only save/update scores on the submission object if it's the FIRST time
     if not submission_existed:
+        submission.words_per_minute = data.wpm
+        submission.read_percent = data.read_percent
+        submission.reading_duration_seconds = data.reading_time_seconds
+        submission.comprehension_score = correct_count
+        submission.comprehension_total = total_questions
+        submission.total_points = total_session_points
+        submission.submitted_at = datetime.now(timezone.utc)
         submission.earned_coins = int(total_new_coins)
+    else:
+        # Re-take: we don't update the official scores or coins in the DB, 
+        # but the function will still return the calculated current scores below.
+        logger.info(f"Re-take detected for participant {participant.id}, skipping DB update for scores/coins.")
 
     # Ensure current submission is flushed to DB before aggregation
     db.add(participant)
