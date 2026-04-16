@@ -808,13 +808,12 @@ async def submit_answers(
         # Update participant totals
         if participant:
             participant.status = ParticipationStatus.completed
-            participant.total_score = total_score
             participant.correct_answers = correct_count
             participant.wrong_answers = wrong_count
-            participant.coins_earned = coins
+            participant.coins_earned = (participant.coins_earned or 0) + coins
             participant.completed_at = datetime.now(timezone.utc)
 
-            # Unified scoring: create submission record for the general test part
+            # Unified scoring: create/update submission record for the general test part
             # so it's aggregated correctly in mixed olympiads.
             sub_res = await db.execute(
                 select(OlympiadReadingSubmission).where(
@@ -824,28 +823,48 @@ async def submit_answers(
                 )
             )
             submission = sub_res.scalars().first()
+            submission_existed = submission is not None
+            
             if not submission:
                 submission = OlympiadReadingSubmission(participant_id=participant.id)
                 db.add(submission)
             
-            submission.total_points = total_score
-            submission.comprehension_score = total_score
-            submission.comprehension_total = len(answers)
-            submission.submitted_at = datetime.now(timezone.utc)
+            # Only update scores on first submission
+            if not submission_existed:
+                submission.total_points = total_score
+                submission.comprehension_score = correct_count
+                submission.comprehension_total = len(answers)
+                submission.earned_coins = coins
+                submission.submitted_at = datetime.now(timezone.utc)
+            
+            await db.flush()
 
-            # Award coins to student balance
-            try:
-                await _award_coins(
-                    student_id=participant.student_id,
-                    amount=coins,
-                    tx_type=TransactionType.olympiad_participation,
-                    description=f"Olimpiada: {olympiad.title} — {correct_count}/{len(answers)} to'g'ri",
-                    reference_id=olympiad.id,
-                    reference_type="olympiad",
-                    db=db,
+            # --- Aggregation: sum ALL submissions (reading + test) ---
+            all_subs_res = await db.execute(
+                select(OlympiadReadingSubmission).where(
+                    OlympiadReadingSubmission.participant_id == participant.id
                 )
-            except Exception as e:
-                logger.error(f"Coin award error: {e}")
+            )
+            all_subs = all_subs_res.scalars().all()
+            total_points_sum = sum(s.total_points or 0 for s in all_subs)
+            participant.total_score = int(total_points_sum)
+            
+            logger.info(f"TEST AGGREGATION: participant={participant.id}, test_score={total_score}, total_score={total_points_sum}, all_subs={len(all_subs)}")
+
+            # Award coins to student balance (only on first submission)
+            if not submission_existed:
+                try:
+                    await _award_coins(
+                        student_id=participant.student_id,
+                        amount=coins,
+                        tx_type=TransactionType.olympiad_participation,
+                        description=f"Olimpiada: {olympiad.title} — {correct_count}/{len(answers)} to'g'ri",
+                        reference_id=olympiad.id,
+                        reference_type="olympiad",
+                        db=db,
+                    )
+                except Exception as e:
+                    logger.error(f"Coin award error: {e}")
 
             await db.commit()
             

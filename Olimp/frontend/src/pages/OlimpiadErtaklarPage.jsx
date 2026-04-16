@@ -81,8 +81,8 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
     const pointsPerCorrect = 5;
     const totalPoints = totalCorrect * pointsPerCorrect;
     const maxPoints = questions.length * pointsPerCorrect;
-    // Convert to 0-100 scale for backend (same logic as backend reading-submit)
-    const quizScoreForSubmit = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
+    // Convert to 0-10 scale for backend
+    const quizScoreForSubmit = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 10) : 0;
     const allDone = qIndex >= questions.length;
 
     useEffect(() => {
@@ -218,8 +218,8 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
     };
 
     const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-    const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-red-400';
-    const scoreBg = (s) => s >= 80 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-red-500';
+    const scoreColor = (s) => s >= 8 ? 'text-emerald-400' : s >= 5 ? 'text-amber-400' : 'text-red-400';
+    const scoreBg = (s) => s >= 8 ? 'bg-emerald-500' : s >= 5 ? 'bg-amber-500' : 'bg-red-500';
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -241,7 +241,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                         <div className="flex items-center justify-between mb-2">
                             <p className="text-white/60 text-xs">Savol {qIndex + 1} / {questions.length}</p>
                             {scores.length > 0 && (
-                                <p className="text-xs text-white/40">O'rtacha: <span className={scoreColor(totalScore)}>{totalScore}/100</span></p>
+                                <p className="text-xs text-white/40">O'rtacha: <span className={scoreColor(totalScore)}>{totalScore}/10</span></p>
                             )}
                         </div>
                         <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -259,10 +259,10 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                     const readElapsed = readingStats.elapsed || 0;
                     const fmtTime = `${String(Math.floor(readElapsed / 60)).padStart(2, '0')}:${String(readElapsed % 60).padStart(2, '0')}`;
                     const readingCoin = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
-                    const quizCoin = totalScore >= 80 ? 15 : totalScore >= 50 ? 8 : 3;
+                    const quizCoin = totalScore >= 8 ? 15 : totalScore >= 5 ? 8 : 3;
                     const totalCoin = readingCoin + quizCoin;
                     const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
-                    const overallEmoji = (totalScore >= 80 && wpm >= 40) ? '🏆' : totalScore >= 50 ? '⭐' : '💪';
+                    const overallEmoji = (totalScore >= 8 && wpm >= 40) ? '🏆' : totalScore >= 5 ? '⭐' : '💪';
 
                     return (
                         <div className="flex flex-col items-center gap-5">
@@ -298,7 +298,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                 </p>
                                 <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-[1.25rem] p-6 text-center mb-4">
                                     <p className={`text-[3.5rem] leading-none font-black mb-2 ${scoreColor(totalScore)}`}>{totalScore}</p>
-                                    <p className="text-white/40 text-sm font-medium">100 ball dan</p>
+                                    <p className="text-white/40 text-sm font-medium">10 ball dan</p>
                                 </div>
                                 <div className="space-y-[6px]">
                                     {scores.map((s, i) => (
@@ -306,7 +306,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                             <span className="text-white/60 text-[13px] font-medium">{i + 1}-savol</span>
                                             <div className="flex items-center gap-4">
                                                 <div className="w-[4.5rem] h-2 bg-white/5 rounded-full overflow-hidden">
-                                                    <div className={`h-full rounded-full ${scoreBg(s.score)}`} style={{ width: `${s.score}%` }} />
+                                                    <div className={`h-full rounded-full ${scoreBg(s.score)}`} style={{ width: `${s.score * 10}%` }} />
                                                 </div>
                                                 <span className={`text-[13px] font-bold min-w-[28px] text-right ${scoreColor(s.score)}`}>{s.score}</span>
                                             </div>
@@ -408,7 +408,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
 
                         {phase === 'result' && scores[qIndex] && (
                             <div className="flex flex-col items-center gap-4 py-2">
-                                <div className="text-4xl">{scores[qIndex].score >= 80 ? '🌟' : scores[qIndex].score >= 50 ? '👍' : '💡'}</div>
+                                <div className="text-4xl">{scores[qIndex].score >= 8 ? '🌟' : scores[qIndex].score >= 5 ? '👍' : '💡'}</div>
                                 <div className="text-center">
                                     <p className={`text-4xl font-black ${scoreColor(scores[qIndex].score)}`}>{scores[qIndex].score}</p>
                                     <p className="text-white/40 text-xs mt-1">ball</p>
@@ -513,7 +513,7 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
     const totalScore = result.total_score || 0;
     const quizScore = result.quiz_score || 0;
     const wpmColor = wpm >= 60 ? 'text-emerald-600' : wpm >= 40 ? 'text-amber-600' : 'text-rose-600';
-    const scoreColor = (s) => s >= 80 ? 'text-emerald-600' : s >= 50 ? 'text-amber-600' : 'text-rose-600';
+    const scoreColor = (s) => s >= 8 ? 'text-emerald-600' : s >= 5 ? 'text-amber-600' : 'text-rose-600';
     const wrongAnswers = (result.total_questions || 0) - (result.correct_answers || 0);
     const testFmtTime = result.elapsed_seconds ? `${String(Math.floor(result.elapsed_seconds / 60)).padStart(2, '0')}:${String(result.elapsed_seconds % 60).padStart(2, '0')}` : '00:00';
     const isQuizAttempted = (result.total_questions || 0) > 0;
