@@ -2014,6 +2014,7 @@ async def submit_reading_result(
         for ans in data.quiz_answers:
             logger.info(f"Checking story question_id: {ans.question_id}")
             question_data = None
+            question = None  # ORM object (only set for OlympiadQuestion records)
             is_correct = False
             is_olympiad_q = False
             
@@ -2033,7 +2034,7 @@ async def submit_reading_result(
                             question_data = {
                                 "id": ans.question_id,
                                 "correct_answer": st_q.get("correct") if st_q.get("correct") is not None else st_q.get("answer_index"),
-                                "points": st_q.get("points", 100) # Story questions are usually 100-scale
+                                "points": st_q.get("points", 100)
                             }
                     except (ValueError, IndexError):
                         pass
@@ -2080,8 +2081,8 @@ async def submit_reading_result(
                 "points": 100 if is_correct else 0,
             })
 
-            # Save answer only if it's a real database question AND it's the FIRST attempt
-            if question and not submission_existed:
+            # Save answer only if it's a real OlympiadQuestion AND it's the FIRST attempt
+            if is_olympiad_q and question and not submission_existed:
                 ans_obj = OlympiadAnswer(
                     participant_id=participant.id,
                     question_id=ans.question_id,
@@ -2116,14 +2117,17 @@ async def submit_reading_result(
     # 2. Final session score
     reading_base = 10 if (data.story_id or data.wpm > 0) else 0
     
-    # Quiz average (each question is 0-100)
+    # Quiz score: each correct answer = 5 points
+    test_points = correct_count * 5
+    
+    # Quiz average (each question is 0-100) - for comprehension tracking
     quiz_avg = sum(item_scores) / len(item_scores) if item_scores else 0
     
-    # Total points for this submission: 10 (reading) + Quiz Average
-    total_session_points = int(round(reading_base + quiz_avg))
-    logger.info(f"STORY TOTAL: base={reading_base}, quiz_avg={quiz_avg}, result={total_session_points}")
+    # Total points for this submission: reading_base + test_points
+    total_session_points = int(round(reading_base + test_points))
+    logger.info(f"STORY TOTAL: base={reading_base}, test_points={test_points}, correct={correct_count}, result={total_session_points}")
     
-    # For compatibility/legacy we keep quiz_score as the total of this session
+    # quiz_score for frontend display
     quiz_score = total_session_points
 
     # --- Reading coins ---

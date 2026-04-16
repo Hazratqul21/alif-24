@@ -448,7 +448,7 @@ function OlympiadTestResultModal({ result, onClose }) {
                 </div>
             )}
             <div className="text-5xl mt-2 mb-2">{result.time_expired ? '⏳' : '🎯'}</div>
-            <h2 className="text-[#1a1a2e] font-bold text-2xl">Test natijasi!</h2>
+            <h2 className="text-[#ffffff] font-bold text-2xl">Test natijasi!</h2>
             <div className="grid grid-cols-2 gap-4 text-left">
                 <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
                     <p className="text-emerald-800/60 text-[10px] uppercase font-bold tracking-wider mb-1">To'g'ri</p>
@@ -670,7 +670,7 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
             // The backend returns { success: true, data: { ... } }
             // apiService (axios) returns the body in res.data
             const resultData = res.data?.data || res.data || {};
-            
+
             setResult({
                 ...resultData,
                 elapsed_seconds: elapsedSeconds,
