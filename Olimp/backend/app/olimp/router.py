@@ -643,9 +643,7 @@ async def start_olympiad(
     return {"success": True, "data": {"started_at": participant.started_at.isoformat()}}
 
 
-# ============= Student: Submit Answers =============
-
-@router.post("/{olympiad_id}/submit")
+# ============= Student: Submit Answers =========@router.post("/{olympiad_id}/submit")
 async def submit_answers(
     olympiad_id: str,
     answers: List[AnswerSubmit],
@@ -653,211 +651,224 @@ async def submit_answers(
     db: AsyncSession = Depends(get_db)
 ):
     """Submit answers for an olympiad - requires student_id query parameter"""
-    # Validate student_id is provided
-    if not student_id:
-        raise HTTPException(status_code=400, detail="student_id talab qilinadi")
+    try:
+        # Validate student_id is provided
+        if not student_id:
+            raise HTTPException(status_code=400, detail="student_id talab qilinadi")
 
-    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
-    olympiad = res.scalars().first()
-    if not olympiad:
-        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+        res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+        olympiad = res.scalars().first()
+        if not olympiad:
+            raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
-    # Find participant
-    participant = None
-    if student_id:
-        sp = await _resolve_student_profile(student_id, db)
-        if sp:
-            p_res = await db.execute(
-                select(OlympiadParticipant).where(
-                    OlympiadParticipant.olympiad_id == olympiad.id,
-                    OlympiadParticipant.student_id == sp.id,
+        # Find participant
+        participant = None
+        if student_id:
+            sp = await _resolve_student_profile(student_id, db)
+            if sp:
+                p_res = await db.execute(
+                    select(OlympiadParticipant).where(
+                        OlympiadParticipant.olympiad_id == olympiad.id,
+                        OlympiadParticipant.student_id == sp.id,
+                    )
+                )
+                participant = p_res.scalars().first()
+                if participant and participant.status == ParticipationStatus.completed:
+                    raise HTTPException(status_code=400, detail="Ushbu olimpiadaga allaqachon javob topshirgansiz")
+
+        # === Chiting va vaqt tugashiga qarshi himoya qatlami === #
+        now = datetime.now(timezone.utc)
+        
+        # 1. Muddat tugaganmi tekshiramiz (5 minutlik "grace period" bilan, internet qotishlarga)
+        if olympiad.end_time and now > (olympiad.end_time + timedelta(minutes=5)):
+            raise HTTPException(status_code=400, detail="Olimpiada muddasi allaqachon tugagan! Javoblaringiz qabul qilinmadi.")
+            
+        # 2. Test davomiyligi (duration_minutes) nazorati
+        if participant and participant.started_at and olympiad.duration_minutes:
+            delta = now - participant.started_at
+            time_spent_seconds = int(delta.total_seconds())
+            # Ajratilgan vaqt + 1.5 daqiqa greys period
+            max_allowed_seconds = (olympiad.duration_minutes * 60) + 90
+            
+            if time_spent_seconds > max_allowed_seconds:
+                # Vaqtidan o'tib ketgan, bahoni 0 qilib yopamiz
+                participant.status = ParticipationStatus.completed
+                participant.time_spent_seconds = time_spent_seconds
+                participant.total_score = 0
+                participant.completed_at = now
+                await db.commit()
+                raise HTTPException(status_code=400, detail="Ajratilgan vaqt (Time Limit) tugagan! Natijangiz bekor qilindi.")
+
+        total_score = 0
+        correct_count = 0
+        wrong_count = 0
+        result_details = []
+        total_points = 0
+
+        logger.info(f"SUBMIT TEST: olympiad={olympiad_id}, student={student_id}, answers_count={len(answers)}")
+
+        # Pre-fetch SavedTests for this olympiad to handle TestAI questions efficiently
+        st_res = await db.execute(
+            select(SavedTest).where(SavedTest.source_platform == f"olympiad:{olympiad_id}")
+        )
+        saved_tests_map = {st.id: st for st in st_res.scalars().all()}
+        logger.info(f"Loaded {len(saved_tests_map)} SavedTests for lookup")
+
+        for answer in answers:
+            question_data = None
+            is_olympiad_q = False
+            
+            logger.info(f"Checking question_id: {answer.question_id}")
+            
+            if str(answer.question_id).startswith("testai_"):
+                # Handle TestAI questions: testai_{st_id}_{idx}
+                parts = str(answer.question_id).split("_")
+                if len(parts) >= 3:
+                    st_id, q_idx_str = parts[1], parts[2]
+                    try:
+                        q_idx = int(q_idx_str)
+                        st_obj = saved_tests_map.get(st_id)
+                        if not st_obj:
+                            # Fallback for dynamic lookup
+                            q_st = await db.execute(select(SavedTest).where(SavedTest.id == st_id))
+                            st_obj = q_st.scalars().first()
+                        
+                        if st_obj and st_obj.questions and 0 <= q_idx < len(st_obj.questions):
+                            st_q = st_obj.questions[q_idx]
+                            question_data = {
+                                "correct_answer": st_q.get("correct") if st_q.get("correct") is not None else st_q.get("answer_index"),
+                                "points": st_q.get("points", 5)
+                            }
+                    except (ValueError, IndexError):
+                        continue
+            else:
+                # Standard OlympiadQuestion lookup
+                q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == answer.question_id))
+                question = q_res.scalars().first()
+                if question:
+                    question_data = {
+                        "correct_answer": question.correct_answer,
+                        "points": question.points
+                    }
+                    is_olympiad_q = True
+
+            if not question_data:
+                continue
+
+            # Type-safe comparison (ensure both are ints)
+            try:
+                is_correct = int(answer.answer_index) == int(question_data["correct_answer"])
+            except (ValueError, TypeError):
+                is_correct = False
+
+            points = question_data["points"] if is_correct else 0
+            logger.info(f"Result for q={answer.question_id}: is_correct={is_correct}, ans={answer.answer_index}, expected={question_data['correct_answer']}, points={points}")
+            total_score += points
+            total_points += question_data["points"]
+            
+            if is_correct:
+                correct_count += 1
+            else:
+                wrong_count += 1
+
+            result_details.append({
+                "question_id": answer.question_id,
+                "submitted_answer": answer.answer_index,
+                "is_correct": is_correct,
+                "points_earned": points
+            })
+
+            # Save to OlympiadAnswer only for persistent OlympiadQuestion (due to FK constraints)
+            if participant and is_olympiad_q:
+                ans_obj = OlympiadAnswer(
+                    participant_id=participant.id,
+                    question_id=answer.question_id,
+                    selected_answer=answer.answer_index,
+                    is_correct=is_correct,
+                    points_earned=points,
+                )
+                db.add(ans_obj)
+
+        # Calculate coins
+        coins = 10  # Base participation
+        coins += correct_count * 2  # +2 per correct answer
+        if correct_count == len(answers) and len(answers) > 0:
+            coins += 20  # Perfect score bonus
+
+        # Calculate time spent
+        if participant:
+            if participant.started_at:
+                delta = datetime.now(timezone.utc) - participant.started_at
+                participant.time_spent_seconds = int(delta.total_seconds())
+            else:
+                participant.time_spent_seconds = 0
+
+        # Update participant totals
+        if participant:
+            participant.status = ParticipationStatus.completed
+            participant.total_score = total_score
+            participant.correct_answers = correct_count
+            participant.wrong_answers = wrong_count
+            participant.coins_earned = coins
+            participant.completed_at = datetime.now(timezone.utc)
+
+            # Unified scoring: create submission record for the general test part
+            # so it's aggregated correctly in mixed olympiads.
+            sub_res = await db.execute(
+                select(OlympiadReadingSubmission).where(
+                    OlympiadReadingSubmission.participant_id == participant.id,
+                    OlympiadReadingSubmission.story_id == None,
+                    OlympiadReadingSubmission.reading_task_id == None
                 )
             )
-            participant = p_res.scalars().first()
-            if participant and participant.status == ParticipationStatus.completed:
-                raise HTTPException(status_code=400, detail="Ushbu olimpiadaga allaqachon javob topshirgansiz")
+            submission = sub_res.scalars().first()
+            if not submission:
+                submission = OlympiadReadingSubmission(participant_id=participant.id)
+                db.add(submission)
+            
+            submission.total_points = total_score
+            submission.comprehension_score = total_score
+            submission.comprehension_total = len(answers)
+            submission.submitted_at = datetime.now(timezone.utc)
 
-    # === Chiting va vaqt tugashiga qarshi himoya qatlami === #
-    now = datetime.now(timezone.utc)
-    
-    # 1. Muddat tugaganmi tekshiramiz (5 minutlik "grace period" bilan, internet qotishlarga)
-    if olympiad.end_time and now > (olympiad.end_time + timedelta(minutes=5)):
-        raise HTTPException(status_code=400, detail="Olimpiada muddasi allaqachon tugagan! Javoblaringiz qabul qilinmadi.")
-        
-    # 2. Test davomiyligi (duration_minutes) nazorati
-    if participant and participant.started_at and olympiad.duration_minutes:
-        delta = now - participant.started_at
-        time_spent_seconds = int(delta.total_seconds())
-        # Ajratilgan vaqt + 1.5 daqiqa greys period
-        max_allowed_seconds = (olympiad.duration_minutes * 60) + 90
-        
-        if time_spent_seconds > max_allowed_seconds:
-            # Vaqtidan o'tib ketgan, bahoni 0 qilib yopamiz
-            participant.status = ParticipationStatus.completed
-            participant.time_spent_seconds = time_spent_seconds
-            participant.total_score = 0
-            participant.completed_at = now
+            # Award coins to student balance
+            try:
+                await _award_coins(
+                    student_id=participant.student_id,
+                    amount=coins,
+                    tx_type=TransactionType.olympiad_participation,
+                    description=f"Olimpiada: {olympiad.title} — {correct_count}/{len(answers)} to'g'ri",
+                    reference_id=olympiad.id,
+                    reference_type="olympiad",
+                    db=db,
+                )
+            except Exception as e:
+                logger.error(f"Coin award error: {e}")
+
             await db.commit()
-            raise HTTPException(status_code=400, detail="Ajratilgan vaqt (Time Limit) tugagan! Natijangiz bekor qilindi.")
+            
+            # SOC-3: Broadcast update to all clients watching this olympiad's live leaderboard
+            try:
+                await manager.broadcast(olympiad.id, {"type": "leaderboard_update"})
+            except Exception as e:
+                logger.error(f"WS Broadcast error: {e}")
 
-    total_score = 0
-    correct_count = 0
-    wrong_count = 0
-    result_details = []
-    total_points = 0
-
-    # Pre-fetch SavedTests for this olympiad to handle TestAI questions efficiently
-    st_res = await db.execute(
-        select(SavedTest).where(SavedTest.source_platform == f"olympiad:{olympiad_id}")
-    )
-    saved_tests_map = {st.id: st for st in st_res.scalars().all()}
-
-    for answer in answers:
-        question_data = None
-        is_olympiad_q = False
-        
-        if str(answer.question_id).startswith("testai_"):
-            # Handle TestAI questions: testai_{st_id}_{idx}
-            parts = answer.question_id.split("_")
-            if len(parts) >= 3:
-                st_id, q_idx_str = parts[1], parts[2]
-                try:
-                    q_idx = int(q_idx_str)
-                    st_obj = saved_tests_map.get(st_id)
-                    if not st_obj:
-                        # Fallback for dynamic lookup
-                        q_st = await db.execute(select(SavedTest).where(SavedTest.id == st_id))
-                        st_obj = q_st.scalars().first()
-                    
-                    if st_obj and st_obj.questions and 0 <= q_idx < len(st_obj.questions):
-                        st_q = st_obj.questions[q_idx]
-                        question_data = {
-                            "correct_answer": st_q.get("correct") if st_q.get("correct") is not None else st_q.get("answer_index"),
-                            "points": st_q.get("points", 5)
-                        }
-                except (ValueError, IndexError):
-                    continue
-        else:
-            # Standard OlympiadQuestion lookup
-            q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == answer.question_id))
-            question = q_res.scalars().first()
-            if question:
-                question_data = {
-                    "correct_answer": question.correct_answer,
-                    "points": question.points
-                }
-                is_olympiad_q = True
-
-        if not question_data:
-            continue
-
-        # Type-safe comparison (ensure both are ints)
-        try:
-            is_correct = int(answer.answer_index) == int(question_data["correct_answer"])
-        except (ValueError, TypeError):
-            is_correct = False
-
-        points = question_data["points"] if is_correct else 0
-        total_score += points
-        total_points += question_data["points"]
-        
-        if is_correct:
-            correct_count += 1
-        else:
-            wrong_count += 1
-
-        result_details.append({
-            "question_id": answer.question_id,
-            "submitted_answer": answer.answer_index,
-            "is_correct": is_correct,
-            "points_earned": points
-        })
-
-        # Save to OlympiadAnswer only for persistent OlympiadQuestion (due to FK constraints)
-        if participant and is_olympiad_q:
-            ans_obj = OlympiadAnswer(
-                participant_id=participant.id,
-                question_id=answer.question_id,
-                selected_answer=answer.answer_index,
-                is_correct=is_correct,
-                points_earned=points,
-            )
-            db.add(ans_obj)
-
-    # Calculate coins
-    coins = 10  # Base participation
-    coins += correct_count * 2  # +2 per correct answer
-    if correct_count == len(answers) and len(answers) > 0:
-        coins += 20  # Perfect score bonus
-
-    # Calculate time spent
-    if participant:
-        if participant.started_at:
-            delta = datetime.now(timezone.utc) - participant.started_at
-            participant.time_spent_seconds = int(delta.total_seconds())
-        else:
-            participant.time_spent_seconds = 0
-
-    # Update participant totals
-    if participant:
-        participant.status = ParticipationStatus.completed
-        participant.total_score = total_score
-        participant.correct_answers = correct_count
-        participant.wrong_answers = wrong_count
-        participant.coins_earned = coins
-        participant.completed_at = datetime.now(timezone.utc)
-
-        # Unified scoring: create submission record for the general test part
-        # so it's aggregated correctly in mixed olympiads.
-        sub_res = await db.execute(
-            select(OlympiadReadingSubmission).where(
-                OlympiadReadingSubmission.participant_id == participant.id,
-                OlympiadReadingSubmission.story_id == None,
-                OlympiadReadingSubmission.reading_task_id == None
-            )
-        )
-        submission = sub_res.scalars().first()
-        if not submission:
-            submission = OlympiadReadingSubmission(participant_id=participant.id)
-            db.add(submission)
-        
-        submission.total_points = total_score
-        submission.comprehension_score = total_score
-        submission.comprehension_total = len(answers)
-        submission.submitted_at = datetime.now(timezone.utc)
-
-
-        # Award coins to student balance
-        try:
-            await _award_coins(
-                student_id=participant.student_id,
-                amount=coins,
-                tx_type=TransactionType.olympiad_participation,
-                description=f"Olimpiada: {olympiad.title} — {correct_count}/{len(answers)} to'g'ri",
-                reference_id=olympiad.id,
-                reference_type="olympiad",
-                db=db,
-            )
-        except Exception as e:
-            logger.error(f"Coin award error: {e}")
-
-        await db.commit()
-        
-        # SOC-3: Broadcast update to all clients watching this olympiad's live leaderboard
-        try:
-            await manager.broadcast(olympiad.id, {"type": "leaderboard_update"})
-        except Exception as e:
-            logger.error(f"WS Broadcast error: {e}")
-
-    return {
-        "success": True,
-        "data": {
-            "total_score": total_score,
-            "total_questions": len(answers),
-            "correct_answers": correct_count,
-            "coins_earned": coins,
-            "results": result_details
+        return {
+            "success": True,
+            "data": {
+                "total_score": total_score,
+                "total_questions": len(answers),
+                "correct_answers": correct_count,
+                "coins_earned": coins,
+                "results": result_details
+            }
         }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"FATAL ERROR in submit_answers: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Serverda xatolik yuz berdi: {str(e)}")
+}
     }
 
 
@@ -1968,8 +1979,11 @@ async def submit_reading_result(
         s_res = await db.execute(select(OlympiadStory).where(OlympiadStory.id == data.story_id))
         story_obj = s_res.scalars().first()
 
+    logger.info(f"SUBMIT STORY: olympiad={olympiad_id}, story_id={data.story_id}, answers_count={len(data.quiz_answers) if data.quiz_answers else 0}")
+
     if data.quiz_answers:
         for ans in data.quiz_answers:
+            logger.info(f"Checking story question_id: {ans.question_id}")
             question_data = None
             is_correct = False
             
@@ -2003,6 +2017,8 @@ async def submit_reading_result(
                 
                 if is_correct:
                     correct_count += 1
+                
+                logger.info(f"Story Result: q={ans.question_id}, is_correct={is_correct}, ans={ans.answer_index}, expected={question_data.get('correct_answer')}")
 
             quiz_details.append({
                 "question_id": ans.question_id,
@@ -2058,6 +2074,7 @@ async def submit_reading_result(
     
     # Total points for this submission: 10 (reading) + Quiz Average
     total_session_points = int(round(reading_base + quiz_avg))
+    logger.info(f"STORY TOTAL: base={reading_base}, quiz_avg={quiz_avg}, result={total_session_points}")
     
     # For compatibility/legacy we keep quiz_score as the total of this session
     quiz_score = total_session_points
