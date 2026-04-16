@@ -643,7 +643,9 @@ async def start_olympiad(
     return {"success": True, "data": {"started_at": participant.started_at.isoformat()}}
 
 
-# ============= Student: Submit Answers =========@router.post("/{olympiad_id}/submit")
+# ============= Student: Submit Answers =============
+
+@router.post("/{olympiad_id}/submit")
 async def submit_answers(
     olympiad_id: str,
     answers: List[AnswerSubmit],
@@ -868,8 +870,6 @@ async def submit_answers(
     except Exception as e:
         logger.error(f"FATAL ERROR in submit_answers: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Serverda xatolik yuz berdi: {str(e)}")
-}
-    }
 
 
 # ============= Leaderboard =============
