@@ -2015,23 +2015,46 @@ async def submit_reading_result(
             logger.info(f"Checking story question_id: {ans.question_id}")
             question_data = None
             is_correct = False
+            is_olympiad_q = False
             
-            # 1. Look for question in global table
-            q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == ans.question_id))
-            question = q_res.scalars().first()
+            # 1. Handle TestAI questions: testai_{st_id}_{idx}
+            if str(ans.question_id).startswith("testai_"):
+                parts = str(ans.question_id).split("_")
+                if len(parts) >= 3:
+                    st_id, q_idx_str = parts[1], parts[2]
+                    try:
+                        q_idx = int(q_idx_str)
+                        # Lookup in SavedTest
+                        q_st = await db.execute(select(SavedTest).where(SavedTest.id == st_id))
+                        st_obj = q_st.scalars().first()
+                        
+                        if st_obj and st_obj.questions and 0 <= q_idx < len(st_obj.questions):
+                            st_q = st_obj.questions[q_idx]
+                            question_data = {
+                                "id": ans.question_id,
+                                "correct_answer": st_q.get("correct") if st_q.get("correct") is not None else st_q.get("answer_index"),
+                                "points": st_q.get("points", 100) # Story questions are usually 100-scale
+                            }
+                    except (ValueError, IndexError):
+                        pass
             
-            if question:
-                question_data = {"id": question.id, "correct_answer": question.correct_answer}
-            elif story_obj and story_obj.questions:
-                # 2. Look for question in story's JSON (might be index or ID)
-                story_qs = story_obj.questions or []
-                for idx, sq in enumerate(story_qs):
-                    if ans.question_id == str(sq.get("id", idx)):
-                        question_data = {
-                            "id": ans.question_id, 
-                            "correct_answer": sq.get("answer_index", sq.get("correct_answer"))
-                        }
-                        break
+            if not question_data:
+                # 2. Look for question in global table
+                q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == ans.question_id))
+                question = q_res.scalars().first()
+                if question:
+                    question_data = {"id": question.id, "correct_answer": question.correct_answer}
+                    is_olympiad_q = True
+                elif story_obj and story_obj.questions:
+                    # 3. Look for question in story's JSON (might be index or ID)
+                    story_qs = story_obj.questions or []
+                    for idx, sq in enumerate(story_qs):
+                        if ans.question_id == str(sq.get("id", idx)):
+                            question_data = {
+                                "id": ans.question_id, 
+                                "correct_answer": sq.get("answer_index", sq.get("correct_answer"))
+                            }
+                            break
             
             # Even if we don't find the exact question record but have a score, we proceed
             if not question_data and ans.score is None:
