@@ -1326,7 +1326,7 @@ function TestCard({ questionCount, onClick, globalQuizResult, onViewResult, isSe
                 {isCompleted && globalQuizResult && (
                     <div className="grid grid-cols-3 gap-1.5 mb-4">
                         <div className="bg-emerald-50/50 rounded-lg p-1.5 text-center border border-emerald-100/30">
-                            <p className="text-[10px] text-emerald-600/60 uppercase font-bold leading-none mb-1">Ball</p>
+                            <p className="text-[10px] text-emerald-600/60 uppercase font-bold leading-none mb-1">To'g'ri</p>
                             <p className="text-sm font-black text-emerald-600 leading-none">{globalQuizResult.quiz_score ?? 0}</p>
                         </div>
                         <div className="bg-blue-50/50 rounded-lg p-1.5 text-center border border-blue-100/30">

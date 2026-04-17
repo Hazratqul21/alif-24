@@ -916,7 +916,7 @@ async def get_leaderboard(
             OlympiadParticipant.olympiad_id == olympiad.id,
             OlympiadParticipant.status == ParticipationStatus.completed,
         )
-        .order_by(OlympiadParticipant.total_score.desc(), OlympiadParticipant.time_spent_seconds.asc())
+        .order_by(OlympiadParticipant.total_score.desc(), OlympiadParticipant.time_spent_seconds.asc(), OlympiadParticipant.completed_at.asc())
         .limit(limit)
     )
     participants = p_res.scalars().all()
@@ -2338,10 +2338,8 @@ async def get_reading_leaderboard(
         )
         .order_by(
             OlympiadParticipant.total_score.desc(),
-            OlympiadParticipant.quiz_score.desc(),
-            OlympiadParticipant.reading_wpm.desc(),
-            OlympiadParticipant.reading_percent.desc(),
-            OlympiadParticipant.reading_coins.desc(),
+            OlympiadParticipant.time_spent_seconds.asc(),  # Kamroq vaqt sarflagan
+            OlympiadParticipant.completed_at.asc(),  # Teng ballda — kim oldin topshirgan bo'lsa
         )
         .limit(limit)
     )
@@ -2372,6 +2370,7 @@ async def get_reading_leaderboard(
             "reading_wpm": round(p.reading_wpm or 0),
             "reading_percent": round(p.reading_percent or 0),
             "reading_time_seconds": p.reading_time_seconds or 0,
+            "time_spent_seconds": p.time_spent_seconds or 0,
             "reading_coins": p.reading_coins or 0,
             "coins_earned": p.coins_earned or 0,
             "reading_attempts": p.reading_attempts or 0,
