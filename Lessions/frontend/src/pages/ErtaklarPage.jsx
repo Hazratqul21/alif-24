@@ -787,14 +787,15 @@ function ErtakCard({ ertak, index, onClick }) {
 }
 
 // ─── Age group helpers ──────────────────────────────────────────────────────────
-const AGE_GROUPS = ['5-7', '7-8', '8-9', '9-10', '10-11'];
+const AGE_GROUPS = ['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-15', '15-18'];
 
 function getMatchingAgeGroups(age) {
     if (!age || age < 4) return [];
-    // Bolaning yoshiga mos guruhlarni qaytaradi
-    // Masalan 7 yoshli → ['5-7', '7-8'], 9 yoshli → ['8-9', '9-10']
     return AGE_GROUPS.filter(group => {
-        const [min, max] = group.split('-').map(Number);
+        if (group === 'Barchasi') return false;
+        const parts = group.split('-');
+        if (parts.length !== 2) return false;
+        const [min, max] = parts.map(Number);
         return age >= min && age <= max;
     });
 }
@@ -893,7 +894,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
     };
 
     // Yosh guruhi bo'yicha filtrlash
-    const filteredErtaklar = selectedAgeGroup === 'all'
+    const filteredErtaklar = (selectedAgeGroup === 'all' || selectedAgeGroup === 'Barchasi')
         ? ertaklar
         : ertaklar.filter(e => e.age_group === selectedAgeGroup);
 
@@ -959,17 +960,6 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                         ))}
                     </div>
 
-                    {/* Barchasi tugmasi */}
-                    <button
-                        onClick={() => { setSelectedAgeGroup('all'); setShowAgeDropdown(false); }}
-                        className={`px-5 py-3 rounded-2xl text-sm font-bold border transition-all ${
-                            selectedAgeGroup === 'all'
-                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-transparent shadow-lg shadow-emerald-500/30'
-                                : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
-                        }`}>
-                        {cfg.all}
-                    </button>
-
                     {/* Yosh guruhi Dropdown */}
                     <div className="relative">
                         <button
@@ -981,8 +971,8 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                             }`}>
                             <Menu className="w-4 h-4" />
                             <span>
-                                {selectedAgeGroup === 'all' 
-                                    ? (lang === 'uz' ? 'Yosh' : lang === 'ru' ? 'Возраст' : 'Age') 
+                                {(selectedAgeGroup === 'all' || selectedAgeGroup === 'Barchasi')
+                                    ? (lang === 'uz' ? 'Barchasi' : lang === 'ru' ? 'Все' : 'All Ages') 
                                     : selectedAgeGroup}
                             </span>
                             <ChevronDown className={`w-4 h-4 transition-transform ${showAgeDropdown ? 'rotate-180' : ''}`} />

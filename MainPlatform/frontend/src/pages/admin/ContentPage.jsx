@@ -14,7 +14,7 @@ export default function ContentPage() {
     const [rawJsonText, setRawJsonText] = useState('{}');
 
     const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
-    const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: '5-7' });
+    const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
     const [ertakQuestions, setErtakQuestions] = useState([]); // [{question:'',answer:''}]
     const [uploadFile, setUploadFile] = useState(null);
     const [uploadImage, setUploadImage] = useState(null);
@@ -105,7 +105,7 @@ export default function ContentPage() {
 
             await adminService.createErtak(payload);
             setCreateModal(null);
-            setErtakForm({ title: '', content: '', language: 'uz', age_group: '6-8' });
+            setErtakForm({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
             setErtakQuestions([]);
             setUploadFile(null);
             setUploadImage(null);
@@ -422,7 +422,7 @@ export default function ContentPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <Select label="Til" value={ertakForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setErtakForm({ ...ertakForm, language: v })} />
-                            <Select label="Yosh guruhi" value={ertakForm.age_group} options={['5-7', '7-8', '8-9', '9-10', '10-11']} onChange={(v) => setErtakForm({ ...ertakForm, age_group: v })} />
+                            <Select label="Yosh guruhi" value={ertakForm.age_group} options={['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-15', '15-18']} onChange={(v) => setErtakForm({ ...ertakForm, age_group: v })} />
                         </div>
 
                         {/* ── Savollar bo'limi ── */}
