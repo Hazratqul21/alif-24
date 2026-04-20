@@ -97,6 +97,7 @@ const adminService = {
     deleteLesson: (id) => adminApi.delete(`/direct/lessons/${id}`),
     getErtaklar: (params) => adminApi.get('/direct/stories', { params }),
     createErtak: (data) => adminApi.post('/direct/stories', data),
+    updateErtak: (id, data) => adminApi.put(`/direct/stories/${id}`, data),
     deleteErtak: (id) => adminApi.delete(`/direct/stories/${id}`),
 
     // Telegram (users via admin API)

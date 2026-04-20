@@ -21,6 +21,9 @@ export default function ContentPage() {
     const [editLesson, setEditLesson] = useState(null); // lesson object to edit
     const [editForm, setEditForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
 
+    const [editErtak, setEditErtak] = useState(null); // ertak object to edit
+    const [editErtakForm, setEditErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
+
     useEffect(() => { loadContent(); }, []);
 
     const loadContent = async () => {
@@ -181,6 +184,47 @@ export default function ContentPage() {
         }
     };
 
+    const handleEditErtak = (ertak) => {
+        setEditErtak(ertak);
+        setEditErtakForm({
+            title: ertak.title || '',
+            content: ertak.content || '',
+            language: ertak.language || 'uz',
+            age_group: ertak.age_group || 'Barchasi',
+        });
+        setErtakQuestions(ertak.questions || []);
+    };
+
+    const handleUpdateErtak = async () => {
+        if (!editErtak) return;
+        try {
+            setSaving(true);
+            setError('');
+            const payload = {
+                ...editErtakForm,
+                questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim())
+            };
+            if (uploadFile) {
+                const upRes = await adminService.uploadFile(uploadFile);
+                if (upRes.data?.url) payload.audio_url = upRes.data.url;
+            }
+            if (uploadImage) {
+                const imgRes = await adminService.uploadFile(uploadImage);
+                if (imgRes.data?.url) payload.image_url = imgRes.data.url;
+            }
+            await adminService.updateErtak(editErtak.id, payload);
+            setEditErtak(null);
+            setErtakQuestions([]);
+            setUploadFile(null);
+            setUploadImage(null);
+            loadContent();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Xatolik');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (loading) {
         return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" /></div>;
     }
@@ -274,7 +318,10 @@ export default function ContentPage() {
                                     </div>
                                 </div>
                             </div>
-                            <button onClick={() => handleDeleteErtak(e.id)} className="p-2 text-gray-500 hover:text-red-400 shrink-0"><Trash2 className="w-4 h-4" /></button>
+                            <div className="flex items-center gap-1 shrink-0">
+                                <button onClick={() => handleEditErtak(e)} className="p-2 text-gray-500 hover:text-blue-400"><Pencil className="w-4 h-4" /></button>
+                                <button onClick={() => handleDeleteErtak(e.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -483,6 +530,84 @@ export default function ContentPage() {
                         <button onClick={() => { setCreateModal(null); setUploadImage(null); setUploadFile(null); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
                         <button onClick={handleCreateErtak} disabled={saving || !ertakForm.title || !ertakForm.content} className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
                             {saving ? 'Yaratilmoqda...' : 'Yaratish'}
+                        </button>
+                    </div>
+                </Modal>
+            )}
+            {/* Edit Ertak Modal */}
+            {editErtak && (
+                <Modal title={`Ertakni tahrirlash: ${editErtak.title}`} onClose={() => { setEditErtak(null); setUploadImage(null); setUploadFile(null); setErtakQuestions([]); }}>
+                    <div className="space-y-3">
+                        <Input label="Nomi *" value={editErtakForm.title} onChange={(v) => setEditErtakForm({ ...editErtakForm, title: v })} />
+                        <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Mazmuni *</label>
+                            <textarea
+                                value={editErtakForm.content}
+                                onChange={(e) => setEditErtakForm({ ...editErtakForm, content: e.target.value })}
+                                rows={6}
+                                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 resize-none"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Select label="Til" value={editErtakForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setEditErtakForm({ ...editErtakForm, language: v })} />
+                            <Select label="Yosh guruhi" value={editErtakForm.age_group} options={['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+']} onChange={(v) => setEditErtakForm({ ...editErtakForm, age_group: v })} />
+                        </div>
+
+                        {/* ── Savollar bo'limi ── */}
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
+                                <button onClick={addQuestion} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors">
+                                    <Plus className="w-3.5 h-3.5" /> Savol qo'shish
+                                </button>
+                            </div>
+
+                            <div className="space-y-3">
+                                {ertakQuestions.map((q, i) => (
+                                    <div key={i} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-gray-400 text-xs font-medium">{i + 1}-savol</span>
+                                            <button onClick={() => removeQuestion(i)} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={q.question}
+                                            onChange={e => updateQuestion(i, 'question', e.target.value)}
+                                            placeholder="Savol matni..."
+                                            className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={q.answer}
+                                            onChange={e => updateQuestion(i, 'answer', e.target.value)}
+                                            placeholder="To'g'ri javob..."
+                                            className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Audio (Ixtiyoriy)</label>
+                                <input type="file" accept="audio/*" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                                {editErtak.audio_url && <p className="text-[10px] text-emerald-400 mt-1 truncate">Mavjud: {editErtak.audio_url.split('/').pop()}</p>}
+                            </div>
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Rasm (Ixtiyoriy)</label>
+                                <input type="file" accept="image/*" onChange={(e) => setUploadImage(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white" />
+                                {editErtak.image_url && <p className="text-[10px] text-blue-400 mt-1 truncate">Mavjud: {editErtak.image_url.split('/').pop()}</p>}
+                            </div>
+                        </div>
+                    </div>
+                    {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button onClick={() => { setEditErtak(null); setUploadImage(null); setUploadFile(null); setErtakQuestions([]); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                        <button onClick={handleUpdateErtak} disabled={saving || !editErtakForm.title || !editErtakForm.content} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
                         </button>
                     </div>
                 </Modal>
