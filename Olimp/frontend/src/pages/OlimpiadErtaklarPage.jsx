@@ -5,6 +5,8 @@ import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Vo
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import apiService from '../services/apiService';
 import { getSimilarity, extractWords, getDisplayTokens } from '../utils/fuzzyMatch';
+import DetailedResultModal from '../components/DetailedResultModal';
+import MathContent from '../components/Common/MathContent';
 
 let API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
@@ -500,11 +502,6 @@ function OlympiadTestResultModal({ result, onClose }) {
         </div>
     );
 }
-
-// ─── Olympiad Reading Result Modal ───────────────────────────────────────────
-import DetailedResultModal from '../components/DetailedResultModal';
-import MathContent from '../components/Common/MathContent';
-import olympiadService from '../services/olympiadService';
 
 function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId, onClose }) {
     const wpm = readingStats.wpm || 0;

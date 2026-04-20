@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { X, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
-import MathContent from './Common/MathContent';
+import MathContent from './MathContent';
 
 /**
  * DetailedResultModal
