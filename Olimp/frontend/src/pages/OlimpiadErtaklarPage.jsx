@@ -1674,7 +1674,7 @@ export default function OlimpiadErtaklarPage() {
                 )}
 
                 {viewingResult && (
-                    <DetailedQuizResultModal
+                    <DetailedResultModal
                         viewingResult={viewingResult}
                         onClose={() => setViewingResult(null)}
                         olympiadQuestions={olympiadQuestions}
