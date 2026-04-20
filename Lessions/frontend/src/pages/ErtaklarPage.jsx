@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, ChevronDown } from 'lucide-react';
@@ -559,21 +559,21 @@ function RecordingModal({ ertak, onClose }) {
                             style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                             <p className="text-white/85 text-[19px] leading-[1.9] font-medium"
                                 style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                {displayTokens.map((token, idx) => (
-                                    <Fragment key={idx}>
-                                        {token.isWord ? (
-                                            <span className={`transition-colors duration-150 ${
-                                                token.wordIndex < currentWordIndex
+                                {displayTokens.map((token, idx) => {
+                                    const isHighlighted = token.isWord && token.wordIndex < currentWordIndex;
+                                    return (
+                                        <span
+                                            key={idx}
+                                            className={token.isWord ? `transition-colors duration-150 ${
+                                                isHighlighted
                                                     ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
                                                     : 'text-white/85'
-                                            }`}>
-                                                {token.text}
-                                            </span>
-                                        ) : (
-                                            token.text
-                                        )}
-                                    </Fragment>
-                                ))}
+                                            }` : ''}
+                                        >
+                                            {token.text}
+                                        </span>
+                                    );
+                                })}
                             </p>
                         </div>
                         {/* Progress bar — matn ostida */}

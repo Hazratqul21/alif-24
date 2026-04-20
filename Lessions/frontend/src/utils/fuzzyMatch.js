@@ -71,24 +71,27 @@ export function extractWords(text) {
 export function getDisplayTokens(text) {
     if (!text) return [];
     
-    // Split by whitespace but keep the whitespace as tokens
+    // Split into whitespace sequences and non-whitespace blocks
     const parts = text.split(/(\s+)/);
     const tokens = [];
     let wIndex = 0;
     
-    for (const part of parts) {
-        if (!part) continue;
+    for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (part === '') continue;
         
         if (/\s+/.test(part)) {
-            // It's whitespace (space, newline, tab, etc.)
+            // This is a sequence of whitespace (spaces, newlines, etc.)
             tokens.push({ text: part, isWord: false, wordIndex: -1 });
         } else {
-            // It's a word (potentially with punctuation)
+            // This is a word or a block of punctuation
             const cleanText = part.replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, "");
             if (cleanText.length > 0) {
+                // It's a valid word
                 tokens.push({ text: part, isWord: true, wordIndex: wIndex });
                 wIndex++;
             } else {
+                // It's just punctuation symbols
                 tokens.push({ text: part, isWord: false, wordIndex: -1 });
             }
         }
