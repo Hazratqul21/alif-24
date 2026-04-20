@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { X, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import MathContent from './Common/MathContent';
 
 /**
  * DetailedResultModal
@@ -82,9 +83,7 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                                             {isCorrect ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
                                         </div>
                                         <div className="flex-1">
-                                            <p className="math-text text-white font-bold text-base mb-3 leading-snug">
-                                                {question?.question_text || question?.question || `Savol #${idx+1}`}
-                                            </p>
+                                            <MathContent content={question?.question_text || question?.question || `Savol #${idx+1}`} className="text-white font-bold text-base mb-3 leading-snug" />
                                             
                                             {question?.options ? (
                                                 <div className="grid grid-cols-1 gap-2">
@@ -101,7 +100,7 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
 
                                                         return (
                                                             <div key={oi} className={`px-4 py-2.5 rounded-xl border text-sm flex items-center justify-between ${bgClass}`}>
-                                                                <span className="math-text flex-1">{opt}</span>
+                                                                <MathContent content={opt} className="flex-1 text-sm text-gray-300" />
                                                                 {isSelected && (isCorrect ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />)}
                                                                 {!isSelected && isCorrectOpt && <CheckCircle2 className="w-4 h-4 opacity-50" />}
                                                             </div>

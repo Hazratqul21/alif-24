@@ -353,7 +353,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                     <>
                         <div className="bg-white/5 rounded-2xl p-4 mb-5">
                             <p className="text-white/40 text-xs mb-1.5 uppercase tracking-wide">{qIndex + 1}-savol</p>
-                            <p className="text-white text-lg font-semibold leading-relaxed" dir="ltr" style={{ unicodeBidi: 'isolate' }}>{currentQ?.question}</p>
+                            <MathContent content={currentQ?.question} className="text-white text-lg font-semibold leading-relaxed" />
                         </div>
 
                         {phase === 'tts' && (
@@ -503,7 +503,8 @@ function OlympiadTestResultModal({ result, onClose }) {
 
 // ─── Olympiad Reading Result Modal ───────────────────────────────────────────
 import DetailedResultModal from '../components/DetailedResultModal';
-
+import MathContent from '../components/Common/MathContent';
+import olympiadService from '../services/olympiadService';
 
 function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId, onClose }) {
     const wpm = readingStats.wpm || 0;
@@ -778,7 +779,7 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
                                         >
                                             <div className="flex items-center gap-3">
                                                 <span className="font-mono w-6 text-left">{String.fromCharCode(65 + oi)}.</span>
-                                                <span className="grow text-sm">{opt}</span>
+                                                <MathContent content={opt} className="flex-1 text-white text-sm" />
                                             </div>
                                         </button>
                                     );

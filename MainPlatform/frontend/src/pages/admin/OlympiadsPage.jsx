@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2, Search, ChevronLeft, ArrowRight, Filter, Eye, XCircle, CheckCircle2 } from 'lucide-react';
 import DetailedResultModal from '../../components/Common/DetailedResultModal';
+import MathContent from '../../components/Common/MathContent';
 import olympiadService from '../../services/olympiadService';
 import adminService from '../../services/adminService';
 import testAiService from '../../services/testAiService';
@@ -1936,11 +1937,18 @@ const handleCreate = async () => {
                                     <div key={qi} className="bg-gray-900 border border-gray-700 rounded-xl p-4 space-y-3">
                                         <div className="flex items-start gap-2">
                                             <span className="text-emerald-400 font-bold text-sm shrink-0 mt-1">{qi + 1}.</span>
-                                            <textarea value={qText} onChange={e => {
-                                                updateParsedQuestion(qi, 'question', e.target.value);
-                                                updateParsedQuestion(qi, 'question_text', e.target.value);
-                                            }}
-                                                rows={2} className="math-text flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500 resize-none" />
+                                            <div className="flex-1 space-y-2">
+                                                <textarea value={qText} onChange={e => {
+                                                    updateParsedQuestion(qi, 'question', e.target.value);
+                                                    updateParsedQuestion(qi, 'question_text', e.target.value);
+                                                }}
+                                                    rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500 resize-none font-mono" 
+                                                    placeholder="Savol matni (LaTeX qo'llab-quvvatlanadi: $...$)" />
+                                                <div className="bg-gray-800/30 rounded-lg px-3 py-2 border border-gray-700/50">
+                                                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 font-bold">Ko'rinishi:</p>
+                                                    <MathContent content={qText} className="text-white text-sm" />
+                                                </div>
+                                            </div>
                                             <button onClick={() => removeParsedQuestion(qi)} className="text-gray-600 hover:text-red-400 mt-1"><Trash2 size={16} /></button>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 ml-5">
@@ -1950,9 +1958,12 @@ const handleCreate = async () => {
                                                         updateParsedQuestion(qi, 'correct', oi);
                                                         updateParsedQuestion(qi, 'correct_answer', oi);
                                                     }} className="accent-emerald-500 shrink-0" />
-                                                    <input value={opt} onChange={e => updateParsedOption(qi, oi, e.target.value)}
-                                                        className="flex-1 bg-transparent text-white text-xs focus:outline-none min-w-0"
-                                                        placeholder={`${String.fromCharCode(65 + oi)} variant`} />
+                                                    <div className="flex-1 space-y-1">
+                                                        <input value={opt} onChange={e => updateParsedOption(qi, oi, e.target.value)}
+                                                            className="w-full bg-transparent text-white text-xs focus:outline-none min-w-0 font-mono"
+                                                            placeholder={`${String.fromCharCode(65 + oi)} variant`} />
+                                                        <MathContent content={opt} className="text-[10px] text-gray-400" />
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -1968,12 +1979,22 @@ const handleCreate = async () => {
             {/* Add Question Modal */}
             {renderModal(showAddQuestion, () => setShowAddQuestion(false), 'Savol qo\'shish', (
                 <div className="space-y-4">
-                    <textarea value={qForm.question_text} onChange={e => setQForm({ ...qForm, question_text: e.target.value })} 
-                        placeholder="Savol matni..." rows={2} className="math-text w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none" />
+                    <div className="space-y-2">
+                        <textarea value={qForm.question_text} onChange={e => setQForm({ ...qForm, question_text: e.target.value })} 
+                            placeholder="Savol matni (LaTeX qo'llab-quvvatlanadi: $...$)" rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none font-mono" />
+                        <div className="bg-gray-800/30 rounded-lg px-3 py-2 border border-gray-700/50">
+                            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 font-bold">Ko'rinishi:</p>
+                            <MathContent content={qForm.question_text} className="text-white text-sm" />
+                        </div>
+                    </div>
                     {qForm.options.map((opt, i) => (
                         <div key={i} className="flex items-center gap-2">
                             <input type="radio" name="correct" checked={qForm.correct_answer === i} onChange={() => setQForm({ ...qForm, correct_answer: i })} className="accent-emerald-500" />
-                            <input value={opt} onChange={e => { const opts = [...qForm.options]; opts[i] = e.target.value; setQForm({ ...qForm, options: opts }); }} placeholder={`${String.fromCharCode(65 + i)} variant`} className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
+                            <div className="flex-1 space-y-1">
+                                <input value={opt} onChange={e => { const opts = [...qForm.options]; opts[i] = e.target.value; setQForm({ ...qForm, options: opts }); }} 
+                                    placeholder={`${String.fromCharCode(65 + i)} variant`} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm outline-none font-mono" />
+                                <MathContent content={opt} className="text-[10px] text-gray-400 px-1" />
+                            </div>
                         </div>
                     ))}
                     <div className="flex gap-3">
