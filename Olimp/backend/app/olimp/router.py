@@ -1764,9 +1764,10 @@ async def get_olympiad_stories(
                     "reading_time_seconds": sub.reading_duration_seconds or 0,
                     "quiz_score": sub.comprehension_score or 0,
                     "earned_coins": sub.earned_coins or 0,
-                    "correct_answers": (sub.comprehension_score // 100) if sub.comprehension_score else 0,
+                    "correct_answers": sub.comprehension_score or 0,
                     "total_questions": sub.comprehension_total or 0,
                     "total_points": sub.total_points or 0,
+                    "answers": sub.comprehension_answers or [],
                 }
                 if sub.story_id is not None:
                     subs_map[str(sub.story_id)] = obj
@@ -2194,6 +2195,7 @@ async def submit_reading_result(
         submission.reading_duration_seconds = data.reading_time_seconds
         submission.comprehension_score = correct_count
         submission.comprehension_total = total_questions
+        submission.comprehension_answers = quiz_details
         submission.total_points = total_session_points
         submission.submitted_at = datetime.now(timezone.utc)
         submission.earned_coins = int(total_new_coins)
