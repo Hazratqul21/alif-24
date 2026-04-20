@@ -3,6 +3,14 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, Menu, ChevronDown } from 'lucide-react';
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
+
+// 'Class extends value undefined' xatosini oldini olish uchun (Vite + Speech SDK)
+if (typeof window !== 'undefined' && !window.EventTarget) {
+    window.EventTarget = class EventTarget {};
+}
+if (typeof window !== 'undefined' && !window.AudioContext && window.webkitAudioContext) {
+    window.AudioContext = window.webkitAudioContext;
+}
 import apiService from '../services/apiService';
 import { getSimilarity, extractWords, getDisplayTokens } from '../utils/fuzzyMatch';
 
@@ -932,7 +940,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                 </div>
             </header>
 
-            <section className="relative z-10 max-w-6xl mx-auto px-4 py-10 text-center">
+            <section className="relative z-30 max-w-6xl mx-auto px-4 py-10 text-center">
                 <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                     className="text-4xl md:text-5xl font-bold text-white mb-3">
                     {cfg.title}
@@ -970,7 +978,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                             <Menu className="w-4 h-4" />
                             <span>
                                 {(selectedAgeGroup === 'all' || selectedAgeGroup === 'Barchasi')
-                                    ? (lang === 'uz' ? 'Barchasi' : lang === 'ru' ? 'Все' : 'All Ages')
+                                    ? (lang === 'uz' ? 'Barcha' : lang === 'ru' ? 'Все' : 'All')
                                     : selectedAgeGroup}
                             </span>
                             <ChevronDown className={`w-4 h-4 transition-transform ${showAgeDropdown ? 'rotate-180' : ''}`} />
@@ -996,15 +1004,14 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                                                         ? 'bg-[#4b30fb] text-white'
                                                         : 'text-white/70 hover:bg-white/5 hover:text-white'
                                                         }`}>
-
+                                                    <span>{group} </span>
                                                     {isMatching && !isActive && (
                                                         <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
                                                     )}
                                                 </button>
                                             );
                                         })}
-                                    </motion.div>
-                                </>
+                                    </motion.div>                                </>
                             )}
                         </AnimatePresence>
                     </div>
