@@ -21,4 +21,12 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  .math-text {
+    direction: ltr !important;
+    unicode-bidi: isolate !important;
+    text-align: left !important;
+    display: inline-block;
+    width: 100%;
+  }
 }
+

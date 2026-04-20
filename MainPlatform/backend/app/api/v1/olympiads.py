@@ -1314,8 +1314,16 @@ def _parse_questions_from_text(text: str) -> list:
     To'g'ri javob: A  (ixtiyoriy)
     """
     # Unicode variation selector (U+FE00–FE0F) va keycap combining (U+20E3) larni olib tashlaymiz
-    # Bu emoji raqamlarni oddiy raqamlarga aylantiradi: 2️. → 2.  1️⃣. → 1.
     text = re.sub(r'[\uFE00-\uFE0F\u20E3]', '', text)
+    
+    # Kasrlar va darajalarni ASCII formatiga keltirish (ba'zan PDF'dan shunday keladi)
+    # Masalan: ½ -> 1/2, ² -> ^2
+    math_map = {
+        '½': '1/2', '⅓': '1/3', '⅔': '2/3', '¼': '1/4', '¾': '3/4',
+        '¹': '^1', '²': '^2', '³': '^3', '⁴': '^4', '⁵': '^5'
+    }
+    for k, v in math_map.items():
+        text = text.replace(k, v)
 
     questions = []
     # Savollarni raqam bilan boshlanuvchi qatorlar orqali ajratamiz.
@@ -1330,12 +1338,17 @@ def _parse_questions_from_text(text: str) -> list:
             continue
 
         # Birinchi qator — savol matni (boshidagi raqam va belgini olib tashlaymiz)
-        # MUHIM: Faqat raqamdan so'ng bo'sh joy bo'lsa (yoki qator oxiri) o'chiramiz,
-        # aks holda 1/2 kabi ifodalar zarar ko'rishi mumkin.
-        q_line = re.sub(r'^\d+\s*[\.\)\:\-]\s+(?=\S)', '', lines[0]).strip()
-        if not q_line:
-            # Agar yuqordagi regex ishlamasa (space yo'q bo'lsa), eski usulda lekin ehtiyot bo'lib:
-            q_line = re.sub(r'^\d+\s*[\.\)]\s*', '', lines[0]).strip()
+        # MUHIM: 1/2 yoki 1^2 kabi ifodalar savol raqami deb o'chirib yuborilmasligi kerak.
+        line_start = lines[0]
+        # Agar savol raqamidan so'ng daraja yoki kasr kelsa o'chirmaymiz
+        if re.match(r'^\d+[\/^]', line_start):
+            q_line = line_start.strip()
+        else:
+            # Faqat raqamdan so'ng bo'sh joy bo'lsa (yoki nuqta/qavs) o'chiramiz
+            q_line = re.sub(r'^\d+\s*[\.\)\:\-]\s+(?=\S)', '', line_start).strip()
+            if q_line == line_start:
+                # Agar o'zgarmagan bo'lsa va bu '1.Savol' formatida bo'lsa
+                q_line = re.sub(r'^\d+\s*[\.\)]\s*', '', line_start).strip()
         
         if not q_line:
             continue

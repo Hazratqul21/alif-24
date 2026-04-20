@@ -9,3 +9,12 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+.math-text {
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+  text-align: left !important;
+  display: inline-block;
+  width: 100%;
+}
+

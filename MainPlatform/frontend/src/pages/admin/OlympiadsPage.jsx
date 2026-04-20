@@ -1826,6 +1826,13 @@ const handleCreate = async () => {
                                         <p className="font-medium text-gray-400 mb-1">Tavsiya etilgan format:</p>
                                         <pre className="text-gray-500">{`1. Savol matni\nA) variant\nB) variant\nC) variant\nD) variant`}</pre>
                                     </div>
+                                    <div className="flex items-start gap-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                                        <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                                        <p className="text-[11px] text-amber-500/80 leading-snug">
+                                            <b>Diqqat:</b> PDF fayllaridagi murakkab matematik formulalar (kasr, ildiz, daraja) ba'zan noto'g'ri o'qilishi mumkin. 
+                                            Bunday holatda <b>"Matn"</b> tabidan nusxa ko'chirib foydalanish tavsiya etiladi.
+                                        </p>
+                                    </div>
                                 </div>
                             )}
 
@@ -1933,8 +1940,7 @@ const handleCreate = async () => {
                                                 updateParsedQuestion(qi, 'question', e.target.value);
                                                 updateParsedQuestion(qi, 'question_text', e.target.value);
                                             }}
-                                                dir="ltr" style={{ unicodeBidi: 'isolate' }}
-                                                rows={2} className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500 resize-none" />
+                                                rows={2} className="math-text flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500 resize-none" />
                                             <button onClick={() => removeParsedQuestion(qi)} className="text-gray-600 hover:text-red-400 mt-1"><Trash2 size={16} /></button>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 ml-5">
@@ -1963,8 +1969,7 @@ const handleCreate = async () => {
             {renderModal(showAddQuestion, () => setShowAddQuestion(false), 'Savol qo\'shish', (
                 <div className="space-y-4">
                     <textarea value={qForm.question_text} onChange={e => setQForm({ ...qForm, question_text: e.target.value })} 
-                        dir="ltr" style={{ unicodeBidi: 'isolate' }}
-                        placeholder="Savol matni..." rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none" />
+                        placeholder="Savol matni..." rows={2} className="math-text w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none resize-none" />
                     {qForm.options.map((opt, i) => (
                         <div key={i} className="flex items-center gap-2">
                             <input type="radio" name="correct" checked={qForm.correct_answer === i} onChange={() => setQForm({ ...qForm, correct_answer: i })} className="accent-emerald-500" />
