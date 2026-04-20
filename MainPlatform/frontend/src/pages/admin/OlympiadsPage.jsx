@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2, Search, ChevronLeft, ArrowRight, Filter, Eye, XCircle, CheckCircle2 } from 'lucide-react';
+import DetailedResultModal from '../../components/Common/DetailedResultModal';
 import olympiadService from '../../services/olympiadService';
 import adminService from '../../services/adminService';
 import testAiService from '../../services/testAiService';
@@ -2050,80 +2051,11 @@ const handleCreate = async () => {
                 </div>
             ))}
             {/* Participant Detailed Results Modal */}
-            {viewingParticipantResult && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setViewingParticipantResult(null)}>
-                    <div className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between bg-gray-900/50">
-                            <div>
-                                <h3 className="text-lg font-bold text-white">Natijalar tahlili</h3>
-                                <p className="text-gray-500 text-xs mt-0.5">Ishtirokchi: {participants.find(p => p.participant_id === viewingParticipantResult.participant_id)?.student_name}</p>
-                            </div>
-                            <button onClick={() => setViewingParticipantResult(null)} className="text-gray-500 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition-colors">
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
-                                <div className="bg-gray-900 border border-gray-800 rounded-xl p-3">
-                                    <p className="text-gray-500 text-[10px] uppercase font-bold mb-1">To'g'ri javoblar</p>
-                                    <p className="text-green-400 text-xl font-black">{viewingParticipantResult.correct_answers}</p>
-                                </div>
-                                <div className="bg-gray-900 border border-gray-800 rounded-xl p-3">
-                                    <p className="text-gray-500 text-[10px] uppercase font-bold mb-1">Jami ball</p>
-                                    <p className="text-white text-xl font-black">{viewingParticipantResult.total_score}</p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                {viewingParticipantResult.answers.map((ans, idx) => (
-                                    <div key={idx} className={`p-4 rounded-xl border ${ans.is_correct ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-                                        <div className="flex items-start gap-3">
-                                            <div className={`mt-1 flex-shrink-0 ${ans.is_correct ? 'text-green-400' : 'text-red-400'}`}>
-                                                {ans.is_correct ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-white font-medium text-sm mb-3">{ans.question_text}</p>
-                                                
-                                                {ans.options ? (
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                        {ans.options.map((opt, oi) => {
-                                                            const isSelected = ans.submitted_answer === oi;
-                                                            const isCorrect = ans.correct_answer === oi;
-                                                            
-                                                            let borderClass = 'border-gray-800 bg-gray-900/30 text-gray-500';
-                                                            if (isSelected) borderClass = ans.is_correct ? 'border-green-500/50 bg-green-500/10 text-green-300' : 'border-red-500/50 bg-red-500/10 text-red-300';
-                                                            else if (isCorrect) borderClass = 'border-green-500/30 bg-green-500/5 text-green-400/70';
-
-                                                            return (
-                                                                <div key={oi} className={`px-3 py-1.5 rounded-lg border text-xs flex justify-between items-center ${borderClass}`}>
-                                                                    <span className="truncate">{opt}</span>
-                                                                    {isSelected && (ans.is_correct ? <CheckCircle2 size={12} /> : <XCircle size={12} />)}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-xs space-y-1">
-                                                        <p className="text-gray-400">Berilgan javob: <span className="text-white">{ans.submitted_answer}</span></p>
-                                                        <p className="text-green-400/80">To'g'ri javob: <span>{ans.correct_answer}</span></p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="p-4 border-t border-gray-800 bg-gray-900/30 flex justify-end">
-                            <button onClick={() => setViewingParticipantResult(null)} className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-sm font-medium transition-colors">
-                                Yopish
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <DetailedResultModal 
+                viewingResult={viewingParticipantResult ? { type: 'global', data: viewingParticipantResult } : null}
+                onClose={() => setViewingParticipantResult(null)}
+                olympiadQuestions={questions}
+            />
         </div>
     );
 }

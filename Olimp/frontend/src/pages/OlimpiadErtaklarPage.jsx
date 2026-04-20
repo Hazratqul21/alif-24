@@ -353,7 +353,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                     <>
                         <div className="bg-white/5 rounded-2xl p-4 mb-5">
                             <p className="text-white/40 text-xs mb-1.5 uppercase tracking-wide">{qIndex + 1}-savol</p>
-                            <p className="text-white text-lg font-semibold leading-relaxed">{currentQ?.question}</p>
+                            <p className="text-white text-lg font-semibold leading-relaxed" dir="ltr" style={{ unicodeBidi: 'isolate' }}>{currentQ?.question}</p>
                         </div>
 
                         {phase === 'tts' && (

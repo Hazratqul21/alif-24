@@ -1330,7 +1330,13 @@ def _parse_questions_from_text(text: str) -> list:
             continue
 
         # Birinchi qator — savol matni (boshidagi raqam va belgini olib tashlaymiz)
-        q_line = re.sub(r'^\d+\s*[\.\)\:\-]\s*', '', lines[0]).strip()
+        # MUHIM: Faqat raqamdan so'ng bo'sh joy bo'lsa (yoki qator oxiri) o'chiramiz,
+        # aks holda 1/2 kabi ifodalar zarar ko'rishi mumkin.
+        q_line = re.sub(r'^\d+\s*[\.\)\:\-]\s+(?=\S)', '', lines[0]).strip()
+        if not q_line:
+            # Agar yuqordagi regex ishlamasa (space yo'q bo'lsa), eski usulda lekin ehtiyot bo'lib:
+            q_line = re.sub(r'^\d+\s*[\.\)]\s*', '', lines[0]).strip()
+        
         if not q_line:
             continue
 

@@ -112,7 +112,7 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                                                 <div className="space-y-2 pt-1">
                                                    {(ans.submitted_answer !== undefined || ans.selected_answer !== undefined) && (
                                                        <p className="text-sm text-white/60">
-                                                           Sizning javobingiz: <span className="text-white font-medium">{ans.submitted_answer ?? ans.selected_answer}</span>
+                                                           Ishtirokchi javobi: <span className="text-white font-medium">{ans.submitted_answer ?? ans.selected_answer}</span>
                                                        </p>
                                                    )}
                                                    {(question?.correct_answer !== undefined || question?.answer) && (
@@ -136,7 +136,7 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                         onClick={onClose}
                         className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-indigo-500/20"
                     >
-                        Tushunarli
+                        Yopish
                     </button>
                 </div>
             </motion.div>
