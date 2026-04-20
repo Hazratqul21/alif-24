@@ -3,6 +3,14 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, Menu, ChevronDown } from 'lucide-react';
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
+
+// 'Class extends value undefined' xatosini oldini olish uchun (Vite + Speech SDK)
+if (typeof window !== 'undefined' && !window.EventTarget) {
+    window.EventTarget = class EventTarget {};
+}
+if (typeof window !== 'undefined' && !window.AudioContext && window.webkitAudioContext) {
+    window.AudioContext = window.webkitAudioContext;
+}
 import apiService from '../services/apiService';
 import { getSimilarity, extractWords, getDisplayTokens } from '../utils/fuzzyMatch';
 
