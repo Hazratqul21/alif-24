@@ -97,6 +97,8 @@ const olympiadService = {
     getReadingSubmissions: (olympiadId, ungradedOnly = false) =>
         api.get(`/${olympiadId}/reading-submissions`, { params: { ungraded_only: ungradedOnly } }),
     gradeReading: (submissionId, data) => api.post(`/reading-submissions/${submissionId}/grade`, data),
+    getParticipantAnswers: (olympiadId, participantId) => api.get(`/${olympiadId}/participants/${participantId}/answers`),
+
     getOlympiadStats: (olympiadId) => api.get(`/${olympiadId}/stats`),
 
     // ==================== ADMIN: Olympiad Content (Isolated) ====================

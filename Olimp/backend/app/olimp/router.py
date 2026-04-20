@@ -1087,6 +1087,7 @@ async def get_participant_detail(
             "points_earned": a.points_earned,
         })
 
+
     return {
         "success": True,
         "data": {
@@ -1106,6 +1107,62 @@ async def get_participant_detail(
             "answers": answer_details,
         }
     }
+
+
+@router.get("/{olympiad_id}/my-results")
+async def get_my_results(
+    olympiad_id: str,
+    student_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Student: Get my own answer breakdown for an olympiad"""
+    # Resolve student profile
+    sp = await _resolve_student_profile(student_id, db)
+    if not sp:
+        raise HTTPException(status_code=404, detail="Profil topilmadi")
+
+    p_res = await db.execute(
+        select(OlympiadParticipant).where(
+            OlympiadParticipant.olympiad_id == olympiad_id,
+            OlympiadParticipant.student_id == sp.id,
+            OlympiadParticipant.status == ParticipationStatus.completed
+        )
+    )
+    participant = p_res.scalars().first()
+    if not participant:
+        raise HTTPException(status_code=404, detail="Natija topilmadi yoki hali tugallanmagan")
+
+    # Get answers
+    a_res = await db.execute(
+        select(OlympiadAnswer).where(OlympiadAnswer.participant_id == participant.id)
+    )
+    answers_list = a_res.scalars().all()
+
+    answer_details = []
+    for a in answers_list:
+        q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == a.question_id))
+        q = q_res.scalars().first()
+        answer_details.append({
+            "question_id": a.question_id,
+            "question_text": q.question_text if q else "",
+            "options": q.options if q else [],
+            "selected_answer": a.selected_answer,
+            "correct_answer": q.correct_answer if q else None,
+            "is_correct": a.is_correct,
+        })
+
+    return {
+        "success": True,
+        "data": {
+            "score": participant.total_score,
+            "correct_answers": participant.correct_answers,
+            "wrong_answers": participant.wrong_answers,
+            "answers": answer_details
+        }
+    }
+
+
+
 
 
 # ============= SMT-1: AI Evaluation & Analytics =============

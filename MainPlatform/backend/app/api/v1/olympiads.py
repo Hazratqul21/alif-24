@@ -1069,7 +1069,59 @@ async def list_participants(
     return {"success": True, "participants": participants, "total": len(participants)}
 
 
+
+@router.get("/{olympiad_id}/participants/{participant_id}/answers")
+async def get_participant_answers(
+    olympiad_id: str,
+    participant_id: str,
+    admin: Dict = Depends(verify_admin_olympiad),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all answers for a participant (admin only)"""
+
+    # Verify participant exists and belongs to the olympiad
+    p_res = await db.execute(
+        select(OlympiadParticipant)
+        .where(OlympiadParticipant.id == participant_id, OlympiadParticipant.olympiad_id == olympiad_id)
+    )
+    participant = p_res.scalars().first()
+    if not participant:
+        raise HTTPException(status_code=404, detail="Ishtirokchi topilmadi")
+
+    # Get all answers joined with questions
+    a_res = await db.execute(
+        select(OlympiadAnswer, OlympiadQuestion)
+        .join(OlympiadQuestion, OlympiadAnswer.question_id == OlympiadQuestion.id)
+        .where(OlympiadAnswer.participant_id == participant_id)
+        .order_by(OlympiadQuestion.order)
+    )
+    rows = a_res.all()
+
+    answers = []
+    for ans, q in rows:
+        answers.append({
+            "id": ans.id,
+            "question_id": q.id,
+            "question_text": q.question_text,
+            "options": q.options,
+            "correct_answer": q.correct_answer,
+            "submitted_answer": ans.selected_answer,
+            "is_correct": ans.is_correct,
+            "points_earned": ans.points_earned,
+            "answered_at": ans.answered_at.isoformat() if ans.answered_at else None,
+        })
+
+    return {
+        "success": True,
+        "participant_id": participant_id,
+        "correct_answers": participant.correct_answers,
+        "total_score": participant.total_score,
+        "answers": answers
+    }
+
+
 @router.get("/{olympiad_id}/reading-submissions")
+
 async def list_reading_submissions(
     olympiad_id: str,
     ungraded_only: bool = False,

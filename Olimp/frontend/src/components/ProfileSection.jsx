@@ -6,6 +6,8 @@ import { useGamification } from '../context/GamificationContext';
 import ShopModal from './ShopModal';
 import AnalyticsModal from './AnalyticsModal';
 import FriendsModal from './FriendsModal';
+import DetailedResultModal from './DetailedResultModal';
+import { Eye } from 'lucide-react';
 
 export default function ProfileSection({ isOpen, onClose }) {
     const [profile, setProfile] = useState(null);
@@ -14,6 +16,8 @@ export default function ProfileSection({ isOpen, onClose }) {
     const [showShop, setShowShop] = useState(false);
     const [showAnalytics, setShowAnalytics] = useState(false);
     const [showFriends, setShowFriends] = useState(false);
+    const [viewingResult, setViewingResult] = useState(null);
+    const [isFetchingResult, setIsFetchingResult] = useState(false);
     const { coins, current_streak, longest_streak, badges, refreshGamification } = useGamification();
 
     useEffect(() => {
@@ -36,6 +40,25 @@ export default function ProfileSection({ isOpen, onClose }) {
             console.error('Profile load error:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleViewDetail = async (olympiadId) => {
+        try {
+            setIsFetchingResult(true);
+            const userId = localStorage.getItem('userId');
+            const res = await apiService.get(`/olympiad/${olympiadId}/my-results`, { student_id: userId });
+            if (res.success) {
+                setViewingResult({
+                    type: 'global',
+                    data: res.data
+                });
+            }
+        } catch (err) {
+            console.error('Fetch result error:', err);
+            alert("Natijalarni yuklashda xatolik yuz berdi");
+        } finally {
+            setIsFetchingResult(false);
         }
     };
 
@@ -191,6 +214,15 @@ export default function ProfileSection({ isOpen, onClose }) {
                                                                     <span className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400/70 bg-yellow-50 dark:bg-transparent px-1.5 py-0.5 rounded">
                                                                         +{h.coins_earned} 🪙
                                                                     </span>
+
+                                                                    <button
+                                                                        onClick={() => handleViewDetail(h.olympiad_id)}
+                                                                        disabled={isFetchingResult}
+                                                                        className="ml-auto flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+                                                                    >
+                                                                        <Eye className="w-3 h-3" />
+                                                                        <span>Ko'rish</span>
+                                                                    </button>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -217,6 +249,13 @@ export default function ProfileSection({ isOpen, onClose }) {
 
                 {/* Friends Modal */}
                 <FriendsModal isOpen={showFriends} onClose={() => setShowFriends(false)} />
+
+                {/* Detailed Result Modal */}
+                <DetailedResultModal 
+                    viewingResult={viewingResult} 
+                    onClose={() => setViewingResult(null)} 
+                    olympiadQuestions={[]} // Students get questions from the results endpoint now
+                />
             </motion.div>
         </AnimatePresence>
     );

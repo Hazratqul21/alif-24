@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2, Search, ChevronLeft, ArrowRight, Filter } from 'lucide-react';
+import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2, Search, ChevronLeft, ArrowRight, Filter, Eye, XCircle, CheckCircle2 } from 'lucide-react';
 import olympiadService from '../../services/olympiadService';
 import adminService from '../../services/adminService';
 import testAiService from '../../services/testAiService';
@@ -48,6 +48,8 @@ export default function OlympiadsPage() {
     const [gradeForm, setGradeForm] = useState({ pronunciation_score: 5, fluency_score: 5, accuracy_score: 5, notes: '' });
     const [gradingSubmission, setGradingSubmission] = useState(null);
     const [audioPlaying, setAudioPlaying] = useState(null);
+    const [viewingParticipantResult, setViewingParticipantResult] = useState(null);
+    const [fetchingResults, setFetchingResults] = useState(false);
 
     // Content (Darslar / Ertaklar)
     const [contentTab, setContentTab] = useState('ertaklar');
@@ -175,6 +177,22 @@ export default function OlympiadsPage() {
             if (sRes.status === 'fulfilled') setStats(sRes.value.stats || null);
         } catch (e) { console.error(e); }
     };
+
+    const handleFetchParticipantAnswers = async (pId) => {
+        if (!selectedOlympiad) return;
+        try {
+            setFetchingResults(true);
+            const res = await olympiadService.getParticipantAnswers(selectedOlympiad.id, pId);
+            if (res.success) {
+                setViewingParticipantResult(res);
+            }
+        } catch (e) {
+            notify('error', 'Natijalarni yuklashda xatolik');
+        } finally {
+            setFetchingResults(false);
+        }
+    };
+
 
    // handleCreate funksiyasini shu ko'rinishga o'zgartiring:
 
@@ -1000,6 +1018,7 @@ const handleCreate = async () => {
                                     <th className="text-left py-2 px-3">Status</th>
                                     <th className="text-right py-2 px-3">Ball</th>
                                     <th className="text-right py-2 px-3">Vaqt</th>
+                                    <th className="text-right py-2 px-3"></th>
                                 </tr></thead>
                                 <tbody>
                                     {participants.map(p => (
@@ -1009,6 +1028,16 @@ const handleCreate = async () => {
                                             <td className="py-2 px-3"><span className={`text-xs px-2 py-0.5 rounded-full ${p.status === 'completed' ? 'bg-green-500/20 text-green-400' : p.status === 'started' ? 'bg-amber-500/20 text-amber-400' : 'bg-gray-500/20 text-gray-400'}`}>{p.status}</span></td>
                                             <td className="py-2 px-3 text-right text-white font-bold">{p.total_score}</td>
                                             <td className="py-2 px-3 text-right text-gray-400">{p.time_spent_seconds ? `${Math.round(p.time_spent_seconds / 60)}m` : '-'}</td>
+                                            <td className="py-2 px-3 text-right">
+                                                <button 
+                                                    onClick={() => handleFetchParticipantAnswers(p.participant_id)}
+                                                    disabled={fetchingResults}
+                                                    title="Natijalarni ko'rish"
+                                                    className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -2020,6 +2049,81 @@ const handleCreate = async () => {
                     <button onClick={handleGrade} className="w-full py-2.5 bg-emerald-600 text-white rounded-xl font-bold">Baholash</button>
                 </div>
             ))}
+            {/* Participant Detailed Results Modal */}
+            {viewingParticipantResult && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setViewingParticipantResult(null)}>
+                    <div className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between bg-gray-900/50">
+                            <div>
+                                <h3 className="text-lg font-bold text-white">Natijalar tahlili</h3>
+                                <p className="text-gray-500 text-xs mt-0.5">Ishtirokchi: {participants.find(p => p.participant_id === viewingParticipantResult.participant_id)?.student_name}</p>
+                            </div>
+                            <button onClick={() => setViewingParticipantResult(null)} className="text-gray-500 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
+                                <div className="bg-gray-900 border border-gray-800 rounded-xl p-3">
+                                    <p className="text-gray-500 text-[10px] uppercase font-bold mb-1">To'g'ri javoblar</p>
+                                    <p className="text-green-400 text-xl font-black">{viewingParticipantResult.correct_answers}</p>
+                                </div>
+                                <div className="bg-gray-900 border border-gray-800 rounded-xl p-3">
+                                    <p className="text-gray-500 text-[10px] uppercase font-bold mb-1">Jami ball</p>
+                                    <p className="text-white text-xl font-black">{viewingParticipantResult.total_score}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                {viewingParticipantResult.answers.map((ans, idx) => (
+                                    <div key={idx} className={`p-4 rounded-xl border ${ans.is_correct ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+                                        <div className="flex items-start gap-3">
+                                            <div className={`mt-1 flex-shrink-0 ${ans.is_correct ? 'text-green-400' : 'text-red-400'}`}>
+                                                {ans.is_correct ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-white font-medium text-sm mb-3">{ans.question_text}</p>
+                                                
+                                                {ans.options ? (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                        {ans.options.map((opt, oi) => {
+                                                            const isSelected = ans.submitted_answer === oi;
+                                                            const isCorrect = ans.correct_answer === oi;
+                                                            
+                                                            let borderClass = 'border-gray-800 bg-gray-900/30 text-gray-500';
+                                                            if (isSelected) borderClass = ans.is_correct ? 'border-green-500/50 bg-green-500/10 text-green-300' : 'border-red-500/50 bg-red-500/10 text-red-300';
+                                                            else if (isCorrect) borderClass = 'border-green-500/30 bg-green-500/5 text-green-400/70';
+
+                                                            return (
+                                                                <div key={oi} className={`px-3 py-1.5 rounded-lg border text-xs flex justify-between items-center ${borderClass}`}>
+                                                                    <span className="truncate">{opt}</span>
+                                                                    {isSelected && (ans.is_correct ? <CheckCircle2 size={12} /> : <XCircle size={12} />)}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-xs space-y-1">
+                                                        <p className="text-gray-400">Berilgan javob: <span className="text-white">{ans.submitted_answer}</span></p>
+                                                        <p className="text-green-400/80">To'g'ri javob: <span>{ans.correct_answer}</span></p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="p-4 border-t border-gray-800 bg-gray-900/30 flex justify-end">
+                            <button onClick={() => setViewingParticipantResult(null)} className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-sm font-medium transition-colors">
+                                Yopish
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
