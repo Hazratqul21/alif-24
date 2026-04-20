@@ -557,22 +557,17 @@ function RecordingModal({ ertak, onClose }) {
                         {/* Scroll bo'ladigan matn */}
                         <div className="flex-1 overflow-y-auto p-4"
                             style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-                            <p className="text-white/90 text-[16px] leading-[1.9] font-medium"
+                            <p className="text-white/85 text-[19px] leading-[1.9] font-medium"
                                 style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                                 {displayTokens.map((token, idx) => {
                                     const isHighlighted = token.isWord && token.wordIndex < currentWordIndex;
                                     if (!token.isWord) return <span key={idx}>{token.text}</span>;
-                                    const nextToken = displayTokens[idx + 1];
-                                    const needsSpace = nextToken && nextToken.isWord;
                                     return (
-                                        <span key={idx}>
-                                            <span className={`transition-colors duration-150 ${isHighlighted
-                                                ? 'text-emerald-400 font-bold drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
-                                                : 'text-white/85'
-                                                }`}>
-                                                {token.text}
-                                            </span>
-                                            {needsSpace ? ' ' : ''}
+                                        <span key={idx} className={`transition-colors duration-150 ${isHighlighted
+                                            ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
+                                            : 'text-white/85'
+                                            }`}>
+                                            {token.text}
                                         </span>
                                     );
                                 })}
