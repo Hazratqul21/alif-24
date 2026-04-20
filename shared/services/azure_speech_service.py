@@ -11,6 +11,7 @@ import httpx
 import os
 import logging
 import time
+import re
 from typing import Optional, Dict, Any
 from xml.sax.saxutils import escape
 from fastapi import HTTPException
@@ -175,6 +176,9 @@ class AzureSpeechService:
         if not self.speech_key:
             raise HTTPException(status_code=500, detail="AZURE_SPEECH_KEY sozlanmagan")
 
+        # Matnni tilga qarab tayyorlash (pronunciation fixes)
+        text = self._preprocess_text(text, language)
+
         voice_info = VOICE_MAP.get(language, VOICE_MAP["uz"])
         voice_name = voice_info.get(gender, voice_info["female"])
 
@@ -201,6 +205,35 @@ class AzureSpeechService:
         except Exception as e:
             logger.error(f"Azure TTS xatoligi: {e}")
             raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
+
+    def _preprocess_text(self, text: str, language: str) -> str:
+        """
+        Matnni TTS uchun tayyorlash (tilga xos qoidalar)
+        
+        O'zbek tili uchun:
+        1. o' -> ў, g' -> ғ (pronunciation fix)
+        2. 1- -> 1-inchi (ordinal numbers)
+        """
+        if not text:
+            return ""
+
+        # Faqat o'zbek tili bo'lsa (uz yoki uz-UZ)
+        if language.startswith("uz"):
+            # 1. Lotin -> Kirill (faqat o' va g' uchun, chunki TTS shunda to'g'ri o'qiydi)
+            # Apostroflarning turli variantlarini (', ’, ‘, `, ´, ʻ) hisobga olamiz
+            # o' / O'
+            text = re.sub(r"o['’‘´`ʻ]", "ў", text)
+            text = re.sub(r"O['’‘´`ʻ]", "Ў", text)
+            # g' / G'
+            text = re.sub(r"g['’‘´`ʻ]", "ғ", text)
+            text = re.sub(r"G['’‘´`ʻ]", "Ғ", text)
+
+            # 2. Tartib sonlar
+            # Patterns: "1-aprel", "24-", "1- odam"
+            # (\d+)- patternini (\d+)-inchi ga almashtiramiz
+            text = re.sub(r"(\d+)-", r"\1-inchi", text)
+
+        return text
 
 
 # Module-level singleton — speech_token_router.py imports this
