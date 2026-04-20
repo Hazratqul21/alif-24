@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, Menu, ChevronDown } from 'lucide-react';
+import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, ChevronDown } from 'lucide-react';
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 
 // 'Class extends value undefined' xatosini oldini olish uchun (Vite + Speech SDK)
 if (typeof window !== 'undefined' && !window.EventTarget) {
-    window.EventTarget = class EventTarget {};
+    window.EventTarget = class EventTarget { };
 }
 if (typeof window !== 'undefined' && !window.AudioContext && window.webkitAudioContext) {
     window.AudioContext = window.webkitAudioContext;
@@ -795,16 +795,12 @@ function ErtakCard({ ertak, index, onClick }) {
 }
 
 // ─── Age group helpers ──────────────────────────────────────────────────────────
-const AGE_GROUPS = ['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-15', '15-18'];
+const AGE_GROUPS = ['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+'];
 
 function getMatchingAgeGroups(age) {
     if (!age || age < 4) return [];
     return AGE_GROUPS.filter(group => {
         if (group === 'Barchasi') return false;
-        if (group.endsWith('+')) {
-            const min = Number(group.replace('+', ''));
-            return age >= min;
-        }
         const parts = group.split('-');
         if (parts.length !== 2) return false;
         const [min, max] = parts.map(Number);
@@ -979,7 +975,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                                 ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white border-transparent'
                                 : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
                                 }`}>
-                            <Menu className="w-4 h-4" />
+
                             <span>
                                 {(selectedAgeGroup === 'all' || selectedAgeGroup === 'Barchasi')
                                     ? (lang === 'uz' ? 'Barcha' : lang === 'ru' ? 'Все' : 'All')
@@ -1008,7 +1004,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                                                         ? 'bg-[#4b30fb] text-white'
                                                         : 'text-white/70 hover:bg-white/5 hover:text-white'
                                                         }`}>
-                                                    <span>{group === 'Barchasi' ? cfg.all : group}</span>
+                                                    <span>{group} </span>
                                                     {isMatching && !isActive && (
                                                         <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
                                                     )}
