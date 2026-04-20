@@ -951,8 +951,8 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                         {['uz', 'ru', 'en'].map(l => (
                             <Link key={l} to={l === 'uz' ? '/ertaklar' : `/ertaklar/${l}`}
                                 className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${lang === l
-                                        ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg shadow-purple-500/30'
-                                        : 'text-white/60 hover:text-white'
+                                    ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg shadow-purple-500/30'
+                                    : 'text-white/60 hover:text-white'
                                     }`}>
                                 {cfg.langFlags[l].split(' ')[1] || cfg.langFlags[l]}
                             </Link>
@@ -964,8 +964,8 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                         <button
                             onClick={() => setShowAgeDropdown(!showAgeDropdown)}
                             className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold border transition-all ${selectedAgeGroup !== 'all'
-                                    ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white border-transparent'
-                                    : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
+                                ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white border-transparent'
+                                : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
                                 }`}>
                             <Menu className="w-4 h-4" />
                             <span>
@@ -993,10 +993,10 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                                                 <button key={group}
                                                     onClick={() => { setSelectedAgeGroup(group); setShowAgeDropdown(false); }}
                                                     className={`w-full text-left px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-between ${isActive
-                                                            ? 'bg-[#4b30fb] text-white'
-                                                            : 'text-white/70 hover:bg-white/5 hover:text-white'
+                                                        ? 'bg-[#4b30fb] text-white'
+                                                        : 'text-white/70 hover:bg-white/5 hover:text-white'
                                                         }`}>
-                                                    <span>{group} {lang === 'uz' ? 'yosh' : lang === 'ru' ? 'лет' : 'y.o.'}</span>
+
                                                     {isMatching && !isActive && (
                                                         <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
                                                     )}
