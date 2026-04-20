@@ -3,14 +3,6 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, Menu, ChevronDown } from 'lucide-react';
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
-
-// 'Class extends value undefined' xatosini oldini olish uchun (Vite + Speech SDK)
-if (typeof window !== 'undefined' && !window.EventTarget) {
-    window.EventTarget = class EventTarget {};
-}
-if (typeof window !== 'undefined' && !window.AudioContext && window.webkitAudioContext) {
-    window.AudioContext = window.webkitAudioContext;
-}
 import apiService from '../services/apiService';
 import { getSimilarity, extractWords, getDisplayTokens } from '../utils/fuzzyMatch';
 
@@ -567,8 +559,8 @@ function RecordingModal({ ertak, onClose }) {
                                     return (
                                         <span key={idx}>
                                             <span className={`transition-colors duration-150 ${isHighlighted
-                                                    ? 'text-emerald-400 font-bold drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
-                                                    : 'text-white/85'
+                                                ? 'text-emerald-400 font-bold drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
+                                                : 'text-white/85'
                                                 }`}>
                                                 {token.text}
                                             </span>
@@ -673,8 +665,8 @@ function RecordingModal({ ertak, onClose }) {
                             <div className="flex gap-2">
                                 <button onClick={togglePlay}
                                     className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-medium text-sm transition-all ${playing
-                                            ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
-                                            : 'bg-white/8 border border-white/10 text-white hover:bg-white/15'
+                                        ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
+                                        : 'bg-white/8 border border-white/10 text-white hover:bg-white/15'
                                         }`}>
                                     {playing ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                                     {playing ? "To'xtatish" : 'Eshitish'}
@@ -953,16 +945,15 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                 {/* ── Bir qatordagi filtrlar (Til + Yosh Dropdown) ── */}
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
                     className="flex items-center justify-center gap-2 mb-8 flex-wrap">
-                    
+
                     {/* Til tanlovi */}
                     <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl p-1">
                         {['uz', 'ru', 'en'].map(l => (
                             <Link key={l} to={l === 'uz' ? '/ertaklar' : `/ertaklar/${l}`}
-                                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                                    lang === l
+                                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${lang === l
                                         ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg shadow-purple-500/30'
                                         : 'text-white/60 hover:text-white'
-                                }`}>
+                                    }`}>
                                 {cfg.langFlags[l].split(' ')[1] || cfg.langFlags[l]}
                             </Link>
                         ))}
@@ -972,15 +963,14 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                     <div className="relative">
                         <button
                             onClick={() => setShowAgeDropdown(!showAgeDropdown)}
-                            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold border transition-all ${
-                                selectedAgeGroup !== 'all'
+                            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold border transition-all ${selectedAgeGroup !== 'all'
                                     ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white border-transparent'
                                     : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
-                            }`}>
+                                }`}>
                             <Menu className="w-4 h-4" />
                             <span>
                                 {(selectedAgeGroup === 'all' || selectedAgeGroup === 'Barchasi')
-                                    ? (lang === 'uz' ? 'Barchasi' : lang === 'ru' ? 'Все' : 'All Ages') 
+                                    ? (lang === 'uz' ? 'Barchasi' : lang === 'ru' ? 'Все' : 'All Ages')
                                     : selectedAgeGroup}
                             </span>
                             <ChevronDown className={`w-4 h-4 transition-transform ${showAgeDropdown ? 'rotate-180' : ''}`} />
@@ -1002,11 +992,10 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                                             return (
                                                 <button key={group}
                                                     onClick={() => { setSelectedAgeGroup(group); setShowAgeDropdown(false); }}
-                                                    className={`w-full text-left px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-between ${
-                                                        isActive 
-                                                            ? 'bg-[#4b30fb] text-white' 
+                                                    className={`w-full text-left px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-between ${isActive
+                                                            ? 'bg-[#4b30fb] text-white'
                                                             : 'text-white/70 hover:bg-white/5 hover:text-white'
-                                                    }`}>
+                                                        }`}>
                                                     <span>{group} {lang === 'uz' ? 'yosh' : lang === 'ru' ? 'лет' : 'y.o.'}</span>
                                                     {isMatching && !isActive && (
                                                         <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
@@ -1057,4 +1046,4 @@ export default function ErtaklarPage({ lang = 'uz' }) {
             </AnimatePresence>
         </div>
     );
-}
+}
