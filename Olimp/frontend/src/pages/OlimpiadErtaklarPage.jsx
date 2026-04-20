@@ -1101,28 +1101,17 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
                 {/* ── Text Area — grows to fill available space ── */}
                 {phase !== 'done' && (
                     <div className="mx-4 mb-3 flex-1 min-h-0 bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col">
-                        <div className="flex-1 overflow-y-auto p-2" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-                            <p className="text-white/90 text-[16px] leading-[1.9] font-medium" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        <div className="flex-1 overflow-y-auto p-4" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+                            <p className="text-white/85 text-[19px] leading-[1.9] font-medium" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                                 {displayTokens.map((token, idx) => {
                                     const isHighlighted = token.isWord && token.wordIndex < currentWordIndex;
-                                    if (!token.isWord) {
-                                        // space / punctuation — render as plain text
-                                        return <span key={idx}>{token.text}</span>;
-                                    }
-                                    // check if next token already starts with a space
-                                    const nextToken = displayTokens[idx + 1];
-                                    const needsSpace = nextToken && nextToken.isWord; // both words, no space token between
+                                    if (!token.isWord) return <span key={idx}>{token.text}</span>;
                                     return (
-                                        <span key={idx}>
-                                            <span
-                                                className={`transition-colors duration-150 ${isHighlighted
-                                                    ? 'text-emerald-400 font-bold drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
-                                                    : 'text-white/85'
-                                                    }`}
-                                            >
-                                                {token.text}
-                                            </span>
-                                            {needsSpace ? ' ' : ''}
+                                        <span key={idx} className={`transition-colors duration-150 ${isHighlighted
+                                            ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
+                                            : 'text-white/85'
+                                            }`}>
+                                            {token.text}
                                         </span>
                                     );
                                 })}
