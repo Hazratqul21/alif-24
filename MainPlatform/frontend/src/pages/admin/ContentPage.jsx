@@ -23,6 +23,7 @@ export default function ContentPage() {
 
     const [editErtak, setEditErtak] = useState(null); // ertak object to edit
     const [editErtakForm, setEditErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
+    const [editErtakQuestions, setEditErtakQuestions] = useState([]);
 
     useEffect(() => { loadContent(); }, []);
 
@@ -188,11 +189,11 @@ export default function ContentPage() {
         setEditErtak(ertak);
         setEditErtakForm({
             title: ertak.title || '',
-            content: ertak.content || '',
+            content: ertak.content || ertak.story_text || ertak.body || ertak.description || '',
             language: ertak.language || 'uz',
             age_group: ertak.age_group || 'Barchasi',
         });
-        setErtakQuestions(ertak.questions || []);
+        setEditErtakQuestions(ertak.questions || []);
     };
 
     const handleUpdateErtak = async () => {
@@ -202,7 +203,7 @@ export default function ContentPage() {
             setError('');
             const payload = {
                 ...editErtakForm,
-                questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim())
+                questions: editErtakQuestions.filter(q => q.question?.trim() && q.answer?.trim())
             };
             if (uploadFile) {
                 const upRes = await adminService.uploadFile(uploadFile);
@@ -214,7 +215,7 @@ export default function ContentPage() {
             }
             await adminService.updateErtak(editErtak.id, payload);
             setEditErtak(null);
-            setErtakQuestions([]);
+            setEditErtakQuestions([]);
             setUploadFile(null);
             setUploadImage(null);
             loadContent();
@@ -536,7 +537,7 @@ export default function ContentPage() {
             )}
             {/* Edit Ertak Modal */}
             {editErtak && (
-                <Modal title={`Ertakni tahrirlash: ${editErtak.title}`} onClose={() => { setEditErtak(null); setUploadImage(null); setUploadFile(null); setErtakQuestions([]); }}>
+                <Modal title={`Ertakni tahrirlash: ${editErtak.title}`} onClose={() => { setEditErtak(null); setUploadImage(null); setUploadFile(null); setEditErtakQuestions([]); }}>
                     <div className="space-y-3">
                         <Input label="Nomi *" value={editErtakForm.title} onChange={(v) => setEditErtakForm({ ...editErtakForm, title: v })} />
                         <div>
@@ -557,37 +558,52 @@ export default function ContentPage() {
                         <div className="border border-dashed border-gray-600 rounded-xl p-4">
                             <div className="flex items-center justify-between mb-3">
                                 <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
-                                <button onClick={addQuestion} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors">
+                                <button
+                                    onClick={() => setEditErtakQuestions([...editErtakQuestions, { question: '', answer: '' }])}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
+                                >
                                     <Plus className="w-3.5 h-3.5" /> Savol qo'shish
                                 </button>
                             </div>
 
-                            <div className="space-y-3">
-                                {ertakQuestions.map((q, i) => (
-                                    <div key={i} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-gray-400 text-xs font-medium">{i + 1}-savol</span>
-                                            <button onClick={() => removeQuestion(i)} className="text-gray-600 hover:text-red-400 transition-colors">
-                                                <X className="w-3.5 h-3.5" />
-                                            </button>
+                            {editErtakQuestions.length === 0 ? (
+                                <p className="text-gray-500 text-xs text-center py-2">Hali savol qo'shilmagan. "Savol qo'shish" tugmasini bosing.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {editErtakQuestions.map((q, i) => (
+                                        <div key={i} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-400 text-xs font-medium">{i + 1}-savol</span>
+                                                <button onClick={() => setEditErtakQuestions(editErtakQuestions.filter((_, idx) => idx !== i))} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={q.question}
+                                                onChange={e => {
+                                                    const n = [...editErtakQuestions];
+                                                    n[i].question = e.target.value;
+                                                    setEditErtakQuestions(n);
+                                                }}
+                                                placeholder="Savol matni..."
+                                                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={q.answer}
+                                                onChange={e => {
+                                                    const n = [...editErtakQuestions];
+                                                    n[i].answer = e.target.value;
+                                                    setEditErtakQuestions(n);
+                                                }}
+                                                placeholder="To'g'ri javob..."
+                                                className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                            />
                                         </div>
-                                        <input
-                                            type="text"
-                                            value={q.question}
-                                            onChange={e => updateQuestion(i, 'question', e.target.value)}
-                                            placeholder="Savol matni..."
-                                            className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={q.answer}
-                                            onChange={e => updateQuestion(i, 'answer', e.target.value)}
-                                            placeholder="To'g'ri javob..."
-                                            className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -605,9 +621,9 @@ export default function ContentPage() {
                     </div>
                     {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
                     <div className="flex justify-end gap-3 mt-6">
-                        <button onClick={() => { setEditErtak(null); setUploadImage(null); setUploadFile(null); setErtakQuestions([]); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                        <button onClick={() => { setEditErtak(null); setUploadImage(null); setUploadFile(null); setEditErtakQuestions([]); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
                         <button onClick={handleUpdateErtak} disabled={saving || !editErtakForm.title || !editErtakForm.content} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-                            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+                            {saving ? 'Saqlanmoqda...' : 'O\'zgartirishni saqlash'}
                         </button>
                     </div>
                 </Modal>
