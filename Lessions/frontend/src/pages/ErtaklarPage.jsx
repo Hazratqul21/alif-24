@@ -801,6 +801,10 @@ function getMatchingAgeGroups(age) {
     if (!age || age < 4) return [];
     return AGE_GROUPS.filter(group => {
         if (group === 'Barchasi') return false;
+        if (group.endsWith('+')) {
+            const min = Number(group.replace('+', ''));
+            return age >= min;
+        }
         const parts = group.split('-');
         if (parts.length !== 2) return false;
         const [min, max] = parts.map(Number);
@@ -942,11 +946,11 @@ export default function ErtaklarPage({ lang = 'uz' }) {
 
             <section className="relative z-30 max-w-6xl mx-auto px-4 py-10 text-center">
                 <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                    className="text-4xl md:text-5xl font-bold text-white mb-3">
+                    className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-2 whitespace-nowrap overflow-hidden text-ellipsis">
                     {cfg.title}
                 </motion.h2>
                 <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                    className="text-white/50 text-lg max-w-xl mx-auto mb-6">
+                    className="text-white/50 text-xs xs:text-sm sm:text-base md:text-lg max-w-2xl mx-auto mb-8 whitespace-nowrap overflow-hidden text-ellipsis px-2">
                     {cfg.subtitle}
                 </motion.p>
 
@@ -1004,7 +1008,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                                                         ? 'bg-[#4b30fb] text-white'
                                                         : 'text-white/70 hover:bg-white/5 hover:text-white'
                                                         }`}>
-                                                    <span>{group} </span>
+                                                    <span>{group === 'Barchasi' ? cfg.all : group}</span>
                                                     {isMatching && !isActive && (
                                                         <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
                                                     )}

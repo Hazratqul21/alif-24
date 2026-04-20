@@ -422,7 +422,7 @@ export default function ContentPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <Select label="Til" value={ertakForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setErtakForm({ ...ertakForm, language: v })} />
-                            <Select label="Yosh guruhi" value={ertakForm.age_group} options={['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-15', '15-18']} onChange={(v) => setErtakForm({ ...ertakForm, age_group: v })} />
+                            <Select label="Yosh guruhi" value={ertakForm.age_group} options={['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+']} onChange={(v) => setErtakForm({ ...ertakForm, age_group: v })} />
                         </div>
 
                         {/* ── Savollar bo'limi ── */}
