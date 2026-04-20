@@ -211,7 +211,7 @@ class AzureSpeechService:
         Matnni TTS uchun tayyorlash (tilga xos qoidalar)
         
         O'zbek tili uchun:
-        1. o' -> ў, g' -> ғ (pronunciation fix)
+        1. o' -> oʻ, g' -> gʻ (pronunciation fix)
         2. 1- -> 1-inchi (ordinal numbers)
         """
         if not text:
@@ -222,11 +222,11 @@ class AzureSpeechService:
             # 1. Lotin -> Kirill (faqat o' va g' uchun, chunki TTS shunda to'g'ri o'qiydi)
             # Apostroflarning turli variantlarini (', ’, ‘, `, ´, ʻ) hisobga olamiz
             # o' / O'
-            text = re.sub(r"o['’‘´`ʻ]", "ў", text)
-            text = re.sub(r"O['’‘´`ʻ]", "Ў", text)
+            text = re.sub(r"o['’‘´`ʻ]", "oʻ", text)
+            text = re.sub(r"O['’‘´`ʻ]", "oʻ", text)
             # g' / G'
-            text = re.sub(r"g['’‘´`ʻ]", "ғ", text)
-            text = re.sub(r"G['’‘´`ʻ]", "Ғ", text)
+            text = re.sub(r"g['’‘´`ʻ]", "gʻ", text)
+            text = re.sub(r"G['’‘´`ʻ]", "gʻ", text)
 
             # 2. Tartib sonlar
             # Patterns: "1-aprel", "24-", "1- odam"
