@@ -11,18 +11,58 @@ const LeaderboardPage = () => {
     const navigate = useNavigate();
     const { language } = useLanguage();
     const { isAuthenticated, user } = useAuth();
+    const [period, setPeriod] = useState('weekly'); // all, weekly, monthly, yearly
+    const [offset, setOffset] = useState(0); // offset from current period
     const [leaderboard, setLeaderboard] = useState([]);
     const [myRank, setMyRank] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        setOffset(0); // Reset offset when period changes
+    }, [period]);
+
+    useEffect(() => {
         loadLeaderboard();
         if (isAuthenticated) loadMyRank();
-    }, []);
+    }, [period, offset]);
+
+    const getPeriodParams = () => {
+        const now = new Date();
+        const params = new URLSearchParams({ period, limit: 100 });
+        
+        if (offset === 0) return params.toString();
+
+        if (period === 'weekly') {
+            const d = new Date(now);
+            d.setDate(d.getDate() + (offset * 7));
+            // Get ISO Week
+            const week = getISOWeek(d);
+            const year = d.getFullYear();
+            params.append('week', week);
+            params.append('year', year);
+        } else if (period === 'monthly') {
+            const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+            params.append('month', d.getMonth() + 1);
+            params.append('year', d.getFullYear());
+        } else if (period === 'yearly') {
+            params.append('year', now.getFullYear() + offset);
+        }
+        
+        return params.toString();
+    };
+
+    const getISOWeek = (date) => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+        const yearStart = new Date(d.getFullYear(), 0, 1);
+        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    };
 
     const loadLeaderboard = async () => {
         try {
-            const res = await fetch(`${API_URL}/coins/leaderboard?limit=100`, { credentials: 'include' });
+            setLoading(true);
+            const res = await fetch(`${API_URL}/coins/leaderboard?${getPeriodParams()}`, { credentials: 'include' });
             const data = await res.json();
             setLeaderboard(data.leaderboard || []);
         } catch (err) {
@@ -34,12 +74,35 @@ const LeaderboardPage = () => {
 
     const loadMyRank = async () => {
         try {
-            const res = await fetch(`${API_URL}/coins/my-rank`, { credentials: 'include' });
+            const res = await fetch(`${API_URL}/coins/my-rank?${getPeriodParams()}`, { credentials: 'include' });
             const data = await res.json();
             setMyRank(data.data);
         } catch (err) {
             console.error('My rank error:', err);
         }
+    };
+
+    const getPeriodLabel = () => {
+        if (period === 'all') return "Barcha vaqtlar";
+        const now = new Date();
+        
+        if (period === 'weekly') {
+            const d = new Date(now);
+            d.setDate(d.getDate() + (offset * 7));
+            const week = getISOWeek(d);
+            return offset === 0 ? "Shu hafta" : `${week}-hafta, ${d.getFullYear()}`;
+        }
+        
+        if (period === 'monthly') {
+            const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+            const monthName = d.toLocaleString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'uz-UZ', { month: 'long' });
+            return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)}, ${d.getFullYear()}`;
+        }
+        
+        if (period === 'yearly') {
+            return `${now.getFullYear() + offset}-yil`;
+        }
+        return "";
     };
 
     const podiumColors = [
@@ -89,15 +152,59 @@ const LeaderboardPage = () => {
             <div className="max-w-3xl mx-auto px-4 pt-6 pb-24 relative z-10">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-full px-5 py-2 mb-4">
-                        <Trophy className="w-5 h-5 text-yellow-400" />
-                        <span className="text-yellow-400 font-bold text-sm">UMUMIY REYTING</span>
-                    </div>
                     <h1 className="text-3xl md:text-4xl font-black text-white mb-2">
                         Eng yaxshi <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-500">o'quvchilar</span>
                     </h1>
                     <p className="text-white/40 text-sm">Coin yig'ib, reytingda birinchi bo'ling!</p>
                 </div>
+
+                {/* Period Tabs */}
+                <div className="flex p-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl mb-8 overflow-x-auto no-scrollbar">
+                    {[
+                        { key: 'all', label: 'Umumiy', icon: Trophy },
+                        { key: 'weekly', label: 'Haftalik', icon: Star },
+                        { key: 'monthly', label: 'Oylik', icon: Medal },
+                        { key: 'yearly', label: 'Yillik', icon: TrendingUp },
+                    ].map(p => (
+                        <button
+                            key={p.key}
+                            onClick={() => setPeriod(p.key)}
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                                period === p.key
+                                    ? 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white shadow-lg shadow-yellow-500/20'
+                                    : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                            }`}
+                        >
+                            <p.icon className={`w-3.5 h-3.5 ${period === p.key ? 'animate-bounce' : ''}`} />
+                            {p.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* History Selector (only for periods) */}
+                {period !== 'all' && (
+                    <div className="flex items-center justify-between mb-6 bg-white/[0.03] border border-white/5 rounded-xl px-4 py-2">
+                        <button 
+                            onClick={() => setOffset(prev => prev - 1)}
+                            className="p-2 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                        </button>
+                        
+                        <div className="flex flex-col items-center">
+                            <span className="text-white font-bold text-sm">{getPeriodLabel()}</span>
+                            {offset !== 0 && <span className="text-[10px] text-yellow-500/60 uppercase font-black tracking-wider">Arxiv</span>}
+                        </div>
+
+                        <button 
+                            onClick={() => setOffset(prev => prev + 1)}
+                            disabled={offset === 0}
+                            className="p-2 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-all disabled:opacity-0"
+                        >
+                            <ChevronUp className="w-4 h-4 rotate-90" />
+                        </button>
+                    </div>
+                )}
 
                 {/* My rank card */}
                 {myRank && (
@@ -109,7 +216,11 @@ const LeaderboardPage = () => {
                                 </div>
                                 <div>
                                     <p className="text-white font-bold">{myRank.student_name || "Siz"}</p>
-                                    <p className="text-indigo-300 text-xs">Sizning o'rningiz</p>
+                                    <p className="text-indigo-300 text-[10px] uppercase font-black">
+                                        {period === 'all' ? 'Umumiy' : 
+                                         period === 'weekly' ? 'Haftalik' : 
+                                         period === 'monthly' ? 'Oylik' : 'Yillik'} reytingda
+                                    </p>
                                 </div>
                             </div>
                             <div className="text-right">
