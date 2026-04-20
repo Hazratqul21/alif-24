@@ -786,19 +786,102 @@ function ErtakCard({ ertak, index, onClick }) {
     );
 }
 
+// ─── Age group helpers ──────────────────────────────────────────────────────────
+const AGE_GROUPS = ['5-7', '7-8', '8-9', '9-10', '10-11'];
+
+function getMatchingAgeGroups(age) {
+    if (!age || age < 4) return [];
+    // Bolaning yoshiga mos guruhlarni qaytaradi
+    // Masalan 7 yoshli → ['5-7', '7-8'], 9 yoshli → ['8-9', '9-10']
+    return AGE_GROUPS.filter(group => {
+        const [min, max] = group.split('-').map(Number);
+        return age >= min && age <= max;
+    });
+}
+
+function calculateAge(dateOfBirth) {
+    if (!dateOfBirth) return null;
+    const dob = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+        age--;
+    }
+    return age;
+}
+
+const PAGE_CONFIG = {
+    uz: {
+        title: '✨ Ertaklar va hikoyalar',
+        subtitle: "O'qi — savollarga javob ber!",
+        headerTitle: 'Ertaklar',
+        empty: "Hozircha ertaklar yo'q",
+        retry: 'Qayta urinish',
+        all: 'Barchasi',
+        back: 'Ortga',
+        langFlags: { uz: "🇺🇿 O'zb", ru: '🇷🇺 Rus', en: '🇬🇧 Eng' },
+    },
+    ru: {
+        title: '✨ Сказки и рассказы',
+        subtitle: 'Читайте — отвечайте на вопросы!',
+        headerTitle: 'Сказки',
+        empty: 'Пока нет сказок',
+        retry: 'Повторить',
+        all: 'Все',
+        back: 'Назад',
+        langFlags: { uz: "🇺🇿 O'zb", ru: '🇷🇺 Рус', en: '🇬🇧 Eng' },
+    },
+    en: {
+        title: '✨ Fairy tales and stories',
+        subtitle: 'Read and answer questions!',
+        headerTitle: 'Stories',
+        empty: 'No stories yet',
+        retry: 'Retry',
+        all: 'All',
+        back: 'Back',
+        langFlags: { uz: "🇺🇿 O'zb", ru: '🇷🇺 Rus', en: '🇬🇧 Eng' },
+    },
+};
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
-export default function ErtaklarPage() {
+export default function ErtaklarPage({ lang = 'uz' }) {
     const [ertaklar, setErtaklar] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeErtak, setActiveErtak] = useState(null);
+    const [userAge, setUserAge] = useState(null);
+    const [selectedAgeGroup, setSelectedAgeGroup] = useState('all');
 
-    useEffect(() => { loadErtaklar(); }, []);
+    const cfg = PAGE_CONFIG[lang] || PAGE_CONFIG.uz;
+
+    // Bolaning yoshini olish
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const user = await apiService.get('/auth/me');
+                if (user && user.date_of_birth) {
+                    const age = calculateAge(user.date_of_birth);
+                    setUserAge(age);
+                    // Avtomatik tegishli yosh guruhini tanlash
+                    const matching = getMatchingAgeGroups(age);
+                    if (matching.length > 0) {
+                        setSelectedAgeGroup(matching[0]);
+                    }
+                }
+            } catch {
+                // auth yo'q bo'lsa — barchasi ko'rinadi
+            }
+        };
+        fetchUser();
+    }, []);
+
+    useEffect(() => { loadErtaklar(); }, [lang]);
 
     const loadErtaklar = async () => {
         try {
             setLoading(true);
-            const data = await apiService.get('/ertaklar');
+            const data = await apiService.get('/ertaklar', { language: lang });
             const list = data.data?.ertaklar || data.data || data || [];
             setErtaklar(Array.isArray(list) ? list : []);
         } catch (err) {
@@ -807,6 +890,14 @@ export default function ErtaklarPage() {
             setLoading(false);
         }
     };
+
+    // Yosh guruhi bo'yicha filtrlash
+    const filteredErtaklar = selectedAgeGroup === 'all'
+        ? ertaklar
+        : ertaklar.filter(e => e.age_group === selectedAgeGroup);
+
+    // Bolaning yoshiga mos guruhlar — ularni highlight qilish uchun
+    const matchingGroups = getMatchingAgeGroups(userAge);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative overflow-hidden">
@@ -830,11 +921,11 @@ export default function ErtaklarPage() {
                         <div className="w-10 h-10 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-xl flex items-center justify-center">
                             <BookMarked className="w-5 h-5 text-white" />
                         </div>
-                        <h1 className="text-xl font-bold text-white">Ertaklar</h1>
+                        <h1 className="text-xl font-bold text-white">{cfg.headerTitle}</h1>
                     </div>
                     <a href="https://alif24.uz/student-dashboard"
                         className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
-                        <ArrowLeft className="w-4 h-4" /> Ortga
+                        <ArrowLeft className="w-4 h-4" /> {cfg.back}
                     </a>
                 </div>
             </header>
@@ -842,12 +933,61 @@ export default function ErtaklarPage() {
             <section className="relative z-10 max-w-6xl mx-auto px-4 py-10 text-center">
                 <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                     className="text-4xl md:text-5xl font-bold text-white mb-3">
-                    ✨ Ertaklar
+                    {cfg.title}
                 </motion.h2>
                 <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                    className="text-white/50 text-lg max-w-xl mx-auto">
-                    Kartochkani bosib o'qi — savollarga javob ber!
+                    className="text-white/50 text-lg max-w-xl mx-auto mb-6">
+                    {cfg.subtitle}
                 </motion.p>
+
+                {/* ── Til tanlov (til almashtirish linklari) ── */}
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+                    className="flex items-center justify-center gap-2 mb-5 flex-wrap">
+                    {['uz', 'ru', 'en'].map(l => (
+                        <Link key={l} to={l === 'uz' ? '/ertaklar' : `/ertaklar/${l}`}
+                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                                lang === l
+                                    ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg shadow-purple-500/30'
+                                    : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                            }`}>
+                            {cfg.langFlags[l]}
+                        </Link>
+                    ))}
+                </motion.div>
+
+                {/* ── Yosh guruhi filtr ── */}
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                    className="flex items-center justify-center gap-2 flex-wrap">
+                    <button
+                        onClick={() => setSelectedAgeGroup('all')}
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                            selectedAgeGroup === 'all'
+                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'
+                                : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                        }`}>
+                        {cfg.all}
+                    </button>
+                    {AGE_GROUPS.map(group => {
+                        const isMatching = matchingGroups.includes(group);
+                        const isActive = selectedAgeGroup === group;
+                        return (
+                            <button key={group}
+                                onClick={() => setSelectedAgeGroup(group)}
+                                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all relative ${
+                                    isActive
+                                        ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg shadow-purple-500/30'
+                                        : isMatching
+                                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30'
+                                            : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                                }`}>
+                                {group} {lang === 'uz' ? 'yosh' : lang === 'ru' ? 'лет' : 'y.o.'}
+                                {isMatching && !isActive && (
+                                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+                                )}
+                            </button>
+                        );
+                    })}
+                </motion.div>
             </section>
 
             <div className="relative z-10 max-w-6xl mx-auto px-4 pb-20">
@@ -860,18 +1000,18 @@ export default function ErtaklarPage() {
                         <p className="text-red-400 mb-4">❌ {error}</p>
                         <button onClick={loadErtaklar}
                             className="px-6 py-2 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-lg">
-                            Qayta urinish
+                            {cfg.retry}
                         </button>
                     </div>
-                ) : ertaklar.length === 0 ? (
+                ) : filteredErtaklar.length === 0 ? (
                     <div className="text-center py-20">
                         <div className="text-5xl mb-4">📖</div>
-                        <p className="text-white/50 text-lg">Hozircha ertaklar yo'q</p>
+                        <p className="text-white/50 text-lg">{cfg.empty}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                        <SmartKidsCard />
-                        {ertaklar.map((ertak, i) => (
+                        {lang === 'uz' && <SmartKidsCard />}
+                        {filteredErtaklar.map((ertak, i) => (
                             <ErtakCard key={ertak.id} ertak={ertak} index={i} onClick={() => setActiveErtak(ertak)} />
                         ))}
                     </div>
@@ -885,4 +1025,4 @@ export default function ErtaklarPage() {
             </AnimatePresence>
         </div>
     );
-}
+}

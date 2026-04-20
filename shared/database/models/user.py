@@ -186,6 +186,7 @@ class User(Base):
             "avatar": self.avatar,
             "language": self.language,
             "parent_id": self.parent_id,
+            "date_of_birth": self.date_of_birth.isoformat() if self.date_of_birth else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

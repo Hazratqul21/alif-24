@@ -5,6 +5,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LessionsHome from './pages/LessionsHome';
 import LessonDetail from './pages/LessonDetail';
 import ErtaklarPage from './pages/ErtaklarPage';
+import ErtaklarUzPage from './pages/ErtaklarUzPage';
+import ErtaklarRuPage from './pages/ErtaklarRuPage';
+import ErtaklarEnPage from './pages/ErtaklarEnPage';
 
 import AuthSync from './components/Auth/AuthSync';
 
@@ -26,7 +29,10 @@ const App = () => {
           <Route path="/lesson/:id" element={<LessonDetail />} />
 
           {/* Ertaklar (Stories) */}
-          <Route path="/ertaklar" element={<ErtaklarPage />} />
+          <Route path="/ertaklar" element={<ErtaklarUzPage />} />
+          <Route path="/ertaklar/uz" element={<ErtaklarUzPage />} />
+          <Route path="/ertaklar/ru" element={<ErtaklarRuPage />} />
+          <Route path="/ertaklar/en" element={<ErtaklarEnPage />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

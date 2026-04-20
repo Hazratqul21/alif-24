@@ -148,6 +148,37 @@ app.include_router(
 )
 
 
+# Auth/me endpoint — bolaning yoshini olish uchun (AuthSync ham ishlatadi)
+@app.get("/api/v1/auth/me")
+async def get_me(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current user info (optional auth — returns null if not logged in)"""
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
+        return None
+
+    payload = verify_token(token)
+    if not payload:
+        return None
+
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    if not user or user.status != AccountStatus.active:
+        return None
+
+    return user.to_dict()
+
+
 # Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
