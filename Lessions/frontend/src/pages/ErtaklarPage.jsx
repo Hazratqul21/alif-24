@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, Menu, ChevronDown } from 'lucide-react';
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import apiService from '../services/apiService';
 import { getSimilarity, extractWords, getDisplayTokens } from '../utils/fuzzyMatch';
@@ -852,6 +852,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
     const [activeErtak, setActiveErtak] = useState(null);
     const [userAge, setUserAge] = useState(null);
     const [selectedAgeGroup, setSelectedAgeGroup] = useState('all');
+    const [showAgeDropdown, setShowAgeDropdown] = useState(false);
 
     const cfg = PAGE_CONFIG[lang] || PAGE_CONFIG.uz;
 
@@ -940,53 +941,86 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                     {cfg.subtitle}
                 </motion.p>
 
-                {/* ── Til tanlov (til almashtirish linklari) ── */}
+                {/* ── Bir qatordagi filtrlar (Til + Yosh Dropdown) ── */}
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-                    className="flex items-center justify-center gap-2 mb-5 flex-wrap">
-                    {['uz', 'ru', 'en'].map(l => (
-                        <Link key={l} to={l === 'uz' ? '/ertaklar' : `/ertaklar/${l}`}
-                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                                lang === l
-                                    ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg shadow-purple-500/30'
-                                    : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
-                            }`}>
-                            {cfg.langFlags[l]}
-                        </Link>
-                    ))}
-                </motion.div>
+                    className="flex items-center justify-center gap-2 mb-8 flex-wrap">
+                    
+                    {/* Til tanlovi */}
+                    <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl p-1">
+                        {['uz', 'ru', 'en'].map(l => (
+                            <Link key={l} to={l === 'uz' ? '/ertaklar' : `/ertaklar/${l}`}
+                                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                                    lang === l
+                                        ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg shadow-purple-500/30'
+                                        : 'text-white/60 hover:text-white'
+                                }`}>
+                                {cfg.langFlags[l].split(' ')[1] || cfg.langFlags[l]}
+                            </Link>
+                        ))}
+                    </div>
 
-                {/* ── Yosh guruhi filtr ── */}
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                    className="flex items-center justify-center gap-2 flex-wrap">
+                    {/* Barchasi tugmasi */}
                     <button
-                        onClick={() => setSelectedAgeGroup('all')}
-                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                        onClick={() => { setSelectedAgeGroup('all'); setShowAgeDropdown(false); }}
+                        className={`px-5 py-3 rounded-2xl text-sm font-bold border transition-all ${
                             selectedAgeGroup === 'all'
-                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'
-                                : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-transparent shadow-lg shadow-emerald-500/30'
+                                : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
                         }`}>
                         {cfg.all}
                     </button>
-                    {AGE_GROUPS.map(group => {
-                        const isMatching = matchingGroups.includes(group);
-                        const isActive = selectedAgeGroup === group;
-                        return (
-                            <button key={group}
-                                onClick={() => setSelectedAgeGroup(group)}
-                                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all relative ${
-                                    isActive
-                                        ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg shadow-purple-500/30'
-                                        : isMatching
-                                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30'
-                                            : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
-                                }`}>
-                                {group} {lang === 'uz' ? 'yosh' : lang === 'ru' ? 'лет' : 'y.o.'}
-                                {isMatching && !isActive && (
-                                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
-                                )}
-                            </button>
-                        );
-                    })}
+
+                    {/* Yosh guruhi Dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowAgeDropdown(!showAgeDropdown)}
+                            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold border transition-all ${
+                                selectedAgeGroup !== 'all'
+                                    ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white border-transparent'
+                                    : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
+                            }`}>
+                            <Menu className="w-4 h-4" />
+                            <span>
+                                {selectedAgeGroup === 'all' 
+                                    ? (lang === 'uz' ? 'Yosh' : lang === 'ru' ? 'Возраст' : 'Age') 
+                                    : selectedAgeGroup}
+                            </span>
+                            <ChevronDown className={`w-4 h-4 transition-transform ${showAgeDropdown ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <AnimatePresence>
+                            {showAgeDropdown && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowAgeDropdown(false)} />
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        className="absolute right-0 mt-2 w-48 bg-[#1a1a2e] border border-white/10 rounded-2xl shadow-2xl z-50 py-2 overflow-hidden"
+                                    >
+                                        {AGE_GROUPS.map(group => {
+                                            const isMatching = matchingGroups.includes(group);
+                                            const isActive = selectedAgeGroup === group;
+                                            return (
+                                                <button key={group}
+                                                    onClick={() => { setSelectedAgeGroup(group); setShowAgeDropdown(false); }}
+                                                    className={`w-full text-left px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-between ${
+                                                        isActive 
+                                                            ? 'bg-[#4b30fb] text-white' 
+                                                            : 'text-white/70 hover:bg-white/5 hover:text-white'
+                                                    }`}>
+                                                    <span>{group} {lang === 'uz' ? 'yosh' : lang === 'ru' ? 'лет' : 'y.o.'}</span>
+                                                    {isMatching && !isActive && (
+                                                        <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </motion.div>
+                                </>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </motion.div>
             </section>
 
