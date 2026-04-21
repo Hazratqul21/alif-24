@@ -552,32 +552,78 @@ const StudentDashboard = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div className="z-10 flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <h2 className="text-xl md:text-3xl font-bold cursor-pointer hover:underline" onClick={() => {
-                                    setShowSubModal(true);
-                                    if (subPlans.length === 0) {
-                                        setSubLoading(true);
-                                        const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
-                                        fetch(`${apiBaseUrl}/coins/subscription/plans`, { credentials: 'include' })
-                                            .then(r => r.json()).then(d => setSubPlans(d.plans || [])).catch(() => { })
-                                            .finally(() => setSubLoading(false));
-                                    }
-                                }}>{t.welcome}, {user.name}! </h2>
-                                <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">Lvl {user.level}</span>
+                                <h2
+                                    className="text-xl md:text-3xl font-bold cursor-pointer hover:underline"
+                                    onClick={() => { /* ... */ }}
+                                >
+                                    {t.welcome}, {user.name}!
+                                </h2>
+
+                                {/* Level badge */}
+                                <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
+                                    Lvl {user.level}
+                                </span>
+
+                                {/* Obuna holati */}
                                 {mySub?.has_subscription ? (
-                                    <span className="bg-emerald-400/30 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => setShowSubModal(true)}>✅ {mySub.subscription?.plan_name || 'Obuna'}</span>
+                                    // Obunasi bor — yashil, aniq ko'rinadigan
+                                    <span
+                                        className="bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md cursor-pointer"
+                                        onClick={() => setShowSubModal(true)}
+                                    >
+                                        ✅ {mySub.subscription?.plan_name || 'Obuna'}
+                                    </span>
                                 ) : (
-                                    <span className="bg-yellow-400/30 px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => {
-                                        setShowSubModal(true);
-                                        if (subPlans.length === 0) {
-                                            setSubLoading(true);
-                                            const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
-                                            fetch(`${apiBaseUrl}/coins/subscription/plans`, { credentials: 'include' })
-                                                .then(r => r.json()).then(d => setSubPlans(d.plans || [])).catch(() => { })
-                                                .finally(() => setSubLoading(false));
-                                        }
-                                    }}>⭐ Obuna bo'lish</span>
+                                    // ⭐ OBUNA BO'LISH — TO'LIQ QAYTA ISHLANGAN
+                                    // Avval: bg-yellow-400/30 (shaffof, ko'rinmaydi)
+                                    // Endi: to'q sariq fon, qora matn, border, katta — hamma ko'radi
+                                    <button
+                                        onClick={() => {
+                                            setShowSubModal(true);
+                                            if (subPlans.length === 0) {
+                                                setSubLoading(true);
+                                                const apiBaseUrl =
+                                                    (import.meta.env.VITE_API_URL
+                                                        ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//')
+                                                        : '') || '/api/v1';
+                                                fetch(`${apiBaseUrl}/coins/subscription/plans`, { credentials: 'include' })
+                                                    .then(r => r.json())
+                                                    .then(d => setSubPlans(d.plans || []))
+                                                    .catch(() => { })
+                                                    .finally(() => setSubLoading(false));
+                                            }
+                                        }}
+                                        className="
+        inline-flex items-center gap-1.5
+        bg-yellow-400 hover:bg-yellow-300
+        text-yellow-900
+        px-4 py-1.5
+        rounded-full
+        text-sm font-extrabold
+        border-2 border-yellow-600
+        shadow-lg shadow-yellow-400/40
+        transition-all duration-200
+        hover:scale-105 hover:shadow-yellow-400/60
+        animate-pulse
+      "
+                                    >
+                                        ⭐ Obuna bo'lish
+                                    </button>
                                 )}
-                                {authUser?.id && <span className="bg-white/15 px-2 py-0.5 rounded-full text-[10px] font-mono opacity-70 cursor-pointer hover:opacity-100" onClick={() => { navigator.clipboard.writeText(authUser.id); setNotification({ type: 'success', message: 'ID nusxalandi!' }); }} title="ID nusxalash">ID: {authUser.id}</span>}
+
+                                {/* ID badge */}
+                                {authUser?.id && (
+                                    <span
+                                        className="bg-white/15 px-2 py-0.5 rounded-full text-[10px] font-mono opacity-70 cursor-pointer hover:opacity-100"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(authUser.id);
+                                            setNotification({ type: 'success', message: 'ID nusxalandi!' });
+                                        }}
+                                        title="ID nusxalash"
+                                    >
+                                        ID: {authUser.id}
+                                    </span>
+                                )}
                             </div>
                             <p className="opacity-90 mb-6 flex items-center gap-2">
                                 {user.parent ? <>Ota-onangiz sizni kuzatib bormoqda <Shield size={16} /></> : (displayTasks.filter(t => t.status === 'pending').length > 0 ? `Sizda ${displayTasks.filter(t => t.status === 'pending').length} ta bajarilmagan vazifa bor.` : "Barcha vazifalar bajarilgan!")}
@@ -744,8 +790,8 @@ const StudentDashboard = () => {
                             <tr key={item.id} className={`${item.is_me ? 'bg-indigo-50/50' : ''} hover:bg-gray-50/80 transition-colors`}>
                                 <td className="px-6 py-4">
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-400 text-white shadow-lg shadow-yellow-400/20' :
-                                            item.rank === 2 ? 'bg-gray-300 text-white' :
-                                                item.rank === 3 ? 'bg-orange-300 text-white' : 'text-gray-400'
+                                        item.rank === 2 ? 'bg-gray-300 text-white' :
+                                            item.rank === 3 ? 'bg-orange-300 text-white' : 'text-gray-400'
                                         }`}>
                                         {item.rank}
                                     </div>
