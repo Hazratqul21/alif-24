@@ -129,6 +129,45 @@ async def get_lesson_by_id(
     return {"success": True, "data": lesson_dict(lesson, teacher_name)}
 
 
+@router.post("/lessons/{lesson_id}/complete")
+async def complete_lesson(
+    lesson_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    sub: SubscriptionInfo = Depends(require_feature("darslar")),
+):
+    """Mark a lesson as completed to earn XP"""
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Faqat o'quvchilar darsni yakunlay olishi mumkin")
+
+    res = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
+    lesson = res.scalars().first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+
+    # Increment total lessons completed
+    sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == current_user.id))
+    sp = sp_res.scalars().first()
+    
+    if sp:
+        sp.total_lessons_completed += 1
+        
+        # Gamification: XP & Streak
+        from app.services.gamification_service import GamificationService
+        xp_result = await GamificationService.add_xp(db, sp.id, 50)
+        streak = await GamificationService.update_daily_streak(db, sp.id)
+        
+        await db.commit()
+        return {
+            "success": True, 
+            "message": "Dars yakunlandi! +50 XP",
+            "xp_gained": 50,
+            "new_level": xp_result["new_level"] if xp_result else None
+        }
+    
+    return {"success": False, "message": "O'quvchi profili topilmadi"}
+
+
 @router.get("/lessons")
 async def list_all_lessons(
     subject: Optional[str] = None,

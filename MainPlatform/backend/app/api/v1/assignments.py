@@ -604,8 +604,13 @@ async def submit_assignment(
                     reference_type="assignment",
                 ))
                 coins_earned = 50
+
+                # Gamification: XP & Streak
+                from app.services.gamification_service import GamificationService
+                xp_result = await GamificationService.add_xp(db, sp.id, 50)
+                streak = await GamificationService.update_daily_streak(db, sp.id)
         except Exception as e:
-            logger.warning(f"Coin reward failed for {current_user.id}: {e}")
+            logger.warning(f"Gamification update failed for {current_user.id}: {e}")
 
     await db.commit()
     return {
@@ -739,8 +744,14 @@ async def submit_test_assignment(
                 reference_type="assignment",
             ))
             coins_earned = bonus
+
+            # Gamification: XP & Streak
+            from app.services.gamification_service import GamificationService
+            xp_amount = 100 + int(score) # Test pass + score bonus
+            xp_result = await GamificationService.add_xp(db, sp.id, xp_amount)
+            streak = await GamificationService.update_daily_streak(db, sp.id)
     except Exception as e:
-        logger.warning(f"Coin reward failed for {current_user.id}: {e}")
+        logger.warning(f"Gamification update failed for {current_user.id}: {e}")
 
     await db.commit()
 

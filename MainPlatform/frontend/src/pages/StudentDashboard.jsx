@@ -17,8 +17,12 @@ import {
     ChevronRight, Plus, X, Eye, Lock, Globe, Palette, Moon, Sun,
     Image, Flag, Gift, Zap, Shield, HelpCircle, MessageCircle,
     Home, Book, ClipboardList, Medal, Activity, TrendingDown, Bot, Coins, Flame, Languages, Laptop, Mic,
-    School, School as SchoolIcon, UserPlus, LogIn, Tag, Loader2
+    School, School as SchoolIcon, UserPlus, LogIn, Tag, Loader2, List
 } from 'lucide-react';
+
+import StudentPortalHeader from '../components/Student/StudentPortalHeader';
+import ProgressCharts from '../components/Student/ProgressCharts';
+import LevelUpModal from '../components/Student/LevelUpModal';
 
 const STORY_API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
     ? (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') + '/smartkids'
@@ -57,6 +61,13 @@ const StudentDashboard = () => {
     const [contentLoading, setContentLoading] = useState(false);
     const [selectedLesson, setSelectedLesson] = useState(null);
     const [selectedStory, setSelectedStory] = useState(null);
+
+    // Performance & Leaderboard states
+    const [performanceData, setPerformanceData] = useState({ trend: [], subjects: [] });
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [performanceLoading, setPerformanceLoading] = useState(false);
+    const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+    const [prevLevel, setPrevLevel] = useState(null);
 
     // Subscription states
     const [showSubModal, setShowSubModal] = useState(false);
@@ -123,6 +134,13 @@ const StudentDashboard = () => {
                 if (response.ok) {
                     const res = await response.json();
                     setDashboardData(res.data);
+                    
+                    // Track level up
+                    const currentLvl = res.data?.profile?.level;
+                    if (prevLevel && currentLvl > prevLevel) {
+                        setShowLevelUpModal(true);
+                    }
+                    setPrevLevel(currentLvl);
                 }
             } catch (err) {
                 console.error("Error fetching dashboard:", err);
@@ -132,6 +150,16 @@ const StudentDashboard = () => {
         };
         fetchDashboard();
         fetchLMSData();
+
+        // Fetch performance data
+        apiService.get('/dashboard/student/performance')
+            .then(res => setPerformanceData(res.data || res))
+            .catch(() => {});
+
+        // Fetch leaderboard
+        apiService.get('/dashboard/student/leaderboard')
+            .then(res => setLeaderboard(res.data || res))
+            .catch(() => {});
 
         // Fetch coin balance
         coinService.getBalance().then(data => {
@@ -377,7 +405,8 @@ const StudentDashboard = () => {
                 achievements: 'Yutuqlar',
                 events: 'Tadbirlar',
                 help: 'Yordam',
-                school: 'Maktabim'
+                school: 'Maktabim',
+                leaderboard: 'Reyting'
             },
             stats: {
                 points: 'Ballarim',
@@ -511,9 +540,14 @@ const StudentDashboard = () => {
     ];
 
     const renderDashboard = () => (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 space-y-6">
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl md:rounded-3xl p-5 md:p-8 text-white flex justify-between items-center relative overflow-hidden">
+        <div className="space-y-6">
+            <StudentPortalHeader profile={dashboardData?.profile} user={authUser} />
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 space-y-6">
+                    <ProgressCharts performanceData={performanceData} />
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="z-10 flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <h2 className="text-xl md:text-3xl font-bold cursor-pointer hover:underline" onClick={() => {
@@ -678,7 +712,58 @@ const StudentDashboard = () => {
         </div>
     );
 
-    const renderClasses = () => (
+    const renderLeaderboard = () => (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <h3 className="font-bold text-gray-800 text-xl flex items-center gap-2">
+                    <Trophy size={24} className="text-yellow-500" /> Sinf Reytingi
+                </h3>
+            </div>
+            
+            <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
+                <table className="w-full text-left">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase">Rank</th>
+                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase">O'quvchi</th>
+                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase">Level</th>
+                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase text-right">XP</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {leaderboard.map((item) => (
+                            <tr key={item.id} className={`${item.is_me ? 'bg-indigo-50/50' : ''} hover:bg-gray-50/80 transition-colors`}>
+                                <td className="px-6 py-4">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                                        item.rank === 1 ? 'bg-yellow-400 text-white shadow-lg shadow-yellow-400/20' :
+                                        item.rank === 2 ? 'bg-gray-300 text-white' :
+                                        item.rank === 3 ? 'bg-orange-300 text-white' : 'text-gray-400'
+                                    }`}>
+                                        {item.rank}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                                            {item.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-gray-800">{item.name}</span>
+                                            {item.is_me && <span className="ml-2 bg-indigo-600 text-white text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Siz</span>}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className="px-3 py-1 bg-gray-100 rounded-full text-xs font-bold text-gray-600">LVL {item.level}</span>
+                                </td>
+                                <td className="px-6 py-4 text-right font-black text-indigo-600">{item.points.toLocaleString()}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
         <div className="space-y-6">
             {/* Invitations */}
             {invitations.length > 0 && (
@@ -1588,7 +1673,7 @@ const StudentDashboard = () => {
                 <div className="container mx-auto px-4">
                     {/* Mobile bottom nav */}
                     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 flex overflow-x-auto no-scrollbar">
-                        {['dashboard', 'classes', 'tasks', 'grades', 'library', 'olympiad', 'school', 'achievements'].map(tab => (
+                        {['dashboard', 'classes', 'tasks', 'grades', 'library', 'leaderboard', 'olympiad', 'achievements'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -1602,20 +1687,21 @@ const StudentDashboard = () => {
                                 {tab === 'olympiad' && <Trophy size={20} />}
                                 {tab === 'school' && <School size={20} />}
                                 {tab === 'achievements' && <Award size={20} />}
-                                <span className="text-[10px] mt-1 font-medium">{tab === 'olympiad' ? 'Olimpiada' : tab === 'school' ? 'Maktab' : t.tabs[tab]}</span>
+                                {tab === 'leaderboard' && <Trophy size={20} />}
+                                <span className="text-[10px] mt-1 font-medium">{tab === 'olympiad' ? 'Olimpiada' : tab === 'school' ? 'Maktab' : tab === 'leaderboard' ? 'Reyting' : t.tabs[tab]}</span>
                             </button>
                         ))}
                     </div>
 
                     {/* Desktop tabs */}
                     <div className="hidden md:flex gap-2 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 w-fit">
-                        {['dashboard', 'classes', 'tasks', 'grades', 'library', 'olympiad', 'school', 'achievements'].map(tab => (
+                        {['dashboard', 'classes', 'tasks', 'grades', 'library', 'leaderboard', 'olympiad', 'achievements'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`px-6 py-2.5 rounded-xl font-medium transition-all min-h-[44px] flex items-center justify-center ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-50'}`}
                             >
-                                {tab === 'olympiad' ? 'Olimpiada' : tab === 'school' ? 'Maktabim' : t.tabs[tab]}
+                                {tab === 'olympiad' ? 'Olimpiada' : tab === 'school' ? 'Maktabim' : tab === 'leaderboard' ? 'Reyting' : t.tabs[tab]}
                             </button>
                         ))}
                     </div>
@@ -1624,6 +1710,7 @@ const StudentDashboard = () => {
                     {activeTab === 'dashboard' && renderDashboard()}
                     {activeTab === 'classes' && renderClasses()}
                     {activeTab === 'library' && renderLibrary()}
+                    {activeTab === 'leaderboard' && renderLeaderboard()}
 
                     {activeTab === 'grades' && (() => {
                         const gradedTasks = displayTasks.filter(t => t.status === 'completed' && t.score !== undefined && t.score !== null);
@@ -1771,8 +1858,14 @@ const StudentDashboard = () => {
                         </div>
                     )}
                 </div>
-            </div>
-        </>
+            {/* Level Up Modal */}
+            <LevelUpModal 
+                isOpen={showLevelUpModal} 
+                onClose={() => setShowLevelUpModal(false)} 
+                newLevel={dashboardData?.profile?.level || 1} 
+            />
+
+        </div>
     );
 };
 

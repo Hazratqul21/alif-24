@@ -82,6 +82,104 @@ async def get_student_dashboard(
         }
     }
 
+@router.get("/student/performance")
+async def get_student_performance(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get historical performance data for charts"""
+    from sqlalchemy import func, cast, Date
+    from datetime import datetime, timedelta
+    
+    # 1. Performance Trend (Last 30 days)
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    
+    stmt = (
+        select(
+            cast(AssignmentSubmission.submitted_at, Date).label("date"),
+            func.avg(AssignmentSubmission.score).label("avg_score")
+        )
+        .where(
+            AssignmentSubmission.student_user_id == current_user.id,
+            AssignmentSubmission.submitted_at >= thirty_days_ago,
+            AssignmentSubmission.status == SubmissionStatus.graded
+        )
+        .group_by(cast(AssignmentSubmission.submitted_at, Date))
+        .order_by("date")
+    )
+    
+    res = await db.execute(stmt)
+    trend = [{"date": str(row.date), "score": float(row.avg_score)} for row in res]
+    
+    # 2. Subject Breakdown
+    from shared.database.models import Assignment
+    stmt = (
+        select(
+            Assignment.subject,
+            func.avg(AssignmentSubmission.score).label("avg_score")
+        )
+        .join(Assignment, Assignment.id == AssignmentSubmission.assignment_id)
+        .where(
+            AssignmentSubmission.student_user_id == current_user.id,
+            AssignmentSubmission.status == SubmissionStatus.graded
+        )
+        .group_by(Assignment.subject)
+    )
+    
+    res = await db.execute(stmt)
+    subjects = [{"subject": row.subject or "Boshqa", "score": float(row.avg_score)} for row in res]
+    
+    return {
+        "success": True,
+        "data": {
+            "trend": trend,
+            "subjects": subjects
+        }
+    }
+
+@router.get("/student/leaderboard")
+async def get_student_leaderboard(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get class leaderboard ranking"""
+    from shared.database.models.classroom import ClassroomStudent
+    
+    # Get all classrooms student is in
+    cls_stmt = select(ClassroomStudent.classroom_id).where(
+        ClassroomStudent.student_user_id == current_user.id
+    )
+    cls_res = await db.execute(cls_stmt)
+    classroom_ids = [row[0] for row in cls_res]
+    
+    if not classroom_ids:
+        return {"success": True, "data": []}
+        
+    # Get all students in these classrooms
+    students_stmt = (
+        select(User.id, User.first_name, User.last_name, StudentProfile.level, StudentProfile.total_points)
+        .join(StudentProfile, StudentProfile.user_id == User.id)
+        .join(ClassroomStudent, ClassroomStudent.student_user_id == User.id)
+        .where(ClassroomStudent.classroom_id.in_(classroom_ids))
+        .distinct()
+        .order_by(StudentProfile.total_points.desc())
+        .limit(20)
+    )
+    
+    res = await db.execute(students_stmt)
+    ranking = []
+    for i, row in enumerate(res):
+        ranking.append({
+            "rank": i + 1,
+            "id": row.id,
+            "name": f"{row.first_name} {row.last_name}".strip(),
+            "level": row.level,
+            "points": row.total_points,
+            "is_me": row.id == current_user.id
+        })
+        
+    return {"success": True, "data": ranking}
+
 @router.get("/parent")
 async def get_parent_dashboard(
     current_user: User = Depends(get_current_user),
