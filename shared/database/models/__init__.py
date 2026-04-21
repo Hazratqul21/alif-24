@@ -169,6 +169,15 @@ from shared.database.models.analytics import (
     AdminNotification,
 )
 
+# Marketplace System
+from shared.database.models.marketplace import (
+    MarketplaceItemType,
+    MarketplaceStatus,
+    MarketplaceItem,
+    MarketplaceReview,
+    MarketplacePurchase,
+)
+
 # Payment System
 from shared.database.models.payment import (
     PaymentProvider,
@@ -323,6 +332,13 @@ __all__ = [
     "AuditLog",
     "AdminNotification",
 
+    # Marketplace Models
+    "MarketplaceItemType",
+    "MarketplaceStatus",
+    "MarketplaceItem",
+    "MarketplaceReview",
+    "MarketplacePurchase",
+    
     # Payment Models
     "PaymentProvider",
     "TransactionStatus",

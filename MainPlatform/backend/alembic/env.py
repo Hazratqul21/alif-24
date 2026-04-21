@@ -28,21 +28,22 @@ _platform_imports = [
     "Olimp.backend.app.social.models",
     "Lessions.backend.app.lessons.models",
 ]
+
+# Modullarni import qilish (takrorlanishning oldini olgan holda)
 for _mod in _platform_imports:
     try:
-        __import__(_mod)
+        if _mod not in sys.modules:
+            __import__(_mod)
     except ModuleNotFoundError:
+        # Agar MainPlatform... yo'li bilan topilmasa, mahalliy 'app' dan qidiramiz
+        if "MainPlatform.backend." in _mod:
+            _local_mod = _mod.replace("MainPlatform.backend.", "")
+            try:
+                if _local_mod not in sys.modules:
+                    __import__(_local_mod)
+            except ModuleNotFoundError:
+                pass
         pass
-
-# Docker ichida: local app models (konteyner o'z papkasida)
-try:
-    from app.models.ai_cache import *  # noqa
-except (ModuleNotFoundError, ImportError):
-    pass
-try:
-    from app.models.reading_analysis import *  # noqa
-except (ModuleNotFoundError, ImportError):
-    pass
 
 # this is the Alembic Config object
 config = context.config
