@@ -795,28 +795,7 @@ function ErtakCard({ ertak, index, onClick }) {
 // ─── Age group helpers ──────────────────────────────────────────────────────────
 const AGE_GROUPS = ['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+'];
 
-function getMatchingAgeGroups(age) {
-    if (!age || age < 4) return [];
-    return AGE_GROUPS.filter(group => {
-        if (group === 'Barchasi') return false;
-        const parts = group.split('-');
-        if (parts.length !== 2) return false;
-        const [min, max] = parts.map(Number);
-        return age >= min && age <= max;
-    });
-}
 
-function calculateAge(dateOfBirth) {
-    if (!dateOfBirth) return null;
-    const dob = new Date(dateOfBirth);
-    const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const monthDiff = today.getMonth() - dob.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-        age--;
-    }
-    return age;
-}
 
 const PAGE_CONFIG = {
     uz: {
@@ -857,32 +836,11 @@ export default function ErtaklarPage({ lang = 'uz' }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeErtak, setActiveErtak] = useState(null);
-    const [userAge, setUserAge] = useState(null);
     const [selectedAgeGroup, setSelectedAgeGroup] = useState('all');
     const [showAgeDropdown, setShowAgeDropdown] = useState(false);
 
     const cfg = PAGE_CONFIG[lang] || PAGE_CONFIG.uz;
 
-    // Bolaning yoshini olish
-    useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const user = await apiService.get('/auth/me');
-                if (user && user.date_of_birth) {
-                    const age = calculateAge(user.date_of_birth);
-                    setUserAge(age);
-                    // Avtomatik tegishli yosh guruhini tanlash
-                    const matching = getMatchingAgeGroups(age);
-                    if (matching.length > 0) {
-                        setSelectedAgeGroup(matching[0]);
-                    }
-                }
-            } catch {
-                // auth yo'q bo'lsa — barchasi ko'rinadi
-            }
-        };
-        fetchUser();
-    }, []);
 
     useEffect(() => { loadErtaklar(); }, [lang]);
 
@@ -904,8 +862,6 @@ export default function ErtaklarPage({ lang = 'uz' }) {
         ? ertaklar
         : ertaklar.filter(e => e.age_group === selectedAgeGroup);
 
-    // Bolaning yoshiga mos guruhlar — ularni highlight qilish uchun
-    const matchingGroups = getMatchingAgeGroups(userAge);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative overflow-hidden">
@@ -993,7 +949,6 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                                         className="absolute right-0 mt-2 w-48 bg-[#1a1a2e] border border-white/10 rounded-2xl shadow-2xl z-50 py-2 overflow-hidden"
                                     >
                                         {AGE_GROUPS.map(group => {
-                                            const isMatching = matchingGroups.includes(group);
                                             const isActive = selectedAgeGroup === group;
                                             return (
                                                 <button key={group}
@@ -1003,9 +958,6 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                                                         : 'text-white/70 hover:bg-white/5 hover:text-white'
                                                         }`}>
                                                     <span>{group} </span>
-                                                    {isMatching && !isActive && (
-                                                        <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
-                                                    )}
                                                 </button>
                                             );
                                         })}
