@@ -8,6 +8,7 @@ import HeroSection from '../components/HeroSection';
 import CountdownTimer from '../components/CountdownTimer';
 import ThemeToggle from '../components/ThemeToggle';
 import { SkeletonGrid } from '../components/Skeleton';
+import SEO from '../components/SEO';
 
 const statusColors = {
     draft: 'bg-gray-100 text-gray-600',
@@ -72,6 +73,13 @@ export default function OlimpHome() {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-gradient-to-br dark:from-slate-900 dark:via-indigo-950 dark:to-slate-900 transition-colors duration-300">
+            <SEO
+                title="Onlayn olimpiadalar"
+                description="Alif24 Olimp — o'zbek maktablari uchun onlayn olimpiadalar. Matematika, mantiq, ingliz tili va ona tilidan musobaqalar."
+                keywords="olimpiada, onlayn olimpiada, alif24 olimp, o'zbek olimpiadasi"
+                path="/"
+                siteName="Olimp | Alif24"
+            />
             {/* Profile Modal */}
             <ProfileSection isOpen={showProfile} onClose={() => setShowProfile(false)} />
 

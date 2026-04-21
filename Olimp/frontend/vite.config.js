@@ -16,8 +16,20 @@ export default defineConfig({
     include: ['microsoft-cognitiveservices-speech-sdk']
   },
   build: {
+    target: 'es2018',
+    cssCodeSplit: true,
+    sourcemap: false,
+    minify: 'esbuild',
+    chunkSizeWarningLimit: 1000,
     commonjsOptions: {
       include: [/microsoft-cognitiveservices-speech-sdk/, /node_modules/]
-    }
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
   }
 })

@@ -159,10 +159,12 @@ const MarketplaceStore = () => {
               >
                 {/* Thumbnail */}
                 <div className="relative aspect-[4/3] overflow-hidden">
-                  <img 
-                    src={item.thumbnail_url || `https://source.unsplash.com/random/400x300?education,${idx}`} 
-                    className="w-full h-full object-cover transition-transform group-hover:scale-110" 
+                  <img
+                    src={item.thumbnail_url || `https://source.unsplash.com/random/400x300?education,${idx}`}
+                    className="w-full h-full object-cover transition-transform group-hover:scale-110"
                     alt={item.title}
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e30] via-transparent to-transparent" />
                   <div className="absolute top-4 left-4">

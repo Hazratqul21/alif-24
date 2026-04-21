@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import Navbar from '../components/Common/Navbar';
+import SEO from '../components/SEO';
 
 
 /* ── tiny helpers ── */
@@ -99,9 +100,14 @@ export default function AboutAlif24() {
   }, []);
 
   return (
- 
+
 
     <div className="font-sans bg-[#778da9] text-[#1A2B3C] overflow-x-hidden">
+      <SEO
+        title="Biz haqimizda"
+        description="Alif24 — bolalar uchun adaptiv ta'lim platformasi. Missiyamiz, jamoamiz va platformamiz haqida batafsil ma'lumot."
+        path="/about"
+      />
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap');

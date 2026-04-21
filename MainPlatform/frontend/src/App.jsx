@@ -1,39 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
 
-// Pages
+// Eager imports — critical path (first paint):
+//  HomePage is the landing route and must render without an extra network roundtrip.
+//  LoginModal/RegisterModal are used by LoginRoute which wraps HomePage.
 import HomePage from './pages/HomePage';
-import StudentDashboard from './pages/StudentDashboard';
-import ParentDashboard from './pages/ParentDashboard';
-import TeacherDashboard from './pages/TeacherDashboard';
-import OrganizationDashboard from './pages/OrganizationDashboard';
-import ProfilePage from './pages/ProfilePage';
-import AboutPage from './pages/AboutPage';
-import PartnersPage from './pages/PartnersPage';
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
-import SmartKidsAI from './pages/SmartKidsAI';
-import MathKidsAI from './pages/MathKidsAI';
-import LiveQuizStudent from './pages/LiveQuizStudent';
-import LiveQuizTeacher from './pages/LiveQuizTeacher';
-import LeaderboardPage from './pages/LeaderboardPage';
-import MarketplaceStore from './pages/MarketplaceStore';
+import LoginModal from './components/Auth/LoginModal';
+import RegisterModal from './components/Auth/RegisterModal';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
+import ErrorBoundary from './components/Common/ErrorBoundary';
+import ToastManager from './components/Common/ToastManager';
+import GlobalSubscriptionModal from './components/Common/GlobalSubscriptionModal';
+import OlympiadBannerModal from './components/Common/OlympiadBannerModal';
+import PageLoader from './components/Common/PageLoader';
+import { useAuth } from './context/AuthContext';
 
-// Admin Panel
-import AdminLogin from './pages/admin/AdminLogin';
-import AdminLayout from './pages/admin/AdminLayout';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import UsersPage from './pages/admin/UsersPage';
-import TeachersPage from './pages/admin/TeachersPage';
-import DatabasePage from './pages/admin/DatabasePage';
-import ContentPage from './pages/admin/ContentPage';
-import TelegramPage from './pages/admin/TelegramPage';
-import OlympiadsPage from './pages/admin/OlympiadsPage';
-import ReadingCompetitionPage from './pages/admin/ReadingCompetitionPage';
-import AdminSubscriptions from './pages/admin/AdminSubscriptions';
-import AdminPromoCodes from './pages/admin/AdminPromoCodes';
-import AdminPayments from './pages/admin/AdminPayments';
+// Lazy-loaded pages — split into separate chunks for faster initial load.
+const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
+const ParentDashboard = lazy(() => import('./pages/ParentDashboard'));
+const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard'));
+const OrganizationDashboard = lazy(() => import('./pages/OrganizationDashboard'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const PartnersPage = lazy(() => import('./pages/PartnersPage'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
+const SmartKidsAI = lazy(() => import('./pages/SmartKidsAI'));
+const MathKidsAI = lazy(() => import('./pages/MathKidsAI'));
+const LiveQuizStudent = lazy(() => import('./pages/LiveQuizStudent'));
+const LiveQuizTeacher = lazy(() => import('./pages/LiveQuizTeacher'));
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
+const MarketplaceStore = lazy(() => import('./pages/MarketplaceStore'));
+
+// Admin Panel — all lazy-loaded, since admin is a minority user base.
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const UsersPage = lazy(() => import('./pages/admin/UsersPage'));
+const TeachersPage = lazy(() => import('./pages/admin/TeachersPage'));
+const DatabasePage = lazy(() => import('./pages/admin/DatabasePage'));
+const ContentPage = lazy(() => import('./pages/admin/ContentPage'));
+const TelegramPage = lazy(() => import('./pages/admin/TelegramPage'));
+const OlympiadsPage = lazy(() => import('./pages/admin/OlympiadsPage'));
+const ReadingCompetitionPage = lazy(() => import('./pages/admin/ReadingCompetitionPage'));
+const AdminSubscriptions = lazy(() => import('./pages/admin/AdminSubscriptions'));
+const AdminPromoCodes = lazy(() => import('./pages/admin/AdminPromoCodes'));
+const AdminPayments = lazy(() => import('./pages/admin/AdminPayments'));
 
 // Sub-platform redirect helper (Harf, Games, etc. now live on their own subdomains)
 const PlatformRedirect = ({ baseUrl, path = '' }) => {
@@ -43,15 +56,6 @@ const PlatformRedirect = ({ baseUrl, path = '' }) => {
   }, [baseUrl, path]);
   return null;
 };
-
-import LoginModal from './components/Auth/LoginModal';
-import RegisterModal from './components/Auth/RegisterModal';
-import ProtectedRoute from './components/Auth/ProtectedRoute';
-import ErrorBoundary from './components/Common/ErrorBoundary';
-import ToastManager from './components/Common/ToastManager';
-import GlobalSubscriptionModal from './components/Common/GlobalSubscriptionModal';
-import OlympiadBannerModal from './components/Common/OlympiadBannerModal';
-import { useAuth } from './context/AuthContext';
 
 // Helper component to auto-open login modal when navigating to /login
 const LoginRoute = () => {
@@ -126,7 +130,9 @@ const App = () => {
             <ToastManager />
             <GlobalSubscriptionModal />
             <OlympiadBannerModal />
-            <AppRoutes />
+            <Suspense fallback={<PageLoader />}>
+              <AppRoutes />
+            </Suspense>
           </AuthProvider>
         </LanguageProvider>
       </BrowserRouter>

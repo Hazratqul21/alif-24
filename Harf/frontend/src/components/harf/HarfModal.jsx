@@ -682,10 +682,12 @@ const HarfModal = ({ isOpen, onClose, card, externalTranscript, onAskStateChange
                                                 const ex = card.exampleImages[index];
                                                 if (typeof ex === 'string' && (ex.startsWith('/') || ex.startsWith('http'))) {
                                                     return (
-                                                        <img 
-                                                            src={ex} 
-                                                            alt="" 
-                                                            style={{ width: 48, height: 48, objectFit: 'contain' }} 
+                                                        <img
+                                                            src={ex}
+                                                            alt="Harf namunasi"
+                                                            loading="lazy"
+                                                            decoding="async"
+                                                            style={{ width: 48, height: 48, objectFit: 'contain' }}
                                                         />
                                                     );
                                                 }

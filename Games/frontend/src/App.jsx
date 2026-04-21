@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
@@ -6,26 +6,24 @@ import { AuthProvider } from './context/AuthContext';
 // Services
 import gameService from './services/gameService';
 
-// Games
-import LetterMemoryGame from './games/memory/LetterMemoryGame';
-import MathMonsterGame from './games/math/MathMonsterGame';
-import MathStichGame from './games/math/MathStich';
-import MevaMathGame from './games/math/Mevamath';
-import CryptoGame from './games/crypto/CryptoGame';
-import SimonGame from './games/simon/SimonGame';
-import FlashMemoryGame from './games/flash/FlashMemoryGame';
-import BoghinQuruvchi from './games/bugiin/BoghinQuruvchi';
-import DiktantGame from './games/diktant/DiktantGame';
-
-
-// TODO: Tetris and Game2048 components not yet implemented
-// import Tetris from './games/Tetris';
-// import Game2048 from './games/Game2048';
+// Lazy-loaded games — each game is its own chunk so the landing doesn't
+// drag all canvases/audio assets into the initial bundle.
+const LetterMemoryGame = lazy(() => import('./games/memory/LetterMemoryGame'));
+const MathMonsterGame = lazy(() => import('./games/math/MathMonsterGame'));
+const MathStichGame = lazy(() => import('./games/math/MathStich'));
+const MevaMathGame = lazy(() => import('./games/math/Mevamath'));
+const CryptoGame = lazy(() => import('./games/crypto/CryptoGame'));
+const SimonGame = lazy(() => import('./games/simon/SimonGame'));
+const FlashMemoryGame = lazy(() => import('./games/flash/FlashMemoryGame'));
+const BoghinQuruvchi = lazy(() => import('./games/bugiin/BoghinQuruvchi'));
+const DiktantGame = lazy(() => import('./games/diktant/DiktantGame'));
 
 // Components
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import ToastManager from './components/Common/ToastManager';
 import AuthSync from './components/Auth/AuthSync';
+import SEO from './components/SEO';
+import PageLoader from './components/Common/PageLoader';
 
 /**
  * Games Platform App Component
@@ -39,7 +37,9 @@ const App = () => {
           <AuthProvider>
             <AuthSync enforceLogin={false}>
               <ToastManager />
-              <AppRoutes />
+              <Suspense fallback={<PageLoader />}>
+                <AppRoutes />
+              </Suspense>
             </AuthSync>
           </AuthProvider>
         </LanguageProvider>
@@ -150,6 +150,13 @@ const GameSelection = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative overflow-hidden">
+      <SEO
+        title="Ta'limiy o'yinlar"
+        description="Alif24 o'yinlari — bolalar uchun matematik, mantiqiy va xotira o'yinlari. O'yin orqali o'rganish."
+        keywords="ta'limiy o'yin, bolalar o'yini, matematik o'yin, alif24 games"
+        path="/"
+        siteName="Alif24 Games"
+      />
       {/* Animated background stars */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[5%] left-[10%] w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0s', animationDuration: '2s' }} />
@@ -221,7 +228,7 @@ const GameCard = ({ title, icon, image, href, color, shadow }) => (
   >
     {image ? (
       <div className="w-full aspect-[4/3] overflow-hidden">
-        <img src={image} alt={title} className="w-full h-full object-cover" />
+        <img src={image} alt={title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
       </div>
     ) : (
       <div className="text-4xl text-center pt-6 pb-3">{icon}</div>

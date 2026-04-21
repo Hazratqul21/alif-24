@@ -246,7 +246,7 @@ export default function ReadingAdmin() {
                                         (tasks[selectedCompId] || []).map((t, idx) => (
                                             <div key={t.id} className="bg-slate-900 border border-slate-700/50 rounded-xl p-4 flex gap-4 items-start hover:border-indigo-500/30 transition-colors">
                                                 {t.image_url ? (
-                                                    <img src={t.image_url} className="w-16 h-16 rounded-lg object-cover bg-slate-800" />
+                                                    <img src={t.image_url} alt={t.title || 'Vazifa rasmi'} loading="lazy" decoding="async" className="w-16 h-16 rounded-lg object-cover bg-slate-800" />
                                                 ) : (
                                                     <div className="w-16 h-16 rounded-lg bg-indigo-500/10 flex items-center justify-center">
                                                         <Book className="w-6 h-6 text-indigo-400" />

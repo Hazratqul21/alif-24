@@ -895,7 +895,7 @@ const StudentDashboard = () => {
                                 <div key={story.id} onClick={() => setSelectedStory(story)} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group">
                                     {story.image_url ? (
                                         <div className="w-full h-32 mb-3 rounded-xl overflow-hidden">
-                                            <img src={story.image_url} alt={story.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                            <img src={story.image_url} alt={story.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                         </div>
                                     ) : (
                                         <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center mb-3 group-hover:from-purple-200 group-hover:to-pink-200 transition-all">

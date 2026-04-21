@@ -27,7 +27,7 @@ const Card = ({
     <div className={classes} onClick={onClick}>
       {image && (
         <div className="card-image">
-          <img src={image} alt={title || ''} />
+          <img src={image} alt={title || ''} loading="lazy" decoding="async" />
         </div>
       )}
       <div className="card-content">

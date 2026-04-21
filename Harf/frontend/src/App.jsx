@@ -1,16 +1,21 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
 
-// Harf Components
+// Eager: Uzbek alphabet is the default landing letter set
 import Harf from './components/harf/Harf';
-import Harfr from './components/rharf/Harfr';
-import Eharf from './components/eharf/Eharf';
+
+// Lazy: other language alphabets split into separate chunks
+const Harfr = lazy(() => import('./components/rharf/Harfr'));
+const Eharf = lazy(() => import('./components/eharf/Eharf'));
 
 // Common Components
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import ToastManager from './components/Common/ToastManager';
 import AuthSync from './components/Auth/AuthSync';
+import SEO from './components/SEO';
+import PageLoader from './components/Common/PageLoader';
 
 /**
  * Harf Platform App Component
@@ -24,8 +29,16 @@ const App = () => {
         <LanguageProvider>
           <AuthProvider>
             <AuthSync enforceLogin={false}>
+              <SEO
+                title="Alifbe dunyosi"
+                description="Harf — bolalar uchun alifbe va so'z o'rganish platformasi. O'zbek, rus va ingliz alifbolarini interaktiv o'rganing."
+                keywords="alifbe, harflar, o'zbek alifbosi, rus alifbosi, ingliz alifbosi"
+                siteName="Harf | Alif24"
+              />
               <ToastManager />
-              <AppRoutes />
+              <Suspense fallback={<PageLoader />}>
+                <AppRoutes />
+              </Suspense>
             </AuthSync>
           </AuthProvider>
         </LanguageProvider>

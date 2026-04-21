@@ -99,7 +99,7 @@ export default function ShopModal({ isOpen, onClose }) {
                                     <div key={item.id} className="bg-white dark:bg-white/5 border border-indigo-50 dark:border-white/10 rounded-2xl p-4 flex flex-col shadow-sm hover:shadow-md transition-shadow dark:shadow-none">
                                         <div className="h-32 bg-slate-50 dark:bg-slate-800 rounded-xl mb-4 flex items-center justify-center border border-slate-100 dark:border-white/5 relative overflow-hidden group">
                                             {item.image_url ? (
-                                                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                <img src={item.image_url} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                             ) : (
                                                 <div className="text-4xl group-hover:scale-110 transition-transform duration-300">
                                                     {item.type === 'avatar_frame' ? '🖼️' : item.type === 'profile_theme' ? '🎨' : '🎁'}

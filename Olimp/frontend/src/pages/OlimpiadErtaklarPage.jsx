@@ -320,7 +320,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                             <div className="w-full mt-2 bg-gradient-to-r from-[#cca651]/10 via-[#cca651]/15 to-[#cca651]/10 border border-[#cca651]/20 rounded-3xl p-[18px] text-center flex flex-col items-center justify-center">
                                 <div className="flex items-center gap-3 mb-1">
                                     <p className="text-4xl leading-none font-black text-[#facc15]">+{totalCoin}</p>
-                                    <img src="/icons/coin.svg" alt="coin" className="w-[38px] h-[38px] drop-shadow-md" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
+                                    <img src="/icons/coin.svg" alt="Tanga" loading="lazy" decoding="async" className="w-[38px] h-[38px] drop-shadow-md" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
                                     <span className="text-4xl filter drop-shadow-md hidden">🪙</span>
                                 </div>
                                 <p className="text-white/50 text-[13px] font-medium tracking-wide">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>

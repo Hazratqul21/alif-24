@@ -4,6 +4,20 @@ import react from '@vitejs/plugin-react'
 // Games Platform - Port 5177, Backend 8004
 export default defineConfig({
   plugins: [react()],
+  build: {
+    target: 'es2018',
+    cssCodeSplit: true,
+    sourcemap: false,
+    minify: 'esbuild',
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
+  },
   server: {
     port: 5177,
     open: true,

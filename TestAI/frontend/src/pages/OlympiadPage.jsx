@@ -265,7 +265,7 @@ const OlympiadPage = () => {
             <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-2xl w-full text-center mb-6">
               <span className="text-sm text-gray-400 mb-2 block">Savol {currentQ + 1} / {totalQ} — {q.points} ball</span>
               <h2 className="text-xl font-bold text-gray-800">{q.text}</h2>
-              {q.image && <img src={q.image} alt="" className="mt-4 max-h-48 mx-auto rounded-xl" />}
+              {q.image && <img src={q.image} alt="Savol rasmi" loading="lazy" decoding="async" className="mt-4 max-h-48 mx-auto rounded-xl" />}
             </div>
 
             <div className="grid grid-cols-2 gap-3 w-full max-w-2xl">

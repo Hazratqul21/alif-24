@@ -1,19 +1,22 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
 
-// Pages
-import OlympiadPage from './pages/OlympiadPage';
-import QuizJoinPage from './pages/QuizJoinPage';
-import QuizPlayPage from './pages/QuizPlayPage';
-import QuizCreatePage from './pages/QuizCreatePage';
-import TestCreator from './components/test/TestCreator';
+// Lazy-loaded pages
+const OlympiadPage = lazy(() => import('./pages/OlympiadPage'));
+const QuizJoinPage = lazy(() => import('./pages/QuizJoinPage'));
+const QuizPlayPage = lazy(() => import('./pages/QuizPlayPage'));
+const QuizCreatePage = lazy(() => import('./pages/QuizCreatePage'));
+const TestCreator = lazy(() => import('./components/test/TestCreator'));
 
 // Common Components
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import ToastManager from './components/Common/ToastManager';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import AuthSync from './components/Auth/AuthSync';
+import SEO from './components/SEO';
+import PageLoader from './components/Common/PageLoader';
 
 /**
  * TestAI Platform App Component
@@ -26,8 +29,16 @@ const App = () => {
         <LanguageProvider>
           <AuthProvider>
             <AuthSync enforceLogin={false}>
+              <SEO
+                title="AI yordamida testlar"
+                description="TestAI — Alif24 ning AI yordamida yaratiladigan testlar platformasi. Shaxsiylashtirilgan testlar va viktorinalar."
+                keywords="test ai, sun'iy intellekt test, onlayn test, alif24 test"
+                siteName="TestAI | Alif24"
+              />
               <ToastManager />
-              <AppRoutes />
+              <Suspense fallback={<PageLoader />}>
+                <AppRoutes />
+              </Suspense>
             </AuthSync>
           </AuthProvider>
         </LanguageProvider>

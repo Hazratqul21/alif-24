@@ -268,7 +268,7 @@ const LiveQuizStudent = () => {
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-6">
           <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-2xl w-full text-center mb-8">
             <h2 className="text-xl md:text-2xl font-bold text-gray-800">{question.text}</h2>
-            {question.image && <img src={question.image} alt="" className="mt-4 max-h-48 mx-auto rounded-xl" />}
+            {question.image && <img src={question.image} alt="Savol rasmi" loading="lazy" decoding="async" className="mt-4 max-h-48 mx-auto rounded-xl" />}
           </div>
 
           {/* Options */}

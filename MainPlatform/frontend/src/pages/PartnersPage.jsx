@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import Navbar from '../components/Common/Navbar';
+import SEO from '../components/SEO';
 import { ArrowLeft, Handshake, Building, School, Laptop, Phone, Mail, MessageCircle } from 'lucide-react';
 
 const PartnersPage = () => {
@@ -46,6 +47,11 @@ const PartnersPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
+      <SEO
+        title="Hamkorlar"
+        description="Alif24 ta'lim muassasalari, korxonalar va shaxslar uchun hamkorlik imkoniyatlari."
+        path="/partners"
+      />
       <Navbar />
 
       <div className="max-w-6xl mx-auto px-4 py-12">

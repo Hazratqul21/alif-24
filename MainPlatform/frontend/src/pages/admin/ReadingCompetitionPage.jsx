@@ -596,7 +596,7 @@ export default function ReadingCompetitionPage() {
                                     <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                                 </label>
                             </div>
-                            {taskForm.image_url && <img src={taskForm.image_url} alt="" className="mt-2 max-h-32 rounded-lg" />}
+                            {taskForm.image_url && <img src={taskForm.image_url} alt="Vazifa rasmi" loading="lazy" decoding="async" className="mt-2 max-h-32 rounded-lg" />}
                         </div>
                         <div>
                             <label className="text-sm text-gray-400 mb-1 block">Video (ixtiyoriy)</label>

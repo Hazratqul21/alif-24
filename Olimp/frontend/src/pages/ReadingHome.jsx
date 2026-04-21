@@ -684,7 +684,7 @@ function ErtakCard({ task, index, onClick }) {
         >
             <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-emerald-500/20 to-blue-500/20 flex items-center justify-center">
                 {hasImage ? (
-                    <img src={task.image_url} alt={task.title}
+                    <img src={task.image_url} alt={task.title} loading="lazy" decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={() => setImgError(true)} />
                 ) : (

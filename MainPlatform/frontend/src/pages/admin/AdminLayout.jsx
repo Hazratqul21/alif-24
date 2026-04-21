@@ -2,6 +2,7 @@ import { Outlet, NavLink, Navigate, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, GraduationCap, Database, Send, BookOpen, LogOut, Shield, Menu, Trophy, Mic, Crown, Zap, CreditCard, Tag, Banknote } from 'lucide-react';
 import { useState } from 'react';
 import adminService from '../../services/adminService';
+import SEO from '../../components/SEO';
 
 const NAV_ITEMS = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, perm: null },
@@ -46,6 +47,7 @@ export default function AdminLayout() {
 
     return (
         <div className="min-h-screen bg-gray-950 flex">
+            <SEO title="Admin panel" noindex={true} />
             {/* Mobile overlay */}
             {sidebarOpen && (
                 <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />

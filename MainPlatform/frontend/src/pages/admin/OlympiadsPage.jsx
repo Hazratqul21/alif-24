@@ -559,7 +559,7 @@ const handleCreate = async () => {
                         }}>
                             <div className="flex">
                                 {o.banner_image && (
-                                    <img src={o.banner_image} alt="" className="w-28 h-24 object-cover flex-shrink-0 hidden sm:block" />
+                                    <img src={o.banner_image} alt={o.title || 'Olimpiada banneri'} loading="lazy" decoding="async" className="w-28 h-24 object-cover flex-shrink-0 hidden sm:block" />
                                 )}
                                 <div className="flex-1 p-4 flex items-start justify-between">
                                     <div className="flex-1">
@@ -601,7 +601,7 @@ const handleCreate = async () => {
                 <button onClick={() => { if (wizardStep > 1) setWizardStep(wizardStep - 1); else setActiveView('list'); }} className="text-gray-400 hover:text-white flex items-center gap-1">
                     <ChevronLeft size={18} /> {wizardStep > 1 ? 'Oldingi' : 'Ortga'}
                 </button>
-                <h1 className="text-xl font-bold text-white flex-1">Yangi Olimpiada</h1>
+                <h2 className="text-xl font-bold text-white flex-1">Yangi Olimpiada</h2>
                 <span className="text-xs text-gray-500">{wizardStep}/3 bosqich</span>
             </div>
 
@@ -799,7 +799,7 @@ const handleCreate = async () => {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button onClick={() => { setActiveView('list'); setSelectedOlympiad(null); }} className="text-gray-400 hover:text-white">← Ortga</button>
-                        <h1 className="text-xl font-bold text-white">{o.title}</h1>
+                        <h2 className="text-xl font-bold text-white">{o.title}</h2>
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[o.status] || ''}`}>{o.status}</span>
                         <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded-full">{typeLabels[o.type] || o.type}</span>
                     </div>
@@ -818,7 +818,7 @@ const handleCreate = async () => {
                     </div>
                     {o.banner_image ? (
                         <div className="relative group">
-                            <img src={o.banner_image} alt="Olimpiada banneri" className="w-full h-48 object-cover rounded-xl border border-gray-700" />
+                            <img src={o.banner_image} alt="Olimpiada banneri" loading="lazy" decoding="async" className="w-full h-48 object-cover rounded-xl border border-gray-700" />
                             <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition cursor-pointer rounded-xl">
                                 <span className="flex items-center gap-2 text-white text-sm font-medium"><Upload className="w-4 h-4" /> Almashtiirsh</span>
                                 <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={async (e) => {
@@ -1382,7 +1382,7 @@ const handleCreate = async () => {
                                                 {q.correct === oi && <span className="text-white text-xs">✓</span>}
                                             </button>
                                             {url ? (
-                                                <img src={url} alt={`Option ${oi + 1}`} className="w-full h-20 object-cover" />
+                                                <img src={url} alt={`Option ${oi + 1}`} loading="lazy" decoding="async" className="w-full h-20 object-cover" />
                                             ) : (
                                                 <div className="w-full h-20 bg-gray-700 flex items-center justify-center">
                                                     <Image size={20} className="text-gray-500" />
@@ -1428,7 +1428,7 @@ const handleCreate = async () => {
                     <div className="flex items-center gap-3">
                         <button onClick={() => setActiveView('detail')} className="text-gray-400 hover:text-white">← Ortga</button>
                         <div>
-                            <h1 className="text-2xl font-bold text-white">Kontentlar</h1>
+                            <h2 className="text-2xl font-bold text-white">Kontentlar</h2>
                             <p className="text-gray-500 text-sm">Darslar va ertaklar boshqaruvi {selectedOlympiad ? `— ${selectedOlympiad.title}` : ''}</p>
                         </div>
                     </div>

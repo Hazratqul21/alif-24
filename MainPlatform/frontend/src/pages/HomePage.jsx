@@ -12,6 +12,7 @@ import { translations } from '../language/translations';
 import Navbar from '../components/Common/Navbar';
 import Footer from '../components/Common/Footer';
 import SmartAuthPrompt from '../components/Auth/SmartAuthPrompt';
+import SEO from '../components/SEO';
 import apiService from '../services/apiService';
 
 const HomePage = () => {
@@ -140,6 +141,12 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative overflow-x-hidden">
+      <SEO
+        title="Bosh sahifa"
+        description="Alif24 — bolalar uchun adaptiv ta'lim platformasi. Darslar, o'yinlar, olimpiadalar, AI testlar va harflar dunyosi bir joyda."
+        keywords="alif24, bolalar ta'limi, onlayn darslar, o'quv o'yinlari, olimpiada"
+        path="/"
+      />
 
       {/* ── Animated stars ─────────────────────────────────────────────────────── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -315,7 +322,7 @@ const HomePage = () => {
                   <div className="w-full relative" style={{ paddingTop: '65%' }}>
                     <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[rgba(75,48,251,0.1)] to-[rgba(118,75,162,0.1)] overflow-hidden">
                       {typeof game.image === 'string' && game.image.startsWith('/') ? (
-                        <img src={game.image} alt={game.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        <img src={game.image} alt={game.title} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                       ) : (
                         <span className="text-6xl lg:text-7xl transition-transform duration-300 group-hover:scale-110">{game.image}</span>
                       )}

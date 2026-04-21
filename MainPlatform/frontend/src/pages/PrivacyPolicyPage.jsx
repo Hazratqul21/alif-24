@@ -1,12 +1,18 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import SEO from '../components/SEO';
 
 const PrivacyPolicyPage = () => {
     const navigate = useNavigate();
 
     return (
         <div className="min-h-screen bg-[#0f0f1a] text-white/90 selection:bg-indigo-500/30">
+            <SEO
+                title="Maxfiylik siyosati"
+                description="Alif24 platformasi maxfiylik siyosati — foydalanuvchi ma'lumotlarini to'plash, saqlash va himoyalash qoidalari."
+                path="/privacy"
+            />
             {/* Header / Nav */}
             <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0f0f1a]/80 backdrop-blur-xl border-b border-white/5">
                 <div className="max-w-4xl mx-auto px-6 h-16 flex items-center gap-4">
@@ -17,7 +23,7 @@ const PrivacyPolicyPage = () => {
                         <ArrowLeft className="w-5 h-5 text-white/60 group-hover:text-white transition-colors" />
                     </button>
                     <div className="flex items-center gap-3">
-                        <img src="/Logo.png" alt="Alif24" className="w-8 h-8" />
+                        <img src="/Logo.png" alt="Alif24 logo" decoding="async" className="w-8 h-8" />
                         <span className="font-bold text-lg tracking-wide text-white">Alif24</span>
                     </div>
                 </div>

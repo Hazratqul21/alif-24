@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Clock, GraduationCap, Search, BookMarked } from 'lucide-react';
 import apiService from '../services/apiService';
+import SEO from '../components/SEO';
 
 const difficultyBadge = {
     easy: 'bg-green-500/20 text-green-300',
@@ -50,6 +51,13 @@ export default function LessionsHome() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative overflow-hidden">
+            <SEO
+                title="Darsliklar"
+                description="Alif24 darsliklar platformasi — bolalar uchun onlayn darslar, kitoblar va o'quv materiallari."
+                keywords="darsliklar, o'quv materiallari, alif24, onlayn kitoblar"
+                path="/"
+                siteName="Darsliklar | Alif24"
+            />
             {/* Stars */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
               <div className="absolute top-[5%] left-[10%] w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0s', animationDuration: '2s' }} />
