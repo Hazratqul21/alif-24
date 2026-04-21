@@ -5,8 +5,8 @@ import {
   ChevronDown, LayoutGrid, List, Sparkles, Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Navbar from '../../components/Common/Navbar';
-import apiService from '../../services/apiService';
+import Navbar from '../components/Common/Navbar';
+import apiService from '../services/apiService';
 
 const MarketplaceStore = () => {
   const [loading, setLoading] = useState(true);
