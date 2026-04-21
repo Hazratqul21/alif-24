@@ -548,7 +548,7 @@ const StudentDashboard = () => {
 
     const renderDashboard = () => (
         <div className="space-y-6">
-            <StudentPortalHeader profile={dashboardData?.profile} user={authUser} />
+            {/*<StudentPortalHeader profile={dashboardData?.profile} user={authUser} />*/}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-6">
@@ -586,17 +586,29 @@ const StudentDashboard = () => {
                                         Lvl {user.level}
                                     </span>
 
-                                    {/* Obuna holati */}
-                                    {mySub?.has_subscription ? (
-                                        // ✅ Obunasi bor — yashil, obuna nomi bilan
+                                    {/* ID badge */}
+                                    {authUser?.id && (
                                         <span
-                                            className="inline-flex items-center gap-1.5 bg-emerald-500 text-white px-3 py-1.5 rounded-full text-xs font-extrabold shadow-md cursor-pointer hover:bg-emerald-600 transition-colors"
+                                            className="bg-white/15 text-white/70 px-2 py-0.5 rounded-full text-[10px] font-mono cursor-pointer hover:text-white hover:bg-white/25 transition-all"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(authUser.id);
+                                                setNotification({ type: 'success', message: 'ID nusxalandi!' });
+                                            }}
+                                            title="ID nusxalash"
+                                        >
+                                            ID: {authUser.id}
+                                        </span>
+                                    )}
+
+                                    {/* Obuna holati - ID'dan keyinga o'tkazildi va kattalashtirildi */}
+                                    {mySub?.has_subscription ? (
+                                        <span
+                                            className="inline-flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-extrabold shadow-lg cursor-pointer hover:bg-emerald-600 transition-all hover:scale-105"
                                             onClick={() => setShowSubModal(true)}
                                         >
                                             ✅ {mySub.subscription?.plan_name || 'Obuna faol'}
                                         </span>
                                     ) : (
-                                        // ❌ Obuna yo'q — to'q kulrang, o'chib-yonib turadi, matn bilan
                                         <button
                                             onClick={() => {
                                                 setShowSubModal(true);
@@ -613,32 +625,17 @@ const StudentDashboard = () => {
                                                         .finally(() => setSubLoading(false));
                                                 }
                                             }}
-                                            className="inline-flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-xl text-xs font-bold border border-gray-500 shadow-lg transition-all duration-200 hover:scale-105 animate-pulse max-w-xs"
+                                            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white px-6 py-3 rounded-2xl text-sm md:text-base font-black shadow-[0_10px_20px_rgba(245,158,11,0.3)] transition-all duration-300 hover:scale-105 animate-pulse border-2 border-white/30"
                                         >
-                                            <span className="text-yellow-400 text-sm">⭐</span>
-                                            <span className="leading-tight">
-                                                Platformaning to'liq imkoniyatidan<br />
-                                                foydalanmoqchi bo'lsangiz — obuna bo'ling
+                                            <span className="text-xl">⭐</span>
+                                            <span className="text-left leading-tight">
+                                                Platformaning to'liq imkoniyatidan foydalanish uchun — obuna bo'ling!
                                             </span>
                                         </button>
                                     )}
-
-                                    {/* ID badge */}
-                                    {authUser?.id && (
-                                        <span
-                                            className="bg-white/15 text-white/70 px-2 py-0.5 rounded-full text-[10px] font-mono cursor-pointer hover:text-white hover:bg-white/25 transition-all"
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(authUser.id);
-                                                setNotification({ type: 'success', message: 'ID nusxalandi!' });
-                                            }}
-                                            title="ID nusxalash"
-                                        >
-                                            ID: {authUser.id}
-                                        </span>
-                                    )}
                                 </div>
 
-                                {/* Tavsif matni — avval opacity-90 edi, fon och bo'lsa ko'rinmasdi */}
+                                {/* Tavsif matni */}
                                 <p className="text-white/80 mb-5 flex items-center gap-2 text-sm">
                                     {user.parent
                                         ? <>Ota-onangiz sizni kuzatib bormoqda <Shield size={16} /></>
@@ -655,9 +652,6 @@ const StudentDashboard = () => {
                                     Boshlash
                                 </button>
                             </div>
-
-                            {/* Monster */}
-                            <div className="relative z-10 animate-bounce shrink-0">{user.monster}</div>
                         </div>
 
                         {/* ProgressCharts */}
@@ -692,8 +686,8 @@ const StudentDashboard = () => {
                             onClick={handleDailyBonus}
                             disabled={dailyBonusClaimed}
                             className={`bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 text-left transition-all ${dailyBonusClaimed
-                                    ? 'border-green-200 bg-green-50'
-                                    : 'border-yellow-200 hover:border-yellow-400 hover:shadow-md cursor-pointer'
+                                ? 'border-green-200 bg-green-50'
+                                : 'border-yellow-200 hover:border-yellow-400 hover:shadow-md cursor-pointer'
                                 }`}
                         >
                             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${dailyBonusClaimed ? 'bg-green-100' : 'bg-yellow-100 animate-pulse'}`}>
@@ -793,8 +787,8 @@ const StudentDashboard = () => {
                             <button
                                 onClick={() => setIsTimerRunning(!isTimerRunning)}
                                 className={`flex-1 py-3 rounded-xl font-bold transition-colors ${isTimerRunning
-                                        ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                        : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                                    : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
                                     }`}
                             >
                                 {isTimerRunning ? "To'xtatish" : 'Boshlash'}
