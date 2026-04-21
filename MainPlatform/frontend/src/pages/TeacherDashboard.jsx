@@ -6,12 +6,17 @@ import Navbar from '../components/Common/Navbar';
 import { teacherService } from '../services/teacherService';
 import notificationService from '../services/notificationService';
 import organizationService from '../services/organizationService';
+import AILessonGenerator from '../components/Teacher/AILessonGenerator';
+import AssignmentCalendar from '../components/Teacher/AssignmentCalendar';
+import ResourceLibrary from '../components/Teacher/ResourceLibrary';
+import StudentImport from '../components/Teacher/StudentImport';
 import {
   BookOpen, Users, Award, BarChart3, Plus, Clock, CheckCircle,
   FileText, Settings, Bell, Search, Filter, ChevronRight,
   GraduationCap, Target, TrendingUp, Calendar, MessageSquare,
   Play, Eye, Edit, Trash2, ArrowLeft, LogOut, Zap, Copy,
-  Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon, Paperclip
+  Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon, Paperclip,
+  FolderOpen, Sparkles, Upload, List
 } from 'lucide-react';
 
 const TeacherDashboard = () => {
@@ -70,10 +75,14 @@ const TeacherDashboard = () => {
 
   const [mySchool, setMySchool] = useState(null);
 
+  const [assignmentView, setAssignmentView] = useState('list'); // list, calendar
+  const [lessonView, setLessonView] = useState('list'); // list, ai
+  const [showStudentImport, setShowStudentImport] = useState(false);
+
   const tabLabels = {
-    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', school: 'Maktabim', settings: 'Sozlamalar' },
-    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', school: 'Моя школа', settings: 'Настройки' },
-    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', school: 'My School', settings: 'Settings' },
+    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', resources: 'Kutubxona', school: 'Maktabim', settings: 'Sozlamalar' },
+    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', resources: 'Библиотека', school: 'Моя школа', settings: 'Настройки' },
+    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', resources: 'Library', school: 'My School', settings: 'Settings' },
   };
   const tl = tabLabels[language] || tabLabels.uz;
 
@@ -83,6 +92,7 @@ const TeacherDashboard = () => {
     { id: 'lessons', label: tl.lessons, icon: BookOpen },
     { id: 'assignments', label: tl.assignments, icon: ClipboardList },
     { id: 'livequiz', label: tl.livequiz, icon: Zap },
+    { id: 'resources', label: tl.resources, icon: FolderOpen },
     { id: 'school', label: tl.school, icon: Award },
     { id: 'settings', label: tl.settings, icon: Settings },
   ];
@@ -473,9 +483,21 @@ const TeacherDashboard = () => {
             className="flex items-center gap-3 bg-gradient-to-br from-green-500 to-green-600 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
             <ClipboardList size={20} /><span className="font-medium">Yangi vazifa</span>
           </button>
+          <button onClick={() => { setActiveTab('lessons'); setLessonView('ai'); }}
+            className="flex items-center gap-3 bg-gradient-to-br from-purple-500 to-pink-500 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
+            <Sparkles size={20} /><span className="font-medium">AI Dars</span>
+          </button>
           <button onClick={() => navigate('/livequiz-teacher')}
             className="flex items-center gap-3 bg-gradient-to-br from-amber-500 to-amber-600 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
             <Zap size={20} /><span className="font-medium">Live Quiz</span>
+          </button>
+          <button onClick={() => setActiveTab('resources')}
+            className="flex items-center gap-3 bg-gradient-to-br from-cyan-500 to-teal-500 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
+            <FolderOpen size={20} /><span className="font-medium">Kutubxona</span>
+          </button>
+          <button onClick={() => { setActiveTab('assignments'); setAssignmentView('calendar'); }}
+            className="flex items-center gap-3 bg-gradient-to-br from-rose-500 to-rose-600 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
+            <Calendar size={20} /><span className="font-medium">Kalendar</span>
           </button>
           <button onClick={() => setActiveTab('classes')}
             className="flex items-center gap-3 bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
@@ -484,7 +506,7 @@ const TeacherDashboard = () => {
           <button onClick={() => {
             window.location.href = 'https://testai.alif24.uz/test-creator';
           }}
-            className="flex items-center gap-3 bg-gradient-to-br from-purple-500 to-pink-500 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
+            className="flex items-center gap-3 bg-gradient-to-br from-indigo-500 to-violet-500 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
             <FileText size={20} /><span className="font-medium">TestAI</span>
           </button>
         </div>
@@ -594,10 +616,14 @@ const TeacherDashboard = () => {
             </div>
           </div>
           {cls?.description && <p className="text-white/60 text-sm mb-4">{cls.description}</p>}
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <button onClick={() => setShowInviteModal(true)}
               className="flex items-center gap-2 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">
               <UserPlus size={16} /> Taklif qilish
+            </button>
+            <button onClick={() => setShowStudentImport(true)}
+              className="flex items-center gap-2 bg-gradient-to-br from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">
+              <Upload size={16} /> CSV Import
             </button>
             <button onClick={() => { setNewAssignment(prev => ({ ...prev, classroom_id: cls?.id })); setShowCreateAssignment(true); }}
               className="flex items-center gap-2 bg-gradient-to-br from-green-500 to-green-600 text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">
@@ -1061,17 +1087,183 @@ const TeacherDashboard = () => {
     </div>
   );
 
+  // ============ RENDER: RESOURCES ============
+
+  const renderResources = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-white">Kutubxona</h3>
+      </div>
+      <ResourceLibrary />
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeTab) {
       case 'classes': return renderClasses();
-      case 'lessons': return renderLessons();
-      case 'assignments': return renderAssignments();
+      case 'lessons': return renderEnhancedLessons();
+      case 'assignments': return renderEnhancedAssignments();
       case 'livequiz': return renderLiveQuiz();
+      case 'resources': return renderResources();
       case 'school': return renderMySchool();
       case 'settings': return renderSettings();
       default: return renderDashboard();
     }
   };
+
+  // ============ ENHANCED LESSONS (AI + List) ============
+
+  const renderEnhancedLessons = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-white">Darslarim</h3>
+        <div className="flex items-center gap-2">
+          <div className="flex p-0.5 bg-white/5 rounded-lg">
+            <button onClick={() => setLessonView('list')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${lessonView === 'list' ? 'bg-[#4b30fb] text-white' : 'text-white/40'}`}>
+              <List className="w-3.5 h-3.5 inline mr-1" />Ro'yxat
+            </button>
+            <button onClick={() => setLessonView('ai')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${lessonView === 'ai' ? 'bg-[#4b30fb] text-white' : 'text-white/40'}`}>
+              <Sparkles className="w-3.5 h-3.5 inline mr-1" />AI Generator
+            </button>
+          </div>
+          {lessonView === 'list' && (
+            <button onClick={() => setShowCreateLesson(true)}
+              className="flex items-center gap-2 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white px-4 py-2 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform text-sm font-medium">
+              <Plus size={16} /> Yangi dars
+            </button>
+          )}
+        </div>
+      </div>
+      {lessonView === 'ai' ? (
+        <AILessonGenerator onLessonCreated={() => { fetchLessons(); setLessonView('list'); }} classrooms={classrooms} />
+      ) : (
+        renderLessonsList()
+      )}
+    </div>
+  );
+
+  const renderLessonsList = () => (
+    <>
+      {lessons.length === 0 ? (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+          <BookOpen className="w-12 h-12 text-white/30 mx-auto mb-3" />
+          <p className="text-white/60">Hozircha dars yo'q</p>
+          <p className="text-white/30 text-sm mt-2">AI Generator yordamida dars rejasini avtomatik tuzing</p>
+          <button onClick={() => setLessonView('ai')}
+            className="mt-4 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-medium hover:bg-purple-500/30 transition-colors">
+            <Sparkles className="w-4 h-4 inline mr-1" /> AI bilan dars yaratish
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {lessons.map(l => (
+            <div key={l.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all flex flex-col justify-between">
+              <div>
+                <h4 className="text-white font-bold text-lg mb-1">{l.title}</h4>
+                <div className="text-sm flex items-center gap-2 text-white/40 mb-3">
+                  {l.subject && <span>{l.subject}</span>}
+                  {l.subject && l.grade_level && <span>•</span>}
+                  {l.grade_level && <span>{l.grade_level}</span>}
+                </div>
+                {l.content && <p className="text-white/60 text-sm line-clamp-2 mb-3">{typeof l.content === 'string' && l.content.startsWith('{') ? 'AI tomonidan yaratilgan dars rejasi' : l.content}</p>}
+                {l.video_url && (
+                  <a href={l.video_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm mb-2">
+                    <Play size={14} /> Video
+                  </a>
+                )}
+              </div>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+                <span className="text-white/30 text-xs">{l.created_at ? new Date(l.created_at).toLocaleDateString('uz') : ''}</span>
+                <div className="flex gap-2">
+                  <button className="text-white/20 hover:text-blue-400 p-1"><Eye size={14} /></button>
+                  <button onClick={() => teacherService.deleteLesson(l.id).then(() => { fetchLessons(); showNotif('success', "Dars o'chirildi"); }).catch(() => showNotif('error', 'Xatolik'))}
+                    className="text-white/20 hover:text-red-400 p-1"><Trash2 size={14} /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  // ============ ENHANCED ASSIGNMENTS (List + Calendar) ============
+
+  const renderEnhancedAssignments = () => {
+    if (selectedAssignment) return renderAssignments();
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-white">Vazifalar</h3>
+          <div className="flex items-center gap-2">
+            <div className="flex p-0.5 bg-white/5 rounded-lg">
+              <button onClick={() => setAssignmentView('list')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${assignmentView === 'list' ? 'bg-[#4b30fb] text-white' : 'text-white/40'}`}>
+                <List className="w-3.5 h-3.5 inline mr-1" />Ro'yxat
+              </button>
+              <button onClick={() => setAssignmentView('calendar')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${assignmentView === 'calendar' ? 'bg-[#4b30fb] text-white' : 'text-white/40'}`}>
+                <Calendar className="w-3.5 h-3.5 inline mr-1" />Kalendar
+              </button>
+            </div>
+            <button onClick={() => setShowCreateAssignment(true)}
+              className="flex items-center gap-2 bg-gradient-to-br from-green-500 to-green-600 text-white px-4 py-2 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform text-sm font-medium">
+              <Plus size={16} /> Yangi vazifa
+            </button>
+          </div>
+        </div>
+        {assignmentView === 'calendar' ? (
+          <AssignmentCalendar assignments={assignments} onAssignmentClick={fetchAssignmentDetail} />
+        ) : (
+          renderAssignmentList()
+        )}
+      </div>
+    );
+  };
+
+  const renderAssignmentList = () => (
+    <>
+      {assignments.length === 0 ? (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+          <ClipboardList className="w-12 h-12 text-white/30 mx-auto mb-3" />
+          <p className="text-white/60">Hozircha vazifa yo'q</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {assignments.map(a => (
+            <div key={a.id} onClick={() => fetchAssignmentDetail(a.id)}
+              className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all cursor-pointer group">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <h4 className="text-white font-bold group-hover:text-[#4b30fb] transition-colors">{a.title}</h4>
+                  <p className="text-white/50 text-sm mt-1">{a.description || ''}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-1 rounded-lg text-xs font-medium ${a.assignment_type === 'homework' ? 'bg-blue-500/20 text-blue-400' :
+                    a.assignment_type === 'test' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400'}`}>{a.assignment_type}</span>
+                  <ChevronRight size={16} className="text-white/30 group-hover:text-white/60 transition-colors" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-white/40">
+                {a.due_date && <span><Calendar size={14} className="inline mr-1" />{new Date(a.due_date).toLocaleDateString('uz')}</span>}
+                <span><Users size={14} className="inline mr-1" />{a.total_students || 0} ta</span>
+                <span><CheckCircle size={14} className="inline mr-1" />{a.submitted_count || 0} topshirdi</span>
+                <span className="text-green-400"><Award size={14} className="inline mr-1" />{a.graded_count || 0} baholandi</span>
+              </div>
+              {(a.total_students || 0) > 0 && (
+                <div className="mt-3 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all"
+                    style={{ width: `${Math.round(((a.graded_count || 0) / a.total_students) * 100)}%` }} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
 
   // ============ MODALS ============
 
@@ -1517,6 +1709,15 @@ const TeacherDashboard = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Student Import Modal */}
+      {renderModal(showStudentImport, () => setShowStudentImport(false), "O'quvchilarni import qilish",
+        <StudentImport
+          classroomId={selectedClassroom}
+          onImportComplete={() => { fetchClassroomDetail(selectedClassroom); setShowStudentImport(false); }}
+          onClose={() => setShowStudentImport(false)}
+        />
       )}
 
       {/* Test Review & Edit Modal */}
