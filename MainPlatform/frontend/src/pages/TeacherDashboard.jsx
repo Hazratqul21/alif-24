@@ -1251,7 +1251,6 @@ const TeacherDashboard = () => {
                     className="text-white/20 hover:text-red-400 p-1"><Trash2 size={14} /></button>
                 </div>
               </div>
-            </div>
           ))}
         </div>
       )}
