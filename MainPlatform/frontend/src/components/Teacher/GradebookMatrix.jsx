@@ -3,7 +3,6 @@ import {
   ChevronLeft, ChevronRight, Plus, Info, Filter, 
   Calendar, RotateCcw, Search, Download, Trash2, Edit 
 } from 'lucide-react';
-import { classroomService } from '../../services/classroomService';
 import { teacherService } from '../../services/teacherService';
 import AssignmentDetailReport from './AssignmentDetailReport';
 
@@ -27,7 +26,7 @@ const GradebookMatrix = ({ classroomId }) => {
       const end = new Date(startDate);
       end.setDate(end.getDate() + (viewMode === 'week' ? 7 : 30));
       
-      const res = await classroomService.getGradebook(classroomId, startDate.toISOString(), end.toISOString());
+      const res = await teacherService.getGradebook(classroomId, startDate.toISOString(), end.toISOString());
       setData(res.data);
     } catch (err) {
       console.error("Gradebook fetch error:", err);
