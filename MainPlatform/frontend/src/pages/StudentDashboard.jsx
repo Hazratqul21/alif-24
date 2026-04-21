@@ -436,7 +436,8 @@ const StudentDashboard = () => {
                 achievements: 'Достижения',
                 events: 'События',
                 help: 'Помощь',
-                school: 'Моя школа'
+                school: 'Моя школа',
+                leaderboard: 'Рейтинг'
             },
             stats: {
                 points: 'Баллы',
@@ -466,7 +467,8 @@ const StudentDashboard = () => {
                 achievements: 'Achievements',
                 events: 'Events',
                 help: 'Help',
-                school: 'My School'
+                school: 'My School',
+                leaderboard: 'Leaderboard'
             },
             stats: {
                 points: 'My Points',
@@ -689,23 +691,28 @@ const StudentDashboard = () => {
                         </button>
                     </div>
                 </div>
-            </div>
+                </div>
 
-            <div className="space-y-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <CheckCircle size={20} className="text-green-500" /> Vazifalarim
-                    </h3>
-                    <div className="space-y-3">
-                        {displayTasks.filter(t => t.status === 'pending').slice(0, 3).map(task => (
-                            <div key={task.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                <h4 className="font-semibold text-gray-800 text-sm">{task.title}</h4>
-                                <p className="text-xs text-gray-500">{task.deadline}</p>
-                            </div>
-                        ))}
-                        <button onClick={() => setActiveTab('tasks')} className="w-full py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg">
-                            Barchasi
-                        </button>
+                {/* Right Column (Sidebar tasks) */}
+                <div className="space-y-6">
+                    <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
+                        <h3 className="font-black text-gray-800 mb-6 flex items-center gap-2">
+                            <CheckCircle size={20} className="text-green-500" /> Vazifalarim
+                        </h3>
+                        <div className="space-y-4">
+                            {displayTasks.filter(t => t.status === 'pending').slice(0, 3).map(task => (
+                                <div key={task.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-indigo-200 transition-colors cursor-pointer" onClick={() => setActiveTab('tasks')}>
+                                    <h4 className="font-bold text-gray-800 text-sm mb-1">{task.title}</h4>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{task.deadline}</p>
+                                </div>
+                            ))}
+                            {displayTasks.filter(t => t.status === 'pending').length === 0 && (
+                                <p className="text-center text-gray-400 text-sm font-medium py-4">Barcha vazifalar bajarilgan! ✨</p>
+                            )}
+                            <button onClick={() => setActiveTab('tasks')} className="w-full py-3 text-sm text-indigo-600 font-black uppercase tracking-widest hover:bg-indigo-50 rounded-2xl transition-colors">
+                                Barchasini ko'rish
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -764,6 +771,7 @@ const StudentDashboard = () => {
             </div>
         </div>
     );
+    const renderClasses = () => (
         <div className="space-y-6">
             {/* Invitations */}
             {invitations.length > 0 && (
@@ -1858,6 +1866,7 @@ const StudentDashboard = () => {
                         </div>
                     )}
                 </div>
+            </div>
             {/* Level Up Modal */}
             <LevelUpModal 
                 isOpen={showLevelUpModal} 
@@ -1865,7 +1874,7 @@ const StudentDashboard = () => {
                 newLevel={dashboardData?.profile?.level || 1} 
             />
 
-        </div>
+        </>
     );
 };
 
