@@ -60,7 +60,7 @@ export default function TeachersPage() {
                 ) : (
                     <div className="space-y-3">
                         {teachers.map(t => (
-                            <div key(t.user_id) className="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition-colors">
+                            <div key={t.user_id} className="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition-colors">
                                 <div className="flex flex-wrap items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
                                         <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
