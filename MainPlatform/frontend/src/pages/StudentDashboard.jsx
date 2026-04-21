@@ -629,7 +629,7 @@ const StudentDashboard = () => {
                                         >
                                             <span className="text-xl">⭐</span>
                                             <span className="text-left leading-tight">
-                                                Platformaning to'liq imkoniyatidan foydalanish uchun — obuna bo'ling!
+                                                Obuna bo'ling!
                                             </span>
                                         </button>
                                     )}
