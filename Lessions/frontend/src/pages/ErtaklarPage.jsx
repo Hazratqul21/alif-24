@@ -564,11 +564,10 @@ function RecordingModal({ ertak, onClose }) {
                                     return (
                                         <span
                                             key={idx}
-                                            className={token.isWord ? `transition-colors duration-150 ${
-                                                isHighlighted
-                                                    ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
-                                                    : 'text-white/85'
-                                            }` : ''}
+                                            className={token.isWord ? `transition-colors duration-150 ${isHighlighted
+                                                ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
+                                                : 'text-white/85'
+                                                }` : ''}
                                         >
                                             {token.text}
                                         </span>
@@ -793,7 +792,7 @@ function ErtakCard({ ertak, index, onClick }) {
 }
 
 // ─── Age group helpers ──────────────────────────────────────────────────────────
-const AGE_GROUPS = ['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+'];
+const AGE_GROUPS = ['5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+'];
 
 
 

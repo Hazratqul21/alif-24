@@ -18,6 +18,12 @@ const TestResults = ({ tests = [] }) => {
   };
 
   useEffect(() => {
+    if (tests.length > 0 && !selectedTest) {
+      setSelectedTest(tests[0]);
+    }
+  }, [tests]);
+
+  useEffect(() => {
     if (selectedTest) {
       fetchTestResults(selectedTest.id);
     }
