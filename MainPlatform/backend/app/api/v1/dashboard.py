@@ -42,12 +42,12 @@ async def get_student_dashboard(
     }
     if student:
         stats.update({
-            "total_lessons": student.total_lessons_completed,
-            "total_games": student.total_games_played,
-            "total_coins": student.total_coins,
-            "current_streak": student.current_streak,
-            "level": student.level,
-            "total_points": student.total_points
+            "total_lessons": getattr(student, 'total_lessons_completed', 0),
+            "total_games": getattr(student, 'total_games_played', 0),
+            "total_coins": getattr(student, 'total_coins', 0),
+            "current_streak": getattr(student, 'current_streak', 0),
+            "level": getattr(student, 'level', 1),
+            "total_points": getattr(student, 'total_points', 0)
         })
 
     # Fetch pending tasks (assignments)
@@ -61,15 +61,16 @@ async def get_student_dashboard(
     
     tasks = []
     for sub in submissions:
-        if sub.assignment:
+        a = getattr(sub, 'assignment', None)
+        if a:
              tasks.append({
-                 "id": sub.assignment.id,
-                 "title": sub.assignment.title,
-                 "status": sub.status.value,
-                 "deadline": sub.assignment.due_date.isoformat() if sub.assignment.due_date else "Muddatsiz",
-                 "xp": sub.assignment.max_score,
-                 "assignment_type": sub.assignment.assignment_type.value,
-                 "content": sub.assignment.content
+                 "id": a.id,
+                 "title": a.title,
+                 "status": sub.status.value if getattr(sub, 'status', None) else "pending",
+                 "deadline": a.due_date.isoformat() if getattr(a, 'due_date', None) else "Muddatsiz",
+                 "xp": getattr(a, 'max_score', 0),
+                 "assignment_type": a.assignment_type.value if getattr(a, 'assignment_type', None) else "homework",
+                 "content": getattr(a, 'content', None)
              })
 
     return {
@@ -202,19 +203,20 @@ async def get_parent_dashboard(
     
     for child in children_users:
         child_dict = child.to_dict()
-        if child.student_profile:
+        cp = getattr(child, 'student_profile', None)
+        if cp:
             child_stats = {
-                "level": child.student_profile.level,
-                "total_points": child.student_profile.total_points,
-                "total_coins": child.student_profile.total_coins,
-                "current_streak": child.student_profile.current_streak,
-                "total_lessons": child.student_profile.total_lessons_completed,
-                "average_score": child.student_profile.average_score
+                "level": getattr(cp, 'level', 1),
+                "total_points": getattr(cp, 'total_points', 0),
+                "total_coins": getattr(cp, 'total_coins', 0),
+                "current_streak": getattr(cp, 'current_streak', 0),
+                "total_lessons": getattr(cp, 'total_lessons_completed', 0),
+                "average_score": getattr(cp, 'average_score', 0)
             }
             child_dict["stats"] = child_stats
             
-            total_score += child.student_profile.average_score
-            total_lessons += child.student_profile.total_lessons_completed
+            total_score += child_stats["average_score"]
+            total_lessons += child_stats["total_lessons"]
         else:
             child_dict["stats"] = {}
             

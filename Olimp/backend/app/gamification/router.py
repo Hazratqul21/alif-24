@@ -42,10 +42,12 @@ async def get_gamification_profile(
     )
     total_coins = coin_res.scalar_one_or_none() or 0
     
+    # Activity and streaks
     activity_res = await db.execute(select(DailyActivity).filter(DailyActivity.user_id == student_id))
     activity = activity_res.scalars().first()
-    streak = activity.current_streak if activity else 0
-    longest_streak = activity.longest_streak if activity else 0
+    
+    streak = getattr(activity, 'current_streak', 0) if activity else 0
+    longest_streak = getattr(activity, 'longest_streak', 0) if activity else 0
     
     # Get Badges
     ub_res = await db.execute(
@@ -87,8 +89,8 @@ async def get_all_badges(db: AsyncSession = Depends(get_db)):
                 "name": b.name,
                 "description": b.description,
                 "icon_url": b.icon_url,
-                "type": b.badge_type,
-                "reward": b.coin_reward
+                "type": getattr(b, 'badge_type', 'default'),
+                "reward": getattr(b, 'coin_reward', 0)
             } for b in badges
         ]
     }
@@ -96,7 +98,7 @@ async def get_all_badges(db: AsyncSession = Depends(get_db)):
 # --- Coin Shop ---
 @router.get("/shop")
 async def get_shop_items(db: AsyncSession = Depends(get_db)):
-    res = await db.execute(select(ShopItem).filter(ShopItem.is_active == True))
+    res = await db.execute(select(ShopItem).filter(getattr(ShopItem, 'is_active', True) == True))
     items = res.scalars().all()
     return {
         "success": True,
@@ -105,9 +107,9 @@ async def get_shop_items(db: AsyncSession = Depends(get_db)):
                 "id": item.id,
                 "name": item.name,
                 "description": item.description,
-                "type": item.item_type,
+                "type": getattr(item, 'item_type', 'item'),
                 "price": item.price,
-                "image_url": item.image_url
+                "image_url": getattr(item, 'image_url', None)
             } for item in items
         ]
     }

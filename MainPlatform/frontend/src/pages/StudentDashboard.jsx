@@ -134,7 +134,7 @@ const StudentDashboard = () => {
                 if (response.ok) {
                     const res = await response.json();
                     setDashboardData(res.data);
-                    
+
                     // Track level up
                     const currentLvl = res.data?.profile?.level;
                     if (prevLevel && currentLvl > prevLevel) {
@@ -154,12 +154,12 @@ const StudentDashboard = () => {
         // Fetch performance data
         apiService.get('/dashboard/student/performance')
             .then(res => setPerformanceData(res.data || res))
-            .catch(() => {});
+            .catch(() => { });
 
         // Fetch leaderboard
         apiService.get('/dashboard/student/leaderboard')
             .then(res => setLeaderboard(res.data || res))
-            .catch(() => {});
+            .catch(() => { });
 
         // Fetch coin balance
         coinService.getBalance().then(data => {
@@ -544,29 +544,15 @@ const StudentDashboard = () => {
     const renderDashboard = () => (
         <div className="space-y-6">
             <StudentPortalHeader profile={dashboardData?.profile} user={authUser} />
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-6">
-                    <ProgressCharts performanceData={performanceData} />
-                    
+
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="z-10 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <h2 className="text-xl md:text-3xl font-bold cursor-pointer hover:underline" onClick={() => {
-                                setShowSubModal(true);
-                                if (subPlans.length === 0) {
-                                    setSubLoading(true);
-                                    const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
-                                    fetch(`${apiBaseUrl}/coins/subscription/plans`, { credentials: 'include' })
-                                        .then(r => r.json()).then(d => setSubPlans(d.plans || [])).catch(() => { })
-                                        .finally(() => setSubLoading(false));
-                                }
-                            }}>{t.welcome}, {user.name}! </h2>
-                            <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">Lvl {user.level}</span>
-                            {mySub?.has_subscription ? (
-                                <span className="bg-emerald-400/30 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => setShowSubModal(true)}>✅ {mySub.subscription?.plan_name || 'Obuna'}</span>
-                            ) : (
-                                <span className="bg-yellow-400/30 px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => {
+                        <div className="z-10 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <h2 className="text-xl md:text-3xl font-bold cursor-pointer hover:underline" onClick={() => {
                                     setShowSubModal(true);
                                     if (subPlans.length === 0) {
                                         setSubLoading(true);
@@ -575,122 +561,138 @@ const StudentDashboard = () => {
                                             .then(r => r.json()).then(d => setSubPlans(d.plans || [])).catch(() => { })
                                             .finally(() => setSubLoading(false));
                                     }
-                                }}>⭐ Obuna bo'lish</span>
-                            )}
-                            {authUser?.id && <span className="bg-white/15 px-2 py-0.5 rounded-full text-[10px] font-mono opacity-70 cursor-pointer hover:opacity-100" onClick={() => { navigator.clipboard.writeText(authUser.id); setNotification({ type: 'success', message: 'ID nusxalandi!' }); }} title="ID nusxalash">ID: {authUser.id}</span>}
+                                }}>{t.welcome}, {user.name}! </h2>
+                                <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">Lvl {user.level}</span>
+                                {mySub?.has_subscription ? (
+                                    <span className="bg-emerald-400/30 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => setShowSubModal(true)}>✅ {mySub.subscription?.plan_name || 'Obuna'}</span>
+                                ) : (
+                                    <span className="bg-yellow-400/30 px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm cursor-pointer animate-pulse" onClick={() => {
+                                        setShowSubModal(true);
+                                        if (subPlans.length === 0) {
+                                            setSubLoading(true);
+                                            const apiBaseUrl = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
+                                            fetch(`${apiBaseUrl}/coins/subscription/plans`, { credentials: 'include' })
+                                                .then(r => r.json()).then(d => setSubPlans(d.plans || [])).catch(() => { })
+                                                .finally(() => setSubLoading(false));
+                                        }
+                                    }}>⭐ Obuna bo'lish</span>
+                                )}
+                                {authUser?.id && <span className="bg-white/15 px-2 py-0.5 rounded-full text-[10px] font-mono opacity-70 cursor-pointer hover:opacity-100" onClick={() => { navigator.clipboard.writeText(authUser.id); setNotification({ type: 'success', message: 'ID nusxalandi!' }); }} title="ID nusxalash">ID: {authUser.id}</span>}
+                            </div>
+                            <p className="opacity-90 mb-6 flex items-center gap-2">
+                                {user.parent ? <>Ota-onangiz sizni kuzatib bormoqda <Shield size={16} /></> : (displayTasks.filter(t => t.status === 'pending').length > 0 ? `Sizda ${displayTasks.filter(t => t.status === 'pending').length} ta bajarilmagan vazifa bor.` : "Barcha vazifalar bajarilgan!")}
+                            </p>
+                            <button onClick={() => setActiveTab('tasks')} className="bg-white text-indigo-600 px-6 py-2 rounded-full font-bold shadow-lg hover:scale-105 transition-transform">
+                                Boshlash
+                            </button>
                         </div>
-                        <p className="opacity-90 mb-6 flex items-center gap-2">
-                            {user.parent ? <>Ota-onangiz sizni kuzatib bormoqda <Shield size={16} /></> : (displayTasks.filter(t => t.status === 'pending').length > 0 ? `Sizda ${displayTasks.filter(t => t.status === 'pending').length} ta bajarilmagan vazifa bor.` : "Barcha vazifalar bajarilgan!")}
-                        </p>
-                        <button onClick={() => setActiveTab('tasks')} className="bg-white text-indigo-600 px-6 py-2 rounded-full font-bold shadow-lg hover:scale-105 transition-transform">
-                            Boshlash
+
+                        <div className="relative z-10 animate-bounce">{user.monster}</div>
+
+                        <ProgressCharts performanceData={performanceData} />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 sm:gap-4">
+                            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-2xl"><Coins size={24} className="text-yellow-600" /></div>
+                            <div>
+                                <p className="text-gray-500 text-sm">Coinlar</p>
+                                <h3 className="text-2xl font-bold text-gray-800">{coinBalance?.current_balance ?? user.points}</h3>
+                            </div>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+                            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-2xl"><Flame size={24} className="text-orange-600" /></div>
+                            <div>
+                                <p className="text-gray-500 text-sm">{t.stats.streak}</p>
+                                <h3 className="text-2xl font-bold text-gray-800">{user.streak} kun</h3>
+                            </div>
+                        </div>
+                        <button onClick={handleDailyBonus} disabled={dailyBonusClaimed}
+                            className={`bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 text-left transition-all ${dailyBonusClaimed ? 'border-green-200 bg-green-50' : 'border-yellow-200 hover:border-yellow-400 hover:shadow-md cursor-pointer'}`}>
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${dailyBonusClaimed ? 'bg-green-100' : 'bg-yellow-100 animate-pulse'}`}>
+                                {dailyBonusClaimed ? <CheckCircle size={24} className="text-green-600" /> : <Gift size={24} className="text-yellow-600" />}
+                            </div>
+                            <div>
+                                <p className="text-gray-500 text-sm">Kunlik bonus</p>
+                                <h3 className="text-lg font-bold text-gray-800">{dailyBonusClaimed ? 'Olingan' : '+5 coin'}</h3>
+                            </div>
                         </button>
                     </div>
-
-                    <div className="relative z-10 animate-bounce">{user.monster}</div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                    <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 sm:gap-4">
-                        <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-2xl"><Coins size={24} className="text-yellow-600" /></div>
-                        <div>
-                            <p className="text-gray-500 text-sm">Coinlar</p>
-                            <h3 className="text-2xl font-bold text-gray-800">{coinBalance?.current_balance ?? user.points}</h3>
-                        </div>
-                    </div>
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                        <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-2xl"><Flame size={24} className="text-orange-600" /></div>
-                        <div>
-                            <p className="text-gray-500 text-sm">{t.stats.streak}</p>
-                            <h3 className="text-2xl font-bold text-gray-800">{user.streak} kun</h3>
-                        </div>
-                    </div>
-                    <button onClick={handleDailyBonus} disabled={dailyBonusClaimed}
-                        className={`bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 text-left transition-all ${dailyBonusClaimed ? 'border-green-200 bg-green-50' : 'border-yellow-200 hover:border-yellow-400 hover:shadow-md cursor-pointer'}`}>
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${dailyBonusClaimed ? 'bg-green-100' : 'bg-yellow-100 animate-pulse'}`}>
-                            {dailyBonusClaimed ? <CheckCircle size={24} className="text-green-600" /> : <Gift size={24} className="text-yellow-600" />}
-                        </div>
-                        <div>
-                            <p className="text-gray-500 text-sm">Kunlik bonus</p>
-                            <h3 className="text-lg font-bold text-gray-800">{dailyBonusClaimed ? 'Olingan' : '+5 coin'}</h3>
-                        </div>
-                    </button>
-                </div>
-                {bonusMessage && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center text-yellow-800 font-medium animate-pulse">
-                        {bonusMessage}
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <button onClick={() => navigate('/livequiz')} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-4 sm:p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
-                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center"><Target size={24} /></div>
-                        <div className="text-left">
-                            <h3 className="font-bold text-lg">Live Quiz</h3>
-                            <p className="text-white/80 text-xs">Kod bilan qo'shiling</p>
-                        </div>
-                    </button>
-                    <button onClick={() => window.location.href = 'https://olimp.alif24.uz'} className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
-                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center"><Trophy size={24} /></div>
-                        <div className="text-left">
-                            <h3 className="font-bold text-lg">Olimpiada</h3>
-                            <p className="text-white/80 text-xs">Bilimingizni sinang</p>
-                        </div>
-                    </button>
-                </div>
-
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <BookOpen size={20} className="text-blue-500" /> Kitob O'qish Tahlillari
-                    </h3>
-                    {loadingAnalyses ? (
-                        <div className="text-center py-8">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-3"></div>
-                            <p className="text-gray-500">Yuklanmoqda...</p>
-                        </div>
-                    ) : readingAnalyses && readingAnalyses.total_sessions > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                            <div className="bg-blue-50 p-4 rounded-xl text-center">
-                                <div className="text-2xl font-bold text-blue-600">{readingAnalyses.total_words || 0}</div>
-                                <div className="text-xs text-gray-600 mt-1">So'zlar</div>
-                            </div>
-                            <div className="bg-green-50 p-4 rounded-xl text-center">
-                                <div className="text-2xl font-bold text-green-600">{readingAnalyses.avg_comprehension || 0}%</div>
-                                <div className="text-xs text-gray-600 mt-1">Tushunish</div>
-                            </div>
-                            <div className="bg-purple-50 p-4 rounded-xl text-center">
-                                <div className="text-2xl font-bold text-purple-600">{readingAnalyses.avg_pronunciation || 0}%</div>
-                                <div className="text-xs text-gray-600 mt-1">Talaffuz</div>
-                            </div>
-                            <div className="bg-red-50 p-4 rounded-xl text-center">
-                                <div className="text-2xl font-bold text-red-600">{readingAnalyses.total_errors || 0}</div>
-                                <div className="text-xs text-gray-600 mt-1">Xatolar</div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-400">
-                            <BookOpen size={48} className="mx-auto mb-2 opacity-30" />
-                            <p>Hali kitob o'qimadingiz</p>
+                    {bonusMessage && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center text-yellow-800 font-medium animate-pulse">
+                            {bonusMessage}
                         </div>
                     )}
-                </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                            <Clock size={20} className="text-blue-500" /> Diqqat Vaqti
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <button onClick={() => navigate('/livequiz')} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-4 sm:p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
+                            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center"><Target size={24} /></div>
+                            <div className="text-left">
+                                <h3 className="font-bold text-lg">Live Quiz</h3>
+                                <p className="text-white/80 text-xs">Kod bilan qo'shiling</p>
+                            </div>
+                        </button>
+                        <button onClick={() => window.location.href = 'https://olimp.alif24.uz'} className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
+                            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center"><Trophy size={24} /></div>
+                            <div className="text-left">
+                                <h3 className="font-bold text-lg">Olimpiada</h3>
+                                <p className="text-white/80 text-xs">Bilimingizni sinang</p>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <BookOpen size={20} className="text-blue-500" /> Kitob O'qish Tahlillari
                         </h3>
-                        <span className="text-2xl font-mono font-bold text-gray-700">{formatTime(timer)}</span>
+                        {loadingAnalyses ? (
+                            <div className="text-center py-8">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-3"></div>
+                                <p className="text-gray-500">Yuklanmoqda...</p>
+                            </div>
+                        ) : readingAnalyses && readingAnalyses.total_sessions > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                                <div className="bg-blue-50 p-4 rounded-xl text-center">
+                                    <div className="text-2xl font-bold text-blue-600">{readingAnalyses.total_words || 0}</div>
+                                    <div className="text-xs text-gray-600 mt-1">So'zlar</div>
+                                </div>
+                                <div className="bg-green-50 p-4 rounded-xl text-center">
+                                    <div className="text-2xl font-bold text-green-600">{readingAnalyses.avg_comprehension || 0}%</div>
+                                    <div className="text-xs text-gray-600 mt-1">Tushunish</div>
+                                </div>
+                                <div className="bg-purple-50 p-4 rounded-xl text-center">
+                                    <div className="text-2xl font-bold text-purple-600">{readingAnalyses.avg_pronunciation || 0}%</div>
+                                    <div className="text-xs text-gray-600 mt-1">Talaffuz</div>
+                                </div>
+                                <div className="bg-red-50 p-4 rounded-xl text-center">
+                                    <div className="text-2xl font-bold text-red-600">{readingAnalyses.total_errors || 0}</div>
+                                    <div className="text-xs text-gray-600 mt-1">Xatolar</div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-gray-400">
+                                <BookOpen size={48} className="mx-auto mb-2 opacity-30" />
+                                <p>Hali kitob o'qimadingiz</p>
+                            </div>
+                        )}
                     </div>
-                    <div className="flex gap-3">
-                        <button onClick={() => setIsTimerRunning(!isTimerRunning)} className={`flex-1 py-3 rounded-xl font-bold transition-colors ${isTimerRunning ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'}`}>
-                            {isTimerRunning ? 'To\'xtatish' : 'Boshlash'}
-                        </button>
-                        <button onClick={() => { setIsTimerRunning(false); setTimer(0) }} className="px-4 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200">
-                            Reset
-                        </button>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                <Clock size={20} className="text-blue-500" /> Diqqat Vaqti
+                            </h3>
+                            <span className="text-2xl font-mono font-bold text-gray-700">{formatTime(timer)}</span>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={() => setIsTimerRunning(!isTimerRunning)} className={`flex-1 py-3 rounded-xl font-bold transition-colors ${isTimerRunning ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'}`}>
+                                {isTimerRunning ? 'To\'xtatish' : 'Boshlash'}
+                            </button>
+                            <button onClick={() => { setIsTimerRunning(false); setTimer(0) }} className="px-4 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200">
+                                Reset
+                            </button>
+                        </div>
                     </div>
-                </div>
                 </div>
 
                 {/* Right Column (Sidebar tasks) */}
@@ -726,7 +728,7 @@ const StudentDashboard = () => {
                     <Trophy size={24} className="text-yellow-500" /> Sinf Reytingi
                 </h3>
             </div>
-            
+
             <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-100">
@@ -741,11 +743,10 @@ const StudentDashboard = () => {
                         {leaderboard.map((item) => (
                             <tr key={item.id} className={`${item.is_me ? 'bg-indigo-50/50' : ''} hover:bg-gray-50/80 transition-colors`}>
                                 <td className="px-6 py-4">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                                        item.rank === 1 ? 'bg-yellow-400 text-white shadow-lg shadow-yellow-400/20' :
-                                        item.rank === 2 ? 'bg-gray-300 text-white' :
-                                        item.rank === 3 ? 'bg-orange-300 text-white' : 'text-gray-400'
-                                    }`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-400 text-white shadow-lg shadow-yellow-400/20' :
+                                            item.rank === 2 ? 'bg-gray-300 text-white' :
+                                                item.rank === 3 ? 'bg-orange-300 text-white' : 'text-gray-400'
+                                        }`}>
                                         {item.rank}
                                     </div>
                                 </td>
@@ -1211,50 +1212,65 @@ const StudentDashboard = () => {
                                         const isFreePromo = result?.promo_type === 'free_days' || result?.promo_type === 'plan';
 
                                         return (
-                                        <div key={plan.id} className="border border-gray-200 rounded-xl p-4 hover:border-indigo-300 transition-all">
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div>
-                                                    <h4 className="font-bold text-gray-800">{plan.name}</h4>
-                                                    {plan.description && <p className="text-xs text-gray-500 mt-0.5">{plan.description}</p>}
+                                            <div key={plan.id} className="border border-gray-200 rounded-xl p-4 hover:border-indigo-300 transition-all">
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-800">{plan.name}</h4>
+                                                        {plan.description && <p className="text-xs text-gray-500 mt-0.5">{plan.description}</p>}
+                                                    </div>
+                                                    <div className="text-right">
+                                                        {hasDiscount ? (
+                                                            <>
+                                                                <p className="text-sm text-gray-400 line-through">{plan.price.toLocaleString()} UZS</p>
+                                                                <p className="text-xl font-black text-green-600">{discountedPrice.toLocaleString()} UZS</p>
+                                                            </>
+                                                        ) : (
+                                                            <p className="text-xl font-black text-indigo-600">
+                                                                {plan.price ? `${plan.price.toLocaleString()} UZS` : 'Bepul'}
+                                                            </p>
+                                                        )}
+                                                        <p className="text-[10px] text-gray-400">{plan.duration_days} kun</p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    {hasDiscount ? (
-                                                        <>
-                                                            <p className="text-sm text-gray-400 line-through">{plan.price.toLocaleString()} UZS</p>
-                                                            <p className="text-xl font-black text-green-600">{discountedPrice.toLocaleString()} UZS</p>
-                                                        </>
-                                                    ) : (
-                                                        <p className="text-xl font-black text-indigo-600">
-                                                            {plan.price ? `${plan.price.toLocaleString()} UZS` : 'Bepul'}
-                                                        </p>
-                                                    )}
-                                                    <p className="text-[10px] text-gray-400">{plan.duration_days} kun</p>
+                                                <div className="flex items-center gap-2 flex-wrap mb-3">
+                                                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md text-[10px] font-medium">{plan.max_children} bola</span>
+                                                    <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md text-[10px] font-medium">{plan.duration_days} kunlik</span>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 flex-wrap mb-3">
-                                                <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md text-[10px] font-medium">{plan.max_children} bola</span>
-                                                <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md text-[10px] font-medium">{plan.duration_days} kunlik</span>
-                                            </div>
 
-                                            {/* Promo code section */}
-                                            {plan.price > 0 && (
-                                                <div className="mb-3">
-                                                    {!promoOpen[plan.id] && !result ? (
-                                                        <button
-                                                            onClick={() => setPromoOpen(p => ({ ...p, [plan.id]: true }))}
-                                                            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 transition-colors"
-                                                        >
-                                                            <Tag size={13} />
-                                                            Promokod bormi?
-                                                        </button>
-                                                    ) : !result ? (
-                                                        <div className="flex items-center gap-2">
-                                                            <input
-                                                                type="text"
-                                                                value={sdPromoCode[plan.id] || ''}
-                                                                onChange={e => setSdPromoCode(p => ({ ...p, [plan.id]: e.target.value.toUpperCase() }))}
-                                                                onKeyDown={e => {
-                                                                    if (e.key === 'Enter') {
+                                                {/* Promo code section */}
+                                                {plan.price > 0 && (
+                                                    <div className="mb-3">
+                                                        {!promoOpen[plan.id] && !result ? (
+                                                            <button
+                                                                onClick={() => setPromoOpen(p => ({ ...p, [plan.id]: true }))}
+                                                                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 transition-colors"
+                                                            >
+                                                                <Tag size={13} />
+                                                                Promokod bormi?
+                                                            </button>
+                                                        ) : !result ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={sdPromoCode[plan.id] || ''}
+                                                                    onChange={e => setSdPromoCode(p => ({ ...p, [plan.id]: e.target.value.toUpperCase() }))}
+                                                                    onKeyDown={e => {
+                                                                        if (e.key === 'Enter') {
+                                                                            const code = (sdPromoCode[plan.id] || '').trim();
+                                                                            if (!code) return;
+                                                                            setSdPromoLoading(p => ({ ...p, [plan.id]: true }));
+                                                                            setSdPromoError(p => ({ ...p, [plan.id]: null }));
+                                                                            apiService.get(`/payments/promo/${encodeURIComponent(code)}`)
+                                                                                .then(res => setSdPromoResult(p => ({ ...p, [plan.id]: res.promo })))
+                                                                                .catch(err => setSdPromoError(p => ({ ...p, [plan.id]: err?.response?.detail || err?.message || "Promokod noto'g'ri" })))
+                                                                                .finally(() => setSdPromoLoading(p => ({ ...p, [plan.id]: false })));
+                                                                        }
+                                                                    }}
+                                                                    placeholder="Promokodni kiriting..."
+                                                                    className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400 uppercase"
+                                                                />
+                                                                <button
+                                                                    onClick={() => {
                                                                         const code = (sdPromoCode[plan.id] || '').trim();
                                                                         if (!code) return;
                                                                         setSdPromoLoading(p => ({ ...p, [plan.id]: true }));
@@ -1263,133 +1279,118 @@ const StudentDashboard = () => {
                                                                             .then(res => setSdPromoResult(p => ({ ...p, [plan.id]: res.promo })))
                                                                             .catch(err => setSdPromoError(p => ({ ...p, [plan.id]: err?.response?.detail || err?.message || "Promokod noto'g'ri" })))
                                                                             .finally(() => setSdPromoLoading(p => ({ ...p, [plan.id]: false })));
-                                                                    }
-                                                                }}
-                                                                placeholder="Promokodni kiriting..."
-                                                                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400 uppercase"
-                                                            />
-                                                            <button
-                                                                onClick={() => {
-                                                                    const code = (sdPromoCode[plan.id] || '').trim();
-                                                                    if (!code) return;
-                                                                    setSdPromoLoading(p => ({ ...p, [plan.id]: true }));
-                                                                    setSdPromoError(p => ({ ...p, [plan.id]: null }));
-                                                                    apiService.get(`/payments/promo/${encodeURIComponent(code)}`)
-                                                                        .then(res => setSdPromoResult(p => ({ ...p, [plan.id]: res.promo })))
-                                                                        .catch(err => setSdPromoError(p => ({ ...p, [plan.id]: err?.response?.detail || err?.message || "Promokod noto'g'ri" })))
-                                                                        .finally(() => setSdPromoLoading(p => ({ ...p, [plan.id]: false })));
-                                                                }}
-                                                                disabled={sdPromoLoading[plan.id] || !(sdPromoCode[plan.id] || '').trim()}
-                                                                className="bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                                                            >
-                                                                {sdPromoLoading[plan.id] ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
+                                                                    }}
+                                                                    disabled={sdPromoLoading[plan.id] || !(sdPromoCode[plan.id] || '').trim()}
+                                                                    className="bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                                                >
+                                                                    {sdPromoLoading[plan.id] ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSdPromoCode(p => ({ ...p, [plan.id]: '' }));
+                                                                        setSdPromoResult(p => ({ ...p, [plan.id]: null }));
+                                                                        setSdPromoError(p => ({ ...p, [plan.id]: null }));
+                                                                        setPromoOpen(p => ({ ...p, [plan.id]: false }));
+                                                                    }}
+                                                                    className="text-gray-400 hover:text-gray-600 p-1"
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <CheckCircle size={14} className="text-green-600" />
+                                                                    <span className="text-xs font-medium text-green-700">{result.message}</span>
+                                                                </div>
+                                                                <button onClick={() => {
                                                                     setSdPromoCode(p => ({ ...p, [plan.id]: '' }));
                                                                     setSdPromoResult(p => ({ ...p, [plan.id]: null }));
                                                                     setSdPromoError(p => ({ ...p, [plan.id]: null }));
                                                                     setPromoOpen(p => ({ ...p, [plan.id]: false }));
-                                                                }}
-                                                                className="text-gray-400 hover:text-gray-600 p-1"
-                                                            >
-                                                                <X size={14} />
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <CheckCircle size={14} className="text-green-600" />
-                                                                <span className="text-xs font-medium text-green-700">{result.message}</span>
+                                                                }} className="text-gray-400 hover:text-gray-600">
+                                                                    <X size={14} />
+                                                                </button>
                                                             </div>
-                                                            <button onClick={() => {
-                                                                setSdPromoCode(p => ({ ...p, [plan.id]: '' }));
-                                                                setSdPromoResult(p => ({ ...p, [plan.id]: null }));
-                                                                setSdPromoError(p => ({ ...p, [plan.id]: null }));
-                                                                setPromoOpen(p => ({ ...p, [plan.id]: false }));
-                                                            }} className="text-gray-400 hover:text-gray-600">
-                                                                <X size={14} />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                    {sdPromoError[plan.id] && (
-                                                        <p className="text-xs text-red-500 mt-1">{sdPromoError[plan.id]}</p>
-                                                    )}
-                                                </div>
-                                            )}
+                                                        )}
+                                                        {sdPromoError[plan.id] && (
+                                                            <p className="text-xs text-red-500 mt-1">{sdPromoError[plan.id]}</p>
+                                                        )}
+                                                    </div>
+                                                )}
 
-                                            {/* Free promo apply button */}
-                                            {isFreePromo && (
-                                                <button
-                                                    onClick={async () => {
-                                                        const code = (sdPromoCode[plan.id] || '').trim();
-                                                        if (!code) return;
-                                                        setSdApplyingPromo(p => ({ ...p, [plan.id]: true }));
-                                                        try {
-                                                            await apiService.post(`/payments/promo/${encodeURIComponent(code)}/apply`);
-                                                            if (refreshSubscription) refreshSubscription();
-                                                            setShowSubModal(false);
-                                                            showNotif('success', result.message);
-                                                        } catch (err) {
-                                                            setSdPromoError(p => ({ ...p, [plan.id]: err?.response?.detail || err?.message || "Xatolik" }));
-                                                        } finally {
-                                                            setSdApplyingPromo(p => ({ ...p, [plan.id]: false }));
-                                                        }
-                                                    }}
-                                                    disabled={sdApplyingPromo[plan.id]}
-                                                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-2.5 rounded-xl font-bold text-sm hover:from-green-600 hover:to-emerald-700 transition-all shadow-md flex items-center justify-center gap-2 mb-2"
-                                                >
-                                                    {sdApplyingPromo[plan.id] ? (
-                                                        <Loader2 size={16} className="animate-spin" />
-                                                    ) : (
-                                                        <>🎁 Faollashtirish — {result.message}</>
-                                                    )}
-                                                </button>
-                                            )}
-
-                                            {/* Payment button */}
-                                            {plan.price > 0 && !isFreePromo && (
-                                                <button
-                                                    onClick={async () => {
-                                                        try {
-                                                            const checkoutUrl = '/api/v1/payments/checkout';
-                                                            const body = {
-                                                                plan_config_id: plan.id,
-                                                                return_url: window.location.origin + '/student-dashboard?payment=success'
-                                                            };
-                                                            if (result?.promo_type === 'discount' && sdPromoCode[plan.id]) {
-                                                                body.promo_code = sdPromoCode[plan.id];
+                                                {/* Free promo apply button */}
+                                                {isFreePromo && (
+                                                    <button
+                                                        onClick={async () => {
+                                                            const code = (sdPromoCode[plan.id] || '').trim();
+                                                            if (!code) return;
+                                                            setSdApplyingPromo(p => ({ ...p, [plan.id]: true }));
+                                                            try {
+                                                                await apiService.post(`/payments/promo/${encodeURIComponent(code)}/apply`);
+                                                                if (refreshSubscription) refreshSubscription();
+                                                                setShowSubModal(false);
+                                                                showNotif('success', result.message);
+                                                            } catch (err) {
+                                                                setSdPromoError(p => ({ ...p, [plan.id]: err?.response?.detail || err?.message || "Xatolik" }));
+                                                            } finally {
+                                                                setSdApplyingPromo(p => ({ ...p, [plan.id]: false }));
                                                             }
-                                                            const res = await fetch(checkoutUrl, {
-                                                                method: 'POST',
-                                                                credentials: 'include',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify(body)
-                                                            });
-                                                            const data = await res.json();
-                                                            if (data.checkout_url) {
-                                                                if (data.transaction_id) {
-                                                                    localStorage.setItem('pending_payment_txn', data.transaction_id);
+                                                        }}
+                                                        disabled={sdApplyingPromo[plan.id]}
+                                                        className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-2.5 rounded-xl font-bold text-sm hover:from-green-600 hover:to-emerald-700 transition-all shadow-md flex items-center justify-center gap-2 mb-2"
+                                                    >
+                                                        {sdApplyingPromo[plan.id] ? (
+                                                            <Loader2 size={16} className="animate-spin" />
+                                                        ) : (
+                                                            <>🎁 Faollashtirish — {result.message}</>
+                                                        )}
+                                                    </button>
+                                                )}
+
+                                                {/* Payment button */}
+                                                {plan.price > 0 && !isFreePromo && (
+                                                    <button
+                                                        onClick={async () => {
+                                                            try {
+                                                                const checkoutUrl = '/api/v1/payments/checkout';
+                                                                const body = {
+                                                                    plan_config_id: plan.id,
+                                                                    return_url: window.location.origin + '/student-dashboard?payment=success'
+                                                                };
+                                                                if (result?.promo_type === 'discount' && sdPromoCode[plan.id]) {
+                                                                    body.promo_code = sdPromoCode[plan.id];
                                                                 }
-                                                                window.location.href = data.checkout_url;
-                                                            } else {
-                                                                showNotif('error', data.detail || "To'lov tizimi hozir ishlamayapti");
+                                                                const res = await fetch(checkoutUrl, {
+                                                                    method: 'POST',
+                                                                    credentials: 'include',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify(body)
+                                                                });
+                                                                const data = await res.json();
+                                                                if (data.checkout_url) {
+                                                                    if (data.transaction_id) {
+                                                                        localStorage.setItem('pending_payment_txn', data.transaction_id);
+                                                                    }
+                                                                    window.location.href = data.checkout_url;
+                                                                } else {
+                                                                    showNotif('error', data.detail || "To'lov tizimi hozir ishlamayapti");
+                                                                }
+                                                            } catch (e) {
+                                                                console.error('Payment error:', e);
+                                                                showNotif('error', "To'lov tizimi bilan bog'lanib bo'lmadi");
                                                             }
-                                                        } catch (e) {
-                                                            console.error('Payment error:', e);
-                                                            showNotif('error', "To'lov tizimi bilan bog'lanib bo'lmadi");
-                                                        }
-                                                    }}
-                                                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2.5 rounded-xl font-bold text-sm hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md flex items-center justify-center gap-2"
-                                                >
-                                                    {hasDiscount ? (
-                                                        <>💳 To'lov qilish — <span className="line-through opacity-60 mr-1">{plan.price.toLocaleString()}</span> {discountedPrice.toLocaleString()} UZS</>
-                                                    ) : (
-                                                        <>💳 To'lov qilish — {plan.price.toLocaleString()} UZS</>
-                                                    )}
-                                                </button>
-                                            )}
-                                        </div>
+                                                        }}
+                                                        className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2.5 rounded-xl font-bold text-sm hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md flex items-center justify-center gap-2"
+                                                    >
+                                                        {hasDiscount ? (
+                                                            <>💳 To'lov qilish — <span className="line-through opacity-60 mr-1">{plan.price.toLocaleString()}</span> {discountedPrice.toLocaleString()} UZS</>
+                                                        ) : (
+                                                            <>💳 To'lov qilish — {plan.price.toLocaleString()} UZS</>
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </div>
                                         );
                                     })}
                                 </div>
@@ -1868,10 +1869,10 @@ const StudentDashboard = () => {
                 </div>
             </div>
             {/* Level Up Modal */}
-            <LevelUpModal 
-                isOpen={showLevelUpModal} 
-                onClose={() => setShowLevelUpModal(false)} 
-                newLevel={dashboardData?.profile?.level || 1} 
+            <LevelUpModal
+                isOpen={showLevelUpModal}
+                onClose={() => setShowLevelUpModal(false)}
+                newLevel={dashboardData?.profile?.level || 1}
             />
 
         </>

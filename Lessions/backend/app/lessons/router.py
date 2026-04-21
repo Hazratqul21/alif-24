@@ -65,13 +65,13 @@ def _lesson_to_dict(lesson: Lesson) -> dict:
     return {
         "id": lesson.id,
         "title": lesson.title,
-        "subject": lesson.subject,
-        "content": lesson.content,
-        "grade_level": lesson.grade_level,
+        "subject": getattr(lesson, 'subject', None),
+        "content": getattr(lesson, 'content', None),
+        "grade_level": getattr(lesson, 'grade_level', None),
         "language": getattr(lesson, 'language', 'uz'),
         "video_url": getattr(lesson, 'video_url', None),
-        "created_at": lesson.created_at.isoformat() if lesson.created_at else None,
-        "updated_at": lesson.updated_at.isoformat() if lesson.updated_at else None,
+        "created_at": lesson.created_at.isoformat() if getattr(lesson, 'created_at', None) else None,
+        "updated_at": lesson.updated_at.isoformat() if getattr(lesson, 'updated_at', None) else None,
     }
 
 
@@ -80,14 +80,14 @@ def _ertak_to_dict(ertak: Story) -> dict:
         "id": ertak.id,
         "title": ertak.title,
         "content": ertak.content,
-        "language": ertak.language,
-        "age_group": ertak.age_group,
-        "has_audio": ertak.has_audio,
-        "audio_url": ertak.audio_url,
+        "language": getattr(ertak, 'language', 'uz'),
+        "age_group": getattr(ertak, 'age_group', '6-8'),
+        "has_audio": getattr(ertak, 'has_audio', False),
+        "audio_url": getattr(ertak, 'audio_url', None),
         "image_url": getattr(ertak, 'image_url', None),
-        "view_count": ertak.view_count,
-        "questions": ertak.questions or [],
-        "created_at": ertak.created_at.isoformat() if ertak.created_at else None,
+        "view_count": getattr(ertak, 'view_count', 0),
+        "questions": getattr(ertak, 'questions', []) or [],
+        "created_at": ertak.created_at.isoformat() if getattr(ertak, 'created_at', None) else None,
     }
 
 
