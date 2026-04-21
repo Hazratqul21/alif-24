@@ -63,6 +63,10 @@ const TeacherDashboard = () => {
   const [lessonFile, setLessonFile] = useState(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiPromptText, setAiPromptText] = useState('');
+  const [testMode, setTestMode] = useState('ai'); // ai, parse, manual
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [parsedQuestions, setParsedQuestions] = useState([]);
+  const [showTestReview, setShowTestReview] = useState(false);
 
   const [mySchool, setMySchool] = useState(null);
 
@@ -339,6 +343,61 @@ const TeacherDashboard = () => {
     } finally {
       setAiGenerating(false);
     }
+  };
+
+  const handleParseTextTest = async () => {
+    if (!aiPromptText || aiPromptText.length < 10) {
+      showNotif('error', "Analiz uchun matn kiriting!");
+      return;
+    }
+    setIsAnalyzing(true);
+    try {
+      const res = await teacherService.parseTextTest(aiPromptText);
+      if (res.success && res.tests?.length > 0) {
+        setParsedQuestions(res.tests);
+        setShowTestReview(true);
+      } else {
+        showNotif('warning', "Savollar topilmadi. Matnni tekshiring.");
+      }
+    } catch (err) {
+      showNotif('error', "Matnni analiz qilishda xatolik");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleParseFileTest = async (file) => {
+    if (!file) return;
+    setIsAnalyzing(true);
+    try {
+      const res = await teacherService.parseFileTest(file);
+      if (res.success && res.tests?.length > 0) {
+        setParsedQuestions(res.tests);
+        setShowTestReview(true);
+      } else {
+        showNotif('warning', "Fayldan savollar topilmadi.");
+      }
+    } catch (err) {
+      showNotif('error', "Faylni analiz qilishda xatolik");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleTestFinalized = (finalQuestions) => {
+    const testContent = JSON.stringify({
+      questions: finalQuestions,
+      time_limit_minutes: Math.max(5, finalQuestions.length * 2),
+      generated_by: 'parsed'
+    });
+    setNewAssignment(prev => ({
+      ...prev,
+      content: testContent,
+      description: `Test — ${finalQuestions.length} ta savol`,
+      assignment_type: 'test',
+    }));
+    setShowTestReview(false);
+    showNotif('success', "Test saqlandi!");
   };
 
 
@@ -1210,26 +1269,97 @@ const TeacherDashboard = () => {
           </div>
 
           {newAssignment.assignment_type === 'test' && (
-            <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/20 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
+            <div className="bg-gradient-to-br from-[#1e1e3e] to-[#2a2a4e] border border-white/10 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
                 <Zap className="w-5 h-5 text-purple-400" />
-                <span className="text-white font-medium">AI yordamida test tuzish</span>
+                <span className="text-white font-bold">Test yaratish usuli</span>
               </div>
-              <textarea
-                className="w-full bg-black/20 border border-purple-500/30 rounded-lg p-3 text-white text-sm mb-3 focus:outline-none focus:border-purple-400"
-                rows={4}
-                placeholder="Dars matni yoxud hikoyani kiriting. AI unga asoslanib test savollari va javoblarini tuzib beradi..."
-                value={aiPromptText}
-                onChange={(e) => setAiPromptText(e.target.value)}
-              />
-              <button
-                type="button"
-                disabled={aiGenerating}
-                onClick={handleGenerateAITest}
-                className="px-4 py-2 bg-purple-600/30 text-purple-300 rounded-lg text-sm font-medium hover:bg-purple-600/50 transition-colors w-full border border-purple-500/30 active:bg-purple-600 outline-none flex items-center justify-center disabled:opacity-50">
-                {aiGenerating ? <div className="w-4 h-4 border-2 border-purple-300/30 border-t-purple-300 rounded-full animate-spin mr-2" /> : null}
-                {aiGenerating ? 'AI Test tuzmoqda...' : 'Test generatsiya qilish'}
-              </button>
+              
+              <div className="flex gap-2 p-1 bg-black/20 rounded-xl">
+                <button type="button" onClick={() => setTestMode('ai')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${testMode === 'ai' ? 'bg-[#4b30fb] text-white shadow-lg shadow-[#4b30fb]/20' : 'text-white/40 hover:text-white/60'}`}>
+                  AI yordamida
+                </button>
+                <button type="button" onClick={() => setTestMode('parse')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${testMode === 'parse' ? 'bg-[#4b30fb] text-white shadow-lg shadow-[#4b30fb]/20' : 'text-white/40 hover:text-white/60'}`}>
+                  Matn/Fayldan
+                </button>
+                <button type="button" onClick={() => setTestMode('manual')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${testMode === 'manual' ? 'bg-[#4b30fb] text-white shadow-lg shadow-[#4b30fb]/20' : 'text-white/40 hover:text-white/60'}`}>
+                  Qo'lda (Tezkor)
+                </button>
+              </div>
+
+              {testMode === 'ai' && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <textarea
+                    className="w-full bg-black/20 border border-purple-500/30 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-purple-400 placeholder:text-white/20"
+                    rows={4}
+                    placeholder="Dars matni yoxud hikoyani kiriting. AI unga asoslanib test tuzib beradi..."
+                    value={aiPromptText}
+                    onChange={(e) => setAiPromptText(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    disabled={aiGenerating}
+                    onClick={handleGenerateAITest}
+                    className="px-4 py-3 bg-purple-600/30 text-purple-300 rounded-xl text-sm font-bold hover:bg-purple-600/50 transition-all w-full border border-purple-500/30 flex items-center justify-center disabled:opacity-50">
+                    {aiGenerating ? <div className="w-4 h-4 border-2 border-purple-300/30 border-t-purple-300 rounded-full animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
+                    {aiGenerating ? 'Test generatsiya qilinmoqda...' : 'Testni generatsiya qilish'}
+                  </button>
+                </div>
+              )}
+
+              {testMode === 'parse' && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="bg-black/20 border border-white/5 rounded-xl p-3">
+                    <p className="text-white/40 text-[10px] uppercase font-bold tracking-wider mb-2">Variant 1: Matnni joylang</p>
+                    <textarea
+                      className="w-full bg-transparent border-none p-0 text-white text-sm focus:outline-none placeholder:text-white/10"
+                      rows={3}
+                      placeholder="Test savollari va variantlarini bu yerga nusxalab qo'ying..."
+                      value={aiPromptText}
+                      onChange={(e) => setAiPromptText(e.target.value)}
+                    />
+                    <button type="button" onClick={handleParseTextTest} disabled={isAnalyzing || !aiPromptText}
+                      className="mt-2 text-xs text-blue-400 hover:text-blue-300 font-medium disabled:opacity-30">
+                      {isAnalyzing ? "Tahlil qilinmoqda..." : "Matndan analiz qilish"}
+                    </button>
+                  </div>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
+                    <div className="relative flex justify-center"><span className="bg-[#1e1e3e] px-2 text-[10px] text-white/20 font-bold">YOKI</span></div>
+                  </div>
+
+                  <div className="bg-black/20 border border-white/5 rounded-xl p-3">
+                    <p className="text-white/40 text-[10px] uppercase font-bold tracking-wider mb-2">Variant 2: Fayl yuklang (PDF/Word)</p>
+                    <input type="file" accept=".pdf,.doc,.docx" id="test-file-input" className="hidden" 
+                      onChange={(e) => handleParseFileTest(e.target.files[0])} />
+                    <label htmlFor="test-file-input" className="flex items-center gap-3 p-3 bg-white/5 border border-dashed border-white/10 rounded-xl cursor-pointer hover:bg-white/10 transition-colors">
+                      <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400"><Paperclip size={16} /></div>
+                      <div>
+                        <div className="text-white text-xs font-medium">Hujjat sarlavhasini tanlang</div>
+                        <div className="text-white/30 text-[10px]">PDF, Word fayllar qo'llab-quvvatlanadi</div>
+                      </div>
+                    </label>
+                    {isAnalyzing && <div className="mt-2 text-center"><div className="w-4 h-4 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mx-auto mr-2 inline-block align-middle" /><span className="text-[10px] text-blue-400">Fayl analiz qilinmoqda...</span></div>}
+                  </div>
+                </div>
+              )}
+
+              {testMode === 'manual' && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="p-4 bg-white/5 rounded-xl border border-white/10 text-center">
+                    <Edit size={24} className="text-white/20 mx-auto mb-2" />
+                    <p className="text-white/60 text-xs">Test savollarini qo'lda kiritish yoki test builder-dan foydalanish uchun bosing</p>
+                    <button type="button" onClick={() => { setParsedQuestions([{ id: 1, question: '', options: ['', '', '', ''], correct_answer: 0 }]); setShowTestReview(true); }}
+                      className="mt-3 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-medium transition-colors">
+                      Test Builderni ochish
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1388,6 +1518,113 @@ const TeacherDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Test Review & Edit Modal */}
+      <TestReviewModal 
+        show={showTestReview} 
+        questions={parsedQuestions} 
+        onClose={() => setShowTestReview(false)} 
+        onSave={handleTestFinalized} 
+      />
+    </div>
+  );
+};
+
+const TestReviewModal = ({ show, questions, onClose, onSave }) => {
+  const [localQuestions, setLocalQuestions] = React.useState(questions);
+
+  React.useEffect(() => {
+    setLocalQuestions(questions);
+  }, [questions]);
+
+  if (!show) return null;
+
+  const updateQuestion = (idx, field, val) => {
+    const updated = [...localQuestions];
+    updated[idx] = { ...updated[idx], [field]: val };
+    setLocalQuestions(updated);
+  };
+
+  const updateOption = (qIdx, oIdx, val) => {
+    const updated = [...localQuestions];
+    updated[qIdx].options[oIdx] = val;
+    setLocalQuestions(updated);
+  };
+
+  const removeQuestion = (idx) => {
+    setLocalQuestions(localQuestions.filter((_, i) => i !== idx));
+  };
+
+  const addQuestion = () => {
+    setLocalQuestions([...localQuestions, {
+      id: Date.now(),
+      question: '',
+      options: ['', '', '', ''],
+      correct_answer: 0
+    }]);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-[#1e1e3a] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-white/10">
+          <div>
+            <h3 className="text-white font-bold text-lg">Testni tekshirish va tahrirlash</h3>
+            <p className="text-white/40 text-xs mt-1">Jami: {localQuestions.length} ta savol</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={20} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          {localQuestions.map((q, qIdx) => (
+            <div key={q.id || qIdx} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4 relative group">
+              <button onClick={() => removeQuestion(qIdx)} className="absolute top-4 right-4 text-white/20 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-all">
+                <Trash2 size={16} />
+              </button>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Savol {qIdx + 1}</label>
+                <textarea
+                  value={q.question}
+                  onChange={(e) => updateQuestion(qIdx, 'question', e.target.value)}
+                  className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-purple-500/50 min-h-[80px]"
+                  placeholder="Savolni kiriting..."
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {q.options.map((opt, oIdx) => (
+                  <div key={oIdx} className={`flex items-center gap-2 p-2 rounded-lg transition-all ${q.correct_answer === oIdx ? 'bg-green-500/20 border border-green-500/30' : 'bg-white/5 border border-transparent'}`}>
+                    <input
+                      type="radio"
+                      name={`correct-${qIdx}`}
+                      checked={q.correct_answer === oIdx}
+                      onChange={() => updateQuestion(qIdx, 'correct_answer', oIdx)}
+                      className="w-4 h-4 accent-green-500"
+                    />
+                    <input
+                      type="text"
+                      value={opt}
+                      onChange={(e) => updateOption(qIdx, oIdx, e.target.value)}
+                      className="bg-transparent border-none text-white text-sm flex-1 focus:outline-none placeholder:text-white/10"
+                      placeholder={`Variant ${String.fromCharCode(65 + oIdx)}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          <button onClick={addQuestion} className="w-full py-4 border-2 border-dashed border-white/5 rounded-xl text-white/30 hover:text-white hover:border-white/10 hover:bg-white/5 transition-all text-sm font-medium flex items-center justify-center gap-2">
+            <Plus size={18} /> Yangi savol qo'shish
+          </button>
+        </div>
+
+        <div className="p-5 border-t border-white/10 bg-black/20 flex gap-3">
+          <button onClick={onClose} className="flex-1 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl text-sm font-bold transition-all">Bekor qilish</button>
+          <button onClick={() => onSave(localQuestions)} className="flex-1 py-3 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-all">Tasdiqlash va saqlash</button>
+        </div>
+      </div>
     </div>
   );
 };

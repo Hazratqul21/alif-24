@@ -180,6 +180,21 @@ class TeacherService {
     async deleteLesson(lessonId) {
         return apiService.delete(`/teachers/lessons/${lessonId}`);
     }
+
+    // TestAI Integration
+    async parseTextTest(text) {
+        return apiService.post('/testai/parse/text', { text });
+    }
+
+    async parseFileTest(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        return apiService.post('/testai/parse/file', formData);
+    }
+
+    async saveTest(testData) {
+        return apiService.post('/testai/save', testData);
+    }
 }
 
 export const teacherService = new TeacherService();
