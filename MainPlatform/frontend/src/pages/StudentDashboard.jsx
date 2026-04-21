@@ -588,15 +588,15 @@ const StudentDashboard = () => {
 
                                     {/* Obuna holati */}
                                     {mySub?.has_subscription ? (
+                                        // ✅ Obunasi bor — yashil, obuna nomi bilan
                                         <span
-                                            className="bg-emerald-400 text-emerald-900 px-3 py-1 rounded-full text-xs font-extrabold shadow cursor-pointer"
+                                            className="inline-flex items-center gap-1.5 bg-emerald-500 text-white px-3 py-1.5 rounded-full text-xs font-extrabold shadow-md cursor-pointer hover:bg-emerald-600 transition-colors"
                                             onClick={() => setShowSubModal(true)}
                                         >
-                                            ✅ {mySub.subscription?.plan_name || 'Obuna'}
+                                            ✅ {mySub.subscription?.plan_name || 'Obuna faol'}
                                         </span>
                                     ) : (
-                                        // AVVAL: bg-yellow-400/30 text yo'q — ko'rinmas edi
-                                        // ENDI:  to'q sariq fon + qora matn + border = hamma ko'radi
+                                        // ❌ Obuna yo'q — to'q kulrang, o'chib-yonib turadi, matn bilan
                                         <button
                                             onClick={() => {
                                                 setShowSubModal(true);
@@ -613,9 +613,13 @@ const StudentDashboard = () => {
                                                         .finally(() => setSubLoading(false));
                                                 }
                                             }}
-                                            className="inline-flex items-center gap-1.5 bg-yellow-400 hover:bg-yellow-300 text-yellow-900 px-4 py-1.5 rounded-full text-sm font-extrabold border-2 border-yellow-600 shadow-lg shadow-yellow-400/40 transition-all duration-200 hover:scale-105 animate-pulse"
+                                            className="inline-flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-xl text-xs font-bold border border-gray-500 shadow-lg transition-all duration-200 hover:scale-105 animate-pulse max-w-xs"
                                         >
-                                            ⭐ Obuna bo'lish
+                                            <span className="text-yellow-400 text-sm">⭐</span>
+                                            <span className="leading-tight">
+                                                Platformaning to'liq imkoniyatidan<br />
+                                                foydalanmoqchi bo'lsangiz — obuna bo'ling
+                                            </span>
                                         </button>
                                     )}
 
