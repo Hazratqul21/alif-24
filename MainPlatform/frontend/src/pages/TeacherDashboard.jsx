@@ -394,7 +394,7 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleTestFinalized = (finalQuestions) => {
+  const handleTestFinalized = async (finalQuestions) => {
     const testContent = JSON.stringify({
       questions: finalQuestions,
       time_limit_minutes: Math.max(5, finalQuestions.length * 2),
@@ -407,7 +407,21 @@ const TeacherDashboard = () => {
       assignment_type: 'test',
     }));
     setShowTestReview(false);
-    showNotif('success', "Test saqlandi!");
+
+    // Also save to backend as SavedTest for the library
+    try {
+      await teacherService.saveTest({
+        title: newAssignment.title || `Test — ${new Date().toLocaleDateString('uz')}`,
+        description: `${finalQuestions.length} ta savol`,
+        questions: finalQuestions,
+        difficulty: 'medium',
+        language: 'uz',
+      });
+      showNotif('success', "Test saqlandi va Kutubxonaga qo'shildi!");
+    } catch (err) {
+      console.error('Save test error:', err);
+      showNotif('success', "Test saqlandi!");
+    }
   };
 
 
@@ -1094,7 +1108,7 @@ const TeacherDashboard = () => {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-white">Kutubxona</h3>
       </div>
-      <ResourceLibrary />
+      <ResourceLibrary classrooms={classrooms} />
     </div>
   );
 

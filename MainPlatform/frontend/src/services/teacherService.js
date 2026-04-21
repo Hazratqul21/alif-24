@@ -195,6 +195,22 @@ class TeacherService {
     async saveTest(testData) {
         return apiService.post('/testai/save', testData);
     }
+
+    async getMyTests() {
+        return apiService.get('/testai/my-tests');
+    }
+
+    async deleteTest(testId) {
+        return apiService.delete(`/testai/test/${testId}`);
+    }
+
+    async assignTest(data) {
+        return apiService.post('/testai/assign', data);
+    }
+
+    async getTestResults(testId) {
+        return apiService.get(`/testai/results/${testId}`);
+    }
 }
 
 export const teacherService = new TeacherService();

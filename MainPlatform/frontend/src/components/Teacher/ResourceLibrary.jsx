@@ -1,28 +1,54 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { teacherService } from '../../services/teacherService';
 import {
   Folder, FolderPlus, File, FileText, Image, Film, Upload, Trash2,
-  Download, Search, ChevronRight, MoreVertical, Plus, X, Loader2,
-  FolderOpen, Paperclip, Grid, List
+  Download, Search, ChevronRight, Plus, X, Loader2,
+  FolderOpen, Paperclip, Grid, List, BookOpen, Eye, Play,
+  CheckCircle, Clock, Users, Award, Zap, MoreVertical, Send
 } from 'lucide-react';
 
-const ResourceLibrary = ({ onAttach }) => {
-  const [resources, setResources] = useState([]);
-  const [folders, setFolders] = useState([
-    { id: 'root', name: 'Barcha fayllar', parent: null },
-    { id: 'tests', name: 'Testlar', parent: 'root', icon: '📝' },
-    { id: 'presentations', name: 'Prezentatsiyalar', parent: 'root', icon: '📊' },
-    { id: 'documents', name: 'Hujjatlar', parent: 'root', icon: '📄' },
-    { id: 'media', name: 'Rasm va Video', parent: 'root', icon: '🖼️' },
-  ]);
+const ResourceLibrary = ({ classrooms = [], onAttach }) => {
+  // File management state
+  const [uploadedFiles, setUploadedFiles] = useState([]);
   const [currentFolder, setCurrentFolder] = useState('root');
-  const [viewMode, setViewMode] = useState('grid'); // grid or list
+  const [viewMode, setViewMode] = useState('grid');
   const [uploading, setUploading] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState([]);
   const fileInputRef = useRef(null);
+
+  // Saved tests state
+  const [savedTests, setSavedTests] = useState([]);
+  const [testsLoading, setTestsLoading] = useState(false);
+  const [selectedTest, setSelectedTest] = useState(null);
+  const [assigningTest, setAssigningTest] = useState(null);
+  const [assignClassName, setAssignClassName] = useState('');
+
+  const [folders, setFolders] = useState([
+    { id: 'root', name: 'Barcha fayllar', parent: null },
+    { id: 'tests', name: 'Testlar', parent: 'root', icon: '📝', isSpecial: true },
+    { id: 'presentations', name: 'Prezentatsiyalar', parent: 'root', icon: '📊' },
+    { id: 'documents', name: 'Hujjatlar', parent: 'root', icon: '📄' },
+    { id: 'media', name: 'Rasm va Video', parent: 'root', icon: '🖼️' },
+  ]);
+
+  // Fetch saved tests
+  const fetchSavedTests = useCallback(async () => {
+    setTestsLoading(true);
+    try {
+      const res = await teacherService.getMyTests();
+      setSavedTests(res.data?.tests || res.tests || []);
+    } catch (err) {
+      console.error('Failed to fetch tests:', err);
+    } finally {
+      setTestsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSavedTests();
+  }, [fetchSavedTests]);
 
   const breadcrumb = [];
   let current = folders.find(f => f.id === currentFolder);
@@ -33,7 +59,6 @@ const ResourceLibrary = ({ onAttach }) => {
 
   const currentFolderChildren = folders.filter(f => f.parent === currentFolder);
   const currentFiles = uploadedFiles.filter(f => f.folder === currentFolder);
-
   const filteredFiles = searchQuery
     ? uploadedFiles.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
     : currentFiles;
@@ -49,6 +74,7 @@ const ResourceLibrary = ({ onAttach }) => {
   };
 
   const formatFileSize = (bytes) => {
+    if (!bytes) return '';
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
@@ -57,11 +83,9 @@ const ResourceLibrary = ({ onAttach }) => {
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
-
     setUploading(true);
     try {
       for (const file of files) {
-        // Upload to server
         try {
           const res = await teacherService.uploadAssignmentFile(file);
           const fileData = res.data || res;
@@ -70,17 +94,16 @@ const ResourceLibrary = ({ onAttach }) => {
             name: file.name,
             size: file.size,
             url: fileData?.url || '#',
-            folder: currentFolder,
+            folder: currentFolder === 'tests' ? 'documents' : currentFolder,
             uploadedAt: new Date().toISOString(),
           }]);
         } catch {
-          // Fallback: store locally
           setUploadedFiles(prev => [...prev, {
             id: Date.now() + Math.random(),
             name: file.name,
             size: file.size,
             url: URL.createObjectURL(file),
-            folder: currentFolder,
+            folder: currentFolder === 'tests' ? 'documents' : currentFolder,
             uploadedAt: new Date().toISOString(),
           }]);
         }
@@ -107,51 +130,237 @@ const ResourceLibrary = ({ onAttach }) => {
     setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
+  const handleDeleteTest = async (testId) => {
+    if (!confirm("Bu testni o'chirishni xohlaysizmi?")) return;
+    try {
+      await teacherService.deleteTest(testId);
+      setSavedTests(prev => prev.filter(t => t.id !== testId));
+    } catch (err) {
+      console.error('Delete test error:', err);
+    }
+  };
+
+  const handleAssignTest = async (testId) => {
+    if (!assignClassName) return;
+    try {
+      await teacherService.assignTest({
+        test_id: testId,
+        class_name: assignClassName,
+      });
+      setAssigningTest(null);
+      setAssignClassName('');
+      alert("Test muvaffaqiyatli biriktirildi!");
+    } catch (err) {
+      console.error('Assign error:', err);
+      alert("Xatolik: " + (err.message || "Test biriktirishda muammo"));
+    }
+  };
+
+  const getDifficultyBadge = (diff) => {
+    switch (diff) {
+      case 'easy': return { label: 'Oson', cls: 'bg-green-500/20 text-green-400' };
+      case 'hard': return { label: 'Qiyin', cls: 'bg-red-500/20 text-red-400' };
+      default: return { label: "O'rta", cls: 'bg-amber-500/20 text-amber-400' };
+    }
+  };
+
+  // ============ RENDER: TESTS FOLDER ============
+  if (currentFolder === 'tests') {
+    return (
+      <div className="space-y-4">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1 text-xs">
+          <button onClick={() => setCurrentFolder('root')} className="text-white/40 hover:text-white/60 px-2 py-1 rounded-lg transition-colors">
+            Barcha fayllar
+          </button>
+          <ChevronRight className="w-3 h-3 text-white/20" />
+          <span className="text-white font-bold px-2 py-1 bg-white/10 rounded-lg">📝 Testlar</span>
+        </div>
+
+        {/* Tests Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-white font-bold text-lg">Saqlangan Testlar</h4>
+            <p className="text-white/40 text-xs mt-0.5">{savedTests.length} ta test</p>
+          </div>
+          <button onClick={fetchSavedTests} disabled={testsLoading}
+            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-white/40 text-xs transition-colors">
+            {testsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yangilash'}
+          </button>
+        </div>
+
+        {/* Tests List */}
+        {testsLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-8 h-8 text-white/20 animate-spin" />
+          </div>
+        ) : savedTests.length === 0 ? (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center">
+            <BookOpen className="w-14 h-14 text-white/10 mx-auto mb-3" />
+            <p className="text-white/50 font-medium">Hozircha saqlangan test yo'q</p>
+            <p className="text-white/25 text-sm mt-1">Vazifalar → Test → Matn/Fayldan orqali test yarating</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {savedTests.map(test => {
+              const diff = getDifficultyBadge(test.difficulty);
+              const isExpanded = selectedTest === test.id;
+
+              return (
+                <div key={test.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all">
+                  {/* Test Card Header */}
+                  <div className="p-4 cursor-pointer" onClick={() => setSelectedTest(isExpanded ? null : test.id)}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <FileText className="w-5 h-5 text-purple-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h5 className="text-white font-bold truncate">{test.title}</h5>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {test.subject && (
+                              <span className="text-white/30 text-xs bg-white/5 px-2 py-0.5 rounded">{test.subject}</span>
+                            )}
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${diff.cls}`}>{diff.label}</span>
+                            <span className="text-white/30 text-xs flex items-center gap-1">
+                              <BookOpen className="w-3 h-3" /> {test.questions_count || test.questions?.length || 0} ta savol
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                        <button onClick={(e) => { e.stopPropagation(); setAssigningTest(assigningTest === test.id ? null : test.id); }}
+                          className="p-2 hover:bg-green-500/20 rounded-lg text-white/30 hover:text-green-400 transition-all"
+                          title="Sinfga biriktirish">
+                          <Send className="w-4 h-4" />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTest(test.id); }}
+                          className="p-2 hover:bg-red-500/20 rounded-lg text-white/30 hover:text-red-400 transition-all"
+                          title="O'chirish">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {test.description && (
+                      <p className="text-white/40 text-xs mt-2 ml-[52px] line-clamp-1">{test.description}</p>
+                    )}
+
+                    <div className="flex items-center gap-3 mt-2 ml-[52px] text-[10px] text-white/20">
+                      {test.created_at && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {new Date(test.created_at).toLocaleDateString('uz')}
+                        </span>
+                      )}
+                      {test.language && <span className="uppercase">{test.language}</span>}
+                    </div>
+                  </div>
+
+                  {/* Assign Panel */}
+                  {assigningTest === test.id && (
+                    <div className="px-4 pb-3 border-t border-white/5">
+                      <div className="flex items-center gap-2 mt-3">
+                        <select value={assignClassName} onChange={(e) => setAssignClassName(e.target.value)}
+                          className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500/50 appearance-none">
+                          <option value="" className="bg-[#1e1e3e]">Sinf tanlang</option>
+                          {classrooms.map(c => (
+                            <option key={c.id} value={c.name} className="bg-[#1e1e3e]">{c.name}</option>
+                          ))}
+                        </select>
+                        <button onClick={() => handleAssignTest(test.id)} disabled={!assignClassName}
+                          className="px-4 py-2 bg-green-500/20 text-green-400 rounded-lg text-sm font-medium hover:bg-green-500/30 transition-colors disabled:opacity-30">
+                          Biriktirish
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Expanded: Questions Preview */}
+                  {isExpanded && test.questions && (
+                    <div className="border-t border-white/5 px-4 pb-4 max-h-80 overflow-y-auto">
+                      <div className="mt-3 space-y-3">
+                        {(test.questions || []).map((q, qIdx) => (
+                          <div key={qIdx} className="bg-black/20 rounded-xl p-3">
+                            <div className="flex items-start gap-2 mb-2">
+                              <span className="w-6 h-6 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-[10px] font-bold flex-shrink-0">
+                                {qIdx + 1}
+                              </span>
+                              <p className="text-white text-sm font-medium">{q.question}</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5 ml-8">
+                              {(q.options || []).map((opt, oIdx) => (
+                                <div key={oIdx}
+                                  className={`px-2.5 py-1.5 rounded-lg text-xs ${
+                                    (q.correct === oIdx || q.correct_answer === oIdx)
+                                      ? 'bg-green-500/20 text-green-400 font-medium'
+                                      : 'bg-white/5 text-white/50'
+                                  }`}>
+                                  <span className="font-bold mr-1">{String.fromCharCode(65 + oIdx)})</span> {opt}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ============ RENDER: NORMAL FILE BROWSER ============
   return (
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 relative min-w-[200px]">
           <Search className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Fayl qidirish..."
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#4b30fb]/50"
-          />
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#4b30fb]/50" />
         </div>
-
         <div className="flex items-center gap-2">
           <button onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
             className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white">
             {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
           </button>
-          <button onClick={() => setShowNewFolder(true)}
-            className="flex items-center gap-1.5 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-white/60 text-xs font-medium">
-            <FolderPlus className="w-4 h-4" /> Papka
-          </button>
+          {currentFolder !== 'root' && (
+            <button onClick={() => setShowNewFolder(true)}
+              className="flex items-center gap-1.5 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-white/60 text-xs font-medium">
+              <FolderPlus className="w-4 h-4" /> Papka
+            </button>
+          )}
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple className="hidden" />
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-xl text-white text-xs font-bold hover:scale-105 transition-transform disabled:opacity-50">
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            Yuklash
-          </button>
+          {currentFolder !== 'tests' && (
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-xl text-white text-xs font-bold hover:scale-105 transition-transform disabled:opacity-50">
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              Yuklash
+            </button>
+          )}
         </div>
       </div>
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-xs overflow-x-auto pb-1">
-        {breadcrumb.map((f, i) => (
-          <React.Fragment key={f.id}>
-            {i > 0 && <ChevronRight className="w-3 h-3 text-white/20 flex-shrink-0" />}
-            <button onClick={() => setCurrentFolder(f.id)}
-              className={`px-2 py-1 rounded-lg flex-shrink-0 transition-colors ${f.id === currentFolder ? 'text-white font-bold bg-white/10' : 'text-white/40 hover:text-white/60'}`}>
-              {f.name}
-            </button>
-          </React.Fragment>
-        ))}
-      </div>
+      {currentFolder !== 'root' && (
+        <div className="flex items-center gap-1 text-xs overflow-x-auto pb-1">
+          {breadcrumb.map((f, i) => (
+            <React.Fragment key={f.id}>
+              {i > 0 && <ChevronRight className="w-3 h-3 text-white/20 flex-shrink-0" />}
+              <button onClick={() => setCurrentFolder(f.id)}
+                className={`px-2 py-1 rounded-lg flex-shrink-0 transition-colors ${f.id === currentFolder ? 'text-white font-bold bg-white/10' : 'text-white/40 hover:text-white/60'}`}>
+                {f.name}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
 
       {/* New Folder Input */}
       {showNewFolder && (
@@ -160,28 +369,33 @@ const ResourceLibrary = ({ onAttach }) => {
           <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
             placeholder="Papka nomi..."
             className="flex-1 bg-transparent border-none text-white text-sm focus:outline-none placeholder:text-white/20"
-            autoFocus
-            onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
-          />
+            autoFocus onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()} />
           <button onClick={handleCreateFolder} className="text-green-400 hover:text-green-300 text-xs font-bold">Yaratish</button>
           <button onClick={() => setShowNewFolder(false)} className="text-white/30 hover:text-white/60"><X className="w-4 h-4" /></button>
         </div>
       )}
 
-      {/* Content */}
+      {/* Content Grid */}
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {/* Folders */}
           {currentFolderChildren.map(f => (
             <button key={f.id} onClick={() => setCurrentFolder(f.id)}
-              className="p-4 bg-white/5 border border-white/10 rounded-xl text-left hover:bg-white/10 transition-all group">
+              className="p-4 bg-white/5 border border-white/10 rounded-xl text-left hover:bg-white/10 transition-all group relative">
               <div className="text-2xl mb-2">{f.icon || '📁'}</div>
               <div className="text-white text-sm font-medium truncate">{f.name}</div>
-              <div className="text-white/30 text-[10px] mt-0.5">{uploadedFiles.filter(uf => uf.folder === f.id).length} ta fayl</div>
+              <div className="text-white/30 text-[10px] mt-0.5">
+                {f.id === 'tests'
+                  ? `${savedTests.length} ta test`
+                  : `${uploadedFiles.filter(uf => uf.folder === f.id).length} ta fayl`}
+              </div>
+              {f.id === 'tests' && savedTests.length > 0 && (
+                <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-[9px] font-bold">{savedTests.length}</span>
+                </div>
+              )}
             </button>
           ))}
 
-          {/* Files */}
           {filteredFiles.map(f => {
             const { icon: FileIcon, color, bg } = getFileIcon(f.name);
             return (
@@ -205,30 +419,26 @@ const ResourceLibrary = ({ onAttach }) => {
             );
           })}
 
-          {/* Empty state */}
           {currentFolderChildren.length === 0 && filteredFiles.length === 0 && (
             <div className="col-span-full py-10 text-center">
               <FolderOpen className="w-12 h-12 text-white/10 mx-auto mb-3" />
               <p className="text-white/30 text-sm">Bu papka bo'sh</p>
-              <p className="text-white/20 text-xs mt-1">Fayl yuklash tugmasini bosing</p>
             </div>
           )}
         </div>
       ) : (
-        /* List View */
         <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-          {/* Folders */}
           {currentFolderChildren.map(f => (
             <button key={f.id} onClick={() => setCurrentFolder(f.id)}
               className="w-full flex items-center gap-3 p-3 hover:bg-white/5 border-b border-white/5 transition-colors text-left">
               <span className="text-lg">{f.icon || '📁'}</span>
               <span className="text-white text-sm font-medium flex-1">{f.name}</span>
-              <span className="text-white/20 text-xs">{uploadedFiles.filter(uf => uf.folder === f.id).length} ta fayl</span>
+              <span className="text-white/20 text-xs">
+                {f.id === 'tests' ? `${savedTests.length} ta test` : `${uploadedFiles.filter(uf => uf.folder === f.id).length} ta fayl`}
+              </span>
               <ChevronRight className="w-4 h-4 text-white/20" />
             </button>
           ))}
-
-          {/* Files */}
           {filteredFiles.map(f => {
             const { icon: FileIcon, color, bg } = getFileIcon(f.name);
             return (
@@ -242,18 +452,13 @@ const ResourceLibrary = ({ onAttach }) => {
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   {onAttach && (
-                    <button onClick={() => onAttach(f)} className="p-1.5 bg-blue-500/20 rounded-lg text-blue-400 hover:bg-blue-500/30">
-                      <Paperclip className="w-3 h-3" />
-                    </button>
+                    <button onClick={() => onAttach(f)} className="p-1.5 bg-blue-500/20 rounded-lg text-blue-400"><Paperclip className="w-3 h-3" /></button>
                   )}
-                  <button onClick={() => handleDeleteFile(f.id)} className="p-1.5 bg-red-500/20 rounded-lg text-red-400 hover:bg-red-500/30">
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                  <button onClick={() => handleDeleteFile(f.id)} className="p-1.5 bg-red-500/20 rounded-lg text-red-400"><Trash2 className="w-3 h-3" /></button>
                 </div>
               </div>
             );
           })}
-
           {currentFolderChildren.length === 0 && filteredFiles.length === 0 && (
             <div className="py-10 text-center">
               <FolderOpen className="w-10 h-10 text-white/10 mx-auto mb-2" />
