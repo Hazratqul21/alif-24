@@ -18,6 +18,7 @@ import MathKidsAI from './pages/MathKidsAI';
 import LiveQuizStudent from './pages/LiveQuizStudent';
 import LiveQuizTeacher from './pages/LiveQuizTeacher';
 import LeaderboardPage from './pages/LeaderboardPage';
+import MarketplaceStore from './pages/MarketplaceStore';
 
 // Admin Panel
 import AdminLogin from './pages/admin/AdminLogin';
@@ -179,6 +180,16 @@ const AppRoutes = () => {
 
       {/* Global Leaderboard */}
       <Route path="/leaderboard" element={<LeaderboardPage />} />
+
+      {/* Marketplace Store */}
+      <Route
+        path="/market"
+        element={
+          <ProtectedRoute allowedRoles={['teacher', 'organization', 'moderator', 'student', 'parent']}>
+            <MarketplaceStore />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Teacher Dashboard */}
       <Route

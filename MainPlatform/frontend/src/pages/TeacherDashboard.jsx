@@ -16,8 +16,9 @@ import {
   GraduationCap, Target, TrendingUp, Calendar, MessageSquare,
   Play, Eye, Edit, Trash2, ArrowLeft, LogOut, Zap, Copy,
   Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon, Paperclip,
-  FolderOpen, Sparkles, Upload, List
+  FolderOpen, Sparkles, Upload, List, LayoutGrid, Tag, ShoppingBag
 } from 'lucide-react';
+import GradebookMatrix from '../components/Teacher/GradebookMatrix';
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
@@ -73,6 +74,11 @@ const TeacherDashboard = () => {
   const [parsedQuestions, setParsedQuestions] = useState([]);
   const [showTestReview, setShowTestReview] = useState(false);
 
+  // Marketplace states
+  const [showMarketListModal, setShowMarketListModal] = useState(false);
+  const [marketItemData, setMarketItemData] = useState({ resource_id: '', resource_type: '', title: '', price: 0, description: '' });
+  const [marketListingLoading, setMarketListingLoading] = useState(false);
+
   const [mySchool, setMySchool] = useState(null);
 
   const [assignmentView, setAssignmentView] = useState('list'); // list, calendar
@@ -80,15 +86,16 @@ const TeacherDashboard = () => {
   const [showStudentImport, setShowStudentImport] = useState(false);
 
   const tabLabels = {
-    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', resources: 'Kutubxona', school: 'Maktabim', settings: 'Sozlamalar' },
-    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', resources: 'Библиотека', school: 'Моя школа', settings: 'Настройки' },
-    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', resources: 'Library', school: 'My School', settings: 'Settings' },
+    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', jurnal: 'Jurnal', resources: 'Kutubxona', school: 'Maktabim', settings: 'Sozlamalar' },
+    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', jurnal: 'Журнал', resources: 'Библиотека', school: 'Моя школа', settings: 'Настройки' },
+    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', jurnal: 'Gradebook', resources: 'Library', school: 'My School', settings: 'Settings' },
   };
   const tl = tabLabels[language] || tabLabels.uz;
 
   const tabs = [
     { id: 'dashboard', label: tl.dashboard, icon: BarChart3 },
     { id: 'classes', label: tl.classes, icon: GraduationCap },
+    { id: 'jurnal', label: tl.jurnal, icon: LayoutGrid },
     { id: 'lessons', label: tl.lessons, icon: BookOpen },
     { id: 'assignments', label: tl.assignments, icon: ClipboardList },
     { id: 'livequiz', label: tl.livequiz, icon: Zap },
@@ -424,7 +431,19 @@ const TeacherDashboard = () => {
     }
   };
 
-
+  const handleListResourceInMarketplace = async (e) => {
+    e.preventDefault();
+    setMarketListingLoading(true);
+    try {
+      await apiService.post('/marketplace/list-resource', marketItemData);
+      showNotif('success', "Resurs marketpleysga qo'shildi!");
+      setShowMarketListModal(false);
+    } catch (err) {
+      showNotif('error', err.response?.data?.detail || "Xatolik yuz berdi");
+    } finally {
+      setMarketListingLoading(false);
+    }
+  };
 
   const handleDeleteClassroom = async (id) => {
     if (!confirm("Sinfni o'chirishni xohlaysizmi?")) return;
@@ -1112,9 +1131,36 @@ const TeacherDashboard = () => {
     </div>
   );
 
+  const renderGradebook = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-white">Elektron Jurnal</h3>
+        <select 
+          value={selectedClassroom || ''} 
+          onChange={(e) => fetchClassroomDetail(e.target.value)}
+          className="bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-[#4b30fb]"
+        >
+          <option value="" className="bg-[#1a1a2e]">Sinfni tanlang</option>
+          {classrooms.map(c => (
+            <option key={c.id} value={c.id} className="bg-[#1a1a2e]">{c.name}</option>
+          ))}
+        </select>
+      </div>
+      {selectedClassroom ? (
+        <GradebookMatrix classroomId={selectedClassroom} />
+      ) : (
+        <div className="bg-white/5 border border-white/10 rounded-3xl p-20 text-center flex flex-col items-center">
+          <LayoutGrid size={48} className="text-white/10 mb-4" />
+          <p className="text-white/40 max-w-xs">Jurnalni ko'rish uchun yuqoridagi ro'yxatdan sinfni tanlang</p>
+        </div>
+      )}
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeTab) {
       case 'classes': return renderClasses();
+      case 'jurnal': return renderGradebook();
       case 'lessons': return renderEnhancedLessons();
       case 'assignments': return renderEnhancedAssignments();
       case 'livequiz': return renderLiveQuiz();
@@ -1190,7 +1236,16 @@ const TeacherDashboard = () => {
               </div>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
                 <span className="text-white/30 text-xs">{l.created_at ? new Date(l.created_at).toLocaleDateString('uz') : ''}</span>
-                <div className="flex gap-2">
+                  <button onClick={() => {
+                    setMarketItemData({
+                      resource_id: l.id,
+                      resource_type: 'lesson',
+                      title: l.title,
+                      price: 15000,
+                      description: l.content || ''
+                    });
+                    setShowMarketListModal(true);
+                  }} className="text-white/20 hover:text-green-400 p-1" title="Sotuvga qo'yish"><Tag size={14} /></button>
                   <button className="text-white/20 hover:text-blue-400 p-1"><Eye size={14} /></button>
                   <button onClick={() => teacherService.deleteLesson(l.id).then(() => { fetchLessons(); showNotif('success', "Dars o'chirildi"); }).catch(() => showNotif('error', 'Xatolik'))}
                     className="text-white/20 hover:text-red-400 p-1"><Trash2 size={14} /></button>
@@ -1840,6 +1895,49 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
           <button onClick={() => onSave(localQuestions)} className="flex-1 py-3 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-all">Tasdiqlash va saqlash</button>
         </div>
       </div>
+      {/* Marketplace Listing Modal */}
+      {renderModal(showMarketListModal, () => setShowMarketListModal(false), "Resursni sotuvga qo'yish",
+        <form onSubmit={handleListResourceInMarketplace} className="space-y-4">
+          <div className="bg-white/5 p-4 rounded-xl border border-white/5 mb-4">
+             <div className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Tanlangan resurs</div>
+             <div className="text-white font-bold">{marketItemData.title}</div>
+          </div>
+          
+          <div>
+            <label className="block text-xs font-black text-white/40 uppercase mb-2">Narxi (UZS)</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                placeholder="15000" 
+                value={marketItemData.price} 
+                onChange={e => setMarketItemData({ ...marketItemData, price: parseInt(e.target.value) || 0 })}
+                className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500" 
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 font-bold">UZS</span>
+            </div>
+            <p className="text-[10px] text-white/30 mt-2 italic">Platforma komissiyasi: 10% ({(marketItemData.price * 0.1).toLocaleString()} so'm)</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-black text-white/40 uppercase mb-2">Qisqacha tavsif</label>
+            <textarea 
+              placeholder="Ushbu dars nima haqida? (Buyerlar uchun)" 
+              value={marketItemData.description} 
+              onChange={e => setMarketItemData({ ...marketItemData, description: e.target.value })}
+              className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white h-24 resize-none focus:outline-none focus:border-green-500"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={marketListingLoading}
+            className="w-full bg-gradient-to-br from-green-500 to-green-600 text-white py-4 rounded-xl font-black shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-all disabled:opacity-50"
+          >
+            {marketListingLoading ? 'YUKLANMOQDA...' : 'MARKETGA JOYLASHTIRISH'}
+          </button>
+        </form>
+      )}
+
     </div>
   );
 };

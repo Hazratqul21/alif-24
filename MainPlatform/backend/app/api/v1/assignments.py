@@ -621,6 +621,7 @@ async def submit_assignment(
 
 class TestSubmission(BaseModel):
     answers: dict  # {"0": "b", "1": "a", ...} — savol indeksi: tanlangan javob
+    time_spent_seconds: Optional[int] = None
 
 @router.post("/students/assignments/{assignment_id}/submit-test")
 async def submit_test_assignment(
@@ -684,13 +685,20 @@ async def submit_test_assignment(
     score = round((correct_count / max(total, 1)) * (assignment.max_score or 100), 1)
 
     # Submission yangilash
-    submission.content = json.dumps({
+    summary = {
         "answers": data.answers,
         "results": results,
         "correct_count": correct_count,
         "total": total,
         "score": score,
-    })
+        "time_spent_seconds": data.time_spent_seconds,
+    }
+    submission.content = json.dumps(summary)
+    submission.meta_data = {
+        "correct": correct_count,
+        "total": total,
+        "time_spent_seconds": data.time_spent_seconds,
+    }
     submission.score = score
     submission.status = SubmissionStatus.graded
     submission.submitted_at = datetime.now(timezone.utc)
@@ -964,4 +972,70 @@ async def parent_assign_task(
     return {
         "success": True,
         "data": {"assignment": assignment_dict(assignment), "assigned_to": len(data.target_student_ids)},
+    }
+
+
+# ============================================================
+# GRADEBOOK DETAIL REPORT
+# ============================================================
+
+@router.get("/{assignment_id}/report")
+async def get_assignment_report(
+    assignment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Detailed results for a specific assignment (Table 2 in Gradebook).
+    Returns breakdown: correct count, incorrect, time, rank, etc.
+    """
+    # 1. Fetch assignment
+    a_res = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
+    assignment = a_res.scalars().first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Vazifa topilmadi")
+
+    # 2. Fetch submissions
+    sub_stmt = (
+        select(AssignmentSubmission)
+        .where(AssignmentSubmission.assignment_id == assignment_id)
+        .order_by(AssignmentSubmission.score.desc(), AssignmentSubmission.submitted_at.asc())
+    )
+    sub_res = await db.execute(sub_stmt)
+    submissions = sub_res.scalars().all()
+
+    # 3. Process results with Ranks
+    results = []
+    # Rank is simply the index + 1 in the sorted list (since we sorted by score DESC)
+    for i, s in enumerate(submissions):
+        u_res = await db.execute(select(User).where(User.id == s.student_user_id))
+        user = u_res.scalars().first()
+        
+        meta = s.meta_data or {}
+        
+        results.append({
+            "student_id": s.student_user_id,
+            "student_first_name": user.first_name if user else "O'quvchi",
+            "student_last_name": user.last_name if user else "",
+            "correct_count": meta.get("correct", 0),
+            "total_questions": meta.get("total", 0),
+            "incorrect_count": meta.get("total", 0) - meta.get("correct", 0),
+            "time_spent_seconds": meta.get("time_spent_seconds", 0),
+            "score": s.score,
+            "status": s.status.value,
+            "rank": i + 1 if s.status == SubmissionStatus.graded else None,
+            "submitted_at": s.submitted_at.isoformat() if s.submitted_at else None
+        })
+
+    return {
+        "success": True,
+        "data": {
+            "assignment": {
+                "id": assignment.id,
+                "title": assignment.title,
+                "type": assignment.assignment_type.value,
+                "max_score": assignment.max_score
+            },
+            "results": results
+        }
     }

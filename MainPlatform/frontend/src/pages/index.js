@@ -11,3 +11,4 @@ export { default as SmartKidsAI } from './SmartKidsAI';
 export { default as MathKidsAI } from './MathKidsAI';
 export { default as LiveQuizStudent } from './LiveQuizStudent';
 export { default as LiveQuizTeacher } from './LiveQuizTeacher';
+export { default as MarketplaceStore } from './MarketplaceStore';

@@ -111,8 +111,9 @@ class PaymentTransaction(Base):
     # Foydalanuvchi
     user_id = Column(String(8), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
-    # Plan (nimaga to'layapti)
+    # Plan / Item (nimaga to'layapti)
     plan_config_id = Column(String(8), ForeignKey("subscription_plan_configs.id"), nullable=True)
+    marketplace_item_id = Column(String(8), ForeignKey("marketplace_items.id"), nullable=True)
 
     # Gateway
     gateway_config_id = Column(String(8), ForeignKey("payment_gateway_configs.id"), nullable=True)
@@ -138,9 +139,14 @@ class PaymentTransaction(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Financial Breakdown (Marketplace uchun)
+    commission_amount = Column(Integer, default=0)         # Platforma ulushi
+    seller_amount = Column(Integer, default=0)             # Sotuvchi ulushi
+
     # Relationships
     user = relationship("User", backref="payment_transactions")
     plan_config = relationship("SubscriptionPlanConfig")
+    marketplace_item = relationship("MarketplaceItem")
     gateway_config = relationship("PaymentGatewayConfig", back_populates="transactions")
 
     def __repr__(self):

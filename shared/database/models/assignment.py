@@ -128,6 +128,10 @@ class AssignmentSubmission(Base):
     graded_at = Column(DateTime(timezone=True), nullable=True)
     graded_by = Column(String(8), ForeignKey("users.id"), nullable=True)
 
+    # Detailed results for Gradebook (Jurnal)
+    # {"correct": 5, "incorrect": 2, "total": 7, "time_spent_seconds": 120}
+    meta_data = Column(JSON, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

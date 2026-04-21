@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, and_
 from pydantic import BaseModel, Field
 
 from shared.database import get_db
@@ -18,6 +18,7 @@ from shared.database.models.classroom import (
     ClassroomStudentStatus, InvitationStatus, InvitationType,
     generate_invite_code,
 )
+from shared.database.models.assignment import Assignment, AssignmentSubmission, SubmissionStatus
 from shared.database.models.in_app_notification import InAppNotification, InAppNotifType
 from app.middleware.auth import get_current_user
 from shared.subscription import require_feature, SubscriptionInfo
@@ -776,3 +777,106 @@ async def get_child_teachers(
             })
 
     return {"success": True, "data": teachers_info}
+
+
+# ============================================================
+# GRADEBOOK (JURNAL) API
+# ============================================================
+
+@router.get("/{classroom_id}/gradebook")
+async def get_gradebook_matrix(
+    classroom_id: str,
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Electronic Gradebook (Jurnal) Matrix data.
+    Provides a grid of students vs assignments with their scores.
+    """
+    teacher = await get_teacher_profile(current_user, db)
+
+    # 1. Verify Classroom ownership
+    cls_res = await db.execute(
+        select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id)
+    )
+    classroom = cls_res.scalars().first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Sinf topilmadi")
+
+    # 2. Get active students in classroom
+    students_stmt = (
+        select(User.id, User.first_name, User.last_name, User.avatar_id)
+        .join(ClassroomStudent, ClassroomStudent.student_user_id == User.id)
+        .where(
+            ClassroomStudent.classroom_id == classroom_id,
+            ClassroomStudent.status == ClassroomStudentStatus.active
+        )
+        .order_by(User.last_name, User.first_name)
+    )
+    students_res = await db.execute(students_stmt)
+    students = [
+        {"id": row.id, "first_name": row.first_name, "last_name": row.last_name, "avatar_id": row.avatar_id}
+        for row in students_res.fetchall()
+    ]
+    student_ids = [s["id"] for s in students]
+
+    # 3. Get assignments for this classroom in range
+    assign_stmt = select(Assignment).where(Assignment.classroom_id == classroom_id)
+    if start_date:
+        assign_stmt = assign_stmt.where(Assignment.created_at >= start_date)
+    else:
+        # Default to last 30 days
+        assign_stmt = assign_stmt.where(Assignment.created_at >= datetime.now(timezone.utc) - timedelta(days=30))
+    
+    if end_date:
+        assign_stmt = assign_stmt.where(Assignment.created_at <= end_date)
+    
+    assign_stmt = assign_stmt.order_by(Assignment.created_at.asc())
+    assign_res = await db.execute(assign_stmt)
+    assignments = assign_res.scalars().all()
+    assignment_ids = [a.id for a in assignments]
+
+    # 4. Get submissions for these students and assignments
+    if student_ids and assignment_ids:
+        sub_stmt = select(AssignmentSubmission).where(
+            and_(
+                AssignmentSubmission.assignment_id.in_(assignment_ids),
+                AssignmentSubmission.student_user_id.in_(student_ids)
+            )
+        )
+        sub_res = await db.execute(sub_stmt)
+        submissions = sub_res.scalars().all()
+    else:
+        submissions = []
+
+    # 5. Build Matrix
+    matrix = {sid: {} for sid in student_ids}
+    for sub in submissions:
+        if sub.student_user_id in matrix:
+            matrix[sub.student_user_id][sub.assignment_id] = {
+                "score": sub.score,
+                "status": sub.status.value,
+                "meta": sub.meta_data,
+                "id": sub.id
+            }
+
+    return {
+        "success": True,
+        "data": {
+            "classroom": {"id": classroom.id, "name": classroom.name, "subject": classroom.subject},
+            "students": students,
+            "assignments": [
+                {
+                    "id": a.id,
+                    "title": a.title,
+                    "type": a.assignment_type.value,
+                    "max_score": a.max_score,
+                    "date": a.created_at.isoformat(),
+                    "due_date": a.due_date.isoformat() if a.due_date else None,
+                } for a in assignments
+            ],
+            "matrix": matrix
+        }
+    }

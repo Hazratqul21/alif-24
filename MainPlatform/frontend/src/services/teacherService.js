@@ -211,6 +211,17 @@ class TeacherService {
     async getTestResults(testId) {
         return apiService.get(`/testai/results/${testId}`);
     }
+
+    async getGradebook(classroomId, startDate = null, endDate = null) {
+        const params = {};
+        if (startDate) params.start_date = startDate;
+        if (endDate) params.end_date = endDate;
+        return apiService.get(`/teachers/classrooms/${classroomId}/gradebook`, params);
+    }
+
+    async getAssignmentReport(assignmentId) {
+        return apiService.get(`/teachers/assignments/${assignmentId}/report`);
+    }
 }
 
 export const teacherService = new TeacherService();
