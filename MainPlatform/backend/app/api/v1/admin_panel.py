@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, text, select
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 import os
@@ -2037,6 +2037,13 @@ class PromoCodeCreateRequest(BaseModel):
     starts_at: Optional[str] = None
     expires_at: Optional[str] = None
 
+    @field_validator("plan_config_id", "description", "starts_at", "expires_at", mode="before")
+    @classmethod
+    def _empty_string_to_none(cls, v):
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
+
 class PromoCodeUpdateRequest(BaseModel):
     description: Optional[str] = None
     discount_percent: Optional[int] = None
@@ -2047,6 +2054,13 @@ class PromoCodeUpdateRequest(BaseModel):
     is_active: Optional[bool] = None
     starts_at: Optional[str] = None
     expires_at: Optional[str] = None
+
+    @field_validator("plan_config_id", "description", "starts_at", "expires_at", mode="before")
+    @classmethod
+    def _empty_string_to_none(cls, v):
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
 
 
 @router.get("/promo-codes")
