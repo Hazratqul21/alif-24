@@ -115,7 +115,7 @@ def assignment_dict(a: Assignment) -> dict:
         "id": a.id,
         "title": a.title,
         "description": getattr(a, 'description', None),
-        "assignment_type": a.assignment_type.value if getattr(a, 'assignment_type', None) else None,
+        "assignment_type": a.assignment_type.value if hasattr(a.assignment_type, 'value') else a.assignment_type,
         "content": getattr(a, 'content', None),
         "attachments": getattr(a, 'attachments', None),
         "reference_id": getattr(a, 'reference_id', None),
@@ -124,7 +124,7 @@ def assignment_dict(a: Assignment) -> dict:
         "due_date": a.due_date.isoformat() if getattr(a, 'due_date', None) else None,
         "classroom_id": getattr(a, 'classroom_id', None),
         "is_published": getattr(a, 'is_published', True),
-        "creator_role": a.creator_role.value if getattr(a, 'creator_role', None) else None,
+        "creator_role": a.creator_role.value if hasattr(a.creator_role, 'value') else a.creator_role,
         "created_at": a.created_at.isoformat() if getattr(a, 'created_at', None) else None,
     }
 
@@ -138,7 +138,7 @@ def submission_dict(s: AssignmentSubmission) -> dict:
         "attachments": getattr(s, 'attachments', None),
         "score": getattr(s, 'score', None),
         "feedback": getattr(s, 'feedback', None),
-        "status": s.status.value if getattr(s, 'status', None) else None,
+        "status": s.status.value if hasattr(s.status, 'value') else s.status,
         "submitted_at": s.submitted_at.isoformat() if getattr(s, 'submitted_at', None) else None,
         "graded_at": s.graded_at.isoformat() if getattr(s, 'graded_at', None) else None,
     }
@@ -296,8 +296,8 @@ async def get_teacher_assignments(
         )
         subs = sub_res.scalars().all()
         d["total_students"] = len(subs)
-        d["submitted_count"] = sum(1 for s in subs if s.status in [SubmissionStatus.submitted, SubmissionStatus.graded])
-        d["graded_count"] = sum(1 for s in subs if s.status == SubmissionStatus.graded)
+        d["submitted_count"] = sum(1 for s in subs if str(getattr(s, 'status', '')) in [SubmissionStatus.submitted, SubmissionStatus.graded])
+        d["graded_count"] = sum(1 for s in subs if str(getattr(s, 'status', '')) == SubmissionStatus.graded)
         result.append(d)
 
     return {"success": True, "data": {"assignments": result, "total": len(result)}}

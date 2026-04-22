@@ -783,7 +783,7 @@ async def get_child_teachers(
 # GRADEBOOK (JURNAL) API
 # ============================================================
 
-@router.get("/{classroom_id}/gradebook")
+@router.get("/teachers/classrooms/{classroom_id}/gradebook")
 async def get_gradebook_matrix(
     classroom_id: str,
     start_date: Optional[datetime] = Query(None),

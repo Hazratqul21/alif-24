@@ -86,9 +86,9 @@ const TeacherDashboard = () => {
   const [showStudentImport, setShowStudentImport] = useState(false);
 
   const tabLabels = {
-    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', jurnal: 'Jurnal', resources: 'Kutubxona', school: 'Maktabim', settings: 'Sozlamalar' },
-    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', jurnal: 'Журнал', resources: 'Библиотека', school: 'Моя школа', settings: 'Настройки' },
-    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', jurnal: 'Gradebook', resources: 'Library', school: 'My School', settings: 'Settings' },
+    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', jurnal: 'Jurnal', resources: 'Kutubxona', marketplace: 'Marketplace', school: 'Maktabim', settings: 'Sozlamalar' },
+    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', jurnal: 'Журнал', resources: 'Библиотека', marketplace: 'Маркетплейс', school: 'Моя школа', settings: 'Настройки' },
+    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', jurnal: 'Gradebook', resources: 'Library', marketplace: 'Marketplace', school: 'My School', settings: 'Settings' },
   };
   const tl = tabLabels[language] || tabLabels.uz;
 
@@ -100,6 +100,7 @@ const TeacherDashboard = () => {
     { id: 'assignments', label: tl.assignments, icon: ClipboardList },
     { id: 'livequiz', label: tl.livequiz, icon: Zap },
     { id: 'resources', label: tl.resources, icon: FolderOpen },
+    { id: 'marketplace', label: tl.marketplace, icon: ShoppingBag },
     { id: 'school', label: tl.school, icon: Award },
     { id: 'settings', label: tl.settings, icon: Settings },
   ];
@@ -1372,7 +1373,15 @@ const TeacherDashboard = () => {
           </div>
           <nav className="flex-1 space-y-1">
             {tabs.map((tab) => (
-              <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSelectedClassroom(null); setClassroomDetail(null); }}
+              <button key={tab.id} onClick={() => {
+                if (tab.id === 'marketplace') {
+                  navigate('/market');
+                  return;
+                }
+                setActiveTab(tab.id);
+                setSelectedClassroom(null);
+                setClassroomDetail(null);
+              }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all border-none cursor-pointer ${activeTab === tab.id ? 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/5 bg-transparent'
                   }`}>
                 <tab.icon size={18} />{tab.label}
@@ -1388,7 +1397,13 @@ const TeacherDashboard = () => {
 
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#1a1a2e] border-t border-white/10 flex z-[999] overflow-x-auto">
           {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            <button key={tab.id} onClick={() => {
+              if (tab.id === 'marketplace') {
+                navigate('/market');
+              } else {
+                setActiveTab(tab.id);
+              }
+            }}
               className={`flex-1 flex flex-col items-center py-2 px-1 text-[10px] gap-1 border-none cursor-pointer transition-colors min-w-0 ${activeTab === tab.id ? 'text-[#4b30fb] bg-transparent' : 'text-gray-400 bg-transparent'
                 }`}>
               <tab.icon size={18} /><span className="truncate">{tab.label}</span>
