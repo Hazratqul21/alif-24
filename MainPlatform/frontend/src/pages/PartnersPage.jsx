@@ -49,8 +49,13 @@ const PartnersPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
       <SEO
         title="Hamkorlar"
-        description="Alif24 ta'lim muassasalari, korxonalar va shaxslar uchun hamkorlik imkoniyatlari."
+        description="Alif24 bilan hamkorlik — maktablar, o'quv markazlari, korxonalar va brendlar uchun maxsus imkoniyatlar. Hamkorlik shartlari va afzalliklari."
+        keywords="alif24 hamkorlik, ta'lim hamkorlari, maktab hamkorligi, o'quv markazlari, edtech hamkorlik"
         path="/partners"
+        breadcrumbs={[
+          { name: 'Bosh sahifa', path: '/' },
+          { name: 'Hamkorlar', path: '/partners' },
+        ]}
       />
       <Navbar />
 

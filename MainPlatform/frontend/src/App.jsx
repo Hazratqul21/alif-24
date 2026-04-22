@@ -32,6 +32,7 @@ const LiveQuizStudent = lazy(() => import('./pages/LiveQuizStudent'));
 const LiveQuizTeacher = lazy(() => import('./pages/LiveQuizTeacher'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const MarketplaceStore = lazy(() => import('./pages/MarketplaceStore'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 // Admin Panel — all lazy-loaded, since admin is a minority user base.
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
@@ -282,8 +283,11 @@ const AppRoutes = () => {
         <Route path="payments" element={<AdminPayments />} />
       </Route>
 
-      {/* Fallback - Redirect to home */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Dedicated 404 page (noindex) */}
+      <Route path="/404" element={<NotFoundPage />} />
+
+      {/* Fallback - unknown URLs render the 404 page */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

@@ -105,8 +105,27 @@ export default function AboutAlif24() {
     <div className="font-sans bg-[#778da9] text-[#1A2B3C] overflow-x-hidden">
       <SEO
         title="Biz haqimizda"
-        description="Alif24 — bolalar uchun adaptiv ta'lim platformasi. Missiyamiz, jamoamiz va platformamiz haqida batafsil ma'lumot."
+        description="Alif24 — 4-11 yoshdagi bolalar uchun adaptiv ta'lim platformasi. Missiyamiz, jamoamiz, texnologiyalarimiz va platformamiz haqida batafsil ma'lumot."
+        keywords="alif24 haqida, alif24 jamoasi, bolalar ta'limi O'zbekiston, adaptiv ta'lim, edtech O'zbekiston"
         path="/about"
+        breadcrumbs={[
+          { name: 'Bosh sahifa', path: '/' },
+          { name: 'Biz haqimizda', path: '/about' },
+        ]}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'AboutPage',
+          name: 'Alif24 haqida',
+          description: "Alif24 — bolalar uchun adaptiv ta'lim platformasi",
+          url: 'https://alif24.uz/about',
+          inLanguage: 'uz',
+          mainEntity: {
+            '@type': 'EducationalOrganization',
+            name: 'Alif24',
+            url: 'https://alif24.uz',
+            logo: 'https://alif24.uz/Logo.png',
+          },
+        }}
       />
 
       <style>{`

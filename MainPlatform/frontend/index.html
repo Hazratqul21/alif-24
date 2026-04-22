@@ -40,16 +40,105 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /></noscript>
 
-    <!-- Structured data -->
+    <!-- Structured data: Organization -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "EducationalOrganization",
       "name": "Alif24",
+      "alternateName": "Alif24 ta'lim platformasi",
       "url": "https://alif24.uz",
       "logo": "https://alif24.uz/Logo.png",
-      "description": "Bolalar uchun adaptiv ta'lim platformasi",
-      "inLanguage": "uz"
+      "description": "Alif24 — 4-11 yoshdagi bolalar uchun adaptiv ta'lim platformasi. Darslar, o'yinlar, olimpiadalar, AI testlar va harflar dunyosi.",
+      "inLanguage": ["uz", "ru", "en"],
+      "areaServed": {
+        "@type": "Country",
+        "name": "Uzbekistan"
+      },
+      "sameAs": [
+        "https://t.me/alif24uz",
+        "https://www.instagram.com/alif24.uz",
+        "https://www.youtube.com/@alif24"
+      ]
+    }
+    </script>
+
+    <!-- Structured data: WebSite with SearchAction -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Alif24",
+      "url": "https://alif24.uz",
+      "inLanguage": "uz",
+      "publisher": {
+        "@type": "EducationalOrganization",
+        "name": "Alif24",
+        "logo": "https://alif24.uz/Logo.png"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://alif24.uz/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- Structured data: Product family (sub-platforms) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "item": {
+            "@type": "WebApplication",
+            "name": "Alif Harf",
+            "description": "Bolalar uchun harf va o'qishni o'rganish platformasi",
+            "url": "https://harf.alif24.uz",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "Web"
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "item": {
+            "@type": "WebApplication",
+            "name": "Alif Olimp",
+            "description": "O'quvchilar uchun onlayn olimpiadalar tizimi",
+            "url": "https://olimp.alif24.uz",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "Web"
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "item": {
+            "@type": "WebApplication",
+            "name": "Alif Games",
+            "description": "Ta'limiy o'yinlar to'plami",
+            "url": "https://games.alif24.uz",
+            "applicationCategory": "GameApplication",
+            "operatingSystem": "Web"
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "item": {
+            "@type": "WebApplication",
+            "name": "Alif TestAI",
+            "description": "AI yordamida test va imtihonlar",
+            "url": "https://testai.alif24.uz",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "Web"
+          }
+        }
+      ]
     }
     </script>
   </head>

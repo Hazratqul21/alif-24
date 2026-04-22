@@ -1,5 +1,15 @@
+# Alif TestAI — https://testai.alif24.uz
 User-agent: *
 Allow: /
+
 Disallow: /api/
+Disallow: /admin
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /login
+Disallow: /logout
+Disallow: /result
+Disallow: /results
 
 Sitemap: https://testai.alif24.uz/sitemap.xml

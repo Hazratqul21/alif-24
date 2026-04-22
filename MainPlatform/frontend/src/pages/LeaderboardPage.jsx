@@ -4,6 +4,7 @@ import { Trophy, Medal, ArrowLeft, Crown, Sparkles, TrendingUp, Coins, Star, Che
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Common/Navbar';
+import SEO from '../components/SEO';
 
 const API_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/^https?:\/\//, window.location.protocol + '//');
 
@@ -131,6 +132,16 @@ const LeaderboardPage = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0a0a1a] via-[#111133] to-[#0a0a1a]">
+            <SEO
+                title="Reyting — Eng yaxshi o'quvchilar"
+                description="Alif24 platformasida haftalik, oylik va yillik eng yaxshi o'quvchilar reytingi. Ballar, Alif-tangalar va olimpiadalardagi yutuqlar."
+                keywords="alif24 reyting, o'quvchilar reytingi, olimpiada reyting, ta'lim reytingi, top o'quvchilar"
+                path="/leaderboard"
+                breadcrumbs={[
+                    { name: 'Bosh sahifa', path: '/' },
+                    { name: 'Reyting', path: '/leaderboard' },
+                ]}
+            />
             <Navbar />
 
             {/* Floating particles */}

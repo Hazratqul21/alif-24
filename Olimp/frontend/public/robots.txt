@@ -1,7 +1,23 @@
+# Alif Olimp — https://olimp.alif24.uz
 User-agent: *
 Allow: /
+Allow: /reading
+Allow: /ertaklar
+
+# Protected / authenticated routes
 Disallow: /admin
 Disallow: /admin/
 Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /login
+Disallow: /logout
+Disallow: /teacher
+Disallow: /parent
+Disallow: /organization
+Disallow: /olympiad/
+Disallow: /olympiad-builder
+Disallow: /result
+Disallow: /results
 
 Sitemap: https://olimp.alif24.uz/sitemap.xml

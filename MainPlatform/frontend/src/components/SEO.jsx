@@ -7,6 +7,14 @@ import { useEffect } from 'react';
  *
  * Usage:
  *   <SEO title="Olimpiada" description="..." path="/olympiads" image="/banner.png" />
+ *
+ *   // With structured data / breadcrumbs:
+ *   <SEO
+ *     title="Biz haqimizda"
+ *     path="/about"
+ *     breadcrumbs={[{ name: 'Bosh sahifa', path: '/' }, { name: 'Biz haqimizda', path: '/about' }]}
+ *     jsonLd={{ '@context': 'https://schema.org', '@type': 'AboutPage', ... }}
+ *   />
  */
 const DEFAULT_SITE = 'Alif24';
 const DEFAULT_DESCRIPTION =
@@ -36,6 +44,25 @@ const setLink = (rel, href) => {
   el.setAttribute('href', href);
 };
 
+// SEO-managed JSON-LD scripts are marked with data-seo="1" so we can update or
+// remove them on navigation without touching hand-authored ones in index.html.
+const setJsonLd = (id, data) => {
+  const selector = `script[type="application/ld+json"][data-seo-id="${id}"]`;
+  let el = document.head.querySelector(selector);
+  if (!data) {
+    if (el) el.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('script');
+    el.type = 'application/ld+json';
+    el.setAttribute('data-seo-id', id);
+    el.setAttribute('data-seo', '1');
+    document.head.appendChild(el);
+  }
+  el.textContent = JSON.stringify(data);
+};
+
 export default function SEO({
   title,
   description = DEFAULT_DESCRIPTION,
@@ -45,6 +72,8 @@ export default function SEO({
   type = 'website',
   noindex = false,
   siteName = DEFAULT_SITE,
+  jsonLd = null,
+  breadcrumbs = null,
 }) {
   useEffect(() => {
     const fullTitle = title ? `${title} | ${siteName}` : siteName;
@@ -70,7 +99,32 @@ export default function SEO({
     setMeta('name', 'twitter:title', fullTitle);
     setMeta('name', 'twitter:description', description);
     setMeta('name', 'twitter:image', image);
-  }, [title, description, keywords, image, path, type, noindex, siteName]);
+
+    // Breadcrumbs → JSON-LD
+    if (Array.isArray(breadcrumbs) && breadcrumbs.length) {
+      const breadcrumbLd = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: breadcrumbs.map((b, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: b.name,
+          item: b.path?.startsWith('http') ? b.path : `${origin}${b.path || '/'}`,
+        })),
+      };
+      setJsonLd('breadcrumbs', breadcrumbLd);
+    } else {
+      setJsonLd('breadcrumbs', null);
+    }
+
+    // Custom page-level JSON-LD (AboutPage, FAQPage, etc.)
+    setJsonLd('page', jsonLd || null);
+
+    return () => {
+      // Leave breadcrumbs/page JSON-LD until the next page sets its own;
+      // they will be overwritten or removed on next render.
+    };
+  }, [title, description, keywords, image, path, type, noindex, siteName, jsonLd, breadcrumbs]);
 
   return null;
 }

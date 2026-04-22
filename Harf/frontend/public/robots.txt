@@ -1,5 +1,14 @@
+# Alif Harf — https://harf.alif24.uz
 User-agent: *
 Allow: /
+
+# Authenticated app areas
 Disallow: /api/
+Disallow: /admin
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /login
+Disallow: /logout
 
 Sitemap: https://harf.alif24.uz/sitemap.xml

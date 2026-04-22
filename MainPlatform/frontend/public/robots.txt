@@ -1,8 +1,44 @@
+# Alif24 — https://alif24.uz
+# Last updated: 2026-04-22
+
 User-agent: *
 Allow: /
+
+# Protected user areas (require authentication)
+Disallow: /student-dashboard
+Disallow: /teacher-dashboard
+Disallow: /parent-dashboard
+Disallow: /organization-dashboard
+Disallow: /profile
+Disallow: /livequiz
+Disallow: /livequiz-teacher
+Disallow: /market
+
+# Admin panel (private)
 Disallow: /admin
 Disallow: /admin/
+Disallow: /hazratqul
+Disallow: /nurali
+Disallow: /pedagog
+
+# Auth endpoints
 Disallow: /login
+Disallow: /logout
+
+# Internal APIs
 Disallow: /api/
+
+# Sub-platform redirect helpers (covered by subdomain sitemaps)
+Disallow: /harf
+Disallow: /rharf
+Disallow: /eharf
+Disallow: /games/
+
+# Respect crawl-delay for heavy bots
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10
 
 Sitemap: https://alif24.uz/sitemap.xml
