@@ -84,10 +84,18 @@ class User(Base):
     
     # Autentifikatsiya
     email = Column(String(255), unique=True, nullable=True, index=True)
+    email_verified = Column(Boolean, default=False, nullable=False)
     phone = Column(String(20), unique=True, nullable=True, index=True)
     phone_verified = Column(Boolean, default=False)
-    password_hash = Column(String(255), nullable=True)  # Bolalar uchun null
-    
+    password_hash = Column(String(255), nullable=True)  # Bolalar va OAuth uchun null
+
+    # OAuth (Google login) — NULL agar oddiy email/password orqali kirgan bo'lsa
+    google_id = Column(String(100), unique=True, nullable=True, index=True)
+    oauth_provider = Column(String(20), nullable=True)  # 'google' | 'password' | 'pin'
+
+    # Marketing / transactional email preferences
+    marketing_emails_enabled = Column(Boolean, default=True, nullable=False)
+
     # Bolalar uchun (PIN-based auth)
     username = Column(String(50), unique=True, nullable=True, index=True)
     pin_code = Column(String(6), nullable=True)  # 4-6 raqamli PIN

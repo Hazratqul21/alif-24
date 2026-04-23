@@ -183,6 +183,13 @@ const adminService = {
     autoExpireSubscriptions: () => adminApi.post('/analytics/expire-subscriptions'),
     getRecentLogins: (limit = 30) => adminApi.get('/analytics/recent-logins', { params: { limit } }),
 
+    // ============ EMAIL BROADCAST ============
+    getEmailAudience: (params) => adminApi.get('/email/audience', { params }),
+    previewEmailBroadcast: (payload) => adminApi.post('/email/preview', payload),
+    sendEmailTest: (payload) => adminApi.post('/email/test', payload),
+    sendEmailBroadcast: (payload) => adminApi.post('/email/broadcast', payload),
+    getEmailHistory: (limit = 50) => adminApi.get('/email/history', { params: { limit } }),
+
     // ============ PAYMENT GATEWAY MANAGEMENT ============
     // These routes are handled by the Payments router (not the Admin router)
     getPaymentGateways: () => axios.get(`${API_URL}/payments/admin/gateways`, { headers: getAdminHeaders() }),

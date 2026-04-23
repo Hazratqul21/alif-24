@@ -1,0 +1,63 @@
+{% extends "_base.html" %}
+{% set subject = "Xush kelibsiz, " ~ first_name ~ "!" %}
+{% set preheader = "Alif24 ailasiga qo'shilganingizdan xursandmiz — keling, boshlaymiz." %}
+
+{% block content %}
+  <h1 style="margin:0 0 12px 0;font-size:24px;line-height:1.3;font-weight:700;color:#111827;">
+    Xush kelibsiz, {{ first_name }}! 👋
+  </h1>
+  <p style="margin:0 0 20px 0;font-size:16px;line-height:1.6;color:#374151;">
+    Alif24 oilasiga qo'shilganingizdan juda xursandmiz. Bu yerda bolalar uchun tilga,
+    matematikaga, o'qishga va ijodga qiziqishni uyg'otadigan minglab qiziqarli mashg'ulotlar sizni kutmoqda.
+  </p>
+
+  <!-- Feature cards -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 28px 0;">
+    <tr>
+      <td style="padding:14px 16px;background:#eff6ff;border-radius:12px;">
+        <div style="font-size:14px;font-weight:700;color:#1d4ed8;margin-bottom:4px;">🎓 SmartKids AI</div>
+        <div style="font-size:13px;color:#334155;line-height:1.5;">Sun'iy intellekt bilan bolalar uchun hikoyalar, suhbatlar va individual darslar.</div>
+      </td>
+    </tr>
+    <tr><td style="height:10px;line-height:10px;font-size:0;">&nbsp;</td></tr>
+    <tr>
+      <td style="padding:14px 16px;background:#f5f3ff;border-radius:12px;">
+        <div style="font-size:14px;font-weight:700;color:#6d28d9;margin-bottom:4px;">🧮 MathKids</div>
+        <div style="font-size:13px;color:#334155;line-height:1.5;">Matematikani o'yin orqali o'rganish — har xil darajadagi masalalar va olimpiadalar.</div>
+      </td>
+    </tr>
+    <tr><td style="height:10px;line-height:10px;font-size:0;">&nbsp;</td></tr>
+    <tr>
+      <td style="padding:14px 16px;background:#ecfdf5;border-radius:12px;">
+        <div style="font-size:14px;font-weight:700;color:#047857;margin-bottom:4px;">📚 Kitobxonlik musobaqalari</div>
+        <div style="font-size:13px;color:#334155;line-height:1.5;">Bolalar kitob o'qib, test topshirib, sovg'alar va reyting olishlari mumkin.</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- CTA -->
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 28px 0;">
+    <tr>
+      <td style="background:linear-gradient(135deg,#2563eb 0%,#7c3aed 100%);border-radius:10px;">
+        <a href="{{ site_url }}" style="display:inline-block;padding:14px 28px;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;">
+          Platformaga kirish →
+        </a>
+      </td>
+    </tr>
+  </table>
+
+  {% if provider == 'google' %}
+  <p style="margin:0 0 6px 0;font-size:13px;color:#6b7280;line-height:1.5;">
+    Siz Google orqali ro'yxatdan o'tdingiz. Parolsiz, xavfsiz va tezkor kirish uchun
+    keyingi safar ham "Google orqali kirish" tugmasini ishlating.
+  </p>
+  {% endif %}
+
+  <p style="margin:16px 0 0 0;font-size:14px;color:#6b7280;line-height:1.6;">
+    Savol yoki taklifingiz bo'lsa — <a href="mailto:{{ support_email }}" style="color:#2563eb;text-decoration:none;">{{ support_email }}</a> ga yozing.<br>
+    Biz yordam berishdan hursandmiz.
+  </p>
+  <p style="margin:8px 0 0 0;font-size:14px;color:#374151;">
+    — Alif24 jamoasi
+  </p>
+{% endblock %}

@@ -21,6 +21,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from app.middleware.auth import get_current_user, get_optional_current_user
 from contextlib import asynccontextmanager
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -137,6 +138,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Session middleware — used ONLY by authlib to carry the short-lived OAuth
+# state/nonce between /auth/google/login and /auth/google/callback.
+# NOT used for user sessions (those are JWT HttpOnly cookies on .alif24.uz).
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SESSION_SECRET_KEY,
+    session_cookie="alif24_oauth_state",
+    max_age=600,            # 10 minutes is plenty for Google's round-trip
+    same_site="lax",
+    https_only=not settings.DEBUG,
+)
+
 # Security headers
 @app.middleware("http")
 async def add_security_headers(request, call_next):
@@ -174,6 +187,9 @@ class SubscriptionInfoMiddleware(BaseHTTPMiddleware):
     SKIP_PREFIXES = (
         "/health", "/docs", "/openapi", "/api/uploads",
         "/api/v1/health", "/api/v1/openapi",
+        # OAuth round-trip: /auth/google/login needs to run authlib which sets
+        # a state cookie — must not be blocked/short-circuited by this MW.
+        "/api/v1/auth/google",
     )
 
     async def dispatch(self, request: Request, call_next):
@@ -254,7 +270,7 @@ class SubscriptionInfoMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SubscriptionInfoMiddleware)
 
 # Include Routers
-from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback, telegram
+from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback, telegram, oauth_google, admin_email
 from app.api.v1 import classrooms, assignments, notifications, lessons, platform_content, aiops, uploads, coins, organizations, olympiads
 from app.api.v1 import reading_competition
 from app.api.v1 import admin_analytics, testai
@@ -266,12 +282,17 @@ from app.mathkids import math_solver_router, math_image_router
 app.include_router(health.router, prefix=f"{settings.API_PREFIX}")
 
 app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["auth"])
+# Google OAuth2 (Sign in with Google) — same /auth prefix so URLs are
+# /api/v1/auth/google/login and /api/v1/auth/google/callback
+app.include_router(oauth_google.router, prefix=f"{settings.API_PREFIX}/auth", tags=["auth"])
 # Dashboard
 app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["dashboard"])
 # Admin Panel
 app.include_router(admin_panel.router, prefix=f"{settings.API_PREFIX}/admin", tags=["admin"])
 # Admin Analytics (Smart Dashboard)
 app.include_router(admin_analytics.router, prefix=f"{settings.API_PREFIX}/admin", tags=["admin-analytics"])
+# Admin Email Broadcast (Mass Mail)
+app.include_router(admin_email.router, prefix=f"{settings.API_PREFIX}/admin", tags=["admin-email"])
 
 # Platform Content
 app.include_router(platform_content.router, prefix=f"{settings.API_PREFIX}", tags=["content"])

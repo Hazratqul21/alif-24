@@ -56,6 +56,51 @@ class Settings:
     ESKIZ_EMAIL: Optional[str] = os.getenv("ESKIZ_EMAIL", None)
     ESKIZ_PASSWORD: Optional[str] = os.getenv("ESKIZ_PASSWORD", None)
 
+    # =========================================================================
+    # Google OAuth2 (Sign in with Google)
+    # =========================================================================
+    GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID", None)
+    GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET", None)
+    # Where Google redirects back after user consents. Must exactly match one
+    # of the "Authorized redirect URIs" in Google Cloud Console OAuth client.
+    GOOGLE_REDIRECT_URI: str = os.getenv(
+        "GOOGLE_REDIRECT_URI",
+        "https://alif24.uz/api/v1/auth/google/callback",
+    )
+    # Where to send the browser AFTER we set auth cookies on the callback.
+    OAUTH_SUCCESS_REDIRECT: str = os.getenv(
+        "OAUTH_SUCCESS_REDIRECT",
+        "https://alif24.uz/",
+    )
+    OAUTH_FAILURE_REDIRECT: str = os.getenv(
+        "OAUTH_FAILURE_REDIRECT",
+        "https://alif24.uz/login?oauth_error=1",
+    )
+    # Used by starlette SessionMiddleware to encrypt the short-lived state cookie
+    # that authlib uses during the OAuth round-trip (NOT user sessions).
+    SESSION_SECRET_KEY: str = os.getenv(
+        "SESSION_SECRET_KEY",
+        "dev_only_session_secret_CHANGE_IN_PRODUCTION",
+    )
+
+    # =========================================================================
+    # Transactional email (Gmail SMTP / fastapi-mail)
+    # =========================================================================
+    # Enable with MAIL_ENABLED=true once MAIL_USERNAME/MAIL_PASSWORD are set.
+    MAIL_ENABLED: bool = os.getenv("MAIL_ENABLED", "false").lower() == "true"
+    MAIL_USERNAME: Optional[str] = os.getenv("MAIL_USERNAME", None)
+    MAIL_PASSWORD: Optional[str] = os.getenv("MAIL_PASSWORD", None)
+    MAIL_FROM: str = os.getenv("MAIL_FROM", "info@alif24.uz")
+    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Alif24")
+    MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    MAIL_PORT: int = int(os.getenv("MAIL_PORT", "587"))
+    MAIL_STARTTLS: bool = os.getenv("MAIL_STARTTLS", "true").lower() == "true"
+    MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL_TLS", "false").lower() == "true"
+    # Chunking / rate limiting for admin broadcasts so Gmail daily limits
+    # (500/day free, 2000/day Workspace) are respected.
+    MAIL_BROADCAST_BATCH_SIZE: int = int(os.getenv("MAIL_BROADCAST_BATCH_SIZE", "50"))
+    MAIL_BROADCAST_SLEEP_SECONDS: float = float(os.getenv("MAIL_BROADCAST_SLEEP_SECONDS", "2.0"))
+
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "info")
     SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN", None)

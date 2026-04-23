@@ -31,7 +31,8 @@ class NotificationLog(Base):
     user_id = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     notification_type = Column(SQLEnum(NotificationType), nullable=False)
     recipient = Column(String(255), nullable=False)
-    message = Column(Text, nullable=False)
+    subject = Column(String(255), nullable=True)  # Used by email; NULL for SMS/Telegram
+    message = Column(Text, nullable=True)  # Text/HTML body (optional after 029)
     status = Column(SQLEnum(NotificationStatus), default=NotificationStatus.PENDING)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

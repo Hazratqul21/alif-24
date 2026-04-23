@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>{{ subject | default(brand_name) }}</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td, a { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
+</head>
+<body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#1f2937;">
+  <!-- Preheader (hidden) -->
+  {% if preheader %}
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#f4f5f7;opacity:0;">
+    {{ preheader }}
+  </div>
+  {% endif %}
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f5f7;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(15,23,42,0.06);">
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#2563eb 0%,#7c3aed 100%);padding:28px 32px;text-align:center;">
+              <a href="{{ site_url }}" style="text-decoration:none;color:#ffffff;">
+                <div style="font-size:24px;font-weight:800;letter-spacing:-0.5px;line-height:1;">
+                  Alif<span style="color:#fcd34d;">24</span>
+                </div>
+                <div style="font-size:13px;color:#c7d2fe;margin-top:6px;font-weight:500;">
+                  Bolalar ta'lim platformasi
+                </div>
+              </a>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:36px 32px 12px 32px;">
+              {% block content %}{% endblock %}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 32px 32px 32px;border-top:1px solid #eef0f3;">
+              <p style="margin:0 0 8px 0;color:#6b7280;font-size:13px;line-height:1.6;">
+                Bu xabar <a href="{{ site_url }}" style="color:#2563eb;text-decoration:none;">alif24.uz</a> dan yuborildi.
+                Savollar bo'lsa, <a href="mailto:{{ support_email }}" style="color:#2563eb;text-decoration:none;">{{ support_email }}</a> ga yozing.
+              </p>
+              <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.5;">
+                © {{ current_year }} {{ brand_name }}. Barcha huquqlar himoyalangan.<br>
+                Toshkent, O'zbekiston
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Outside footer -->
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;margin-top:16px;">
+          <tr>
+            <td align="center" style="color:#9ca3af;font-size:12px;padding:0 12px;">
+              {% block unsubscribe %}
+              Agar bu xabar siz uchun noto'g'ri kelib qolgan bo'lsa, uni bemalol e'tiborsiz qoldiring.
+              {% endblock %}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

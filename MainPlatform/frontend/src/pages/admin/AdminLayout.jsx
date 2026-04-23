@@ -1,5 +1,5 @@
 import { Outlet, NavLink, Navigate, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, GraduationCap, Database, Send, BookOpen, LogOut, Shield, Menu, Trophy, Mic, Crown, Zap, CreditCard, Tag, Banknote } from 'lucide-react';
+import { LayoutDashboard, Users, GraduationCap, Database, Send, BookOpen, LogOut, Shield, Menu, Trophy, Mic, Crown, Zap, CreditCard, Tag, Banknote, Mail } from 'lucide-react';
 import { useState } from 'react';
 import adminService from '../../services/adminService';
 import SEO from '../../components/SEO';
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
     { path: '/admin/database', label: 'Database', icon: Database, perm: 'all' },
     { path: '/admin/content', label: 'Kontentlar', icon: BookOpen, perm: 'content' },
     { path: '/admin/telegram', label: 'Telegram', icon: Send, perm: 'telegram' },
+    { path: '/admin/email', label: 'Email Xabarnomalar', icon: Mail, perm: 'all' },
     { path: '/admin/olympiads', label: 'Olimpiadalar', icon: Trophy, perm: null },
     { path: '/admin/reading', label: "O'qish Musobaqasi", icon: Mic, perm: 'content' },
     { path: '/admin/subscriptions', label: 'Obunalar', icon: CreditCard, perm: 'all' },

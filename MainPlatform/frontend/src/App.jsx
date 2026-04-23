@@ -43,6 +43,7 @@ const TeachersPage = lazy(() => import('./pages/admin/TeachersPage'));
 const DatabasePage = lazy(() => import('./pages/admin/DatabasePage'));
 const ContentPage = lazy(() => import('./pages/admin/ContentPage'));
 const TelegramPage = lazy(() => import('./pages/admin/TelegramPage'));
+const EmailBroadcastPage = lazy(() => import('./pages/admin/EmailBroadcastPage'));
 const OlympiadsPage = lazy(() => import('./pages/admin/OlympiadsPage'));
 const ReadingCompetitionPage = lazy(() => import('./pages/admin/ReadingCompetitionPage'));
 const AdminSubscriptions = lazy(() => import('./pages/admin/AdminSubscriptions'));
@@ -276,6 +277,7 @@ const AppRoutes = () => {
         <Route path="database" element={<DatabasePage />} />
         <Route path="content" element={<ContentPage />} />
         <Route path="telegram" element={<TelegramPage />} />
+        <Route path="email" element={<EmailBroadcastPage />} />
         <Route path="olympiads" element={<OlympiadsPage />} />
         <Route path="reading" element={<ReadingCompetitionPage />} />
         <Route path="subscriptions" element={<AdminSubscriptions />} />

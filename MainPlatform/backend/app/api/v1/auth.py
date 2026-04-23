@@ -45,12 +45,20 @@ class UpdateProfileRequest(BaseModel):
         populate_by_name = True
 
 @router.post("/register")
-async def register(request: Request, data: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)):
+async def register(
+    request: Request,
+    data: RegisterRequest,
+    response: Response,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     """Register new user"""
     data.validate()
     service = AuthService(db)
     result = await service.register(data)
-    
+
+    user_data = result.get("user", {}) or {}
+
     # Set HttpOnly Cookies
     domain = ".alif24.uz" if request and request.url.hostname and "alif24.uz" in request.url.hostname else None
     response.set_cookie(
@@ -71,12 +79,40 @@ async def register(request: Request, data: RegisterRequest, response: Response, 
         domain=domain,
         max_age=30 * 24 * 60 * 60  # 30 days
     )
-    
+
+    # Non-blocking welcome email. Runs after the HTTP response is sent so the
+    # user never sees extra latency and a SMTP outage can't break signup.
+    email_addr = user_data.get("email")
+    if email_addr:
+        background_tasks.add_task(
+            _send_welcome_email_bg,
+            user_id=user_data.get("id"),
+            email=email_addr,
+            first_name=user_data.get("first_name") or "",
+        )
+
     return {
         "success": True,
         "message": "Registration successful",
         "data": {"user": result["user"]}
     }
+
+
+async def _send_welcome_email_bg(user_id: str, email: str, first_name: str) -> None:
+    """Send the welcome email in a fresh DB session after register() returns."""
+    try:
+        from shared.database import AsyncSessionLocal as async_session_factory
+        from ...services.email_service import send_welcome_email
+        async with async_session_factory() as session:
+            await send_welcome_email(
+                to=email,
+                first_name=first_name,
+                db=session,
+                user_id=user_id,
+                provider="password",
+            )
+    except Exception as e:
+        logger.warning(f"Welcome email failed for {email}: {e}")
 
 @router.post("/login")
 async def login(request: Request, data: LoginRequest, response: Response, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
