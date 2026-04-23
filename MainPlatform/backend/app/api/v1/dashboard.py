@@ -113,22 +113,29 @@ async def get_student_performance(
     trend = [{"date": str(row.date), "score": float(row.avg_score)} for row in res]
     
     # 2. Subject Breakdown
+    # Assignment modelida "subject" ustuni yo'q — uni bog'langan Classroom orqali olamiz.
+    # Agar assignment classroom'siz (to'g'ridan-to'g'ri o'quvchiga) bo'lsa, "Boshqa" deb belgilanadi.
     from shared.database.models import Assignment
+    from shared.database.models.classroom import Classroom
     stmt = (
         select(
-            Assignment.subject,
+            Classroom.subject.label("subject"),
             func.avg(AssignmentSubmission.score).label("avg_score")
         )
         .join(Assignment, Assignment.id == AssignmentSubmission.assignment_id)
+        .outerjoin(Classroom, Classroom.id == Assignment.classroom_id)
         .where(
             AssignmentSubmission.student_user_id == current_user.id,
             AssignmentSubmission.status == SubmissionStatus.graded
         )
-        .group_by(Assignment.subject)
+        .group_by(Classroom.subject)
     )
-    
-    res = await db.execute(stmt)
-    subjects = [{"subject": row.subject or "Boshqa", "score": float(row.avg_score)} for row in res]
+
+    try:
+        res = await db.execute(stmt)
+        subjects = [{"subject": row.subject or "Boshqa", "score": float(row.avg_score)} for row in res]
+    except Exception:
+        subjects = []
     
     return {
         "success": True,
