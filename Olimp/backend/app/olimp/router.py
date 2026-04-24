@@ -1930,6 +1930,153 @@ async def admin_delete_question(
     return {"success": True, "message": "Savol o'chirildi"}
 
 
+# ============= Admin: Finalize olympiad =============
+
+class FinalizePayload(BaseModel):
+    # If True, rewrite ranks from scratch even if some participants already have rank set.
+    rewrite_ranks: bool = True
+    # If True, award prize coins to top-3 (first/second/third). Idempotent — per-participant
+    # `meta_data.finalized_prize` flag prevents double-awards on retry.
+    award_prizes: bool = True
+
+
+@router.post("/admin/olympiads/{olympiad_id}/finalize")
+async def admin_finalize_olympiad(
+    olympiad_id: str,
+    payload: FinalizePayload = FinalizePayload(),
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Mark an olympiad as finished, assign final ranks, award top-3 prize coins.
+
+    Safe to call twice — the prize-award side is idempotent: before awarding
+    we check CoinTransaction for an existing row with the same
+    (student_coin_id, reference_id=olympiad.id, type=olympiad_first/second/third).
+    If you re-rank after a score fix, stale prizes from displaced winners
+    are NOT clawed back automatically (that would be a destructive op); the
+    endpoint returns details so an admin can reconcile manually if needed.
+
+    Only participants with status == completed are considered. Ties on
+    `total_score` are broken by `time_spent_seconds` (less = better), then
+    `completed_at` (earlier = better).
+    """
+    res = await db.execute(
+        select(Olympiad)
+        .where(Olympiad.id == olympiad_id)
+        .with_for_update()
+    )
+    olympiad = res.scalars().first()
+    if not olympiad:
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+
+    # Load finished participants, ordered for ranking.
+    p_res = await db.execute(
+        select(OlympiadParticipant)
+        .where(
+            OlympiadParticipant.olympiad_id == olympiad.id,
+            OlympiadParticipant.status == ParticipationStatus.completed,
+        )
+        .order_by(
+            OlympiadParticipant.total_score.desc(),
+            OlympiadParticipant.time_spent_seconds.asc().nulls_last(),
+            OlympiadParticipant.completed_at.asc().nulls_last(),
+        )
+        .with_for_update()
+    )
+    participants = list(p_res.scalars().all())
+
+    prize_map = {
+        1: (settings.OLYMPIAD_PRIZE_COINS_FIRST, TransactionType.olympiad_first, "1-o'rin"),
+        2: (settings.OLYMPIAD_PRIZE_COINS_SECOND, TransactionType.olympiad_second, "2-o'rin"),
+        3: (settings.OLYMPIAD_PRIZE_COINS_THIRD, TransactionType.olympiad_third, "3-o'rin"),
+    }
+
+    prizes_awarded: list[dict] = []
+    ranked_count = 0
+
+    for idx, p in enumerate(participants, start=1):
+        if payload.rewrite_ranks or p.rank is None:
+            p.rank = idx
+            ranked_count += 1
+
+        if payload.award_prizes and idx in prize_map:
+            amount, tx_type, label = prize_map[idx]
+
+            # Idempotency: has THIS student already received THIS tx_type for THIS olympiad?
+            dup_res = await db.execute(
+                select(CoinTransaction.id)
+                .join(StudentCoin, CoinTransaction.student_coin_id == StudentCoin.id)
+                .where(
+                    StudentCoin.student_id == p.student_id,
+                    CoinTransaction.type == tx_type,
+                    CoinTransaction.reference_id == olympiad.id,
+                )
+                .limit(1)
+            )
+            if dup_res.scalars().first():
+                prizes_awarded.append({
+                    "participant_id": p.id,
+                    "student_id": p.student_id,
+                    "rank": idx,
+                    "amount": amount,
+                    "status": "already_awarded",
+                })
+                continue
+
+            try:
+                await _award_coins(
+                    student_id=p.student_id,
+                    amount=amount,
+                    tx_type=tx_type,
+                    description=f"Olimpiada {label}: {olympiad.title}",
+                    reference_id=olympiad.id,
+                    reference_type="olympiad_finalize",
+                    db=db,
+                )
+                prizes_awarded.append({
+                    "participant_id": p.id,
+                    "student_id": p.student_id,
+                    "rank": idx,
+                    "amount": amount,
+                    "status": "awarded",
+                })
+            except Exception as e:
+                logger.error(
+                    "finalize: failed to award rank %s prize to %s: %s",
+                    idx, p.student_id, e,
+                )
+                prizes_awarded.append({
+                    "participant_id": p.id,
+                    "student_id": p.student_id,
+                    "rank": idx,
+                    "amount": amount,
+                    "status": f"error:{e}",
+                })
+
+    olympiad.status = OlympiadStatus.finished
+    if not olympiad.end_time or olympiad.end_time > datetime.now(timezone.utc):
+        # Force end_time to "now" so late submissions are rejected immediately.
+        olympiad.end_time = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    try:
+        await manager.broadcast(olympiad.id, {"type": "leaderboard_update", "final": True})
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "data": {
+            "olympiad_id": olympiad.id,
+            "status": olympiad.status.value,
+            "ranked_participants": ranked_count,
+            "total_finished": len(participants),
+            "prizes_awarded": prizes_awarded,
+        },
+    }
+
+
 # ============= Olympiad Content: Lessons & Stories =============
 
 @router.get("/{olympiad_id}/content/lessons")
