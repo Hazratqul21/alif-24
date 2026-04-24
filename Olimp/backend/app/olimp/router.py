@@ -8,6 +8,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func as sql_func, select, or_
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional, Any
 from datetime import datetime, timezone, date, timedelta
@@ -148,20 +149,13 @@ async def verify_admin_key(
     x_admin_key: str = Header(..., alias="X-Admin-Key"),
     x_admin_role: Optional[str] = Header(None, alias="X-Admin-Role"),
 ):
-    """Admin key tekshirish — MainPlatform va Olimp formatlarini qo'llab quvvatlaydi"""
-    # MainPlatform format: X-Admin-Role + X-Admin-Key
-    # Olimp format: faqat X-Admin-Key
-    ADMIN_KEYS = {
-        "hazratqul": settings.ADMIN_SECRET_KEY,
-        "nurali": settings.ADMIN_SECRET_KEY,
-        "pedagog": settings.ADMIN_SECRET_KEY,
-    }
-    if x_admin_role:
-        role = x_admin_role.lower()
-        if role in ADMIN_KEYS and x_admin_key == ADMIN_KEYS[role]:
-            return True
-    # Fallback: faqat key tekshirish
-    if x_admin_key == settings.ADMIN_SECRET_KEY:
+    """Admin key tekshirish — MainPlatform va Olimp formatlarini qo'llab quvvatlaydi.
+
+    Single shared secret (`ADMIN_SECRET_KEY`) — the role header is treated as
+    a label only, not an additional secret. Role-based access will move to
+    per-user RBAC in a follow-up.
+    """
+    if x_admin_key and x_admin_key == settings.ADMIN_SECRET_KEY:
         return True
     raise HTTPException(status_code=403, detail="Admin emas")
 
@@ -881,43 +875,83 @@ async def submit_answers(
         if not olympiad:
             raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
-        # Find participant
-        participant = None
-        if student_id:
-            sp = await _resolve_student_profile(student_id, db)
-            if sp:
-                p_res = await db.execute(
-                    select(OlympiadParticipant).where(
-                        OlympiadParticipant.olympiad_id == olympiad.id,
-                        OlympiadParticipant.student_id == sp.id,
-                    )
-                )
-                participant = p_res.scalars().first()
-                if participant and participant.status == ParticipationStatus.completed:
-                    raise HTTPException(status_code=400, detail="Ushbu olimpiadaga allaqachon javob topshirgansiz")
-
-        # === Chiting va vaqt tugashiga qarshi himoya qatlami === #
         now = datetime.now(timezone.utc)
-        
-        # 1. Muddat tugaganmi tekshiramiz (5 minutlik "grace period" bilan, internet qotishlarga)
+
+        # Admin-finalized olympiads are read-only. Prevents late resubmissions
+        # after rank+prizes have been assigned.
+        if olympiad.status == OlympiadStatus.finished:
+            raise HTTPException(
+                status_code=400,
+                detail="Olimpiada yakunlangan — natijalar muhrlangan, qabul qilinmaydi.",
+            )
+
+        # Olimpiada boshlanishidan oldin submit qilib bo'lmaydi (reading-submit
+        # bilan paralel xatti-harakat).
+        if olympiad.start_time and now < olympiad.start_time:
+            raise HTTPException(
+                status_code=400,
+                detail="Olimpiada hali boshlanmagan. Iltimos, belgilangan vaqtni kuting.",
+            )
+
+        # Muddat tugaganmi? (5 minutlik grace tarmoq nosozliklari uchun)
         if olympiad.end_time and now > (olympiad.end_time + timedelta(minutes=5)):
-            raise HTTPException(status_code=400, detail="Olimpiada muddasi allaqachon tugagan! Javoblaringiz qabul qilinmadi.")
-            
-        # 2. Test davomiyligi (duration_minutes) nazorati
-        if participant and participant.started_at and olympiad.duration_minutes:
+            raise HTTPException(
+                status_code=400,
+                detail="Olimpiada muddasi allaqachon tugagan! Javoblaringiz qabul qilinmadi.",
+            )
+
+        # Find participant — row-lock to serialise concurrent submits.
+        participant = None
+        sp = await _resolve_student_profile(student_id, db)
+        if not sp:
+            raise HTTPException(status_code=400, detail="Profil topilmadi. Iltimos, ro'yxatdan o'ting.")
+
+        p_res = await db.execute(
+            select(OlympiadParticipant)
+            .where(
+                OlympiadParticipant.olympiad_id == olympiad.id,
+                OlympiadParticipant.student_id == sp.id,
+            )
+            .with_for_update()
+        )
+        participant = p_res.scalars().first()
+        if not participant:
+            raise HTTPException(
+                status_code=400,
+                detail="Avval olimpiadaga ro'yxatdan o'ting.",
+            )
+
+        if participant.status == ParticipationStatus.completed:
+            raise HTTPException(
+                status_code=400,
+                detail="Ushbu olimpiadaga allaqachon javob topshirgansiz.",
+            )
+
+        # `/start` majburiy — started_at'siz submit qabul qilinmaydi. Bu
+        # `duration_minutes` tekshiruvini chetlab o'tish yo'lini yopadi.
+        if not participant.started_at:
+            raise HTTPException(
+                status_code=400,
+                detail="Avval olimpiadani boshlang (/start) — so'ngra javoblarni yuboring.",
+            )
+
+        # Test davomiyligi (duration_minutes) nazorati
+        if olympiad.duration_minutes:
             delta = now - participant.started_at
             time_spent_seconds = int(delta.total_seconds())
-            # Ajratilgan vaqt + 1.5 daqiqa greys period
-            max_allowed_seconds = (olympiad.duration_minutes * 60) + 90
-            
+            max_allowed_seconds = (olympiad.duration_minutes * 60) + 90  # +1.5 min grace
+
             if time_spent_seconds > max_allowed_seconds:
-                # Vaqtidan o'tib ketgan, bahoni 0 qilib yopamiz
+                # Vaqtidan o'tib ketgan, natijani 0 bilan yopamiz.
                 participant.status = ParticipationStatus.completed
                 participant.time_spent_seconds = time_spent_seconds
                 participant.total_score = 0
                 participant.completed_at = now
                 await db.commit()
-                raise HTTPException(status_code=400, detail="Ajratilgan vaqt (Time Limit) tugagan! Natijangiz bekor qilindi.")
+                raise HTTPException(
+                    status_code=400,
+                    detail="Ajratilgan vaqt (Time Limit) tugagan! Natijangiz bekor qilindi.",
+                )
 
         total_score = 0
         correct_count = 0
@@ -1110,6 +1144,16 @@ async def submit_answers(
         }
     except HTTPException:
         raise
+    except IntegrityError as e:
+        # Unique-constraint tripped (e.g. concurrent duplicate submit). Surface
+        # as 409 Conflict so the client can show "already submitted" instead
+        # of a generic 500.
+        await db.rollback()
+        logger.warning(f"submit_answers IntegrityError (duplicate submit?): {e}")
+        raise HTTPException(
+            status_code=409,
+            detail="Javob yuborishni qayta urinish — avvalgi urinish allaqachon qayd etildi.",
+        )
     except Exception as e:
         logger.error(f"FATAL ERROR in submit_answers: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Serverda xatolik yuz berdi: {str(e)}")
@@ -2268,7 +2312,7 @@ async def submit_reading_result(
     db: AsyncSession = Depends(get_db),
     auth_user_id: Optional[str] = Depends(get_current_user_id_optional),
 ):
-    """Submit combined reading + quiz result for a reading olympiad"""
+    """Submit combined reading + quiz result for a reading olympiad."""
     user_id = resolve_auth_user_id(data.student_id, auth_user_id)
 
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
@@ -2276,25 +2320,105 @@ async def submit_reading_result(
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
+    now = datetime.now(timezone.utc)
+    if olympiad.status == OlympiadStatus.finished:
+        raise HTTPException(
+            status_code=400,
+            detail="Olimpiada yakunlangan — natijalar muhrlangan, qabul qilinmaydi.",
+        )
+    if olympiad.end_time and now > olympiad.end_time + timedelta(minutes=5):
+        raise HTTPException(status_code=400, detail="Kechirasiz, musobaqa vaqti o'tib ketgan. Natija qabul qilinmaydi.")
+    if olympiad.start_time and now < olympiad.start_time:
+        raise HTTPException(status_code=400, detail="Kechirasiz, musobaqa hali boshlanmagan.")
+
+    # Anti-cheat: story_id shu olimpiadaga tegishli bo'lishi shart
+    # (aks holda boshqa olimpiadaning ertaklarini yuborib, coin farming qilib
+    # bo'ladi). Both story (OlympiadStory) va reading_task (OlympiadReadingTask)
+    # jadvallarini tekshiramiz.
+    if data.story_id:
+        belongs_res = await db.execute(
+            select(OlympiadStory.id).where(
+                OlympiadStory.id == data.story_id,
+                OlympiadStory.olympiad_id == olympiad.id,
+            )
+        )
+        if not belongs_res.scalars().first():
+            task_res = await db.execute(
+                select(OlympiadReadingTask.id).where(
+                    OlympiadReadingTask.id == data.story_id,
+                    OlympiadReadingTask.olympiad_id == olympiad.id,
+                )
+            )
+            if not task_res.scalars().first():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Ushbu ertak/vazifa bu olimpiadaga tegishli emas.",
+                )
+
+    # Anti-cheat: client-supplied metrikalarni server-side cap qilamiz.
+    # wpm, read_percent, reading_time_seconds — barisi klient qo'lida edi.
+    original_wpm = float(data.wpm or 0)
+    capped_wpm = max(0.0, min(original_wpm, float(settings.READING_MAX_WPM)))
+    if original_wpm > settings.READING_MAX_WPM:
+        logger.warning(
+            "reading-submit: WPM cap applied (user=%s, wpm_sent=%.1f, capped=%.1f)",
+            user_id, original_wpm, capped_wpm,
+        )
+    data.wpm = capped_wpm
+    data.read_percent = max(0.0, min(float(data.read_percent or 0), settings.READING_MAX_READ_PERCENT))
+    data.reading_time_seconds = max(0, int(data.reading_time_seconds or 0))
+
+    # Ichki tezlik sanity: WPM deklaratsiyasi / actual reading_time_seconds
+    # munosabati mantiqsiz bo'lsa — submit'ni rad qilamiz. (WPM cheatning eng
+    # keng tarqalgan shakli: katta WPM + qisqa vaqt = imkonsiz tezlik.)
+    if data.reading_time_seconds > 0 and data.wpm > 0:
+        # 60 soniyada sarflanadigan so'zlar soni = wpm
+        implied_words = (data.reading_time_seconds / 60.0) * data.wpm
+        if implied_words > 0:
+            seconds_per_word = data.reading_time_seconds / implied_words
+            if seconds_per_word < settings.READING_MIN_SECONDS_PER_WORD:
+                logger.warning(
+                    "reading-submit: unrealistic pace rejected (user=%s, wpm=%.1f, dur=%ds)",
+                    user_id, data.wpm, data.reading_time_seconds,
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail="O'qish tezligi haqiqiy emas ko'rinadi — iltimos, qaytadan urinib ko'ring.",
+                )
+
+    # Anti-cheat: AI voice quiz `score` klient-provided — unga ishonmaymiz.
+    # Hozircha submit vaqtida rad qilamiz; server-side hisoblash to'g'ri
+    # javob/option indeksidan amalga oshiriladi. Kelajakda evaluate-text
+    # natijasini session-bound qilib saqlash kerak.
+    if data.quiz_answers:
+        for ans in data.quiz_answers:
+            if ans.score is not None:
+                logger.warning(
+                    "reading-submit: client-supplied ans.score ignored (user=%s, q=%s)",
+                    user_id, ans.question_id,
+                )
+                ans.score = None
+
     sp = await _resolve_student_profile(user_id, db)
     if not sp:
         raise HTTPException(status_code=404, detail="Profil topilmadi")
 
+    # Row-lock to serialise concurrent submits from the same participant.
     p_res = await db.execute(
-        select(OlympiadParticipant).where(
+        select(OlympiadParticipant)
+        .where(
             OlympiadParticipant.olympiad_id == olympiad.id,
             OlympiadParticipant.student_id == sp.id,
         )
+        .with_for_update()
     )
     participant = p_res.scalars().first()
     if not participant:
         raise HTTPException(status_code=400, detail="Avval ro'yxatdan o'ting")
 
-    now = datetime.now(timezone.utc)
-    if olympiad.end_time and now > olympiad.end_time + timedelta(minutes=5):
-        raise HTTPException(status_code=400, detail="Kechirasiz, musobaqa vaqti o'tib ketgan. Natija qabul qilinmaydi.")
-    if olympiad.start_time and now < olympiad.start_time:
-        raise HTTPException(status_code=400, detail="Kechirasiz, musobaqa hali boshlanmagan.")
+    # Once a participant is marked completed, further submits are denied
+    # except for retakes of an already-scored story (which are handled
+    # below via the `submission_existed` branch — no new coins, no rescore).
 
     # --- Check for existing submission first (to avoid duplicate scoring/coins) ---
     submission_existed = False
@@ -2501,7 +2625,9 @@ async def submit_reading_result(
         submission.submitted_at = datetime.now(timezone.utc)
         submission.earned_coins = int(total_new_coins)
     else:
-        # Re-take: return FIRST attempt results from DB, don't save anything new
+        # Re-take: return FIRST attempt results from DB, don't save anything new.
+        # `reading_attempts` is bumped here ONLY — the normal path has its own
+        # separate increment so we never double-count.
         logger.info(f"Re-take detected for participant {participant.id}, returning first attempt results.")
         participant.reading_attempts = (participant.reading_attempts or 0) + 1
         await db.commit()
