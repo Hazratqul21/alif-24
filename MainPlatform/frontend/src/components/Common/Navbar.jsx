@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Home, BookOpen, Gamepad2, Trophy, User, Globe, LogIn, UserPlus,
   LogOut, ChevronDown, Menu, X, Info, HandshakeIcon, ShieldCheck,
-  Medal,
+  Medal, Settings, LayoutDashboard,
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
@@ -158,10 +158,12 @@ const Navbar = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
   const langRef = useRef(null);
+  const userMenuRef = useRef(null);
 
   const { totalStars, starsBreakdown, getStarsHistory } = useStarsManager();
 
@@ -172,14 +174,21 @@ const Navbar = () => {
   };
   const currentLang = LANGUAGES[language] || LANGUAGES.uz;
 
-  const profilePath = isAuthenticated && user ? (
+  // Role-based DASHBOARD path (not to be confused with /profile settings).
+  // Each role has its own workspace home; non-auth users fall through to /profile
+  // (which will then redirect them to the login modal).
+  const dashboardPath = isAuthenticated && user ? (
     user.role === 'student'   ? '/student-dashboard' :
     user.role === 'teacher'   ? '/teacher-dashboard' :
     user.role === 'parent'    ? '/parent-dashboard' :
     ['admin','super_admin','moderator','organization'].includes(user.role)
       ? '/organization-dashboard'
-      : '/profile'
-  ) : '/profile';
+      : '/dashboard'
+  ) : '/dashboard';
+
+  // /profile is the SETTINGS page (avatar, email/phone, password, etc).
+  // Always the same route regardless of role.
+  const profilePath = '/profile';
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 768);
@@ -200,8 +209,19 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', h);
   }, [langOpen]);
 
-  const handleProfileClick = () => {
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const h = (e) => { if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [userMenuOpen]);
+
+  const goToProfile = () => {
     if (isAuthenticated) navigate(profilePath);
+    else setLoginModalOpen(true);
+  };
+  const goToDashboard = () => {
+    if (isAuthenticated) navigate(dashboardPath);
     else setLoginModalOpen(true);
   };
   const handleLogout = () => { logout(); navigate('/'); };
@@ -217,14 +237,17 @@ const Navbar = () => {
   ];
 
   const mobileDrawerItems = [
-    { key: 'home',        icon: Home,          label: 'Bosh sahifa',        action: () => navigate('/dashboard') },
-    { key: 'games',       icon: Gamepad2,      label: "O'yinlar",           action: () => window.location.href = 'https://games.alif24.uz' },
-    { key: 'olympiad',    icon: Medal,         label: 'Olimpiada',          action: () => window.location.href = 'https://olimp.alif24.uz' },
-    { key: 'leaderboard', icon: Trophy,        label: 'Reyting',            action: () => navigate('/leaderboard') },
-    { key: 'profile',     icon: User,          label: 'Mening profilim',    action: handleProfileClick },
-    { key: 'about',       icon: Info,          label: 'Biz haqimizda',      action: () => navigate('/about') },
-    { key: 'partners',    icon: HandshakeIcon, label: 'Hamkorlar',          action: () => navigate('/partners') },
-    { key: 'privacy',     icon: ShieldCheck,   label: 'Maxfiylik siyosati', action: () => navigate('/privacy') },
+    { key: 'home',        icon: Home,             label: 'Bosh sahifa',        action: () => navigate('/dashboard') },
+    { key: 'games',       icon: Gamepad2,         label: "O'yinlar",           action: () => window.location.href = 'https://games.alif24.uz' },
+    { key: 'olympiad',    icon: Medal,            label: 'Olimpiada',          action: () => window.location.href = 'https://olimp.alif24.uz' },
+    { key: 'leaderboard', icon: Trophy,           label: 'Reyting',            action: () => navigate('/leaderboard') },
+    ...(isAuthenticated ? [
+      { key: 'dashboard', icon: LayoutDashboard,  label: 'Mening sahifam',     action: goToDashboard },
+      { key: 'settings',  icon: Settings,         label: 'Profil sozlamalari', action: goToProfile },
+    ] : []),
+    { key: 'about',       icon: Info,             label: 'Biz haqimizda',      action: () => navigate('/about') },
+    { key: 'partners',    icon: HandshakeIcon,    label: 'Hamkorlar',          action: () => navigate('/partners') },
+    { key: 'privacy',     icon: ShieldCheck,      label: 'Maxfiylik siyosati', action: () => navigate('/privacy') },
   ];
 
   const navBtnClass = (path) => {
@@ -266,9 +289,11 @@ const Navbar = () => {
                 {label}
               </button>
             ))}
-            <button onClick={handleProfileClick} className={navBtnClass(profilePath)}>
-              Profil
-            </button>
+            {isAuthenticated && (
+              <button onClick={goToDashboard} className={navBtnClass(dashboardPath)}>
+                Mening sahifam
+              </button>
+            )}
           </nav>
         )}
 
@@ -300,15 +325,61 @@ const Navbar = () => {
               </div>
             </div>
 
-            {/* User pill */}
+            {/* User dropdown: avatar + name → [Mening sahifam, Sozlamalar, Chiqish] */}
             {isAuthenticated && (
-              <button
-                onClick={() => navigate(profilePath)}
-                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/18 border border-white/15 rounded-xl px-3 py-2 text-white text-sm font-medium cursor-pointer transition-all"
-              >
-                <User size={14} className="text-white/80" />
-                {user?.first_name || 'Profil'}
-              </button>
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(v => !v)}
+                  className="flex items-center gap-2 bg-white/10 hover:bg-white/18 border border-white/15 rounded-xl pl-1 pr-3 py-1 text-white text-sm font-medium cursor-pointer transition-all"
+                >
+                  {user?.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt=""
+                      className="w-7 h-7 rounded-lg object-cover"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#4b30fb] to-[#764ba2] flex items-center justify-center">
+                      <User size={14} className="text-white" />
+                    </div>
+                  )}
+                  <span className="max-w-[120px] truncate">{user?.first_name || 'Profil'}</span>
+                  <ChevronDown size={12} className={`text-white/60 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                <div
+                  className={`absolute top-full right-0 mt-2 w-60 bg-[#1a1a2e]/96 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all duration-200 origin-top-right z-50
+                    ${userMenuOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'}`}
+                >
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <p className="text-white font-semibold text-sm truncate">{user?.first_name} {user?.last_name}</p>
+                    <p className="text-white/50 text-xs truncate">{user?.email || user?.phone || ''}</p>
+                  </div>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); goToDashboard(); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/75 hover:text-white hover:bg-white/8 border-none bg-transparent cursor-pointer transition-all text-left"
+                  >
+                    <LayoutDashboard size={15} className="text-[#7c6bff]" />
+                    Mening sahifam
+                  </button>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); goToProfile(); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/75 hover:text-white hover:bg-white/8 border-none bg-transparent cursor-pointer transition-all text-left"
+                  >
+                    <Settings size={15} className="text-[#7c6bff]" />
+                    Profil sozlamalari
+                  </button>
+                  <div className="h-px bg-white/8 my-1" />
+                  <button
+                    onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 border-none bg-transparent cursor-pointer transition-all text-left"
+                  >
+                    <LogOut size={15} />
+                    Chiqish
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* Login button */}
@@ -340,11 +411,22 @@ const Navbar = () => {
             >
               <Medal size={13} /> Olimpiada
             </button>
+            {/* Avatar tap → profile settings (same as desktop dropdown). */}
             <button
-              onClick={handleProfileClick}
-              className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white cursor-pointer transition-all active:scale-95"
+              onClick={goToProfile}
+              className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white cursor-pointer transition-all active:scale-95 overflow-hidden"
+              aria-label="Profil sozlamalari"
             >
-              <User size={16} />
+              {isAuthenticated && user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              ) : (
+                <User size={16} />
+              )}
             </button>
             <button
               onClick={() => setDrawerOpen(true)}
