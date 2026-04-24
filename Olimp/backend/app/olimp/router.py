@@ -12,7 +12,12 @@ from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional, Any
 from datetime import datetime, timezone, date, timedelta
+from email.message import EmailMessage
+import asyncio
+import hashlib
 import logging
+import random
+import smtplib
 
 from shared.database import get_db
 from shared.database.models import User, StudentProfile, UserRole
@@ -175,6 +180,43 @@ class AnswerSubmit(BaseModel):
 
 
 # ============= Helpers =============
+
+# ---------------------------------------------------------------------------
+# Deterministic per-student shuffle
+# ---------------------------------------------------------------------------
+# Anti-cheat: every participant sees questions (and per-question options) in a
+# unique but stable order, so "question #3 answer is B" leaks are useless.
+# Determinism is critical — if we generated a fresh random order on each /questions
+# call, a page refresh would reshuffle mid-test and students would lose work.
+#
+# Seed = SHA-256 of a fixed scope + user_id + olympiad_id (+ question_id for
+# option-level shuffle). Same (user, olympiad) always yields the same order.
+
+def _seeded_random(*parts: str) -> random.Random:
+    """Return a Random instance seeded by a stable hash of all parts."""
+    digest = hashlib.sha256("|".join(parts).encode("utf-8")).digest()
+    seed_int = int.from_bytes(digest[:8], "big")
+    return random.Random(seed_int)
+
+
+def _shuffled_indices(n: int, *seed_parts: str) -> list[int]:
+    """Deterministic permutation of range(n). Empty list if n <= 0."""
+    if n <= 0:
+        return []
+    indices = list(range(n))
+    _seeded_random(*seed_parts).shuffle(indices)
+    return indices
+
+
+def _option_permutation(user_id: str, olympiad_id: str, question_id: str, n_options: int) -> list[int]:
+    """shuffled_index -> original_index mapping for a single question."""
+    return _shuffled_indices(n_options, "opt", user_id, olympiad_id, str(question_id))
+
+
+def _question_permutation(user_id: str, olympiad_id: str, n_questions: int) -> list[int]:
+    """shuffled_position -> original_position mapping for the full question set."""
+    return _shuffled_indices(n_questions, "qorder", user_id, olympiad_id)
+
 
 def _olympiad_to_dict(o: Olympiad) -> dict:
     return {
@@ -623,16 +665,22 @@ async def get_olympiad(
 @router.get("/{olympiad_id}/questions")
 async def list_questions(
     olympiad_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth_user_id: Optional[str] = Depends(get_current_user_id_optional),
 ):
-    """Get all questions for an olympiad (for quiz UI).
-    Includes both OlympiadQuestion (admin panel) and SavedTest (TestAI) published questions."""
+    """Get all questions for an olympiad.
+
+    If the caller is authenticated, both question order AND each question's
+    option order are shuffled with a deterministic per-student seed. Same
+    student + same olympiad = same order every time (safe to refresh), but
+    different students see different orders — defeats "answer #3 is B"
+    leaks. Unauthenticated callers (preview) receive the canonical order.
+    """
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     olympiad = res.scalars().first()
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
-    # 1. OlympiadQuestion jadvalidagi savollar (MainPlatform admin panelidan)
     q_res = await db.execute(
         select(OlympiadQuestion).where(OlympiadQuestion.olympiad_id == olympiad.id)
         .order_by(OlympiadQuestion.order)
@@ -640,7 +688,6 @@ async def list_questions(
     questions = q_res.scalars().all()
     result_questions = [_question_to_dict(q) for q in questions]
 
-    # 2. TestAI (SavedTest) dan published testlarning savollarini ham qo'shamiz
     try:
         st_res = await db.execute(
             select(SavedTest).where(
@@ -664,11 +711,30 @@ async def list_questions(
     except Exception as e:
         logger.warning(f"SavedTest savollarini yuklashda xatolik: {e}")
 
+    # Per-student shuffle — only when authenticated.
+    if auth_user_id and result_questions:
+        # Option-level shuffle: rewrite each question's `options` array.
+        # The submit path re-derives the same permutation and translates
+        # `answer_index` back to the original index before grading, so the
+        # client can treat the index opaquely.
+        for q in result_questions:
+            opts = q.get("options") or []
+            if len(opts) >= 2:
+                perm = _option_permutation(auth_user_id, olympiad_id, q["id"], len(opts))
+                q["options"] = [opts[i] for i in perm]
+        # Question-level shuffle.
+        perm_q = _question_permutation(auth_user_id, olympiad_id, len(result_questions))
+        result_questions = [result_questions[i] for i in perm_q]
+        # Rewrite order_index so the client renders in the shuffled order.
+        for new_idx, q in enumerate(result_questions):
+            q["order_index"] = new_idx
+
     return {
         "success": True,
         "data": {
             "questions": result_questions,
-            "total": len(result_questions)
+            "total": len(result_questions),
+            "shuffled": bool(auth_user_id),
         }
     }
 
@@ -972,7 +1038,8 @@ async def submit_answers(
         for answer in answers:
             question_data = None
             is_olympiad_q = False
-            
+            n_options: int = 0
+
             logger.info(f"Checking question_id: {answer.question_id}")
             
             if str(answer.question_id).startswith("testai_"):
@@ -984,7 +1051,6 @@ async def submit_answers(
                         q_idx = int(q_idx_str)
                         st_obj = saved_tests_map.get(st_id)
                         if not st_obj:
-                            # Fallback for dynamic lookup
                             q_st = await db.execute(select(SavedTest).where(SavedTest.id == st_id))
                             st_obj = q_st.scalars().first()
                         
@@ -994,10 +1060,10 @@ async def submit_answers(
                                 "correct_answer": st_q.get("correct") if st_q.get("correct") is not None else st_q.get("answer_index"),
                                 "points": st_q.get("points", 5)
                             }
+                            n_options = len(st_q.get("options") or [])
                     except (ValueError, IndexError):
                         continue
             else:
-                # Standard OlympiadQuestion lookup
                 q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == answer.question_id))
                 question = q_res.scalars().first()
                 if question:
@@ -1006,18 +1072,45 @@ async def submit_answers(
                         "points": question.points
                     }
                     is_olympiad_q = True
+                    n_options = len(question.options or [])
 
             if not question_data:
                 continue
 
-            # Type-safe comparison (ensure both are ints)
+            # Reverse the per-student option shuffle. The index the client
+            # submitted is indexed into the SHUFFLED options array they saw
+            # in /questions — we translate it back to the canonical index
+            # before comparing with the stored `correct_answer`.
+            submitted_idx_original = answer.answer_index
             try:
-                is_correct = int(answer.answer_index) == int(question_data["correct_answer"])
+                submitted_idx_int = int(answer.answer_index)
+            except (ValueError, TypeError):
+                submitted_idx_int = None
+
+            # Only reverse when the request was JWT-authenticated — /questions
+            # shuffles only for authenticated callers. Legacy student_id-only
+            # submits (transitional) receive unshuffled questions, so their
+            # indices must pass through as-is.
+            if (
+                auth_user_id
+                and submitted_idx_int is not None
+                and n_options >= 2
+                and 0 <= submitted_idx_int < n_options
+            ):
+                perm = _option_permutation(auth_user_id, olympiad_id, answer.question_id, n_options)
+                submitted_idx_original = perm[submitted_idx_int]
+
+            try:
+                is_correct = int(submitted_idx_original) == int(question_data["correct_answer"])
             except (ValueError, TypeError):
                 is_correct = False
 
             points = question_data["points"] if is_correct else 0
-            logger.info(f"Result for q={answer.question_id}: is_correct={is_correct}, ans={answer.answer_index}, expected={question_data['correct_answer']}, points={points}")
+            logger.info(
+                f"Result for q={answer.question_id}: is_correct={is_correct}, "
+                f"shuffled_idx={answer.answer_index}, original_idx={submitted_idx_original}, "
+                f"expected={question_data['correct_answer']}, points={points}"
+            )
             total_score += points
             total_points += question_data["points"]
             
@@ -1029,16 +1122,16 @@ async def submit_answers(
             result_details.append({
                 "question_id": answer.question_id,
                 "submitted_answer": answer.answer_index,
+                "original_answer_index": submitted_idx_original,
                 "is_correct": is_correct,
                 "points_earned": points
             })
 
-            # Save to OlympiadAnswer only for persistent OlympiadQuestion (due to FK constraints)
             if participant and is_olympiad_q:
                 ans_obj = OlympiadAnswer(
                     participant_id=participant.id,
                     question_id=answer.question_id,
-                    selected_answer=answer.answer_index,
+                    selected_answer=submitted_idx_original,
                     is_correct=is_correct,
                     points_earned=points,
                 )
@@ -1931,6 +2024,114 @@ async def admin_delete_question(
     return {"success": True, "message": "Savol o'chirildi"}
 
 
+# ============= Winner email helper =============
+
+def _send_smtp_email_sync(to: str, subject: str, html_body: str) -> bool:
+    """Send a single email via stdlib smtplib. Blocking — wrap in to_thread.
+
+    Returns True on success, False on failure. Never raises.
+    """
+    if not settings.MAIL_ENABLED:
+        logger.info("MAIL_ENABLED=false; would send '%s' to %s", subject, to)
+        return True
+    if not (settings.MAIL_USERNAME and settings.MAIL_PASSWORD):
+        logger.warning("MAIL credentials missing — skipping email to %s", to)
+        return False
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = f"{settings.MAIL_FROM_NAME} <{settings.MAIL_FROM}>"
+        msg["To"] = to
+        msg.set_content("Bu maktubni HTML'ni qo'llab-quvvatlaydigan klientda oching.")
+        msg.add_alternative(html_body, subtype="html")
+
+        if settings.MAIL_USE_SSL:
+            with smtplib.SMTP_SSL(settings.MAIL_SERVER, settings.MAIL_PORT, timeout=15) as server:
+                server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(settings.MAIL_SERVER, settings.MAIL_PORT, timeout=15) as server:
+                server.starttls()
+                server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
+                server.send_message(msg)
+        logger.info("winner email sent to %s (subject=%s)", to, subject)
+        return True
+    except Exception as e:
+        logger.warning("winner email to %s failed: %s", to, e)
+        return False
+
+
+def _winner_email_html(full_name: str, olympiad_title: str, rank: int, coins: int) -> str:
+    rank_label = {1: "1-o'rin", 2: "2-o'rin", 3: "3-o'rin"}.get(rank, f"{rank}-o'rin")
+    medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, "🏆")
+    return f"""\
+<html><body style="font-family:Arial,sans-serif;background:#f5f7fb;padding:24px">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px">
+    <h1 style="color:#2563eb;margin-top:0">{medal} Tabriklaymiz, {full_name}!</h1>
+    <p style="font-size:16px;color:#111">
+      Siz <strong>{olympiad_title}</strong> olimpiadasida
+      <strong>{rank_label}</strong> ni egalladingiz.
+    </p>
+    <p style="font-size:16px;color:#111">
+      Mukofot sifatida hisobingizga <strong>{coins} tanga</strong> qo'shildi.
+      Tanga do'koniga kirib, sovg'alarni tanlashingiz mumkin.
+    </p>
+    <p style="font-size:14px;color:#555;margin-top:32px">
+      Alif24 jamoasi sizni ushbu yutuq bilan qutlaydi va yangi bosqichlarda muvaffaqiyat tilaydi!
+    </p>
+    <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
+    <p style="font-size:12px;color:#888">
+      Bu avtomatik xabar. Javob yozish shart emas.
+    </p>
+  </div>
+</body></html>"""
+
+
+async def _resolve_winner_emails(
+    db: AsyncSession,
+    winners: list[dict],
+) -> list[dict]:
+    """Hydrate winner rows with {email, full_name} using the live request
+    DB session. Returns only winners that have a valid email. Caller should
+    invoke this BEFORE handing the list off to a background task (the db
+    session is request-scoped and will close after the response).
+    """
+    if not winners:
+        return []
+    student_ids = [w["student_id"] for w in winners]
+    res = await db.execute(
+        select(StudentProfile, User)
+        .join(User, StudentProfile.user_id == User.id)
+        .where(StudentProfile.id.in_(student_ids))
+    )
+    user_by_student: dict[str, tuple[str, str]] = {}
+    for sp, u in res.all():
+        full_name = f"{u.first_name or ''} {u.last_name or ''}".strip() or "Hurmatli o'quvchi"
+        email = (u.email or "").strip()
+        if email:
+            user_by_student[sp.id] = (email, full_name)
+
+    hydrated = []
+    for w in winners:
+        data = user_by_student.get(w["student_id"])
+        if not data:
+            continue
+        email, name = data
+        hydrated.append({**w, "email": email, "full_name": name})
+    return hydrated
+
+
+async def _send_winner_emails_bg(olympiad_title: str, winners: list[dict]) -> None:
+    """Run SMTP sends concurrently off the request thread."""
+    tasks = []
+    for w in winners:
+        html = _winner_email_html(w["full_name"], olympiad_title, w["rank"], w["amount"])
+        subject = f"Tabriklaymiz! {olympiad_title} — {w['rank']}-o'rin mukofoti"
+        tasks.append(asyncio.to_thread(_send_smtp_email_sync, w["email"], subject, html))
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
 # ============= Admin: Audit log helper =============
 
 async def _audit(
@@ -2324,12 +2525,26 @@ async def admin_finalize_olympiad(
         request=request,
     )
 
+    # Hydrate winner contact info BEFORE commit — we need the live session.
+    newly_awarded = [p for p in prizes_awarded if p.get("status") == "awarded"]
+    hydrated_winners: list[dict] = []
+    if newly_awarded:
+        try:
+            hydrated_winners = await _resolve_winner_emails(db, newly_awarded)
+        except Exception as e:
+            logger.warning("finalize: winner email hydration failed: %s", e)
+
     await db.commit()
 
     try:
         await manager.broadcast(olympiad.id, {"type": "leaderboard_update", "final": True})
     except Exception:
         pass
+
+    # Fire-and-forget winner emails. Background SMTP so the admin's HTTP
+    # response doesn't block on 3x Gmail round-trips.
+    if hydrated_winners:
+        asyncio.create_task(_send_winner_emails_bg(olympiad.title, hydrated_winners))
 
     return {
         "success": True,

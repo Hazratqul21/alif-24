@@ -53,6 +53,18 @@ class Settings:
     OLYMPIAD_PRIZE_COINS_SECOND: int = int(os.getenv("OLYMPIAD_PRIZE_COINS_SECOND", "300"))
     OLYMPIAD_PRIZE_COINS_THIRD: int = int(os.getenv("OLYMPIAD_PRIZE_COINS_THIRD", "100"))
 
+    # SMTP for olympiad winner notifications (stdlib smtplib).
+    # Share creds with MainPlatform's MAIL_* env vars — best-effort, no hard
+    # dependency (sending failures log and continue, they never block finalize).
+    MAIL_ENABLED: bool = os.getenv("MAIL_ENABLED", "false").lower() == "true"
+    MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    MAIL_PORT: int = int(os.getenv("MAIL_PORT", "465"))
+    MAIL_USE_SSL: bool = os.getenv("MAIL_USE_SSL", "true").lower() == "true"
+    MAIL_USERNAME: str | None = os.getenv("MAIL_USERNAME") or None
+    MAIL_PASSWORD: str | None = os.getenv("MAIL_PASSWORD") or None
+    MAIL_FROM: str = os.getenv("MAIL_FROM", os.getenv("MAIL_USERNAME") or "noreply@alif24.uz")
+    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Alif24 Olimpiada")
+
     # Anti-cheat caps for reading olympiads.
     # Any client-supplied metric beyond these is treated as evidence of
     # tampering — we hard-cap instead of trusting the submission.
