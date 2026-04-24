@@ -75,17 +75,22 @@ const CosmicRobot = ({
       )}
 
       {/* Avatar ring — uses the keyframed cosmic-pulse animation so the
-          halo breathes without relying on GPU-expensive filters. */}
+          halo breathes without relying on GPU-expensive filters.
+
+          Sizing tracks Figma (195 px on desktop / 120 px on mobile). The
+          border-6 + cosmic-glow shadow combo is the same recipe used on
+          the active lesson card — reinforces the "orange means primary"
+          visual language across the page. */}
       <button
         type="button"
         onClick={handleOpen}
-        className="pointer-events-auto relative w-[90px] h-[90px] sm:w-[140px] sm:h-[140px] rounded-full bg-[#000406] border-6 border-cosmic-glow overflow-hidden shadow-cosmic-glow animate-cosmic-pulse cursor-pointer transition-transform hover:scale-[1.04] active:scale-95 border-solid"
+        className="pointer-events-auto relative w-[120px] h-[120px] sm:w-[160px] sm:h-[160px] lg:w-[180px] lg:h-[180px] rounded-full bg-[#000406] border-6 border-solid border-cosmic-glow overflow-hidden shadow-cosmic-glow animate-cosmic-pulse cursor-pointer transition-transform hover:scale-[1.04] active:scale-95"
         aria-label="AI yordamchi"
       >
         <img
           src={avatarSrc}
           alt=""
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover object-center scale-[1.05]"
           loading="lazy"
           decoding="async"
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -94,7 +99,7 @@ const CosmicRobot = ({
             assistant at least once in this session. We hide it once the
             bubble gets dismissed too, treating that as acknowledgment. */}
         {showBubble && (
-          <span className="absolute top-2 right-2 w-3 h-3 rounded-full bg-cosmic-notify ring-2 ring-white shadow-[0_0_6px_rgba(232,63,91,0.9)]" />
+          <span className="absolute top-3 right-3 w-3.5 h-3.5 rounded-full bg-cosmic-notify ring-2 ring-white shadow-[0_0_6px_rgba(232,63,91,0.9)]" />
         )}
       </button>
 

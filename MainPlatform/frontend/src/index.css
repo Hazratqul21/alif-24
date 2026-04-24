@@ -6,10 +6,15 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    /* Cosmic fallback — visible for the split-second before the nebula
+       JPEG decodes, and anywhere a page forgets to set its own bg. */
+    background-color: #081820;
   }
   body {
     overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
+    background-color: #081820;
+    color: #fff;
   }
 }
 
