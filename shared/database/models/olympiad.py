@@ -299,6 +299,12 @@ class OlympiadReadingSubmission(Base):
     """
     __tablename__ = "olympiad_reading_submissions"
     __table_args__ = (
+        # DB-level duplicate-submit guard. Paired with row-lock + IntegrityError
+        # handling in the /reading-submit path (Phase-1 hardening).
+        UniqueConstraint(
+            "participant_id", "story_id", "reading_task_id",
+            name="uq_reading_submission_per_story",
+        ),
         Index("ix_reading_sub_participant_id", "participant_id"),
         Index("ix_reading_sub_task_id", "reading_task_id"),
     )

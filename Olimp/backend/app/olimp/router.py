@@ -25,6 +25,7 @@ from shared.database.models.olympiad_content import OlympiadLesson, OlympiadStor
 from shared.database.models.saved_test import SavedTest, SavedTestStatus
 from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
 from shared.database.models.subscription import UserSubscription, SubscriptionStatus
+from shared.database.models.analytics import AuditLog
 from shared.auth import verify_token
 from app.core.config import settings
 from app.olimp.websocket import manager
@@ -1930,6 +1931,252 @@ async def admin_delete_question(
     return {"success": True, "message": "Savol o'chirildi"}
 
 
+# ============= Admin: Audit log helper =============
+
+async def _audit(
+    db: AsyncSession,
+    *,
+    admin_role: str,
+    action: str,
+    target_type: Optional[str] = None,
+    target_id: Optional[str] = None,
+    target_name: Optional[str] = None,
+    details: Optional[dict] = None,
+    request: Optional[Request] = None,
+    action_type: str = "info",
+) -> None:
+    """Persist an AuditLog row. Never raises — audit failures must not
+    break the parent request. Callers must still `await db.commit()`.
+    """
+    try:
+        ip = None
+        if request is not None:
+            # FastAPI stores the client peer in request.client; proxies may set
+            # X-Forwarded-For which we prefer when present.
+            xff = request.headers.get("x-forwarded-for")
+            if xff:
+                ip = xff.split(",")[0].strip()
+            elif request.client:
+                ip = request.client.host
+        db.add(AuditLog(
+            admin_role=admin_role[:20],
+            action=action[:50],
+            action_type=action_type[:20],
+            target_type=(target_type or None),
+            target_id=(target_id or None),
+            target_name=(target_name or None),
+            details=details or None,
+            ip_address=ip,
+        ))
+    except Exception as e:
+        logger.warning("audit write failed (action=%s): %s", action, e)
+
+
+def _admin_role_from_headers(request: Request) -> str:
+    """Extract the label from X-Admin-Role header; unknown roles collapse to 'admin'."""
+    role = (request.headers.get("x-admin-role") or "admin").lower().strip()
+    return role if role in {"hazratqul", "nurali", "pedagog", "admin", "system"} else "admin"
+
+
+# ============= Admin: Pause / resume / invalidate question =============
+
+class PausePayload(BaseModel):
+    reason: Optional[str] = None
+
+
+@router.post("/admin/olympiads/{olympiad_id}/pause")
+async def admin_pause_olympiad(
+    olympiad_id: str,
+    payload: PausePayload = PausePayload(),
+    request: Request = None,  # type: ignore
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Freeze an olympiad temporarily (e.g. network outage). Flips status to
+    `draft` which makes the Phase-1 submit gate reject new submissions.
+    Active participants still see their timers; they resume on /resume.
+
+    Stored in audit_logs with reason.
+    """
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id).with_for_update())
+    olympiad = res.scalars().first()
+    if not olympiad:
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+    if olympiad.status == OlympiadStatus.finished:
+        raise HTTPException(status_code=400, detail="Yakunlangan olimpiadani pauza qilib bo'lmaydi")
+
+    prev_status = olympiad.status.value if olympiad.status else None
+    olympiad.status = OlympiadStatus.draft
+
+    await _audit(
+        db,
+        admin_role=_admin_role_from_headers(request) if request else "admin",
+        action="olympiad.pause",
+        action_type="warning",
+        target_type="olympiad",
+        target_id=olympiad.id,
+        target_name=olympiad.title,
+        details={"reason": payload.reason, "prev_status": prev_status},
+        request=request,
+    )
+    await db.commit()
+    return {"success": True, "data": {"olympiad_id": olympiad.id, "status": olympiad.status.value}}
+
+
+class ResumePayload(BaseModel):
+    # Extend end_time by this many minutes to compensate for lost time.
+    extend_minutes: int = 0
+
+
+@router.post("/admin/olympiads/{olympiad_id}/resume")
+async def admin_resume_olympiad(
+    olympiad_id: str,
+    payload: ResumePayload = ResumePayload(),
+    request: Request = None,  # type: ignore
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Un-pause. Optionally bump end_time to compensate for downtime."""
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id).with_for_update())
+    olympiad = res.scalars().first()
+    if not olympiad:
+        raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
+    if olympiad.status == OlympiadStatus.finished:
+        raise HTTPException(status_code=400, detail="Yakunlangan olimpiadani qayta ochib bo'lmaydi")
+
+    prev_status = olympiad.status.value if olympiad.status else None
+    olympiad.status = OlympiadStatus.active
+
+    extended_to = None
+    if payload.extend_minutes and payload.extend_minutes > 0 and olympiad.end_time:
+        olympiad.end_time = olympiad.end_time + timedelta(minutes=payload.extend_minutes)
+        extended_to = olympiad.end_time.isoformat()
+
+    await _audit(
+        db,
+        admin_role=_admin_role_from_headers(request) if request else "admin",
+        action="olympiad.resume",
+        action_type="info",
+        target_type="olympiad",
+        target_id=olympiad.id,
+        target_name=olympiad.title,
+        details={
+            "prev_status": prev_status,
+            "extend_minutes": payload.extend_minutes,
+            "new_end_time": extended_to,
+        },
+        request=request,
+    )
+    await db.commit()
+    return {
+        "success": True,
+        "data": {
+            "olympiad_id": olympiad.id,
+            "status": olympiad.status.value,
+            "end_time": olympiad.end_time.isoformat() if olympiad.end_time else None,
+        },
+    }
+
+
+class InvalidateQuestionPayload(BaseModel):
+    # What to do with answers of the invalidated question:
+    # "credit_all"  — give everyone full points (safe default, fair)
+    # "zero_all"    — award 0 points to everyone
+    # "skip"        — leave answer rows untouched, just hide the question going forward
+    mode: str = "credit_all"
+    reason: Optional[str] = None
+
+
+@router.post("/admin/olympiads/{olympiad_id}/questions/{question_id}/invalidate")
+async def admin_invalidate_question(
+    olympiad_id: str,
+    question_id: str,
+    payload: InvalidateQuestionPayload = InvalidateQuestionPayload(),
+    request: Request = None,  # type: ignore
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
+):
+    """Invalidate a question after submissions started (typo, ambiguous, etc.).
+
+    Rescores participants' `total_score` in place according to `mode`.
+    Logged in audit_logs.
+    """
+    if payload.mode not in {"credit_all", "zero_all", "skip"}:
+        raise HTTPException(status_code=400, detail="mode must be credit_all | zero_all | skip")
+
+    q_res = await db.execute(
+        select(OlympiadQuestion).where(
+            OlympiadQuestion.id == question_id,
+            OlympiadQuestion.olympiad_id == olympiad_id,
+        )
+    )
+    question = q_res.scalars().first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Savol topilmadi")
+
+    # Find every answer to this question, grouped by participant, to know
+    # who currently has it marked correct/wrong.
+    ans_res = await db.execute(
+        select(OlympiadAnswer).where(OlympiadAnswer.question_id == question_id)
+    )
+    answers = list(ans_res.scalars().all())
+
+    q_points = int(question.points or 1)
+    affected = 0
+
+    if payload.mode in {"credit_all", "zero_all"}:
+        target_correct = payload.mode == "credit_all"
+
+        # Collect participant ids to rescore efficiently.
+        participant_ids = {a.participant_id for a in answers}
+
+        for ans in answers:
+            prev_correct = bool(ans.is_correct)
+            prev_points = int(ans.points_earned or 0)
+
+            ans.is_correct = target_correct
+            ans.points_earned = q_points if target_correct else 0
+
+            delta = ans.points_earned - prev_points
+            if delta != 0:
+                # Update participant.total_score incrementally.
+                p_res = await db.execute(
+                    select(OlympiadParticipant).where(OlympiadParticipant.id == ans.participant_id)
+                )
+                p = p_res.scalars().first()
+                if p is not None:
+                    p.total_score = int(p.total_score or 0) + delta
+                    affected += 1
+
+    await _audit(
+        db,
+        admin_role=_admin_role_from_headers(request) if request else "admin",
+        action="question.invalidate",
+        action_type="danger",
+        target_type="question",
+        target_id=question.id,
+        target_name=(question.question_text or "")[:200],
+        details={
+            "olympiad_id": olympiad_id,
+            "mode": payload.mode,
+            "reason": payload.reason,
+            "answers_affected": len(answers),
+            "scores_changed": affected,
+        },
+        request=request,
+    )
+    await db.commit()
+    return {
+        "success": True,
+        "data": {
+            "question_id": question.id,
+            "mode": payload.mode,
+            "answers_affected": len(answers),
+            "scores_changed": affected,
+        },
+    }
+
+
 # ============= Admin: Finalize olympiad =============
 
 class FinalizePayload(BaseModel):
@@ -1944,6 +2191,7 @@ class FinalizePayload(BaseModel):
 async def admin_finalize_olympiad(
     olympiad_id: str,
     payload: FinalizePayload = FinalizePayload(),
+    request: Request = None,  # type: ignore
     db: AsyncSession = Depends(get_db),
     _: bool = Depends(verify_admin_key),
 ):
@@ -2057,6 +2305,24 @@ async def admin_finalize_olympiad(
     if not olympiad.end_time or olympiad.end_time > datetime.now(timezone.utc):
         # Force end_time to "now" so late submissions are rejected immediately.
         olympiad.end_time = datetime.now(timezone.utc)
+
+    await _audit(
+        db,
+        admin_role=_admin_role_from_headers(request) if request else "admin",
+        action="olympiad.finalize",
+        action_type="danger",
+        target_type="olympiad",
+        target_id=olympiad.id,
+        target_name=olympiad.title,
+        details={
+            "rewrite_ranks": payload.rewrite_ranks,
+            "award_prizes": payload.award_prizes,
+            "total_finished": len(participants),
+            "ranked_count": ranked_count,
+            "prizes_awarded": prizes_awarded,
+        },
+        request=request,
+    )
 
     await db.commit()
 
