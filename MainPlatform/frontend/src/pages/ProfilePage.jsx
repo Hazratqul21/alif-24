@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +9,7 @@ import {
   User, Mail, Phone, Lock, Eye, EyeOff, Save, ArrowLeft,
   Camera, Shield, Bell, LogOut, Calendar, Users as UsersIcon,
   GraduationCap, School, Globe, Check, AlertCircle, Loader2,
-  BadgeCheck, XCircle
+  BadgeCheck, XCircle, Trash2
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -71,6 +71,9 @@ export default function ProfilePage() {
 
   const [verifyEmailOpen, setVerifyEmailOpen] = useState(false);
   const [verifyEmailTarget, setVerifyEmailTarget] = useState(null);
+
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef(null);
 
   const [notifications, setNotifications] = useState({
     marketing_emails_enabled: true,
@@ -183,6 +186,49 @@ export default function ProfilePage() {
     }
   };
 
+  const handleAvatarPick = () => avatarInputRef.current?.click();
+
+  const handleAvatarFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!/^image\/(jpeg|jpg|png|webp|gif)$/.test(file.type)) {
+      flash('error', 'Faqat JPEG, PNG, WebP yoki GIF rasm yuklash mumkin.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      flash('error', 'Rasm hajmi 5 MB dan oshmasligi kerak.');
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      await authService.uploadAvatar(file);
+      await refreshUser?.();
+      await loadCompleteness();
+      flash('success', 'Avatar yangilandi');
+    } catch (err) {
+      flash('error', err.message || 'Avatarni yuklab bo\'lmadi');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleAvatarDelete = async () => {
+    if (!user?.avatar) return;
+    if (!window.confirm("Avatarni o'chirasizmi?")) return;
+    setAvatarUploading(true);
+    try {
+      await authService.deleteAvatar();
+      await refreshUser?.();
+      await loadCompleteness();
+      flash('success', 'Avatar o\'chirildi');
+    } catch (err) {
+      flash('error', err.message || 'Xatolik');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const handleEmailVerified = async (updatedUser) => {
     if (updatedUser) {
       // Sync local contact state with what the backend now has.
@@ -271,15 +317,35 @@ export default function ProfilePage() {
                   {initials}
                 </div>
               )}
-              {/* Avatar upload is wired up in Step 4 */}
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleAvatarFile}
+                className="hidden"
+              />
               <button
                 type="button"
-                disabled
-                title="Avatar yuklash (tez orada)"
-                className="absolute -bottom-1 -right-1 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white border-2 border-[#1a1a2e] cursor-not-allowed"
+                onClick={handleAvatarPick}
+                disabled={avatarUploading}
+                title="Avatar yuklash"
+                className="absolute -bottom-1 -right-1 w-8 h-8 bg-[#4b30fb] hover:bg-[#5b42ff] rounded-full flex items-center justify-center text-white border-2 border-[#1a1a2e] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
-                <Camera size={14} />
+                {avatarUploading
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <Camera size={14} />}
               </button>
+              {user?.avatar && (
+                <button
+                  type="button"
+                  onClick={handleAvatarDelete}
+                  disabled={avatarUploading}
+                  title="Avatarni o'chirish"
+                  className="absolute -top-1 -right-1 w-6 h-6 bg-red-500/90 hover:bg-red-500 rounded-full flex items-center justify-center text-white border-2 border-[#1a1a2e] cursor-pointer disabled:opacity-60"
+                >
+                  <Trash2 size={10} />
+                </button>
+              )}
             </div>
 
             <div className="flex-1">

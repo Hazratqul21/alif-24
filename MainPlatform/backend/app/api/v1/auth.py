@@ -3,7 +3,7 @@ Auth Router - MainPlatform
 Authentication endpoints using shared modules
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, BackgroundTasks, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, Field, EmailStr, field_validator
@@ -600,17 +600,109 @@ async def child_login(
         }
     }
 
+_AVATAR_ALLOWED_MIME = {
+    "image/jpeg": "jpg",
+    "image/jpg":  "jpg",
+    "image/png":  "png",
+    "image/webp": "webp",
+    "image/gif":  "gif",
+}
+
+
 @router.post("/avatar")
 async def upload_avatar(
+    file: UploadFile = File(..., description="Image file (jpeg/png/webp/gif, max 5MB)"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """Upload user avatar (placeholder)"""
+    """Upload a new avatar for the authenticated user.
+
+    Pipeline:
+      1. Validate content-type + byte-size (both server-enforced; client
+         limits are advisory only).
+      2. Push bytes to Supabase Storage under ``avatars/<user_id>.<ext>``
+         (``upsert=true`` → a user always has at most one avatar object).
+      3. Persist the resulting public URL onto ``users.avatar`` and return
+         the fresh profile dict.
+    """
+    from app.services.supabase_storage import supabase_avatars, SupabaseStorageError
+
+    content_type = (file.content_type or "").lower().strip()
+    ext = _AVATAR_ALLOWED_MIME.get(content_type)
+    if not ext:
+        raise HTTPException(
+            status_code=415,
+            detail="Faqat JPEG, PNG, WebP yoki GIF formatidagi rasm yuklash mumkin."
+        )
+
+    # Read the full body. We cap at SUPABASE_AVATAR_MAX_BYTES + 1 so we can
+    # reject oversized uploads without buffering the entire giant file.
+    max_bytes = settings.SUPABASE_AVATAR_MAX_BYTES
+    data = await file.read(max_bytes + 1)
+    if not data:
+        raise HTTPException(status_code=400, detail="Bo'sh fayl yuborildi.")
+    if len(data) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Fayl hajmi {max_bytes // (1024*1024)} MB dan oshmasligi kerak."
+        )
+
+    if not supabase_avatars.is_configured:
+        raise HTTPException(
+            status_code=503,
+            detail="Avatar yuklash xizmati hozircha sozlanmagan. Iltimos admin bilan bog'laning."
+        )
+
+    object_path = f"{current_user.id}.{ext}"
+    try:
+        public_url = await supabase_avatars.upload_bytes(
+            object_path=object_path,
+            data=data,
+            content_type=content_type,
+            upsert=True,
+        )
+    except SupabaseStorageError as exc:
+        logger.exception("Avatar upload failed for user %s: %s", current_user.id, exc)
+        raise HTTPException(status_code=502, detail="Avatar yuklashda xatolik. Keyinroq urining.")
+
+    # Cache-bust: add a short query so the browser refetches the new avatar.
+    cache_busted = f"{public_url}?v={int(datetime.now(timezone.utc).timestamp())}"
+
+    user_row = await db.get(User, current_user.id)
+    if not user_row:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_row.avatar = cache_busted
+    await db.commit()
+    await db.refresh(user_row)
+
     return {
         "success": True,
-        "message": "Avatar upload endpoint ready. Connect storage service for file handling.",
-        "data": {"avatar": current_user.avatar}
+        "message": "Avatar yangilandi.",
+        "data": user_row.to_dict(),
     }
+
+
+@router.delete("/avatar")
+async def delete_avatar(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove the authenticated user's avatar (clears users.avatar + deletes object)."""
+    from app.services.supabase_storage import supabase_avatars
+
+    # Best-effort: try all allowed extensions because the stored column may not
+    # tell us which one was picked at upload time.
+    for ext in set(_AVATAR_ALLOWED_MIME.values()):
+        await supabase_avatars.delete(f"{current_user.id}.{ext}")
+
+    user_row = await db.get(User, current_user.id)
+    if not user_row:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_row.avatar = None
+    await db.commit()
+    await db.refresh(user_row)
+
+    return {"success": True, "message": "Avatar o'chirildi.", "data": user_row.to_dict()}
 
 @router.put("/me")
 async def update_profile(

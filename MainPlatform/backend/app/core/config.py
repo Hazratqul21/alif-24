@@ -101,6 +101,16 @@ class Settings:
     MAIL_BROADCAST_BATCH_SIZE: int = int(os.getenv("MAIL_BROADCAST_BATCH_SIZE", "50"))
     MAIL_BROADCAST_SLEEP_SECONDS: float = float(os.getenv("MAIL_BROADCAST_SLEEP_SECONDS", "2.0"))
 
+    # =========================================================================
+    # Supabase Storage (avatars, user uploads)
+    # =========================================================================
+    # Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env. Service role is used
+    # because uploads are server-side (we never send it to the browser).
+    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL", None)
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY", None)
+    SUPABASE_AVATAR_BUCKET: str = os.getenv("SUPABASE_AVATAR_BUCKET", "avatars")
+    SUPABASE_AVATAR_MAX_BYTES: int = int(os.getenv("SUPABASE_AVATAR_MAX_BYTES", str(5 * 1024 * 1024)))
+
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "info")
     SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN", None)

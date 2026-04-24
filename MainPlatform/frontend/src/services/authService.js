@@ -75,6 +75,23 @@ class AuthService {
   }
 
   /**
+   * Upload a new avatar. Returns the updated profile.
+   * @param {File} file — image (jpeg/png/webp/gif, <= 5MB)
+   */
+  async uploadAvatar(file) {
+    const form = new FormData();
+    form.append('file', file);
+    // apiService.post auto-detects FormData and skips JSON encoding.
+    const response = await apiService.post('/auth/avatar', form);
+    return response?.data ?? response;
+  }
+
+  async deleteAvatar() {
+    const response = await apiService.delete('/auth/avatar');
+    return response?.data ?? response;
+  }
+
+  /**
    * Change password
    * Backend endpoint: PUT /auth/password
    * @param {string} currentPassword - Current password
