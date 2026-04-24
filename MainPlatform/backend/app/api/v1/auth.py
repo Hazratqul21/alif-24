@@ -78,7 +78,7 @@ class UpdateProfileRequest(BaseModel):
     def _gender_valid(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return v
-        allowed = {"male", "female", "other"}
+        allowed = {"male", "female"}
         if v.lower() not in allowed:
             raise ValueError(f"gender must be one of {sorted(allowed)}")
         return v.lower()

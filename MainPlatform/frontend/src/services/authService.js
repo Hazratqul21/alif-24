@@ -60,7 +60,17 @@ class AuthService {
    * @returns {Promise<Object>} Updated profile
    */
   async updateProfile(updates) {
-    const response = await apiService.put('/auth/me', updates);
+    // PATCH is idiomatic partial update; backend also accepts PUT.
+    const response = await apiService.patch('/auth/me', updates);
+    return response?.data ?? response;
+  }
+
+  /**
+   * Get profile completeness — percent + missing fields.
+   * Used to drive progress bar and "fill your profile" modal.
+   */
+  async getCompleteness() {
+    const response = await apiService.get('/auth/me/completeness');
     return response?.data ?? response;
   }
 

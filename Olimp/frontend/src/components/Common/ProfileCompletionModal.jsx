@@ -256,7 +256,6 @@ export default function ProfileCompletionModal({
                                             <option value="" className="bg-[#1a1a2e]">Tanlang…</option>
                                             <option value="male" className="bg-[#1a1a2e]">O'g'il bola</option>
                                             <option value="female" className="bg-[#1a1a2e]">Qiz bola</option>
-                                            <option value="other" className="bg-[#1a1a2e]">Boshqa</option>
                                         </select>
                                     </FormRow>
                                 )}

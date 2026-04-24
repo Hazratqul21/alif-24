@@ -184,8 +184,9 @@ class User(Base):
         return {
             "id": self.id,
             "email": self.email,
+            "email_verified": bool(self.email_verified),
             "phone": self.phone,
-            "phone_verified": self.phone_verified,
+            "phone_verified": bool(self.phone_verified),
             "username": self.username,
             "first_name": self.first_name,
             "last_name": self.last_name,
@@ -193,8 +194,11 @@ class User(Base):
             "status": self.status.value,
             "avatar": self.avatar,
             "language": self.language,
+            "timezone": self.timezone,
+            "marketing_emails_enabled": bool(self.marketing_emails_enabled),
             "parent_id": self.parent_id,
             "date_of_birth": self.date_of_birth.isoformat() if self.date_of_birth else None,
+            "gender": self.gender.value if self.gender else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

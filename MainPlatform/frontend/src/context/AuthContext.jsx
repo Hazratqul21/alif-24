@@ -114,6 +114,23 @@ export const AuthProvider = ({ children }) => {
     return updatedUser;
   };
 
+  /**
+   * Re-fetch the current user profile from the server.
+   * Useful after multi-step flows (e.g. saving contact info, verifying email).
+   */
+  const refreshUser = async () => {
+    try {
+      const profile = await authService.getProfile();
+      if (profile && (profile.id || profile.user?.id)) {
+        setUser(profile);
+        return profile;
+      }
+    } catch (err) {
+      console.warn('refreshUser failed:', err?.message);
+    }
+    return null;
+  };
+
   const value = {
     user,
     subscription,
@@ -134,6 +151,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateProfile,
+    refreshUser,
     fetchSubscription,
     refreshSubscription: fetchSubscription,
     clearError: () => setError(null)
