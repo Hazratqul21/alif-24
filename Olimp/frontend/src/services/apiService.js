@@ -59,6 +59,16 @@ class ApiService {
         return this.handleResponse(resp);
     }
 
+    async patch(endpoint, data = {}, options = {}) {
+        const headers = { ...this.getHeaders(), ...(options.headers || {}) };
+        const resp = await fetch(this._buildUrl(endpoint), {
+            method: "PATCH", credentials: "include",
+            headers,
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(resp);
+    }
+
     async delete(endpoint, options = {}) {
         const headers = { ...this.getHeaders(), ...(options.headers || {}) };
         const resp = await fetch(this._buildUrl(endpoint), {

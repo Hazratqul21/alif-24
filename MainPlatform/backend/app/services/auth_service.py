@@ -243,16 +243,63 @@ class AuthService:
         return user.to_dict()
 
     async def update_profile(self, user_id: str, updates: dict):
-        """Update user profile fields"""
+        """Update user profile + student profile fields.
+
+        Whitelisted set of fields — never allow callers to set role, status,
+        password, OAuth ids, etc. via this endpoint. If `email` or `phone`
+        changes, the corresponding *_verified flag is reset to False so the
+        user has to re-verify the new contact.
+        """
+        from shared.database.models import User, StudentProfile, Gender, UserRole
+        from sqlalchemy import select
+
         user = await self.user_repo.find_by_id(user_id)
         if not user:
             raise NotFoundError("User not found")
-        
-        # Update allowed fields
-        allowed_fields = ['first_name', 'last_name', 'phone', 'email']
-        for field in allowed_fields:
-            if field in updates:
-                setattr(user, field, updates[field])
-        
+
+        user_fields = {
+            "first_name", "last_name", "phone", "email",
+            "date_of_birth", "gender", "avatar",
+            "language", "timezone", "marketing_emails_enabled",
+        }
+        student_fields = {"grade", "school_name"}
+
+        # Track contact changes for verified-reset logic.
+        email_changed = False
+        phone_changed = False
+
+        for field, value in updates.items():
+            if field not in user_fields:
+                continue
+            if value is None:
+                continue  # skip nulls so we never unintentionally clear stored values
+            if field == "email" and value != user.email:
+                email_changed = True
+            if field == "phone" and value != user.phone:
+                phone_changed = True
+            if field == "gender":
+                # store as enum value (DB column is SQLEnum(Gender))
+                try:
+                    value = Gender(value)
+                except ValueError:
+                    continue
+            setattr(user, field, value)
+
+        if email_changed:
+            user.email_verified = False
+        if phone_changed:
+            user.phone_verified = False
+
+        # Student-profile fields — upsert-style on StudentProfile.
+        if user.role == UserRole.student and any(f in updates for f in student_fields):
+            sp_res = await self.db.execute(
+                select(StudentProfile).where(StudentProfile.user_id == user.id)
+            )
+            sp = sp_res.scalars().first()
+            if sp:
+                for f in student_fields:
+                    if f in updates and updates[f] is not None:
+                        setattr(sp, f, updates[f])
+
         await self.db.commit()
         return user.to_dict()

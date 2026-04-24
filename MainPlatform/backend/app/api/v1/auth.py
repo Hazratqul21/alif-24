@@ -5,13 +5,14 @@ Authentication endpoints using shared modules
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel, Field, EmailStr
+from sqlalchemy import select
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import logging
 
 from shared.database import get_db
-from shared.database.models import User, UserGeoLog
+from shared.database.models import User, UserGeoLog, StudentProfile, Gender
 from shared.auth import create_access_token, create_refresh_token
 from ...core.config import settings
 from ...middleware.auth import get_current_user, get_optional_current_user
@@ -35,14 +36,66 @@ class ChangePasswordRequest(BaseModel):
         populate_by_name = True
 
 class UpdateProfileRequest(BaseModel):
-    """Schema for profile updates via PUT /auth/me"""
-    first_name: Optional[str] = Field(None, alias="firstName")
-    last_name: Optional[str] = Field(None, alias="lastName")
-    phone: Optional[str] = None
+    """Schema for profile updates via PUT /auth/me.
+
+    All fields are optional — caller sends only what they want to change.
+    Verified flags (email_verified, phone_verified) are reset to False
+    whenever the corresponding contact value is mutated (handled in service).
+    Student-only fields (grade, school_name) are ignored for non-students.
+    """
+    first_name: Optional[str] = Field(None, alias="firstName", max_length=100)
+    last_name: Optional[str] = Field(None, alias="lastName", max_length=100)
+    phone: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
-    
+    date_of_birth: Optional[date] = Field(None, alias="dateOfBirth")
+    gender: Optional[str] = None                               # "male" | "female" | "other"
+    avatar: Optional[str] = Field(None, max_length=500)
+    language: Optional[str] = Field(None, max_length=5)        # "uz" | "ru" | "en"
+    timezone: Optional[str] = Field(None, max_length=50)
+    marketing_emails_enabled: Optional[bool] = Field(None, alias="marketingEmailsEnabled")
+    # Student-profile fields (applied only if user.role == student)
+    grade: Optional[str] = Field(None, max_length=20)
+    school_name: Optional[str] = Field(None, alias="schoolName", max_length=200)
+
     class Config:
         populate_by_name = True
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def _dob_sane(cls, v: Optional[date]) -> Optional[date]:
+        if v is None:
+            return v
+        today = date.today()
+        if v > today:
+            raise ValueError("Tug'ilgan sana kelajakda bo'lishi mumkin emas")
+        age = today.year - v.year - ((today.month, today.day) < (v.month, v.day))
+        if age < 3 or age > 120:
+            raise ValueError("Yosh haqiqiy emas (3-120 orasida bo'lishi kerak)")
+        return v
+
+    @field_validator("gender")
+    @classmethod
+    def _gender_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        allowed = {"male", "female", "other"}
+        if v.lower() not in allowed:
+            raise ValueError(f"gender must be one of {sorted(allowed)}")
+        return v.lower()
+
+    @field_validator("phone")
+    @classmethod
+    def _phone_normalise(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        s = "".join(ch for ch in v if ch.isdigit() or ch == "+")
+        if s and not s.startswith("+"):
+            s = "+" + s
+        # Accept +998XXXXXXXXX shape or anything with at least 9 digits.
+        digits = sum(1 for ch in s if ch.isdigit())
+        if digits < 9 or digits > 15:
+            raise ValueError("Telefon raqami noto'g'ri ko'rinishda")
+        return s
 
 @router.post("/register")
 async def register(
@@ -565,7 +618,7 @@ async def update_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Update current user profile"""
+    """Update current user profile (PUT — kept for backward compat; PATCH below)."""
     service = AuthService(db)
     updates = data.model_dump(exclude_none=True, by_alias=False)
     profile = await service.update_profile(current_user.id, updates)
@@ -573,6 +626,104 @@ async def update_profile(
         "success": True,
         "message": "Profile updated successfully",
         "data": profile
+    }
+
+
+@router.patch("/me")
+async def patch_profile(
+    data: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Same as PUT /me but idiomatic — clients should use PATCH for partial updates."""
+    service = AuthService(db)
+    updates = data.model_dump(exclude_none=True, by_alias=False)
+    profile = await service.update_profile(current_user.id, updates)
+    return {
+        "success": True,
+        "message": "Profile updated successfully",
+        "data": profile,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Profile completeness — powers the "fill your profile" modal that the frontend
+# shows when blocked actions (olympiad register, premium content) require
+# mandatory fields.
+# ---------------------------------------------------------------------------
+
+# Field → (weight, label). Weights sum to 100.
+_COMPLETENESS_WEIGHTS = [
+    ("first_name",    10, "Ism"),
+    ("last_name",     10, "Familiya"),
+    ("date_of_birth", 20, "Tug'ilgan sana"),          # required for olympiad
+    ("email",         15, "Email"),
+    ("email_verified", 5, "Email tasdiqlangan"),
+    ("phone",         10, "Telefon"),
+    ("phone_verified", 5, "Telefon tasdiqlangan"),
+    ("gender",         5, "Jins"),
+    ("avatar",         5, "Avatar"),
+    # Student-only fields weighted into the remaining 15 points.
+    ("grade",          8, "Sinf"),
+    ("school_name",    7, "Maktab"),
+]
+
+
+@router.get("/me/completeness")
+async def profile_completeness(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return {percent, missing[], required_missing[]} for profile completion UI.
+
+    `required_missing` is the strict set that blocks core flows (currently
+    only `date_of_birth` — olympiad registration needs it). `missing` is the
+    full nice-to-have set.
+    """
+    from shared.database.models import UserRole
+
+    sp = None
+    if current_user.role == UserRole.student:
+        sp_res = await db.execute(
+            select(StudentProfile).where(StudentProfile.user_id == current_user.id)
+        )
+        sp = sp_res.scalars().first()
+
+    # Sentinel values — different for bool vs non-bool fields.
+    def _val(field: str):
+        if field in {"grade", "school_name"}:
+            return getattr(sp, field, None) if sp else None
+        return getattr(current_user, field, None)
+
+    total_weight = 0
+    earned_weight = 0
+    missing: list[dict] = []
+    for field, weight, label in _COMPLETENESS_WEIGHTS:
+        # Skip student-only fields for non-students so the % isn't unfairly low.
+        if field in {"grade", "school_name"} and current_user.role != UserRole.student:
+            continue
+        total_weight += weight
+        value = _val(field)
+        filled = bool(value) if not isinstance(value, bool) else value
+        if filled:
+            earned_weight += weight
+        else:
+            missing.append({"field": field, "label": label, "weight": weight})
+
+    percent = int(round((earned_weight / total_weight) * 100)) if total_weight else 0
+
+    # Fields that block core actions — kept minimal so we don't annoy users.
+    REQUIRED_FOR_CORE = {"first_name", "last_name", "date_of_birth"}
+    required_missing = [m for m in missing if m["field"] in REQUIRED_FOR_CORE]
+
+    return {
+        "success": True,
+        "data": {
+            "percent": percent,
+            "missing": missing,
+            "required_missing": required_missing,
+            "is_complete_for_olympiad": len(required_missing) == 0,
+        },
     }
 
 

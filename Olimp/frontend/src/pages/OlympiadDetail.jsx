@@ -7,6 +7,7 @@ import { useConfetti } from '../hooks/useConfetti';
 import { useSoundFx } from '../hooks/useSoundFx';
 import ShareCard from '../components/ShareCard';
 import { SkeletonLeaderboard } from '../components/Skeleton';
+import ProfileCompletionModal from '../components/Common/ProfileCompletionModal';
 
 export default function OlympiadDetail() {
     const { id } = useParams();
@@ -32,6 +33,7 @@ export default function OlympiadDetail() {
     const [leaderboard, setLeaderboard] = useState([]);
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [lbLoading, setLbLoading] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
 
     useEffect(() => {
         // Fetch current user from cookie-based auth first
@@ -127,6 +129,12 @@ export default function OlympiadDetail() {
         }
     };
 
+    const isProfileBlocker = (msg = '') => {
+        const m = String(msg).toLowerCase();
+        return m.includes("tug'ilgan") || m.includes('profilingizni')
+            || m.includes('date of birth') || m.includes('profile');
+    };
+
     const handleRegister = async () => {
         const studentId = currentUserId || localStorage.getItem('userId');
         if (!studentId) {
@@ -144,10 +152,21 @@ export default function OlympiadDetail() {
             const qs = qData.data?.questions || qData.data || qData.questions || [];
             setQuestions(Array.isArray(qs) ? qs : []);
         } catch (err) {
-            setRegError(err.message);
+            if (isProfileBlocker(err.message)) {
+                setShowProfileModal(true);
+                setRegError(null);
+            } else {
+                setRegError(err.message);
+            }
         } finally {
             setRegistering(false);
         }
+    };
+
+    const handleProfileCompleted = async () => {
+        setShowProfileModal(false);
+        // Auto-retry the registration once the user has filled their profile.
+        await handleRegister();
     };
 
     const handleAnswer = (questionId, answerIndex) => {
@@ -262,6 +281,13 @@ export default function OlympiadDetail() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+            <ProfileCompletionModal
+                isOpen={showProfileModal}
+                onClose={() => setShowProfileModal(false)}
+                onCompleted={handleProfileCompleted}
+                title="Olimpiadaga qo'shilish uchun profil"
+                message="Siz yutuq, sertifikat va reytingingizni to'g'ri olishingiz uchun quyidagi ma'lumotlar talab qilinadi."
+            />
             {/* Header */}
             <header className="border-b border-white/10 backdrop-blur-md bg-white/5">
                 <div className="max-w-4xl mx-auto px-4 py-4">

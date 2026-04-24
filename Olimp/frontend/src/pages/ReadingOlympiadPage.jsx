@@ -6,6 +6,7 @@ import {
     Medal, BookOpen
 } from 'lucide-react';
 import apiService from '../services/apiService';
+import ProfileCompletionModal from '../components/Common/ProfileCompletionModal';
 
 // ─── Helper ────────────────────────────────────────────────────────────────────
 const fmtSec = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -25,6 +26,7 @@ export default function ReadingOlympiadPage() {
     const [registering, setRegistering] = useState(false);
     const [regError, setRegError] = useState(null);
     const [lbLoading, setLbLoading] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
 
     // ─── Load data ──────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -83,6 +85,12 @@ export default function ReadingOlympiadPage() {
         return () => ws.close();
     }, [id, loadLeaderboard]);
 
+    const isProfileBlocker = (msg = '') => {
+        const m = String(msg).toLowerCase();
+        return m.includes("tug'ilgan") || m.includes('profilingizni')
+            || m.includes('date of birth') || m.includes('profile');
+    };
+
     // ─── Registration ───────────────────────────────────────────────────────────
     const handleRegister = async () => {
         const studentId = currentUserId || localStorage.getItem('userId');
@@ -96,10 +104,20 @@ export default function ReadingOlympiadPage() {
             await apiService.post(`/olympiad/${id}/register`, { student_id: studentId });
             setRegistered(true);
         } catch (err) {
-            setRegError(err.message);
+            if (isProfileBlocker(err.message)) {
+                setShowProfileModal(true);
+                setRegError(null);
+            } else {
+                setRegError(err.message);
+            }
         } finally {
             setRegistering(false);
         }
+    };
+
+    const handleProfileCompleted = async () => {
+        setShowProfileModal(false);
+        await handleRegister();
     };
 
     // ─── Navigate to ErtaklarPage ───────────────────────────────────────────────
@@ -129,6 +147,13 @@ export default function ReadingOlympiadPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
+            <ProfileCompletionModal
+                isOpen={showProfileModal}
+                onClose={() => setShowProfileModal(false)}
+                onCompleted={handleProfileCompleted}
+                title="Olimpiadaga qo'shilish uchun profil"
+                message="Siz yutuq, sertifikat va reytingingizni to'g'ri olishingiz uchun quyidagi ma'lumotlar talab qilinadi."
+            />
             {/* Header */}
             <header className="border-b border-white/10 backdrop-blur-md bg-white/5 sticky top-0 z-30">
                 <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
