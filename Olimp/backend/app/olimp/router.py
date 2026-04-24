@@ -3,7 +3,8 @@ Olimp Platform Backend - Olympiad Router
 Student-facing endpoints reading from shared `olympiads` tables.
 Admin creates olympiads via MainPlatform admin panel.
 """
-from fastapi import APIRouter, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect, Query, Form
+from fastapi import APIRouter, Depends, HTTPException, Header, WebSocket, WebSocketDisconnect, Query, Form, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func as sql_func, select, or_
 from sqlalchemy.orm import selectinload
@@ -23,12 +24,62 @@ from shared.database.models.olympiad_content import OlympiadLesson, OlympiadStor
 from shared.database.models.saved_test import SavedTest, SavedTestStatus
 from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
 from shared.database.models.subscription import UserSubscription, SubscriptionStatus
+from shared.auth import verify_token
 from app.core.config import settings
 from app.olimp.websocket import manager
+from app.gamification.models import Badge, UserBadge, DailyActivity, BadgeType
 
 logger = logging.getLogger("olimp")
 
 router = APIRouter()
+
+# ---------------------------------------------------------------------------
+# JWT auth helpers (security fix)
+# ---------------------------------------------------------------------------
+# Student-facing endpoints historically accepted `student_id` in the body/query
+# (a real User.id). That enables trivial spoofing — any client could submit as
+# anyone. We now prefer JWT cookie/Bearer, falling back to the legacy parameter
+# with a warning log so the frontend can be migrated without downtime.
+_bearer = HTTPBearer(auto_error=False)
+
+
+async def get_current_user_id_optional(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+) -> Optional[str]:
+    """Return User.id from JWT cookie/Bearer token, or None if missing/invalid."""
+    token = request.cookies.get("access_token")
+    if not token and credentials:
+        token = credentials.credentials
+    if not token:
+        return None
+    payload = verify_token(token)
+    if not payload:
+        return None
+    return payload.get("sub")
+
+
+def resolve_auth_user_id(
+    provided: Optional[str],
+    authenticated: Optional[str],
+) -> str:
+    """
+    Security gate — JWT wins, legacy param is fallback.
+
+    Returns the authoritative User.id. Raises 401 if neither JWT nor param present.
+    Logs a mismatch when both exist but disagree (potential spoof attempt).
+    """
+    if authenticated:
+        if provided and provided != authenticated:
+            logger.warning(
+                "olimp: student_id mismatch — body=%s jwt=%s (using JWT)",
+                provided, authenticated,
+            )
+        return authenticated
+    if provided:
+        logger.warning("olimp: legacy student_id used without JWT — frontend migration pending")
+        return provided
+    raise HTTPException(status_code=401, detail="Autentifikatsiya talab qilinadi")
 
 
 class BuilderQuestionItem(BaseModel):
@@ -118,7 +169,9 @@ async def verify_admin_key(
 # ============= Pydantic Schemas =============
 
 class OlympiadRegistrationSchema(BaseModel):
-    student_id: str  # user_id from frontend
+    # Legacy: frontend historically passes User.id here (not StudentProfile.id).
+    # Kept for backward compatibility — JWT auth now supersedes it.
+    student_id: Optional[str] = None
 
 
 class AnswerSubmit(BaseModel):
@@ -209,6 +262,154 @@ async def _award_coins(student_id: str, amount: int, tx_type: TransactionType,
     return student_coin.current_balance
 
 
+# ---------------------------------------------------------------------------
+# Gamification hooks — called on olympiad completion (non-fatal, best-effort)
+# ---------------------------------------------------------------------------
+async def _touch_daily_activity(student_profile_id: str, db: AsyncSession) -> Optional[DailyActivity]:
+    """
+    Update `gamification_daily_activity` streak for the student.
+    Idempotent per day: multiple completions on the same day don't inflate streak.
+    """
+    now = datetime.now(timezone.utc)
+    today = now.date()
+
+    da_res = await db.execute(
+        select(DailyActivity).where(DailyActivity.user_id == student_profile_id)
+    )
+    da = da_res.scalars().first()
+
+    if not da:
+        da = DailyActivity(
+            user_id=student_profile_id,
+            last_active_date=now,
+            current_streak=1,
+            longest_streak=1,
+        )
+        db.add(da)
+        await db.flush()
+        return da
+
+    last_date = da.last_active_date.date() if da.last_active_date else None
+    if last_date == today:
+        return da  # Already counted today — keep streak as-is
+
+    if last_date and (today - last_date).days == 1:
+        da.current_streak = (da.current_streak or 0) + 1
+    else:
+        da.current_streak = 1
+
+    if (da.longest_streak or 0) < da.current_streak:
+        da.longest_streak = da.current_streak
+
+    da.last_active_date = now
+    return da
+
+
+async def _award_badges(
+    student_profile_id: str,
+    db: AsyncSession,
+    *,
+    completed_count: Optional[int] = None,
+    current_streak: Optional[int] = None,
+) -> List[Badge]:
+    """
+    Grant any Badge whose `condition_value` ≤ the relevant metric and which
+    the student hasn't earned yet. Returns the list of newly-awarded badges.
+
+    `completed_count` covers `participation` badges; `current_streak` covers
+    `streak` badges. Either can be None (skipped).
+    """
+    newly_awarded: List[Badge] = []
+
+    # Build dynamic conditions based on provided metrics
+    type_conditions = []
+    if completed_count is not None:
+        type_conditions.append(
+            (Badge.badge_type == BadgeType.participation)
+            & (Badge.condition_value <= completed_count)
+        )
+    if current_streak is not None:
+        type_conditions.append(
+            (Badge.badge_type == BadgeType.streak)
+            & (Badge.condition_value <= current_streak)
+        )
+    if not type_conditions:
+        return newly_awarded
+
+    combined = type_conditions[0]
+    for cond in type_conditions[1:]:
+        combined = combined | cond
+
+    eligible_res = await db.execute(select(Badge).where(combined))
+    eligible = eligible_res.scalars().all()
+    if not eligible:
+        return newly_awarded
+
+    earned_res = await db.execute(
+        select(UserBadge.badge_id).where(UserBadge.user_id == student_profile_id)
+    )
+    earned_ids = {row[0] for row in earned_res.all()}
+
+    for badge in eligible:
+        if badge.id in earned_ids:
+            continue
+        db.add(UserBadge(user_id=student_profile_id, badge_id=badge.id))
+        newly_awarded.append(badge)
+
+        # Optional coin reward on badge unlock
+        if badge.coin_reward and badge.coin_reward > 0:
+            try:
+                await _award_coins(
+                    student_id=student_profile_id,
+                    amount=badge.coin_reward,
+                    tx_type=TransactionType.admin_adjustment,
+                    description=f"Badge unlocked: {badge.name}",
+                    reference_id=badge.id,
+                    reference_type="badge",
+                    db=db,
+                )
+            except Exception as e:
+                logger.warning(f"Badge coin reward failed for {badge.id}: {e}")
+
+    return newly_awarded
+
+
+async def _run_gamification_post_completion(
+    participant: OlympiadParticipant, db: AsyncSession
+) -> None:
+    """
+    Run streak + badge updates after a student completes an olympiad.
+    Fully non-fatal — any DB/logic failure here must not roll back the
+    parent commit. Caller must have already committed or flushed the
+    participant state.
+    """
+    try:
+        da = await _touch_daily_activity(participant.student_id, db)
+
+        # Count completed olympiads for participation badges
+        count_res = await db.execute(
+            select(sql_func.count(OlympiadParticipant.id)).where(
+                OlympiadParticipant.student_id == participant.student_id,
+                OlympiadParticipant.status == ParticipationStatus.completed,
+            )
+        )
+        completed_count = int(count_res.scalar() or 0)
+
+        awarded = await _award_badges(
+            participant.student_id,
+            db,
+            completed_count=completed_count,
+            current_streak=(da.current_streak if da else None),
+        )
+        if awarded:
+            logger.info(
+                "Gamification: awarded %d badge(s) to student_profile=%s — %s",
+                len(awarded), participant.student_id, [b.name for b in awarded],
+            )
+    except Exception as e:
+        logger.warning(f"Gamification post-completion hook failed (non-fatal): {e}")
+
+
 # ============= Student-facing: List & Get =============
 
 @router.get("/")
@@ -296,19 +497,23 @@ async def list_olympiads(
 
 @router.get("/my-profile")
 async def get_my_profile(
-    student_id: str = None,
-    db: AsyncSession = Depends(get_db)
+    student_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    auth_user_id: Optional[str] = Depends(get_current_user_id_optional),
 ):
-    """Get student's olimpiad profile — coins, participations, history"""
-    if not student_id:
-        raise HTTPException(status_code=400, detail="student_id kerak")
+    """Get student's olimpiad profile — coins, participations, history.
 
-    sp = await _resolve_student_profile(student_id, db)
+    `student_id` here is legacy — actual User.id. New clients authenticate
+    via JWT cookie; the query param is kept for backward compatibility.
+    """
+    user_id = resolve_auth_user_id(student_id, auth_user_id)
+
+    sp = await _resolve_student_profile(user_id, db)
     if not sp:
         raise HTTPException(status_code=404, detail="Profil topilmadi")
 
     # Get user name
-    u_res = await db.execute(select(User).where(User.id == student_id))
+    u_res = await db.execute(select(User).where(User.id == user_id))
     user = u_res.scalars().first()
     name = f"{user.first_name} {user.last_name}".strip() if user else "O'quvchi"
 
@@ -325,10 +530,18 @@ async def get_my_profile(
     )
     participations = p_res.scalars().all()
 
+    # Batch-load related olympiads in ONE query (fixes N+1)
+    olympiad_ids = list({p.olympiad_id for p in participations if p.olympiad_id})
+    olympiads_map: dict = {}
+    if olympiad_ids:
+        o_res = await db.execute(
+            select(Olympiad).where(Olympiad.id.in_(olympiad_ids))
+        )
+        olympiads_map = {o.id: o for o in o_res.scalars().all()}
+
     history = []
     for p in participations:
-        o_res = await db.execute(select(Olympiad).where(Olympiad.id == p.olympiad_id))
-        olympiad = o_res.scalars().first()
+        olympiad = olympiads_map.get(p.olympiad_id)
         history.append({
             "olympiad_id": p.olympiad_id,
             "olympiad_title": olympiad.title if olympiad else "—",
@@ -471,9 +684,12 @@ async def list_questions(
 async def register_for_olympiad(
     olympiad_id: str,
     data: OlympiadRegistrationSchema,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth_user_id: Optional[str] = Depends(get_current_user_id_optional),
 ):
     """Register a student for an olympiad"""
+    user_id = resolve_auth_user_id(data.student_id, auth_user_id)
+
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     olympiad = res.scalars().first()
     if not olympiad:
@@ -493,7 +709,7 @@ async def register_for_olympiad(
         raise HTTPException(status_code=400, detail="Ro'yxatdan o'tish muddati tugagan")
 
     # Check if real user exists and is a student
-    user_res = await db.execute(select(User).where(User.id == data.student_id))
+    user_res = await db.execute(select(User).where(User.id == user_id))
     user = user_res.scalars().first()
     
     if not user:
@@ -528,7 +744,7 @@ async def register_for_olympiad(
     subscription_res = await db.execute(
         select(UserSubscription)
         .where(
-            UserSubscription.user_id == data.student_id,
+            UserSubscription.user_id == user_id,
             UserSubscription.status == SubscriptionStatus.active.value,
             UserSubscription.expires_at > now
         )
@@ -545,7 +761,7 @@ async def register_for_olympiad(
         trial_sub_res = await db.execute(
             select(UserSubscription)
             .where(
-                UserSubscription.user_id == data.student_id,
+                UserSubscription.user_id == user_id,
                 UserSubscription.created_at > trial_start,
                 UserSubscription.expires_at > now  # Trial muddati o'tmagan bo'lishi kerak
             )
@@ -560,7 +776,7 @@ async def register_for_olympiad(
             )
 
     # Resolve student profile from user_id
-    sp = await _resolve_student_profile(data.student_id, db)
+    sp = await _resolve_student_profile(user_id, db)
     if not sp:
         # Auto-create profile if missing (e.g for telegram bot registrations)
         sp = StudentProfile(user_id=user.id)
@@ -603,7 +819,7 @@ async def register_for_olympiad(
         "data": {
             "id": participant.id,
             "olympiad_id": participant.olympiad_id,
-            "student_id": data.student_id,
+            "student_id": user_id,
             "registered_at": participant.registered_at.isoformat() if participant.registered_at else None,
         }
     }
@@ -615,10 +831,12 @@ async def register_for_olympiad(
 async def start_olympiad(
     olympiad_id: str,
     data: OlympiadRegistrationSchema,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth_user_id: Optional[str] = Depends(get_current_user_id_optional),
 ):
     """Mark olympiad as started by the student"""
-    sp = await _resolve_student_profile(data.student_id, db)
+    user_id = resolve_auth_user_id(data.student_id, auth_user_id)
+    sp = await _resolve_student_profile(user_id, db)
     if not sp:
         raise HTTPException(status_code=404, detail="Profil topilmadi")
 
@@ -649,14 +867,14 @@ async def start_olympiad(
 async def submit_answers(
     olympiad_id: str,
     answers: List[AnswerSubmit],
-    student_id: str = Query(..., description="Student user_id"),
-    db: AsyncSession = Depends(get_db)
+    student_id: Optional[str] = Query(None, description="Legacy: Student user_id (JWT preferred)"),
+    db: AsyncSession = Depends(get_db),
+    auth_user_id: Optional[str] = Depends(get_current_user_id_optional),
 ):
-    """Submit answers for an olympiad - requires student_id query parameter"""
+    """Submit answers for an olympiad. Auth via JWT cookie (Bearer fallback)."""
     try:
-        # Validate student_id is provided
-        if not student_id:
-            raise HTTPException(status_code=400, detail="student_id talab qilinadi")
+        # Security: prefer JWT, fall back to legacy `student_id` with warning.
+        student_id = resolve_auth_user_id(student_id, auth_user_id)
 
         res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
         olympiad = res.scalars().first()
@@ -865,6 +1083,9 @@ async def submit_answers(
                     )
                 except Exception as e:
                     logger.error(f"Coin award error: {e}")
+
+                # Gamification: streak + participation/streak badges (non-fatal)
+                await _run_gamification_post_completion(participant, db)
 
             await db.commit()
             
@@ -1112,12 +1333,14 @@ async def get_participant_detail(
 @router.get("/{olympiad_id}/my-results")
 async def get_my_results(
     olympiad_id: str,
-    student_id: str,
+    student_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    auth_user_id: Optional[str] = Depends(get_current_user_id_optional),
 ):
     """Student: Get my own answer breakdown for an olympiad"""
-    # Resolve student profile
-    sp = await _resolve_student_profile(student_id, db)
+    user_id = resolve_auth_user_id(student_id, auth_user_id)
+
+    sp = await _resolve_student_profile(user_id, db)
     if not sp:
         raise HTTPException(status_code=404, detail="Profil topilmadi")
 
@@ -1138,10 +1361,18 @@ async def get_my_results(
     )
     answers_list = a_res.scalars().all()
 
+    # Batch-load question metadata (fixes N+1)
+    question_ids = list({a.question_id for a in answers_list if a.question_id})
+    questions_map: dict = {}
+    if question_ids:
+        q_res = await db.execute(
+            select(OlympiadQuestion).where(OlympiadQuestion.id.in_(question_ids))
+        )
+        questions_map = {q.id: q for q in q_res.scalars().all()}
+
     answer_details = []
     for a in answers_list:
-        q_res = await db.execute(select(OlympiadQuestion).where(OlympiadQuestion.id == a.question_id))
-        q = q_res.scalars().first()
+        q = questions_map.get(a.question_id)
         answer_details.append({
             "question_id": a.question_id,
             "question_text": q.question_text if q else "",
@@ -1169,14 +1400,14 @@ async def get_my_results(
 
 @router.get("/my-analytics/insights")
 async def get_my_analytics(
-    student_id: str = None,
-    db: AsyncSession = Depends(get_db)
+    student_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    auth_user_id: Optional[str] = Depends(get_current_user_id_optional),
 ):
     """Get AI evaluation and analytics of a student's olympiad history"""
-    if not student_id:
-        raise HTTPException(status_code=400, detail="student_id kerak")
+    user_id = resolve_auth_user_id(student_id, auth_user_id)
 
-    sp = await _resolve_student_profile(student_id, db)
+    sp = await _resolve_student_profile(user_id, db)
     if not sp:
         raise HTTPException(status_code=404, detail="Profil topilmadi")
 
@@ -1203,11 +1434,17 @@ async def get_my_analytics(
     total_quizzes = len(participations)
     total_score = sum(p.total_score for p in participations)
     average_score = total_score / total_quizzes
-    
+
+    # Batch-load olympiad titles (fixes N+1 inside the progress_data loop)
+    olympiad_ids = list({p.olympiad_id for p in participations if p.olympiad_id})
+    olympiads_map: dict = {}
+    if olympiad_ids:
+        o_res = await db.execute(select(Olympiad).where(Olympiad.id.in_(olympiad_ids)))
+        olympiads_map = {o.id: o for o in o_res.scalars().all()}
+
     progress_data = []
     for p in participations:
-        o_res = await db.execute(select(Olympiad).where(Olympiad.id == p.olympiad_id))
-        olympiad = o_res.scalars().first()
+        olympiad = olympiads_map.get(p.olympiad_id)
         total_questions = p.correct_answers + p.wrong_answers
         percentage = (p.correct_answers / total_questions * 100) if total_questions > 0 else 0
         progress_data.append({
@@ -1905,8 +2142,9 @@ async def evaluate_story_quiz_text(
     story_id: str,
     question_index: int = Query(...),
     recognized_text: str = Form(...),
-    student_id: Optional[str] = Query(None, description="Student user_id for auth"),
+    student_id: Optional[str] = Query(None, description="Legacy: Student user_id (JWT preferred)"),
     db: AsyncSession = Depends(get_db),
+    auth_user_id: Optional[str] = Depends(get_current_user_id_optional),
 ):
     """
     Ertak savol-javob baholash.
@@ -1917,8 +2155,10 @@ async def evaluate_story_quiz_text(
     import difflib
     import httpx
 
-    if student_id:
-        user_res = await db.execute(select(User).where(User.id == student_id))
+    # Prefer JWT when present; fall back to legacy param for backward compat.
+    user_id = auth_user_id or student_id
+    if user_id:
+        user_res = await db.execute(select(User).where(User.id == user_id))
         if not user_res.scalars().first():
             raise HTTPException(status_code=401, detail="Foydalanuvchi topilmadi")
 
@@ -2011,7 +2251,8 @@ class ReadingQuizAnswer(BaseModel):
 
 
 class ReadingResultSubmit(BaseModel):
-    student_id: str
+    # Legacy: User.id — optional when JWT is supplied (auth via cookie/Bearer).
+    student_id: Optional[str] = None
     story_id: Optional[str] = None  # Yangi: qaysi ertak topshirildi?
     wpm: float = 0
     read_percent: float = 0
@@ -2025,14 +2266,17 @@ async def submit_reading_result(
     olympiad_id: str,
     data: ReadingResultSubmit,
     db: AsyncSession = Depends(get_db),
+    auth_user_id: Optional[str] = Depends(get_current_user_id_optional),
 ):
     """Submit combined reading + quiz result for a reading olympiad"""
+    user_id = resolve_auth_user_id(data.student_id, auth_user_id)
+
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     olympiad = res.scalars().first()
     if not olympiad:
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
-    sp = await _resolve_student_profile(data.student_id, db)
+    sp = await _resolve_student_profile(user_id, db)
     if not sp:
         raise HTTPException(status_code=404, detail="Profil topilmadi")
 
@@ -2349,6 +2593,11 @@ async def submit_reading_result(
         except Exception as e:
             logger.error(f"Coin award error: {e}")
 
+    # Gamification hook only fires when the participation actually just
+    # transitioned to `completed` (final submission of a reading olympiad).
+    if participant.status == ParticipationStatus.completed and not submission_existed:
+        await _run_gamification_post_completion(participant, db)
+
     await db.commit()
 
     # Broadcast leaderboard update
@@ -2384,7 +2633,8 @@ async def get_reading_leaderboard(
 ):
     """
     Reading olympiad leaderboard.
-    Ranked by: quiz_score DESC, reading_wpm DESC, reading_percent DESC, reading_coins DESC
+    Only `completed` participants — partial / registered entries would produce
+    misleading 0-score rankings. Uses selectinload to eliminate N+1 joins.
     """
     res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
     olympiad = res.scalars().first()
@@ -2392,8 +2642,11 @@ async def get_reading_leaderboard(
         raise HTTPException(status_code=404, detail="Olimpiada topilmadi")
 
     p_res = await db.execute(
-        select(OlympiadParticipant).where(
+        select(OlympiadParticipant)
+        .options(selectinload(OlympiadParticipant.student).selectinload(StudentProfile.user))
+        .where(
             OlympiadParticipant.olympiad_id == olympiad.id,
+            OlympiadParticipant.status == ParticipationStatus.completed,
         )
         .order_by(
             OlympiadParticipant.total_score.desc(),
@@ -2408,15 +2661,9 @@ async def get_reading_leaderboard(
     for idx, p in enumerate(participants, 1):
         student_name = f"O'quvchi #{idx}"
         try:
-            sp_res = await db.execute(
-                select(StudentProfile).where(StudentProfile.id == p.student_id)
-            )
-            sp = sp_res.scalars().first()
-            if sp:
-                u_res = await db.execute(select(User).where(User.id == sp.user_id))
-                u = u_res.scalars().first()
-                if u:
-                    student_name = f"{u.first_name} {u.last_name}".strip() or student_name
+            sp = p.student
+            if sp and sp.user:
+                student_name = f"{sp.user.first_name} {sp.user.last_name}".strip() or student_name
         except Exception:
             pass
 
