@@ -26,6 +26,10 @@ from shared.database.models.teacher import TeacherProfile
 from shared.database.models.organization import OrganizationProfile, ModeratorProfile
 from shared.database.models.telegram import PhoneVerification, TelegramUser
 from shared.database.models.feedback import PlatformFeedback
+from shared.database.models.email_verification import (
+    EmailVerificationCode,
+    EmailVerificationPurpose,
+)
 
 # Coin System
 from shared.database.models.coin import (
@@ -210,6 +214,10 @@ __all__ = [
     
     # Feedback
     "PlatformFeedback",
+
+    # Email verification
+    "EmailVerificationCode",
+    "EmailVerificationPurpose",
     
     # Coin Models
     "TransactionType",

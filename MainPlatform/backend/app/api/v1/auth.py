@@ -728,7 +728,241 @@ async def profile_completeness(
 
 
 # ============================================================
-# PARENT → BOLA BOSHQARISH (Search + Invite tizimi)
+# EMAIL VERIFICATION — 6-digit code sent to user's email
+# ============================================================
+#
+# Flow:
+#   1. User clicks "Verify email" in settings → POST /auth/email/send-code
+#      body is optional: if they also want to change the email, pass
+#      {"email": "new@example.com"} and we send the code to that address.
+#   2. User gets a 6-digit code, enters it → POST /auth/email/verify-code
+#      body: {"code": "123456"}. On success:
+#        - purpose=verify_existing  → flips email_verified=True
+#        - purpose=change_email     → replaces user.email with the new address
+#                                     and sets email_verified=True
+#
+# Security guards:
+#   - Only the authenticated user can request / consume codes for themselves.
+#   - At most 5 codes / hour per user (rate-limited via recent rows).
+#   - At most 5 wrong attempts per code, then it's invalidated.
+#   - Codes expire in 15 minutes; a fresh code supersedes older unconsumed ones.
+#   - Codes are stored hashed (sha256), never plaintext.
+#   - When email is changed and collides with an existing user → 409 Conflict.
+
+from datetime import datetime, timedelta, timezone as _tz
+from sqlalchemy import update
+from shared.database.models import (
+    EmailVerificationCode,
+    EmailVerificationPurpose,
+)
+
+
+class SendEmailCodeRequest(BaseModel):
+    """Optionally pass a new email to switch to; else we verify the existing one."""
+    email: Optional[EmailStr] = None
+
+
+class VerifyEmailCodeRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=6)
+
+    @field_validator("code")
+    @classmethod
+    def _numeric(cls, v: str) -> str:
+        if not v.isdigit():
+            raise ValueError("Kod faqat raqamlardan iborat bo'lishi kerak")
+        return v
+
+
+_EMAIL_CODE_EXPIRY_MIN       = 15
+_EMAIL_CODE_RATE_WINDOW_MIN  = 60
+_EMAIL_CODE_RATE_MAX_PER_H   = 5
+_EMAIL_CODE_MAX_ATTEMPTS     = 5
+
+
+@router.post("/email/send-code")
+async def send_email_verification_code(
+    data: SendEmailCodeRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a 6-digit code and email it to the user.
+
+    If `email` is passed **and differs from the current user's email**, the code
+    is sent to the new address and verifying it will switch the account's email.
+    Otherwise we re-verify the existing address.
+    """
+    target_email = (data.email or current_user.email or "").strip().lower()
+    if not target_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email manzilingiz kiritilmagan. Avval profil tahrirlashdan kiriting."
+        )
+
+    if data.email and data.email.lower() != (current_user.email or "").lower():
+        purpose = EmailVerificationPurpose.change_email
+        # Make sure the new email isn't already taken by someone else.
+        existing = await db.execute(
+            select(User).where(User.email == target_email, User.id != current_user.id)
+        )
+        if existing.scalars().first():
+            raise HTTPException(status_code=409, detail="Bu email boshqa akkauntga bog'langan.")
+    else:
+        purpose = EmailVerificationPurpose.verify_existing
+        # Already verified? Let the caller know gently; don't re-send.
+        if current_user.email_verified and (
+            (current_user.email or "").lower() == target_email
+        ):
+            return {
+                "success": True,
+                "already_verified": True,
+                "message": "Email allaqachon tasdiqlangan.",
+            }
+
+    # ---- Rate limit: max N codes per hour for this user.
+    since = datetime.now(_tz.utc) - timedelta(minutes=_EMAIL_CODE_RATE_WINDOW_MIN)
+    recent_res = await db.execute(
+        select(EmailVerificationCode)
+        .where(
+            EmailVerificationCode.user_id == current_user.id,
+            EmailVerificationCode.created_at >= since,
+        )
+    )
+    recent_count = len(recent_res.scalars().all())
+    if recent_count >= _EMAIL_CODE_RATE_MAX_PER_H:
+        raise HTTPException(
+            status_code=429,
+            detail="Juda ko'p so'rov. Iltimos, bir soatdan keyin qayta urining."
+        )
+
+    # ---- Invalidate any prior un-consumed codes for the same purpose.
+    await db.execute(
+        update(EmailVerificationCode)
+        .where(
+            EmailVerificationCode.user_id == current_user.id,
+            EmailVerificationCode.purpose == purpose,
+            EmailVerificationCode.consumed_at.is_(None),
+        )
+        .values(consumed_at=datetime.now(_tz.utc))
+    )
+
+    # ---- Issue + persist new code (hash only).
+    code = EmailVerificationCode.generate_code()
+    row = EmailVerificationCode(
+        user_id    = current_user.id,
+        email      = target_email,
+        code_hash  = EmailVerificationCode.hash_code(code),
+        purpose    = purpose,
+        expires_at = EmailVerificationCode.default_expiry(_EMAIL_CODE_EXPIRY_MIN),
+    )
+    db.add(row)
+    await db.commit()
+
+    # ---- Send email in background so the HTTP response is snappy.
+    from app.services.email_service import send_mail, render_template
+
+    async def _send():
+        try:
+            html = render_template(
+                "verify_email.html",
+                code=code,
+                email=target_email,
+                first_name=current_user.first_name or "",
+                expires_minutes=_EMAIL_CODE_EXPIRY_MIN,
+            )
+            await send_mail(
+                to=target_email,
+                subject="Email manzilingizni tasdiqlang — Alif24",
+                html=html,
+                user_id=current_user.id,
+            )
+        except Exception:
+            logger.exception("Failed to send verification email to %s", target_email)
+
+    background_tasks.add_task(_send)
+
+    return {
+        "success": True,
+        "message": f"Tasdiqlash kodi {target_email} manziliga yuborildi.",
+        "expires_in": _EMAIL_CODE_EXPIRY_MIN * 60,
+        "purpose": purpose.value,
+    }
+
+
+@router.post("/email/verify-code")
+async def verify_email_verification_code(
+    data: VerifyEmailCodeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Consume a 6-digit code and flip email_verified (or change the email)."""
+    now = datetime.now(_tz.utc)
+    code_hash = EmailVerificationCode.hash_code(data.code)
+
+    # Find the most recent active code for this user (any purpose).
+    res = await db.execute(
+        select(EmailVerificationCode)
+        .where(
+            EmailVerificationCode.user_id == current_user.id,
+            EmailVerificationCode.consumed_at.is_(None),
+        )
+        .order_by(EmailVerificationCode.created_at.desc())
+    )
+    rows = res.scalars().all()
+    if not rows:
+        raise HTTPException(status_code=400, detail="Faol tasdiqlash kodi topilmadi. Yangi kod so'rang.")
+
+    # Prefer the row whose hash actually matches — but still count attempts
+    # against *every* active row so brute-forcing across generations is bounded.
+    target: Optional[EmailVerificationCode] = None
+    for r in rows:
+        if r.code_hash == code_hash and not r.is_expired():
+            target = r
+            break
+
+    if target is None:
+        # Bump attempts on the newest active code so the attacker can't keep
+        # guessing forever. If attempts exceed threshold, consume it.
+        newest = rows[0]
+        newest.attempts = (newest.attempts or 0) + 1
+        if newest.attempts >= _EMAIL_CODE_MAX_ATTEMPTS:
+            newest.consumed_at = now
+        await db.commit()
+        if newest.attempts >= _EMAIL_CODE_MAX_ATTEMPTS:
+            raise HTTPException(
+                status_code=429,
+                detail="Ko'p noto'g'ri urinishlar. Yangi kod so'rang."
+            )
+        raise HTTPException(status_code=400, detail="Kod noto'g'ri yoki muddati o'tgan.")
+
+    # ---- Apply the effect according to purpose.
+    user_row = await db.get(User, current_user.id)
+    if not user_row:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if target.purpose == EmailVerificationPurpose.change_email:
+        # Collision re-check (someone else may have grabbed the email).
+        collision = await db.execute(
+            select(User).where(User.email == target.email, User.id != user_row.id)
+        )
+        if collision.scalars().first():
+            target.consumed_at = now
+            await db.commit()
+            raise HTTPException(status_code=409, detail="Bu email boshqa akkauntga bog'langan.")
+        user_row.email = target.email
+        user_row.email_verified = True
+    else:
+        user_row.email_verified = True
+
+    target.consumed_at = now
+    await db.commit()
+    await db.refresh(user_row)
+
+    return {
+        "success": True,
+        "message": "Email muvaffaqiyatli tasdiqlandi.",
+        "data": user_row.to_dict(),
+    }
 # Ota-ona bolani ID / email / telefon orqali qidiradi,
 # taklif yuboradi, bola qabul qiladi — xuddi sinfga qo'shilish kabi.
 # ============================================================

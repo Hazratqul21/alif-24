@@ -4,6 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Common/Navbar';
 import { authService } from '../services/authService';
+import VerifyEmailModal from '../components/Common/VerifyEmailModal';
 import {
   User, Mail, Phone, Lock, Eye, EyeOff, Save, ArrowLeft,
   Camera, Shield, Bell, LogOut, Calendar, Users as UsersIcon,
@@ -67,6 +68,9 @@ export default function ProfilePage() {
   const [showPasswords, setShowPasswords] = useState({
     current: false, new: false, confirm: false,
   });
+
+  const [verifyEmailOpen, setVerifyEmailOpen] = useState(false);
+  const [verifyEmailTarget, setVerifyEmailTarget] = useState(null);
 
   const [notifications, setNotifications] = useState({
     marketing_emails_enabled: true,
@@ -146,22 +150,47 @@ export default function ProfilePage() {
   const saveContact = async () => {
     setLoading(true);
     try {
-      const payload = {};
-      if (contact.email && contact.email !== user?.email) payload.email = contact.email;
-      if (contact.phone && contact.phone !== user?.phone) payload.phone = contact.phone;
-      if (Object.keys(payload).length === 0) {
+      const emailChanged = contact.email && contact.email !== user?.email;
+      const phoneChanged = contact.phone && contact.phone !== user?.phone;
+
+      if (!emailChanged && !phoneChanged) {
         flash('info', "O'zgarish yo'q");
+        setLoading(false);
         return;
       }
-      await updateProfile(payload);
-      await refreshUser?.();
-      await loadCompleteness();
-      flash('success', "Aloqa ma'lumotlari yangilandi. Tasdiqlash uchun \"Tasdiqlash\" tugmasini bosing.");
+
+      // For email changes, go straight to the verify flow — backend atomically
+      // flips email_verified=true when the code is consumed, so we skip the
+      // unverified-state PATCH roundtrip to avoid briefly showing the
+      // "tasdiqlanmagan" badge for no reason.
+      if (emailChanged) {
+        setVerifyEmailTarget(contact.email.trim());
+        setVerifyEmailOpen(true);
+      }
+
+      if (phoneChanged) {
+        await updateProfile({ phone: contact.phone.trim() });
+        await refreshUser?.();
+        await loadCompleteness();
+        flash('success', emailChanged
+          ? "Telefon yangilandi. Emailni tasdiqlang."
+          : "Telefon yangilandi.");
+      }
     } catch (err) {
       flash('error', err.message || 'Xatolik yuz berdi');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEmailVerified = async (updatedUser) => {
+    if (updatedUser) {
+      // Sync local contact state with what the backend now has.
+      setContact((c) => ({ ...c, email: updatedUser.email || c.email }));
+    }
+    await refreshUser?.();
+    await loadCompleteness();
+    flash('success', 'Email muvaffaqiyatli tasdiqlandi');
   };
 
   const savePassword = async () => {
@@ -211,6 +240,13 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
       <Navbar />
+      <VerifyEmailModal
+        isOpen={verifyEmailOpen}
+        onClose={() => setVerifyEmailOpen(false)}
+        onVerified={handleEmailVerified}
+        initialEmail={verifyEmailTarget}
+        currentEmail={user?.email}
+      />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <button
           onClick={() => navigate(-1)}
@@ -466,11 +502,10 @@ export default function ProfilePage() {
                 {user?.email && !user?.email_verified && (
                   <button
                     type="button"
-                    disabled
-                    title="Email tasdiqlash 3-qadamda ishga tushadi"
-                    className="text-xs text-white/50 underline cursor-not-allowed"
+                    onClick={() => { setVerifyEmailTarget(null); setVerifyEmailOpen(true); }}
+                    className="text-xs text-[#a78bfa] hover:text-white underline bg-transparent border-none cursor-pointer"
                   >
-                    Tasdiqlash kodini yuborish (tez orada)
+                    Tasdiqlash kodini yuborish
                   </button>
                 )}
 
