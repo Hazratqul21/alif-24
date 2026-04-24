@@ -75,15 +75,77 @@ class AuthService {
   }
 
   /**
-   * Upload a new avatar. Returns the updated profile.
+   * Fetch Supabase Storage config (URL, anon key, bucket) for direct uploads.
+   * Cached for the session — the values don't change between requests.
+   */
+  async getStorageConfig() {
+    if (this._storageConfigCache) return this._storageConfigCache;
+    const response = await apiService.get('/auth/storage-config');
+    this._storageConfigCache = response?.data ?? response;
+    return this._storageConfigCache;
+  }
+
+  /**
+   * Upload a new avatar.
+   *
+   * Flow: browser → Supabase Storage (direct) → backend only stores the URL.
+   * This keeps user bytes off our API, avoids needing service_role on the
+   * server, and lets us scale avatar uploads independently from API capacity.
+   *
    * @param {File} file — image (jpeg/png/webp/gif, <= 5MB)
+   * @returns {Promise<Object>} updated user profile
    */
   async uploadAvatar(file) {
-    const form = new FormData();
-    form.append('file', file);
-    // apiService.post auto-detects FormData and skips JSON encoding.
-    const response = await apiService.post('/auth/avatar', form);
-    return response?.data ?? response;
+    const cfg = await this.getStorageConfig();
+    if (!cfg?.url || !cfg?.anon_key) {
+      throw new Error('Avatar yuklash xizmati sozlanmagan.');
+    }
+
+    // Content-type + size checks (client-side, advisory). Server-side limits
+    // are enforced at the Supabase bucket level too.
+    const allowed = new Set(cfg.allowed_mime_types || ['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+    const mime = (file.type || '').toLowerCase();
+    if (!allowed.has(mime)) {
+      throw new Error('Faqat JPEG, PNG, WebP yoki GIF formatidagi rasm yuklash mumkin.');
+    }
+    if (file.size > (cfg.max_bytes || 5 * 1024 * 1024)) {
+      throw new Error(`Fayl hajmi ${Math.round((cfg.max_bytes || 5242880) / 1048576)} MB dan oshmasligi kerak.`);
+    }
+
+    // Random path under user's folder — prevents one user from overwriting
+    // another's avatar even though RLS permits inserts from the anon role.
+    const extFromMime = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+    const ext = extFromMime[mime] || 'jpg';
+    const rand = (crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+    // We nest under "u/<user_id>/" so each user has their own folder. The
+    // auth check here is best-effort; server still verifies URL prefix.
+    const userId = (() => {
+      try { return JSON.parse(localStorage.getItem('user') || '{}')?.id || 'anon'; }
+      catch { return 'anon'; }
+    })();
+    const objectPath = `u/${userId}/${rand}.${ext}`;
+
+    const uploadUrl = `${cfg.url.replace(/\/$/, '')}/storage/v1/object/${encodeURIComponent(cfg.bucket)}/${objectPath}`;
+    const res = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        apikey: cfg.anon_key,
+        Authorization: `Bearer ${cfg.anon_key}`,
+        'Content-Type': mime,
+        'x-upsert': 'true',
+      },
+      body: file,
+    });
+    if (!res.ok) {
+      let msg = 'Supabase upload xatoligi';
+      try { const j = await res.json(); msg = j.message || j.error || msg; } catch {}
+      throw new Error(msg);
+    }
+
+    const publicUrl = `${cfg.url.replace(/\/$/, '')}/storage/v1/object/public/${encodeURIComponent(cfg.bucket)}/${objectPath}`;
+    const saved = await apiService.post('/auth/avatar', { url: publicUrl });
+    return saved?.data ?? saved;
   }
 
   async deleteAvatar() {

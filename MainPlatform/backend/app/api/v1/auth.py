@@ -609,64 +609,91 @@ _AVATAR_ALLOWED_MIME = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Avatar flow (Supabase Storage direct-upload)
+# ---------------------------------------------------------------------------
+# We intentionally do NOT proxy avatar bytes through the backend. Instead:
+#
+#   1. Browser fetches GET /auth/storage-config to learn the Supabase URL
+#      and the anon key (both are safe to ship — anon key is designed to
+#      be public; writes are bounded by Storage bucket policies).
+#   2. Browser uploads the file directly to Supabase Storage using the anon
+#      key. Bucket-level MIME whitelist + size cap enforce validation.
+#      Path: avatars/u/<user_id>/<random>.<ext> — random UUID prevents one
+#      user overwriting another's avatar.
+#   3. Browser calls POST /auth/avatar with the resulting public URL so we
+#      can persist it on users.avatar.
+#
+# Advantages vs the old server-proxied flow:
+#   * No 5 MB file body traversing our API / nginx → faster, cheaper.
+#   * No Supabase service_role key stored on our servers.
+#   * The backend only sees a URL + the DB write; it never handles bytes.
+# ---------------------------------------------------------------------------
+
+class SetAvatarRequest(BaseModel):
+    """URL must be a supabase.co Storage public URL under the configured bucket."""
+    url: str = Field(..., min_length=10, max_length=1000)
+
+
+def _storage_base_url() -> str:
+    """Base URL for the avatars bucket (raises if unconfigured)."""
+    if not settings.SUPABASE_URL:
+        raise HTTPException(
+            status_code=503,
+            detail="Avatar saqlash xizmati sozlanmagan (SUPABASE_URL yo'q).",
+        )
+    bucket = settings.SUPABASE_AVATAR_BUCKET
+    return f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/object/public/{bucket}/"
+
+
+@router.get("/storage-config")
+async def get_storage_config(current_user: User = Depends(get_current_user)):
+    """Return Supabase URL + anon key + bucket for direct browser uploads.
+
+    Only authenticated users can read this — not because the values are secret
+    (they're not; anon key is designed to be public) but to avoid leaking our
+    infra detail to casual scrapers and to make auditing easier.
+    """
+    if not (settings.SUPABASE_URL and settings.SUPABASE_ANON_KEY):
+        raise HTTPException(
+            status_code=503,
+            detail="Avatar yuklash xizmati sozlanmagan. Admin .env da SUPABASE_URL va SUPABASE_ANON_KEY ni qo'shsin."
+        )
+    return {
+        "success": True,
+        "data": {
+            "url":       settings.SUPABASE_URL,
+            "anon_key":  settings.SUPABASE_ANON_KEY,
+            "bucket":    settings.SUPABASE_AVATAR_BUCKET,
+            "max_bytes": settings.SUPABASE_AVATAR_MAX_BYTES,
+            "allowed_mime_types": sorted({k for k in _AVATAR_ALLOWED_MIME if k != "image/jpg"}),
+        },
+    }
+
+
 @router.post("/avatar")
-async def upload_avatar(
-    file: UploadFile = File(..., description="Image file (jpeg/png/webp/gif, max 5MB)"),
+async def set_avatar_url(
+    data: SetAvatarRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Upload a new avatar for the authenticated user.
+    """Persist the avatar URL that the browser just uploaded to Supabase Storage.
 
-    Pipeline:
-      1. Validate content-type + byte-size (both server-enforced; client
-         limits are advisory only).
-      2. Push bytes to Supabase Storage under ``avatars/<user_id>.<ext>``
-         (``upsert=true`` → a user always has at most one avatar object).
-      3. Persist the resulting public URL onto ``users.avatar`` and return
-         the fresh profile dict.
+    We validate that the URL points at *our* Supabase bucket — a user who
+    tries to set their avatar to an arbitrary external URL is rejected with
+    422 so we don't turn users.avatar into an open image-redirect field.
     """
-    from app.services.supabase_storage import supabase_avatars, SupabaseStorageError
-
-    content_type = (file.content_type or "").lower().strip()
-    ext = _AVATAR_ALLOWED_MIME.get(content_type)
-    if not ext:
+    expected_prefix = _storage_base_url()
+    if not data.url.startswith(expected_prefix):
         raise HTTPException(
-            status_code=415,
-            detail="Faqat JPEG, PNG, WebP yoki GIF formatidagi rasm yuklash mumkin."
+            status_code=422,
+            detail="URL bizning Supabase bucket'imizdan bo'lishi kerak.",
         )
 
-    # Read the full body. We cap at SUPABASE_AVATAR_MAX_BYTES + 1 so we can
-    # reject oversized uploads without buffering the entire giant file.
-    max_bytes = settings.SUPABASE_AVATAR_MAX_BYTES
-    data = await file.read(max_bytes + 1)
-    if not data:
-        raise HTTPException(status_code=400, detail="Bo'sh fayl yuborildi.")
-    if len(data) > max_bytes:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Fayl hajmi {max_bytes // (1024*1024)} MB dan oshmasligi kerak."
-        )
-
-    if not supabase_avatars.is_configured:
-        raise HTTPException(
-            status_code=503,
-            detail="Avatar yuklash xizmati hozircha sozlanmagan. Iltimos admin bilan bog'laning."
-        )
-
-    object_path = f"{current_user.id}.{ext}"
-    try:
-        public_url = await supabase_avatars.upload_bytes(
-            object_path=object_path,
-            data=data,
-            content_type=content_type,
-            upsert=True,
-        )
-    except SupabaseStorageError as exc:
-        logger.exception("Avatar upload failed for user %s: %s", current_user.id, exc)
-        raise HTTPException(status_code=502, detail="Avatar yuklashda xatolik. Keyinroq urining.")
-
-    # Cache-bust: add a short query so the browser refetches the new avatar.
-    cache_busted = f"{public_url}?v={int(datetime.now(timezone.utc).timestamp())}"
+    # Cache-bust so the browser reloads the image immediately after upload.
+    cache_busted = data.url
+    if "?" not in data.url:
+        cache_busted = f"{data.url}?v={int(datetime.now(timezone.utc).timestamp())}"
 
     user_row = await db.get(User, current_user.id)
     if not user_row:
@@ -674,12 +701,7 @@ async def upload_avatar(
     user_row.avatar = cache_busted
     await db.commit()
     await db.refresh(user_row)
-
-    return {
-        "success": True,
-        "message": "Avatar yangilandi.",
-        "data": user_row.to_dict(),
-    }
+    return {"success": True, "message": "Avatar yangilandi.", "data": user_row.to_dict()}
 
 
 @router.delete("/avatar")
@@ -687,21 +709,19 @@ async def delete_avatar(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Remove the authenticated user's avatar (clears users.avatar + deletes object)."""
-    from app.services.supabase_storage import supabase_avatars
+    """Clear the current avatar from users.avatar.
 
-    # Best-effort: try all allowed extensions because the stored column may not
-    # tell us which one was picked at upload time.
-    for ext in set(_AVATAR_ALLOWED_MIME.values()):
-        await supabase_avatars.delete(f"{current_user.id}.{ext}")
-
+    We intentionally do NOT delete the underlying Supabase object from the
+    backend — that would require service_role. A nightly cleanup job can sweep
+    orphaned files if ever needed. The public URL becomes unreachable from the
+    UI the moment users.avatar is cleared.
+    """
     user_row = await db.get(User, current_user.id)
     if not user_row:
         raise HTTPException(status_code=404, detail="User not found")
     user_row.avatar = None
     await db.commit()
     await db.refresh(user_row)
-
     return {"success": True, "message": "Avatar o'chirildi.", "data": user_row.to_dict()}
 
 @router.put("/me")

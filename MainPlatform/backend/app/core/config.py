@@ -107,6 +107,12 @@ class Settings:
     # Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env. Service role is used
     # because uploads are server-side (we never send it to the browser).
     SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL", None)
+    # Anon/publishable key — SAFE to ship to the browser. Used for direct
+    # browser→Supabase uploads (avatars bucket) where the backend never
+    # touches the file bytes.
+    SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY", None)
+    # service_role — SECRET, server-only. Kept optional; direct-upload flow
+    # doesn't need it, but legacy backend-upload path still supports it.
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY", None)
     SUPABASE_AVATAR_BUCKET: str = os.getenv("SUPABASE_AVATAR_BUCKET", "avatars")
     SUPABASE_AVATAR_MAX_BYTES: int = int(os.getenv("SUPABASE_AVATAR_MAX_BYTES", str(5 * 1024 * 1024)))
