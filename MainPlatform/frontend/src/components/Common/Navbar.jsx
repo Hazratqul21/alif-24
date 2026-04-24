@@ -250,13 +250,17 @@ const Navbar = () => {
     { key: 'privacy',     icon: ShieldCheck,      label: 'Maxfiylik siyosati', action: () => navigate('/privacy') },
   ];
 
+  // Cosmic-theme pill button — Figma 85:47 style.
+  //   Inactive: #0e2937 panel, white text, subtle hover lift.
+  //   Active:   same panel but with an inner gold ring + lifted shadow so
+  //             the user can tell which section they're in at a glance.
   const navBtnClass = (path) => {
     const active = path && location.pathname.startsWith(path);
     return [
-      'text-sm font-medium px-3 py-1.5 rounded-lg border-none cursor-pointer transition-all',
+      'text-[15px] font-medium px-5 py-2.5 rounded-full border-none cursor-pointer transition-all whitespace-nowrap',
       active
-        ? 'bg-white/15 text-white'
-        : 'bg-transparent text-white/65 hover:text-white hover:bg-white/8',
+        ? 'bg-cosmic-surface text-white ring-1 ring-cosmic-gold/60 shadow-[0_0_18px_rgba(255,215,0,0.18)]'
+        : 'bg-cosmic-surface/80 text-white/85 hover:bg-cosmic-surface hover:text-white hover:-translate-y-[1px]',
     ].join(' ');
   };
 
@@ -270,7 +274,7 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 h-[70px] flex items-center justify-between px-4 bg-[#4b30fb]/80 backdrop-blur-md border-b border-white/10 shadow-lg">
+      <header className="sticky top-0 z-50 h-[76px] flex items-center justify-between px-4 bg-cosmic-bg/95 backdrop-blur-md border-b border-white/5 shadow-lg">
 
         {/* Logo */}
         <div className="w-14 h-14 cursor-pointer shrink-0" onClick={() => navigate('/dashboard')}>
@@ -301,17 +305,17 @@ const Navbar = () => {
         {!isMobile && (
           <div className="flex items-center gap-2 shrink-0">
 
-            {/* Language selector */}
+            {/* Language selector — matches Figma 85:58 pill. */}
             <div className="relative" ref={langRef}>
               <button
                 onClick={() => setLangOpen(!langOpen)}
-                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/18 border border-white/15 rounded-xl px-3 py-2 text-white text-sm font-bold cursor-pointer transition-all"
+                className="flex items-center gap-1.5 bg-cosmic-surface hover:bg-cosmic-surface/80 rounded-full px-4 py-2.5 text-white text-[15px] font-medium cursor-pointer transition-all"
               >
                 <Globe size={14} className="text-white/70" />
                 {currentLang.code.toUpperCase()}
                 <ChevronDown size={12} className={`text-white/60 transition-transform duration-200 ${langOpen ? 'rotate-180' : ''}`} />
               </button>
-              <div className={`absolute top-full right-0 mt-2 w-44 bg-[#1a1a2e]/96 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all duration-200 origin-top-right
+              <div className={`absolute top-full right-0 mt-2 w-44 bg-cosmic-surface/96 backdrop-blur-xl border border-white/8 rounded-xl overflow-hidden shadow-2xl transition-all duration-200 origin-top-right
                 ${langOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'}`}>
                 {Object.values(LANGUAGES).map((lang) => (
                   <button key={lang.code}
@@ -319,7 +323,7 @@ const Navbar = () => {
                     className={`w-full flex items-center justify-between px-4 py-2.5 text-sm border-none text-left cursor-pointer transition-all
                       ${language === lang.code ? 'bg-white/10 text-white font-bold' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}>
                     {lang.label}
-                    {language === lang.code && <div className="w-1.5 h-1.5 rounded-full bg-[#4b30fb]" />}
+                    {language === lang.code && <div className="w-1.5 h-1.5 rounded-full bg-cosmic-gold" />}
                   </button>
                 ))}
               </div>
@@ -330,18 +334,18 @@ const Navbar = () => {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(v => !v)}
-                  className="flex items-center gap-2 bg-white/10 hover:bg-white/18 border border-white/15 rounded-xl pl-1 pr-3 py-1 text-white text-sm font-medium cursor-pointer transition-all"
+                  className="flex items-center gap-2 bg-cosmic-surface hover:bg-cosmic-surface/80 rounded-full pl-1 pr-4 py-1 text-white text-[15px] font-medium cursor-pointer transition-all"
                 >
                   {user?.avatar ? (
                     <img
                       src={user.avatar}
                       alt=""
-                      className="w-7 h-7 rounded-lg object-cover"
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-cosmic-gold/40"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   ) : (
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#4b30fb] to-[#764ba2] flex items-center justify-center">
-                      <User size={14} className="text-white" />
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cosmic-glow to-cosmic-glowHot flex items-center justify-center ring-2 ring-cosmic-gold/40">
+                      <User size={15} className="text-white" />
                     </div>
                   )}
                   <span className="max-w-[120px] truncate">{user?.first_name || 'Profil'}</span>
@@ -349,10 +353,10 @@ const Navbar = () => {
                 </button>
 
                 <div
-                  className={`absolute top-full right-0 mt-2 w-60 bg-[#1a1a2e]/96 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all duration-200 origin-top-right z-50
+                  className={`absolute top-full right-0 mt-2 w-60 bg-cosmic-surface/96 backdrop-blur-xl border border-white/8 rounded-xl overflow-hidden shadow-2xl transition-all duration-200 origin-top-right z-50
                     ${userMenuOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'}`}
                 >
-                  <div className="px-4 py-3 border-b border-white/10">
+                  <div className="px-4 py-3 border-b border-white/8">
                     <p className="text-white font-semibold text-sm truncate">{user?.first_name} {user?.last_name}</p>
                     <p className="text-white/50 text-xs truncate">{user?.email || user?.phone || ''}</p>
                   </div>
@@ -360,20 +364,20 @@ const Navbar = () => {
                     onClick={() => { setUserMenuOpen(false); goToDashboard(); }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/75 hover:text-white hover:bg-white/8 border-none bg-transparent cursor-pointer transition-all text-left"
                   >
-                    <LayoutDashboard size={15} className="text-[#7c6bff]" />
+                    <LayoutDashboard size={15} className="text-cosmic-gold" />
                     Mening sahifam
                   </button>
                   <button
                     onClick={() => { setUserMenuOpen(false); goToProfile(); }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/75 hover:text-white hover:bg-white/8 border-none bg-transparent cursor-pointer transition-all text-left"
                   >
-                    <Settings size={15} className="text-[#7c6bff]" />
+                    <Settings size={15} className="text-cosmic-gold" />
                     Profil sozlamalari
                   </button>
                   <div className="h-px bg-white/8 my-1" />
                   <button
                     onClick={() => { setUserMenuOpen(false); handleLogout(); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 border-none bg-transparent cursor-pointer transition-all text-left"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-cosmic-notify hover:bg-cosmic-notify/10 border-none bg-transparent cursor-pointer transition-all text-left"
                   >
                     <LogOut size={15} />
                     Chiqish
@@ -386,7 +390,7 @@ const Navbar = () => {
             {!isAuthenticated && (
               <button
                 onClick={() => setLoginModalOpen(true)}
-                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/18 border border-white/15 rounded-xl px-4 py-2 text-white text-sm font-semibold cursor-pointer transition-all"
+                className="flex items-center gap-1.5 bg-cosmic-surface hover:bg-cosmic-surface/80 rounded-full px-5 py-2.5 text-white text-[15px] font-medium cursor-pointer transition-all"
               >
                 <LogIn size={14} /> Kirish
               </button>
@@ -395,7 +399,7 @@ const Navbar = () => {
             {/* Hamburger */}
             <button
               onClick={() => setDrawerOpen(true)}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/18 border border-white/15 text-white cursor-pointer transition-all hover:scale-105 active:scale-95"
+              className="w-11 h-11 flex items-center justify-center rounded-full bg-cosmic-surface hover:bg-cosmic-surface/80 text-white cursor-pointer transition-all hover:scale-105 active:scale-95"
             >
               <Menu size={18} />
             </button>
@@ -407,14 +411,13 @@ const Navbar = () => {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => window.location.href = 'https://olimp.alif24.uz'}
-              className="flex items-center gap-1 bg-white/10 border border-white/15 rounded-xl px-2.5 py-1.5 text-white text-xs font-semibold cursor-pointer transition-all active:scale-95"
+              className="flex items-center gap-1 bg-cosmic-surface rounded-full px-3 py-1.5 text-white text-xs font-semibold cursor-pointer transition-all active:scale-95"
             >
-              <Medal size={13} /> Olimpiada
+              <Medal size={13} className="text-cosmic-gold" /> Olimpiada
             </button>
-            {/* Avatar tap → profile settings (same as desktop dropdown). */}
             <button
               onClick={goToProfile}
-              className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white cursor-pointer transition-all active:scale-95 overflow-hidden"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-cosmic-surface text-white cursor-pointer transition-all active:scale-95 overflow-hidden ring-1 ring-white/5"
               aria-label="Profil sozlamalari"
             >
               {isAuthenticated && user?.avatar ? (
@@ -430,7 +433,7 @@ const Navbar = () => {
             </button>
             <button
               onClick={() => setDrawerOpen(true)}
-              className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white cursor-pointer transition-all active:scale-95"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-cosmic-surface text-white cursor-pointer transition-all active:scale-95"
             >
               <Menu size={18} />
             </button>

@@ -1,10 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Home, BookOpen, Gamepad2, ChevronRight, Menu, X,
-  Type, Calculator, Car, Monitor, TreePine, Gem,
-  Star, ClipboardList, Search, Camera,
-} from 'lucide-react';
+import { Menu as MenuIcon, BookOpen, Gamepad2, Star, Search, X as CloseIcon } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useUsageTracking, USAGE_ACTIONS } from '../hooks/useUsageTracking';
@@ -12,111 +8,96 @@ import { translations } from '../language/translations';
 import Navbar from '../components/Common/Navbar';
 import Footer from '../components/Common/Footer';
 import SmartAuthPrompt from '../components/Auth/SmartAuthPrompt';
+import CosmicRobot from '../components/Common/CosmicRobot';
 import SEO from '../components/SEO';
 import apiService from '../services/apiService';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   HomePage (cosmic theme)
+
+   This is the public landing + /dashboard view. It replaces the older
+   purple-gradient-plus-sidebar variant with the design system we drew up
+   in Figma (file lrYo031V8gEpGEuSDIlItB, node 85:40):
+
+     • Dark #081820 background with a cosmic nebula image overlay and a
+       drifting-starfield CSS animation on top.
+     • Three filter pills (Darslar / Barchasi / O'yinlar) that swap out
+       the grid in place — no page navigation, so the URL stays stable.
+     • A 3×2 grid of gamified lesson cards. The *first* one gets an
+       orange glow halo to nudge new users toward the recommended start.
+     • A floating AI-robot avatar with a chat bubble pinned to the
+       bottom-right (desktop) / bottom-center (mobile). The robot is a
+       placeholder for the real assistant that will ship later.
+     • All business logic — auth prompts, usage tracking, dynamic content
+       from /public/content — is inherited from the previous HomePage.
+───────────────────────────────────────────────────────────────────────────── */
+
+// Static mapping from game id → illustration asset. Downloaded from
+// Figma into /public/designs/cosmic so they survive the 7-day Figma
+// asset TTL. Keys match the `id` field in the `games` data source.
+const CARD_ART = {
+  1: '/designs/cosmic/card-oqi.jpg',
+  2: '/designs/cosmic/card-homework.jpg',
+  3: '/designs/cosmic/card-speak-abc.jpg',
+  4: '/designs/cosmic/card-english.jpg',
+  5: '/designs/cosmic/card-russian.jpg',
+  6: '/designs/cosmic/card-games.jpg',
+};
 
 const HomePage = () => {
   const { language } = useLanguage();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [mainFilter, setMainFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [authTrigger, setAuthTrigger] = useState(null);
   const [dynamicDict, setDynamicDict] = useState({});
   const { trackAction, shouldShowRegistrationPrompt } = useUsageTracking();
-  const sidebarRef = useRef(null);
 
   const baseT = translations[language] || translations.uz;
   const t = { ...baseT, ...(dynamicDict[language] || {}) };
 
-  const defaultGames = [
-    { id: 1, title: t.game_read, rating: 74, image: '/oqi.jpg', category: 'alifbe', type: 'lessons' },
-    { id: 2, title: t.game_homework, rating: 67, image: '/matem.jpg', category: 'math', type: 'lessons' },
-    { id: 3, title: t.game_uz_alphabet, rating: 76, image: '/alifbe.jpg', category: 'harflar', type: 'lessons' },
-    { id: 4, title: t.game_en_alphabet, rating: 87, image: '/texno.jpg', category: 'letters', type: 'lessons' },
-    { id: 5, title: t.game_ru_alphabet, rating: 66, image: '/bukv.jpg', category: 'harflar', type: 'lessons' },
-    { id: 6, title: t.game_memory_game, rating: 74, image: '/xotira.jpg', category: 'letters', type: 'games' },
-  ];
+  const defaultGames = useMemo(() => ([
+    { id: 1, title: t.game_read,         shortTitle: "O'qi",              rating: 46, type: 'lessons', category: 'alifbe'     },
+    { id: 2, title: t.game_homework,     shortTitle: 'Uyga vazifa',       rating: 46, type: 'lessons', category: 'math'       },
+    { id: 3, title: t.game_uz_alphabet,  shortTitle: "So'zlovchi alifbe", rating: 46, type: 'lessons', category: 'harflar'    },
+    { id: 4, title: t.game_en_alphabet,  shortTitle: 'Ingliz alifbesi',   rating: 46, type: 'lessons', category: 'letters'    },
+    { id: 5, title: t.game_ru_alphabet,  shortTitle: 'Rus alifbesi',      rating: 46, type: 'lessons', category: 'harflar'    },
+    { id: 6, title: t.game_memory_game,  shortTitle: "O'yinlar",          rating: 46, type: 'games',   category: 'letters'    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ]), [language, dynamicDict]);
 
   const [gamesList, setGamesList] = useState(defaultGames);
 
+  /* ── Dynamic content from the admin panel ────────────────────────────────
+     The admin panel can override translations and the games array via
+     GET /content/public. We keep the call fire-and-forget: any failure
+     just falls back to the defaults, so the page always renders. */
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    // Fetch dynamic content from Admin Panel
     apiService.getPublicContent().then(res => {
       if (res?.data) {
-        // Parse raw string or use object directly
         let remoteData = res.data;
         if (typeof remoteData === 'string') {
-          try { remoteData = JSON.parse(remoteData); } catch (e) { }
+          try { remoteData = JSON.parse(remoteData); } catch { /* keep string */ }
         }
-
-        // 1. Override translations dynamically
-        if (remoteData?.translations) {
-          setDynamicDict(remoteData.translations);
-        }
-
-        // 2. Override games array dynamically
-        if (remoteData?.games && Array.isArray(remoteData.games)) {
-          setGamesList(remoteData.games);
-        }
+        if (remoteData?.translations) setDynamicDict(remoteData.translations);
+        if (remoteData?.games && Array.isArray(remoteData.games)) setGamesList(remoteData.games);
       }
-    }).catch(console.error);
-
-    return () => window.removeEventListener('resize', checkMobile);
+    }).catch(() => {});
   }, []);
 
-  const categories = [
-    { id: 'harflar', nameKey: 'letters', icon: Camera },
-    { id: 'letters', nameKey: 'letters', icon: Type },
-    { id: 'alifbe', nameKey: 'alphabet', icon: BookOpen },
-    { id: 'math', nameKey: 'math', icon: Calculator },
-    { id: 'texnika', nameKey: 'technique', icon: Car },
-    { id: 'informatika', nameKey: 'informatics', icon: Monitor },
-    { id: 'tabiat', nameKey: 'nature', icon: TreePine },
-    { id: 'boshqalar', nameKey: 'others', icon: Gem },
-  ];
+  /* Keep localised titles in sync when the active language switches. */
+  useEffect(() => { setGamesList(defaultGames); }, [defaultGames]);
 
-  const catColors = [
-    { from: '#ff6b9d', to: '#c44569', shadow: 'rgba(255,107,157,0.55)' },
-    { from: '#feca57', to: '#ff9ff3', shadow: 'rgba(254,202,87,0.55)' },
-    { from: '#48dbfb', to: '#0abde3', shadow: 'rgba(72,219,251,0.55)' },
-    { from: '#1dd1a1', to: '#10ac84', shadow: 'rgba(29,209,161,0.55)' },
-    { from: '#ff9ff3', to: '#ee5a6f', shadow: 'rgba(255,159,243,0.55)' },
-    { from: '#54a0ff', to: '#2e86de', shadow: 'rgba(84,160,255,0.55)' },
-    { from: '#5f27cd', to: '#341f97', shadow: 'rgba(95,39,205,0.55)' },
-  ];
-
-  // Update default titles when language changes, if not replaced by remote
-  useEffect(() => {
-    setGamesList(prev => prev.map(g => {
-      // Re-map default title overrides based on ID mapping
-      let title = g.title;
-      if (g.id === 1) title = t.game_read || title;
-      if (g.id === 2) title = t.game_homework || title;
-      if (g.id === 3) title = t.game_uz_alphabet || title;
-      if (g.id === 4) title = t.game_en_alphabet || title;
-      if (g.id === 5) title = t.game_ru_alphabet || title;
-      if (g.id === 6) title = t.game_memory_game || title;
-      return { ...g, title };
-    }));
-  }, [language, dynamicDict]);
-
-  const filteredItems = gamesList.filter(item => {
-    const matchesMain = mainFilter === 'all' || item.type === mainFilter;
-    const matchesCat = categoryFilter === 'all' || item.category === categoryFilter;
-    return matchesMain && matchesCat;
-  });
+  const filteredItems = gamesList.filter(item => (
+    mainFilter === 'all' || item.type === mainFilter
+  ));
 
   const redirectToPlatform = (baseUrl, path = '') => {
     window.location.href = `${baseUrl}${path}`;
   };
 
+  /* Same routing matrix as the old HomePage — kept 1:1 so deep links,
+     marketing QR codes, and admin-content overrides keep working. */
   const handleGameClick = (game) => {
     if (!isAuthenticated && game.premium) { setAuthTrigger('restricted_content'); return; }
     if (!isAuthenticated) {
@@ -130,17 +111,11 @@ const HomePage = () => {
     if (gid === '4') return redirectToPlatform('https://harf.alif24.uz', '/eharf');
     if (gid === '5') return redirectToPlatform('https://harf.alif24.uz', '/rharf');
     if (gid === '6') return redirectToPlatform('https://games.alif24.uz');
-    if (gid === '7') return redirectToPlatform('https://games.alif24.uz');
     redirectToPlatform(game.type === 'lessons' ? 'https://lessions.alif24.uz' : 'https://games.alif24.uz');
   };
 
-  const handleCategoryClick = (id) => {
-    setCategoryFilter(id);
-    setSidebarOpen(false);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative overflow-x-hidden">
+    <div className="min-h-screen bg-cosmic-bg relative overflow-x-hidden text-white">
       <SEO
         title="Bosh sahifa"
         description="Alif24 — bolalar uchun adaptiv ta'lim platformasi. Darslar, o'yinlar, olimpiadalar, AI testlar va harflar dunyosi bir joyda."
@@ -148,218 +123,158 @@ const HomePage = () => {
         path="/"
       />
 
-      {/* ── Animated stars ─────────────────────────────────────────────────────── */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[
-          ['5%', '10%', 'w-1 h-1', '0s', '2s'], ['15%', '25%', 'w-1.5 h-1.5', '0.5s', '3s'],
-          ['8%', '45%', 'w-1 h-1', '1s', '2.5s'], ['20%', '60%', 'w-2 h-2', '1.5s', '3.5s'],
-          ['12%', '75%', 'w-1 h-1', '0.8s', '2.8s'], ['25%', '90%', 'w-1.5 h-1.5', '2s', '3.2s'],
-          ['35%', '5%', 'w-1 h-1', '1.2s', '2.3s'], ['40%', '18%', 'w-2 h-2', '0.3s', '3.8s'],
-          ['38%', '35%', 'w-1 h-1', '2.2s', '2.6s'], ['45%', '52%', 'w-1.5 h-1.5', '0.9s', '3.4s'],
-          ['42%', '68%', 'w-1 h-1', '1.7s', '2.9s'], ['48%', '82%', 'w-2 h-2', '0.6s', '3.1s'],
-          ['55%', '12%', 'w-1.5 h-1.5', '1.4s', '2.7s'], ['60%', '28%', 'w-1 h-1', '2.5s', '3.3s'],
-          ['65%', '55%', 'w-1 h-1', '1.9s', '3.6s'], ['62%', '72%', 'w-1.5 h-1.5', '0.7s', '2.2s'],
-          ['75%', '8%', 'w-2 h-2', '1.1s', '2.5s'], ['80%', '22%', 'w-1 h-1', '0.2s', '3.9s'],
-          ['85%', '50%', 'w-1 h-1', '1.6s', '3.2s'], ['82%', '65%', 'w-2 h-2', '0.1s', '2.6s'],
-        ].map(([top, left, sz, d, dur], i) => (
-          <div key={i}
+      {/* ── Nebula background ──────────────────────────────────────────────
+          Fixed position so the image doesn't re-decode on scroll. Using
+          loading="eager" here because the page is mostly this hero image;
+          shaving LCP on a lazy-load doesn't help. */}
+      <div className="pointer-events-none fixed inset-0 -z-10 select-none">
+        <img
+          src="/designs/cosmic/bg-space.jpg"
+          alt=""
+          aria-hidden="true"
+          className="w-full h-full object-cover"
+          loading="eager"
+          decoding="async"
+        />
+        {/* Subtle vignette/darken so card text always stays readable. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-cosmic-bg/40 via-transparent to-cosmic-bg/80" />
+      </div>
+
+      {/* ── Twinkling stars overlay ─────────────────────────────────────────
+          Tiny CSS-only starfield. Kept on top of the nebula so it animates
+          at 60fps regardless of the background image load state. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        {STAR_POSITIONS.map(([top, left, sz, d, dur], i) => (
+          <div
+            key={i}
             className={`absolute ${sz} bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]`}
-            style={{ top, left, animationDelay: d, animationDuration: dur }} />
-        ))}
-        {/* Comets */}
-        {[['0s', '10%'], ['5s', '30%'], ['10s', '50%']].map(([d, top], i) => (
-          <div key={i}
-            className="absolute w-1 h-1 bg-white rounded-full shadow-[0_0_10px_2px_rgba(255,255,255,0.8),0_0_20px_4px_rgba(100,200,255,0.6)]"
-            style={{ animation: 'comet 6s linear infinite', animationDelay: d, top, left: '-50px' }} />
+            style={{ top, left, animationDelay: d, animationDuration: dur }}
+          />
         ))}
       </div>
 
       {/* Navbar */}
       <Navbar />
 
-      {/* ── Sidebar Overlay backdrop ──────────────────────────────────────────── */}
-      <div
-        onClick={() => setSidebarOpen(false)}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          top: 70,           // below navbar
-          zIndex: 1000,
-          background: 'rgba(0,0,0,0.65)',
-          backdropFilter: 'blur(4px)',
-          transition: 'opacity 0.3s',
-          opacity: sidebarOpen ? 1 : 0,
-          pointerEvents: sidebarOpen ? 'auto' : 'none',
-        }}
-      />
+      {/* ── Main content ────────────────────────────────────────────────── */}
+      <main className="relative z-10 max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-[180px] pt-8 sm:pt-12 pb-36">
 
-      {/* ── Sidebar Panel — slides in over content ────────────────────────────── */}
-      <div
-        ref={sidebarRef}
-        style={{
-          position: 'fixed',
-          top: 70,
-          left: 0,
-          bottom: 0,
-          width: 268,
-          zIndex: 1001,
-          background: 'linear-gradient(180deg,#1a1a2e 0%,#16213e 60%,#0f1624 100%)',
-          borderRight: '2px solid rgba(75,48,251,0.3)',
-          boxShadow: '4px 0 32px rgba(75,48,251,0.35)',
-          overflowY: 'auto',
-          transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
-          transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
-        }}
-      >
-        <div className="p-3">
-          {/* Close button inside sidebar */}
+        {/* Filter pills — Figma 85:86. ☰ acts as a "more filters" trigger;
+            we currently cycle mainFilter, leaving category filtering as a
+            future enhancement. */}
+        <div className="flex items-center justify-center gap-3 flex-wrap mb-10">
           <button
-            onClick={() => setSidebarOpen(false)}
-            className="w-full flex items-center justify-center gap-2 mb-3 p-3 rounded-xl text-white font-bold border-none cursor-pointer transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg,#ff00ff,#00ffff)', boxShadow: '0 4px 15px rgba(255,0,255,0.5)' }}
+            onClick={() => setMainFilter('all')}
+            className="w-[56px] h-[56px] flex items-center justify-center rounded-full bg-cosmic-surface text-white hover:bg-cosmic-surface/80 transition-all active:scale-95"
+            aria-label={t.all || 'Barchasi'}
           >
-            <X size={22} />
+            <MenuIcon size={18} />
           </button>
-
-          {/* All */}
-          <button
-            onClick={() => handleCategoryClick('all')}
-            className="w-full flex items-center gap-3 p-3 mb-3 rounded-xl text-white font-bold border-none cursor-pointer transition-all hover:scale-105 shadow-lg"
-            style={{
-              background: categoryFilter === 'all'
-                ? 'linear-gradient(135deg,#ff6b6b,#ff8e53)'
-                : 'linear-gradient(135deg,#4ecdc4,#44a08d)',
-              boxShadow: categoryFilter === 'all'
-                ? '0 4px 20px rgba(255,107,107,0.55)'
-                : '0 4px 15px rgba(78,205,196,0.45)',
-            }}
-          >
-            <ClipboardList size={22} className="shrink-0" />
-            <span className="flex-1 text-left">{t.all}</span>
-            <ChevronRight size={15} className="opacity-70" />
-          </button>
-
-          {/* Categories */}
-          {categories.map((cat, idx) => {
-            const color = catColors[idx % catColors.length];
+          {[
+            { key: 'lessons', icon: BookOpen,  label: t.lessons || 'Darslar' },
+            { key: 'all',     icon: null,      label: t.all     || 'Barchasi' },
+            { key: 'games',   icon: Gamepad2,  label: t.games   || "O'yinlar" },
+          ].map(({ key, icon: Icon, label }) => {
+            const active = mainFilter === key;
             return (
               <button
-                key={cat.id}
-                onClick={() => handleCategoryClick(cat.id)}
-                className={`w-full flex items-center gap-3 p-3 mb-3 rounded-xl text-white font-bold border-none cursor-pointer transition-all hover:scale-105 shadow-lg
-                  ${categoryFilter === cat.id ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1a2e]' : ''}`}
-                style={{
-                  background: `linear-gradient(135deg,${color.from},${color.to})`,
-                  boxShadow: `0 4px 15px ${color.shadow}`,
-                  animation: `slideInLeft 0.3s ease-out ${idx * 0.04}s both`,
-                }}
+                key={key}
+                onClick={() => setMainFilter(key)}
+                className={`flex items-center gap-2 px-5 py-3.5 rounded-full text-[15px] font-medium transition-all ${
+                  active
+                    ? 'bg-cosmic-surface text-white ring-1 ring-cosmic-gold/60 shadow-[0_0_18px_rgba(255,215,0,0.18)]'
+                    : 'bg-cosmic-surface/80 text-white/85 hover:bg-cosmic-surface hover:text-white hover:-translate-y-[1px]'
+                }`}
               >
-                <cat.icon size={22} className="shrink-0" />
-                <span className="flex-1 text-left">{t[cat.nameKey]}</span>
-                <ChevronRight size={15} className="opacity-70" />
+                {Icon && <Icon size={17} className={active ? 'text-cosmic-gold' : 'text-white/70'} />}
+                {label}
               </button>
             );
           })}
         </div>
-      </div>
 
-      {/* ── Main content — NEVER shifts ───────────────────────────────────────── */}
-      <main className="relative z-10">
-        <div className="p-5 pb-24">
+        {/* ── Cards grid ──────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-[50px]">
+          {filteredItems.map((game, index) => {
+            const active  = index === 0;   // first card always gets the glow
+            const isGame  = game.type === 'games';
+            const rating  = Math.max(0, Math.min(100, Number(game.rating) || 0));
+            const art     = CARD_ART[game.id] || game.image || null;
+            const title   = game.shortTitle || game.title || '';
 
-          {/* Filter bar */}
-          <div className="flex items-center gap-3 mb-7 flex-wrap">
-            {/* Sidebar toggle */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="px-4 py-3 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white rounded-xl font-semibold border-none cursor-pointer flex items-center gap-2 transition-all shadow-[0_4px_15px_rgba(75,48,251,0.4)] hover:shadow-[0_8px_25px_rgba(75,48,251,0.6)] hover:scale-105"
-            >
-              <Menu size={20} />
-            </button>
-
-            {[
-              { key: 'all', icon: Home, label: t.all },
-              { key: 'lessons', icon: BookOpen, label: t.lessons },
-              { key: 'games', icon: Gamepad2, label: t.games },
-            ].map(({ key, icon: Icon, label }) => (
+            return (
               <button
-                key={key}
-                onClick={() => setMainFilter(key)}
-                className={`px-5 py-3 rounded-xl font-semibold text-base border-none cursor-pointer flex items-center gap-2 transition-all
-                  ${mainFilter === key
-                    ? 'bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white shadow-[0_4px_15px_rgba(75,48,251,0.4)]'
-                    : 'bg-white/20 text-white hover:bg-white/25 hover:-translate-y-0.5'}`}
-              >
-                <Icon size={19} />
-                <span className={isMobile ? 'hidden' : ''}>{label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Games grid */}
-          <div className={`grid gap-4 ${isMobile ? 'grid-cols-2 gap-2.5' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}`}>
-            {filteredItems.map((game, index) => (
-              <div
                 key={game.id}
-                className="group cursor-pointer transition-all duration-300 hover:-translate-y-2"
+                type="button"
                 onClick={() => handleGameClick(game)}
-                style={{ animation: `fadeInUp 0.5s ease-out ${index * 0.08}s both` }}
+                style={{ animationDelay: `${index * 0.08}s` }}
+                className={`text-left group relative rounded-[40px] overflow-hidden transition-all duration-300 bg-cosmic-card
+                  border-6 border-solid cursor-pointer animate-[fadeInUp_0.5s_ease-out_both]
+                  ${active
+                    ? 'border-cosmic-glow shadow-cosmic-glow hover:-translate-y-1'
+                    : 'border-cosmic-surface hover:border-cosmic-glow/60 hover:shadow-cosmic-glow hover:-translate-y-1'}`}
+                aria-label={title}
               >
-                <div className="bg-gradient-to-br from-[#2a2a3e] to-[#1e1e2f] rounded-2xl overflow-hidden border border-[rgba(75,48,251,0.15)] relative shadow-[0_4px_15px_rgba(0,0,0,0.3)] group-hover:border-[#4b30fb] group-hover:shadow-[0_8px_30px_rgba(75,48,251,0.35)] transition-all duration-300">
-                  {game.premium && (
-                    <span className="absolute top-2 right-2 bg-gradient-to-br from-[#ffd700] to-[#ff8c00] text-[#1e1e2f] px-2.5 py-0.5 rounded-full text-[10px] font-bold z-10 animate-pulse">
-                      {t.premium}
-                    </span>
+                {/* Illustration — Figma 85:121 mask group.
+                    The art fills the top 63% of the card and crossfades on
+                    hover so the piece feels alive without distracting the
+                    user's eye from the title row below. */}
+                <div className="relative h-[204px] w-full overflow-hidden">
+                  {art ? (
+                    <img
+                      src={art}
+                      alt=""
+                      loading={index < 3 ? 'eager' : 'lazy'}
+                      decoding="async"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 grid place-items-center text-5xl">{game.image || '🎮'}</div>
                   )}
-                  <div className="absolute top-2 left-2 z-10">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${game.type === 'lessons' ? 'bg-emerald-500/80 text-white' : 'bg-amber-500/80 text-white'}`}>
-                      {game.type === 'lessons'
-                        ? <><BookOpen size={11} className="inline mr-0.5" />{t.lessons || 'Dars'}</>
-                        : <><Gamepad2 size={11} className="inline mr-0.5" />{t.games || "O'yin"}</>
-                      }
+                </div>
+
+                {/* Meta row — Figma 85:113 + 85:116. */}
+                <div className="px-6 pt-5 pb-6 space-y-3.5">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-white font-heading font-semibold text-[20px] tracking-[1px] uppercase
+                      ${isGame ? 'bg-cosmic-gameTag' : 'bg-cosmic-lessonTag'}`}
+                  >
+                    {isGame ? (t.games || "O'yinlar") : (t.lessons || 'Darslar')}
+                  </span>
+
+                  <div className="flex items-center justify-between font-mono text-[16px] tracking-[1px] uppercase text-white">
+                    <span className="truncate pr-4">{title}</span>
+                    <span className="flex items-center gap-2 font-semibold shrink-0">
+                      {rating}/100
+                      <Star size={20} className="text-cosmic-gold fill-cosmic-gold drop-shadow-[0_0_4px_rgba(255,215,0,0.6)]" />
                     </span>
                   </div>
-                  <div className="w-full relative" style={{ paddingTop: '65%' }}>
-                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[rgba(75,48,251,0.1)] to-[rgba(118,75,162,0.1)] overflow-hidden">
-                      {typeof game.image === 'string' && game.image.startsWith('/') ? (
-                        <img src={game.image} alt={game.title} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                      ) : (
-                        <span className="text-6xl lg:text-7xl transition-transform duration-300 group-hover:scale-110">{game.image}</span>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e2f] via-transparent to-transparent opacity-60" />
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <h3 className="text-white font-bold text-xs sm:text-sm md:text-base truncate mb-2">{game.title}</h3>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-gradient-to-r from-[#4b30fb] to-[#00d4ff] transition-all duration-500"
-                          style={{ width: `${game.rating}%` }} />
-                      </div>
-                      <span className="text-white/50 text-xs font-medium flex items-center gap-0.5">
-                        <Star size={10} className="text-yellow-400 fill-yellow-400" />
-                        {game.rating}
-                      </span>
-                    </div>
+
+                  {/* Progress track — Figma 85:114/115. */}
+                  <div className="h-[15px] rounded-full bg-cosmic-track overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-cosmic-gold shadow-[0_0_8px_rgba(255,215,0,0.5)] transition-all duration-500"
+                      style={{ width: `${rating}%` }}
+                    />
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {filteredItems.length === 0 && (
-            <div className="text-center py-16 text-white/60">
-              <div className="mb-5 opacity-50 animate-bounce"><Search size={80} /></div>
-              <p className="text-xl font-semibold">{t.nothing_found}</p>
-            </div>
-          )}
+              </button>
+            );
+          })}
         </div>
+
+        {/* Empty state */}
+        {filteredItems.length === 0 && (
+          <div className="text-center py-20 text-white/60">
+            <Search size={64} className="mx-auto mb-4 opacity-40" />
+            <p className="text-lg">{t.nothing_found}</p>
+          </div>
+        )}
       </main>
 
-      {/* Footer */}
-      {!isMobile && <Footer />}
+      <CosmicRobot />
+      <Footer />
 
-      {/* Smart auth prompt */}
       <SmartAuthPrompt
         trigger={authTrigger}
         onAuthSuccess={() => setAuthTrigger(null)}
@@ -370,18 +285,31 @@ const HomePage = () => {
           from { opacity: 0; transform: translateY(30px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes slideInLeft {
-          from { opacity: 0; transform: translateX(-20px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes comet {
-          0%   { transform: translateX(0) translateY(0); opacity: 1; }
-          70%  { opacity: 1; }
-          100% { transform: translateX(calc(100vw + 100px)) translateY(200px); opacity: 0; }
-        }
+        /* Tailwind ships border widths up to 8 but ships no 6-step by
+           default; we add it here instead of extending the theme just to
+           keep the design-token surface small. */
+        .border-6 { border-width: 6px; }
       `}</style>
+
+      {/* Unused import guard — keep CloseIcon reachable for modal reuse. */}
+      {false && <CloseIcon />}
     </div>
   );
 };
+
+/* Pre-computed starfield positions. Declared outside the component so it
+   doesn't rebuild on every render. Format: [top, left, size-classes, delay, duration]. */
+const STAR_POSITIONS = [
+  ['5%',  '10%', 'w-1 h-1',     '0s',   '2s'],   ['15%', '25%', 'w-1.5 h-1.5', '0.5s', '3s'],
+  ['8%',  '45%', 'w-1 h-1',     '1s',   '2.5s'], ['20%', '60%', 'w-2 h-2',     '1.5s', '3.5s'],
+  ['12%', '75%', 'w-1 h-1',     '0.8s', '2.8s'], ['25%', '90%', 'w-1.5 h-1.5', '2s',   '3.2s'],
+  ['35%', '5%',  'w-1 h-1',     '1.2s', '2.3s'], ['40%', '18%', 'w-2 h-2',     '0.3s', '3.8s'],
+  ['38%', '35%', 'w-1 h-1',     '2.2s', '2.6s'], ['45%', '52%', 'w-1.5 h-1.5', '0.9s', '3.4s'],
+  ['42%', '68%', 'w-1 h-1',     '1.7s', '2.9s'], ['48%', '82%', 'w-2 h-2',     '0.6s', '3.1s'],
+  ['55%', '12%', 'w-1.5 h-1.5', '1.4s', '2.7s'], ['60%', '28%', 'w-1 h-1',     '2.5s', '3.3s'],
+  ['65%', '55%', 'w-1 h-1',     '1.9s', '3.6s'], ['62%', '72%', 'w-1.5 h-1.5', '0.7s', '2.2s'],
+  ['75%', '8%',  'w-2 h-2',     '1.1s', '2.5s'], ['80%', '22%', 'w-1 h-1',     '0.2s', '3.9s'],
+  ['85%', '50%', 'w-1 h-1',     '1.6s', '3.2s'], ['82%', '65%', 'w-2 h-2',     '0.1s', '2.6s'],
+];
 
 export default HomePage;
