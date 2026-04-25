@@ -1824,6 +1824,49 @@ const TeacherDashboard = () => {
         />
       )}
 
+      {/* Marketplace Listing Modal */}
+      {renderModal(showMarketListModal, () => setShowMarketListModal(false), "Resursni sotuvga qo'yish",
+        <form onSubmit={handleListResourceInMarketplace} className="space-y-4">
+          <div className="bg-white/5 p-4 rounded-xl border border-white/5 mb-4">
+             <div className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Tanlangan resurs</div>
+             <div className="text-white font-bold">{marketItemData.title}</div>
+          </div>
+          
+          <div>
+            <label className="block text-xs font-black text-white/40 uppercase mb-2">Narxi (UZS)</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                placeholder="15000" 
+                value={marketItemData.price} 
+                onChange={e => setMarketItemData({ ...marketItemData, price: parseInt(e.target.value) || 0 })}
+                className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500" 
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 font-bold">UZS</span>
+            </div>
+            <p className="text-[10px] text-white/30 mt-2 italic">Platforma komissiyasi: 10% ({(marketItemData.price * 0.1).toLocaleString()} so'm)</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-black text-white/40 uppercase mb-2">Qisqacha tavsif</label>
+            <textarea 
+              placeholder="Ushbu dars nima haqida? (Buyerlar uchun)" 
+              value={marketItemData.description} 
+              onChange={e => setMarketItemData({ ...marketItemData, description: e.target.value })}
+              className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white h-24 resize-none focus:outline-none focus:border-green-500"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={marketListingLoading}
+            className="w-full bg-gradient-to-br from-green-500 to-green-600 text-white py-4 rounded-xl font-black shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-all disabled:opacity-50"
+          >
+            {marketListingLoading ? 'YUKLANMOQDA...' : 'MARKETGA JOYLASHTIRISH'}
+          </button>
+        </form>
+      )}
+
       {/* Test Review & Edit Modal */}
       <TestReviewModal 
         show={showTestReview} 
@@ -1930,49 +1973,6 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
           <button onClick={() => onSave(localQuestions)} className="flex-1 py-3 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-all">Tasdiqlash va saqlash</button>
         </div>
       </div>
-      {/* Marketplace Listing Modal */}
-      {renderModal(showMarketListModal, () => setShowMarketListModal(false), "Resursni sotuvga qo'yish",
-        <form onSubmit={handleListResourceInMarketplace} className="space-y-4">
-          <div className="bg-white/5 p-4 rounded-xl border border-white/5 mb-4">
-             <div className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Tanlangan resurs</div>
-             <div className="text-white font-bold">{marketItemData.title}</div>
-          </div>
-          
-          <div>
-            <label className="block text-xs font-black text-white/40 uppercase mb-2">Narxi (UZS)</label>
-            <div className="relative">
-              <input 
-                type="number" 
-                placeholder="15000" 
-                value={marketItemData.price} 
-                onChange={e => setMarketItemData({ ...marketItemData, price: parseInt(e.target.value) || 0 })}
-                className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500" 
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 font-bold">UZS</span>
-            </div>
-            <p className="text-[10px] text-white/30 mt-2 italic">Platforma komissiyasi: 10% ({(marketItemData.price * 0.1).toLocaleString()} so'm)</p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black text-white/40 uppercase mb-2">Qisqacha tavsif</label>
-            <textarea 
-              placeholder="Ushbu dars nima haqida? (Buyerlar uchun)" 
-              value={marketItemData.description} 
-              onChange={e => setMarketItemData({ ...marketItemData, description: e.target.value })}
-              className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white h-24 resize-none focus:outline-none focus:border-green-500"
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            disabled={marketListingLoading}
-            className="w-full bg-gradient-to-br from-green-500 to-green-600 text-white py-4 rounded-xl font-black shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-all disabled:opacity-50"
-          >
-            {marketListingLoading ? 'YUKLANMOQDA...' : 'MARKETGA JOYLASHTIRISH'}
-          </button>
-        </form>
-      )}
-
     </div>
   );
 };
