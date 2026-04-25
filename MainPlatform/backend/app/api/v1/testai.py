@@ -37,11 +37,20 @@ class SaveTestRequest(BaseModel):
     difficulty: str = "medium"
     language: str = "uz"
 
+class TestConfig(BaseModel):
+    question_count: Optional[int] = None
+    question_selection: str = "all"  # all | first_n | random
+    time_type: str = "none"  # none | total | per_question
+    total_time_minutes: Optional[int] = None
+    per_question_seconds: Optional[int] = None
+    shuffle_questions: bool = False
+
 class AssignTestRequest(BaseModel):
     test_id: str
     class_name: Optional[str] = None
     student_ids: Optional[List[str]] = None
     due_date: Optional[datetime] = None
+    test_config: Optional[TestConfig] = None
 
 # ============================================================
 # PARSING LOGIC (Regex based)
@@ -185,6 +194,7 @@ async def get_my_tests(current_user: User = Depends(get_current_user), db: Async
     return {"success": True, "tests": tests}
 
 @router.delete("/testai/test/{test_id}")
+@router.delete("/testai/tests/{test_id}")
 async def delete_test(test_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await db.execute(delete(SavedTest).where(SavedTest.id == test_id, SavedTest.creator_id == current_user.id))
     await db.commit()
@@ -203,7 +213,26 @@ async def assign_test(data: AssignTestRequest, current_user: User = Depends(get_
         
     # 2. Prepare assignment content (JSON string for automated grading)
     # The submit-test-assignment endpoint expects content to have a 'questions' key
-    assignment_content = json.dumps({"questions": test.questions})
+    content_data = {"questions": test.questions}
+    
+    # Apply test_config if provided
+    if data.test_config:
+        tc = data.test_config
+        content_data["test_config"] = tc.model_dump()
+        
+        # Select questions based on config
+        questions = list(test.questions)
+        q_count = tc.question_count or len(questions)
+        
+        if tc.question_selection == "random" and q_count < len(questions):
+            import random
+            questions = random.sample(questions, q_count)
+        elif tc.question_selection == "first_n" and q_count < len(questions):
+            questions = questions[:q_count]
+        
+        content_data["questions"] = questions
+    
+    assignment_content = json.dumps(content_data)
     
     # 3. Create the assignment
     teacher_name = f"{current_user.first_name} {current_user.last_name}".strip()
@@ -217,7 +246,7 @@ async def assign_test(data: AssignTestRequest, current_user: User = Depends(get_
         content=assignment_content,
         reference_id=test.id,
         reference_type="saved_test",
-        max_score=100, # Default for tests
+        max_score=100,
         due_date=data.due_date,
         is_published=True
     )
@@ -227,19 +256,7 @@ async def assign_test(data: AssignTestRequest, current_user: User = Depends(get_
     # 4. Handle targets
     notified_students = set()
     
-    # By Class Name (Teacher's classrooms)
     if data.class_name:
-        cls_res = await db.execute(
-            select(Classroom).where(
-                Classroom.name == data.class_name,
-                Classroom.teacher_id.in_(
-                    select(User.id).where(User.id == current_user.id) # Simple check
-                )
-            )
-        )
-        # Note: In MainPlatform, TeacherProfile.id is used in Classroom.teacher_id, not User.id directly.
-        # But TeacherProfile.user_id points to current_user.id.
-        # Let's fix this logic to be safe.
         from shared.database.models import TeacherProfile
         tp_res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == current_user.id))
         tp = tp_res.scalars().first()
@@ -254,7 +271,6 @@ async def assign_test(data: AssignTestRequest, current_user: User = Depends(get_
                     target_type=AssignmentTargetType.classroom,
                     target_id=classroom.id
                 ))
-                # Add students from classroom
                 mem_res = await db.execute(
                     select(ClassroomStudent.student_user_id).where(
                         ClassroomStudent.classroom_id == classroom.id,
@@ -264,7 +280,6 @@ async def assign_test(data: AssignTestRequest, current_user: User = Depends(get_
                 for row in mem_res.fetchall():
                     notified_students.add(row[0])
                     
-    # By Student IDs
     if data.student_ids:
         for sid in data.student_ids:
             db.add(AssignmentTarget(
@@ -274,7 +289,6 @@ async def assign_test(data: AssignTestRequest, current_user: User = Depends(get_
             ))
             notified_students.add(sid)
             
-    # 5. Create submissions and notifications
     due_text = data.due_date.strftime("%d.%m.%Y %H:%M") if data.due_date else "Belgilanmagan"
     for student_id in notified_students:
         db.add(AssignmentSubmission(
@@ -292,7 +306,6 @@ async def assign_test(data: AssignTestRequest, current_user: User = Depends(get_
         
     await db.commit()
     
-    # Telegram notifications
     for student_id in notified_students:
         tg_text = (
             f"📝 *Yangi test topshirig'i!*\n\n"
@@ -304,6 +317,124 @@ async def assign_test(data: AssignTestRequest, current_user: User = Depends(get_
         await notify_telegram(db, student_id, tg_text)
         
     return {"success": True, "assignment_id": assignment.id, "student_count": len(notified_students)}
+
+
+# ============================================================
+# ADVANCED ASSIGN (with test_config)
+# ============================================================
+
+class AssignTestAdvancedRequest(BaseModel):
+    test_id: str
+    classroom_id: Optional[str] = None
+    student_ids: Optional[List[str]] = None
+    due_date: Optional[datetime] = None
+    test_config: Optional[dict] = None  # {question_count, question_selection, time_type, ...}
+
+@router.post("/testai/assign-advanced")
+async def assign_test_advanced(data: AssignTestAdvancedRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    Advanced test assignment with test_config (time settings, shuffle, question count).
+    """
+    res = await db.execute(select(SavedTest).where(SavedTest.id == data.test_id))
+    test = res.scalars().first()
+    if not test:
+        raise HTTPException(404, "Test topilmadi")
+    
+    # Build content with test_config embedded
+    content_data = {
+        "questions": test.questions,
+        "test_config": data.test_config or {}
+    }
+    assignment_content = json.dumps(content_data)
+    
+    teacher_name = f"{current_user.first_name} {current_user.last_name}".strip()
+    
+    assignment = Assignment(
+        created_by=current_user.id,
+        creator_role=AssignmentCreatorRole.teacher,
+        title=f"Test: {test.title}",
+        description=test.description,
+        assignment_type=AssignmentType.test,
+        content=assignment_content,
+        reference_id=test.id,
+        reference_type="saved_test",
+        max_score=100,
+        due_date=data.due_date,
+        is_published=True
+    )
+    db.add(assignment)
+    await db.flush()
+    
+    notified_students = set()
+    
+    # By Classroom ID
+    if data.classroom_id:
+        from shared.database.models import TeacherProfile
+        tp_res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == current_user.id))
+        tp = tp_res.scalars().first()
+        if tp:
+            cls_res = await db.execute(
+                select(Classroom).where(Classroom.id == data.classroom_id, Classroom.teacher_id == tp.id)
+            )
+            classroom = cls_res.scalars().first()
+            if classroom:
+                db.add(AssignmentTarget(
+                    assignment_id=assignment.id,
+                    target_type=AssignmentTargetType.classroom,
+                    target_id=classroom.id
+                ))
+                mem_res = await db.execute(
+                    select(ClassroomStudent.student_user_id).where(
+                        ClassroomStudent.classroom_id == classroom.id,
+                        ClassroomStudent.status == ClassroomStudentStatus.active
+                    )
+                )
+                for row in mem_res.fetchall():
+                    notified_students.add(row[0])
+    
+    # By Student IDs
+    if data.student_ids:
+        for sid in data.student_ids:
+            db.add(AssignmentTarget(
+                assignment_id=assignment.id,
+                target_type=AssignmentTargetType.student,
+                target_id=sid
+            ))
+            notified_students.add(sid)
+    
+    due_text = data.due_date.strftime("%d.%m.%Y %H:%M") if data.due_date else "Belgilanmagan"
+    for student_id in notified_students:
+        db.add(AssignmentSubmission(
+            assignment_id=assignment.id,
+            student_user_id=student_id,
+            status=SubmissionStatus.pending
+        ))
+        await create_notification(
+            db, student_id,
+            f"📝 Yangi test: {test.title}",
+            f"{teacher_name} sizga yangi test topshirig'ini yubordi.\nMuddati: {due_text}",
+            InAppNotifType.assignment_new,
+            "assignment", assignment.id, current_user.id
+        )
+    
+    await db.commit()
+    
+    for student_id in notified_students:
+        tg_text = (
+            f"📝 *Yangi test topshirig'i!*\n\n"
+            f"*{test.title}*\n"
+            f"O'qituvchi: {teacher_name}\n"
+            f"Muddati: {due_text}\n\n"
+            f"Platformaga kiring va testni yeching."
+        )
+        await notify_telegram(db, student_id, tg_text)
+    
+    return {"success": True, "assignment_id": assignment.id, "student_count": len(notified_students)}
+
+
+# ============================================================
+# RESULTS + LEADERBOARD
+# ============================================================
 
 @router.get("/testai/results/{test_id}")
 async def get_test_results(test_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -320,7 +451,7 @@ async def get_test_results(test_id: str, current_user: User = Depends(get_curren
         
     a_ids = [a.id for a in assignments]
     
-    # 2. Fetch submissions
+    # 2. Fetch submissions with student names
     sub_res = await db.execute(
         select(AssignmentSubmission).where(AssignmentSubmission.assignment_id.in_(a_ids))
     )
@@ -328,15 +459,149 @@ async def get_test_results(test_id: str, current_user: User = Depends(get_curren
     
     results = []
     for s in submissions:
+        # Get student name
+        u_res = await db.execute(select(User).where(User.id == s.student_user_id))
+        u = u_res.scalars().first()
+        student_name = f"{u.first_name} {u.last_name}".strip() if u else f"ID: {s.student_user_id}"
+        
+        # Extract detailed info from submission content
+        correct_answers = 0
+        total_questions = 0
+        time_spent = 0
+        content_data = None
+        
+        if s.content:
+            try:
+                content_data = json.loads(s.content)
+                correct_answers = content_data.get("correct_count", 0)
+                total_questions = content_data.get("total", 0)
+                time_spent = content_data.get("time_spent_seconds", 0)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        if s.meta_data:
+            correct_answers = s.meta_data.get("correct", correct_answers)
+            total_questions = s.meta_data.get("total", total_questions)
+            time_spent = s.meta_data.get("time_spent_seconds", time_spent)
+        
         results.append({
             "id": s.id,
             "student_id": s.student_user_id,
+            "student_name": student_name,
             "score": s.score or 0,
             "status": s.status.value,
             "submitted_at": s.submitted_at.isoformat() if s.submitted_at else None,
-            "correct_answers": 0, # Could extract from content if needed
-            "total_questions": 0, # Could extract from content if needed
-            "time_spent": 0 # Could extract from content if needed
+            "correct_answers": correct_answers,
+            "total_questions": total_questions,
+            "time_spent": time_spent,
+            "content": s.content,
         })
         
     return {"success": True, "results": results}
+
+
+@router.get("/testai/results/{test_id}/leaderboard")
+async def get_test_leaderboard(test_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    Leaderboard: ranked by score DESC, then time_spent ASC.
+    Also returns question-level analytics (most correct/incorrect).
+    """
+    # 1. Find assignments tied to this test
+    a_res = await db.execute(
+        select(Assignment).where(Assignment.reference_id == test_id, Assignment.reference_type == "saved_test")
+    )
+    assignments = a_res.scalars().all()
+    if not assignments:
+        return {"success": True, "data": {"leaderboard": [], "question_stats": {}}}
+    
+    a_ids = [a.id for a in assignments]
+    
+    # 2. Fetch graded submissions
+    sub_res = await db.execute(
+        select(AssignmentSubmission).where(
+            AssignmentSubmission.assignment_id.in_(a_ids),
+            AssignmentSubmission.status == SubmissionStatus.graded,
+        )
+    )
+    submissions = sub_res.scalars().all()
+    
+    # 3. Build leaderboard entries
+    entries = []
+    all_results = []  # for analytics
+    
+    for s in submissions:
+        meta = s.meta_data or {}
+        correct = meta.get("correct", 0)
+        total = meta.get("total", 0)
+        time_spent = meta.get("time_spent_seconds", 0)
+        
+        # Parse content for detailed results
+        student_results = []
+        try:
+            if s.content:
+                content_data = json.loads(s.content)
+                student_results = content_data.get("results", [])
+        except (json.JSONDecodeError, TypeError):
+            pass
+        
+        # Get student name
+        u_res = await db.execute(select(User).where(User.id == s.student_user_id))
+        u = u_res.scalars().first()
+        student_name = f"{u.first_name} {u.last_name}".strip() if u else "Noma'lum"
+        
+        entries.append({
+            "student_id": s.student_user_id,
+            "student_name": student_name,
+            "score": correct,
+            "total": total,
+            "time_spent_seconds": time_spent,
+            "percentage": round((correct / max(total, 1)) * 100),
+            "results": student_results,
+        })
+        all_results.append(student_results)
+    
+    # 4. Sort: score DESC, time ASC (teng ball'da kam vaqt sarflagan ustun)
+    entries.sort(key=lambda e: (-e["score"], e["time_spent_seconds"]))
+    
+    # 5. Assign ranks
+    for i, entry in enumerate(entries):
+        entry["rank"] = i + 1
+    
+    # 6. Question analytics
+    question_stats = {}
+    if all_results:
+        # Count correct per question index
+        q_correct_counts = {}
+        q_total_counts = {}
+        for results_list in all_results:
+            for idx, r in enumerate(results_list):
+                q_total_counts[idx] = q_total_counts.get(idx, 0) + 1
+                if r.get("is_correct"):
+                    q_correct_counts[idx] = q_correct_counts.get(idx, 0) + 1
+        
+        # Calculate percentages
+        correct_percentages = {}
+        for idx in q_total_counts:
+            correct_percentages[idx] = round((q_correct_counts.get(idx, 0) / q_total_counts[idx]) * 100) if q_total_counts[idx] > 0 else 0
+        
+        # Sort by percentage
+        sorted_by_pct = sorted(correct_percentages.items(), key=lambda x: x[1], reverse=True)
+        
+        most_correct = [idx for idx, pct in sorted_by_pct[:5] if pct > 0]
+        most_incorrect = [idx for idx, pct in sorted_by_pct[-5:] if pct < 100]
+        most_incorrect.reverse()
+        
+        question_stats = {
+            "most_correct": most_correct,
+            "most_incorrect": most_incorrect,
+            "correct_percentages": correct_percentages,
+        }
+    
+    return {
+        "success": True,
+        "data": {
+            "leaderboard": entries,
+            "question_stats": question_stats,
+        }
+    }
+

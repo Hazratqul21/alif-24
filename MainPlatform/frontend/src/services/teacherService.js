@@ -208,8 +208,40 @@ class TeacherService {
         return apiService.post('/testai/assign', data);
     }
 
+    async assignTestAdvanced(data) {
+        return apiService.post('/testai/assign-advanced', data);
+    }
+
     async getTestResults(testId) {
         return apiService.get(`/testai/results/${testId}`);
+    }
+
+    async getTestLeaderboard(testId) {
+        return apiService.get(`/testai/results/${testId}/leaderboard`);
+    }
+
+    // ============ TEST LIBRARY METHODS ============
+
+    async getMyTests() {
+        return apiService.get('/testai/my-tests');
+    }
+
+    async getTestResults(testId) {
+        return apiService.get(`/testai/results/${testId}`);
+    }
+
+    async deleteTest(testId) {
+        return apiService.delete(`/testai/tests/${testId}`);
+    }
+
+    async assignTest(data) {
+        return apiService.post('/testai/assign', data);
+    }
+
+    async uploadAssignmentFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        return apiService.post('/teachers/upload-file', formData);
     }
 
     async getGradebook(classroomId, startDate = null, endDate = null) {

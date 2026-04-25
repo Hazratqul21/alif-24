@@ -10,6 +10,8 @@ import AILessonGenerator from '../components/Teacher/AILessonGenerator';
 import AssignmentCalendar from '../components/Teacher/AssignmentCalendar';
 import ResourceLibrary from '../components/Teacher/ResourceLibrary';
 import StudentImport from '../components/Teacher/StudentImport';
+import TestLibrary from '../components/Teacher/TestLibrary';
+import ComplexLessonBuilder from '../components/Teacher/ComplexLessonBuilder';
 import {
   BookOpen, Users, Award, BarChart3, Plus, Clock, CheckCircle,
   FileText, Settings, Bell, Search, Filter, ChevronRight,
@@ -86,9 +88,9 @@ const TeacherDashboard = () => {
   const [showStudentImport, setShowStudentImport] = useState(false);
 
   const tabLabels = {
-    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', jurnal: 'Jurnal', resources: 'Kutubxona', marketplace: 'Marketplace', school: 'Maktabim', settings: 'Sozlamalar' },
-    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', jurnal: 'Журнал', resources: 'Библиотека', marketplace: 'Маркетплейс', school: 'Моя школа', settings: 'Настройки' },
-    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', jurnal: 'Gradebook', resources: 'Library', marketplace: 'Marketplace', school: 'My School', settings: 'Settings' },
+    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', jurnal: 'Jurnal', resources: 'Kutubxona', testlarim: 'Testlarim', complex: 'Kompleks dars', marketplace: 'Marketplace', school: 'Maktabim', settings: 'Sozlamalar' },
+    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', jurnal: 'Журнал', resources: 'Библиотека', testlarim: 'Мои тесты', complex: 'Комплекс урок', marketplace: 'Маркетплейс', school: 'Моя школа', settings: 'Настройки' },
+    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', jurnal: 'Gradebook', resources: 'Library', testlarim: 'My Tests', complex: 'Complex Lesson', marketplace: 'Marketplace', school: 'My School', settings: 'Settings' },
   };
   const tl = tabLabels[language] || tabLabels.uz;
 
@@ -98,6 +100,8 @@ const TeacherDashboard = () => {
     { id: 'jurnal', label: tl.jurnal, icon: LayoutGrid },
     { id: 'lessons', label: tl.lessons, icon: BookOpen },
     { id: 'assignments', label: tl.assignments, icon: ClipboardList },
+    { id: 'testlarim', label: tl.testlarim, icon: FileText },
+    { id: 'complex', label: tl.complex, icon: Sparkles },
     { id: 'livequiz', label: tl.livequiz, icon: Zap },
     { id: 'resources', label: tl.resources, icon: FolderOpen },
     { id: 'marketplace', label: tl.marketplace, icon: ShoppingBag },
@@ -1164,6 +1168,23 @@ const TeacherDashboard = () => {
       case 'jurnal': return renderGradebook();
       case 'lessons': return renderEnhancedLessons();
       case 'assignments': return renderEnhancedAssignments();
+      case 'testlarim': return (
+        <TestLibrary
+          classrooms={classrooms}
+          onShowNotif={showNotif}
+          onOpenTestBuilder={() => {
+            setParsedQuestions([{ id: 1, question: '', options: ['', '', '', ''], correct_answer: 0 }]);
+            setShowTestReview(true);
+          }}
+        />
+      );
+      case 'complex': return (
+        <ComplexLessonBuilder
+          classrooms={classrooms}
+          onShowNotif={showNotif}
+          onSaved={() => { fetchLessons(); setActiveTab('lessons'); }}
+        />
+      );
       case 'livequiz': return renderLiveQuiz();
       case 'resources': return renderResources();
       case 'school': return renderMySchool();
