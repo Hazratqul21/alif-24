@@ -807,7 +807,7 @@ async def get_gradebook_matrix(
 
     # 2. Get active students in classroom
     students_stmt = (
-        select(User.id, User.first_name, User.last_name, User.avatar_id)
+        select(User.id, User.first_name, User.last_name)
         .join(ClassroomStudent, ClassroomStudent.student_user_id == User.id)
         .where(
             ClassroomStudent.classroom_id == classroom_id,
@@ -817,7 +817,7 @@ async def get_gradebook_matrix(
     )
     students_res = await db.execute(students_stmt)
     students = [
-        {"id": row.id, "first_name": row.first_name, "last_name": row.last_name, "avatar_id": row.avatar_id}
+        {"id": row.id, "first_name": row.first_name, "last_name": row.last_name}
         for row in students_res.fetchall()
     ]
     student_ids = [s["id"] for s in students]
