@@ -55,7 +55,7 @@ const TestAssignModal = ({ test, classrooms = [], onClose, onAssigned, onShowNot
         class_name: null,
         student_ids: null,
         due_date: dueDate || null,
-        test_config,
+        test_config: testConfig,
       };
 
       // Find selected classroom name

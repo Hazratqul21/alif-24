@@ -254,6 +254,10 @@ class TeacherService {
     async getAssignmentReport(assignmentId) {
         return apiService.get(`/teachers/assignments/${assignmentId}/report`);
     }
+
+    async listTestInMarket(data) {
+        return apiService.post('/marketplace/list-resource', data);
+    }
 }
 
 export const teacherService = new TeacherService();
