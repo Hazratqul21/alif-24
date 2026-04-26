@@ -1938,12 +1938,13 @@ const TeacherDashboard = () => {
         questions={parsedQuestions} 
         onClose={() => setShowTestReview(false)} 
         onSave={handleTestFinalized} 
+        onShowNotif={showNotif}
       />
     </div>
   );
 };
 
-const TestReviewModal = ({ show, questions, onClose, onSave }) => {
+const TestReviewModal = ({ show, questions, onClose, onSave, onShowNotif }) => {
   const [localQuestions, setLocalQuestions] = React.useState(questions);
   const [pastedText, setPastedText] = React.useState('');
   const [testName, setTestName] = React.useState('');
@@ -1952,6 +1953,7 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
   const fileInputRef = React.useRef(null);
   const imgInputRef = React.useRef(null);
   const [imgTarget, setImgTarget] = React.useState(null); // { qIdx, type: 'question'|'option', oIdx? }
+  const [isAnalyzing, setIsAnalyzing] = React.useState(false);
 
   React.useEffect(() => {
     setLocalQuestions(questions);
@@ -2063,7 +2065,7 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
   };
 
   // Fayl o'qish (TXT)
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const ext = file.name.split('.').pop().toLowerCase();
@@ -2079,9 +2081,34 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
         }
       };
       reader.readAsText(file);
+    } else if (ext === 'pdf' || ext === 'docx') {
+      // PDF/DOCX uchun backend orqali tahlil qilish
+      setIsAnalyzing(true);
+      try {
+        const res = await teacherService.parseFileTest(file);
+        if (res.success && res.tests?.length > 0) {
+          const mapped = res.tests.map(q => ({
+            id: Date.now() + Math.random(),
+            question: q.question,
+            options: q.options || ['', '', '', ''],
+            correct_answer: q.correct !== undefined ? q.correct : 0,
+            type: 'multiple',
+            image: null,
+            optionImages: {},
+          }));
+          setLocalQuestions(prev => [...prev, ...mapped]);
+          setActiveSection('questions');
+          onShowNotif('success', `${mapped.length} ta savol olindi`);
+        } else {
+          onShowNotif('warning', "Savollar topilmadi");
+        }
+      } catch (err) {
+        onShowNotif('error', "Faylni tahlil qilishda xatolik");
+      } finally {
+        setIsAnalyzing(false);
+      }
     } else {
-      // PDF/DOCX uchun alert
-      alert('PDF va Word fayllar backend orqali tahlil qilinadi. Hozircha TXT fayldan foydalaning yoki matnni paste qiling.');
+      onShowNotif('error', 'Faqat TXT, PDF va Word fayllari qo\'llab-quvvatlanadi');
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -2181,8 +2208,9 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
           <div className="flex items-center justify-between">
             <h3 className="text-white font-bold text-lg">Test Muharriri</h3>
             <div className="flex items-center gap-2">
-              <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs transition-all" title="PDF/Word/TXT fayldan yuklash">
-                <Upload size={14} /> Fayl
+              <button onClick={() => fileInputRef.current?.click()} disabled={isAnalyzing} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs transition-all disabled:opacity-50" title="PDF/Word/TXT fayldan yuklash">
+                {isAnalyzing ? <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Upload size={14} />}
+                {isAnalyzing ? 'Tahlil...' : 'Fayl'}
               </button>
               <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={20} /></button>
             </div>
