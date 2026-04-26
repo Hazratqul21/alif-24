@@ -847,12 +847,9 @@ async def get_gradebook_matrix(
     assign_stmt = (
         select(Assignment)
         .where(
-            and_(
-                Assignment.created_by == teacher.id,
-                or_(
-                    Assignment.classroom_id == classroom_id,
-                    target_exists
-                )
+            or_(
+                Assignment.classroom_id == classroom_id,
+                target_exists
             )
         )
     )
@@ -886,9 +883,9 @@ async def get_gradebook_matrix(
         if sub.student_user_id in matrix:
             # Fallback to meta_data if score is null
             score = sub.score
-            if score is None and sub.meta_data:
-                # Try common keys for scores in metadata
-                score = sub.meta_data.get("score") or sub.meta_data.get("correct")
+            if (score is None or score == 0) and sub.meta_data:
+                # Try common keys for scores in metadata, especially for automated tests
+                score = sub.meta_data.get("correct") or sub.meta_data.get("score") or score
 
             matrix[sub.student_user_id][sub.assignment_id] = {
                 "score": score,
