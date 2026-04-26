@@ -19,7 +19,7 @@ import {
   Play, Eye, Edit, Trash2, ArrowLeft, LogOut, Zap, Copy,
   Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon, Paperclip,
   FolderOpen, Sparkles, Upload, List, LayoutGrid, Tag, ShoppingBag,
-  Type, Image as ImageIcon
+  Type, Image as ImageIcon, Menu
 } from 'lucide-react';
 import GradebookMatrix from '../components/Teacher/GradebookMatrix';
 
@@ -29,6 +29,7 @@ const TeacherDashboard = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Real data states
   const [classrooms, setClassrooms] = useState([]);
@@ -1447,21 +1448,54 @@ const TeacherDashboard = () => {
           </button>
         </aside>
 
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#1a1a2e] border-t border-white/10 flex z-[999] overflow-x-auto">
-          {tabs.map((tab) => (
+        {/* Mobile Navigation */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#1a1a2e] border-t border-white/10 flex z-[999]">
+          {tabs.slice(0, 4).map((tab) => (
             <button key={tab.id} onClick={() => {
+              setShowMobileMenu(false);
               if (tab.id === 'marketplace') {
                 navigate('/market');
               } else {
                 setActiveTab(tab.id);
               }
             }}
-              className={`flex-1 flex flex-col items-center py-2 px-1 text-[10px] gap-1 border-none cursor-pointer transition-colors min-w-0 ${activeTab === tab.id ? 'text-[#4b30fb] bg-transparent' : 'text-gray-400 bg-transparent'
+              className={`flex-1 flex flex-col items-center py-2 px-1 text-[10px] gap-1 border-none cursor-pointer transition-colors min-w-0 ${activeTab === tab.id && !showMobileMenu ? 'text-[#4b30fb] bg-transparent' : 'text-gray-400 bg-transparent'
                 }`}>
               <tab.icon size={18} /><span className="truncate">{tab.label}</span>
             </button>
           ))}
+          <button onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className={`flex-1 flex flex-col items-center py-2 px-1 text-[10px] gap-1 border-none cursor-pointer transition-colors min-w-0 ${showMobileMenu ? 'text-[#4b30fb] bg-transparent' : 'text-gray-400 bg-transparent'
+              }`}>
+            <Menu size={18} /><span>Yana</span>
+          </button>
         </div>
+
+        {/* Mobile "More" Menu Overlay */}
+        {showMobileMenu && (
+          <div className="md:hidden fixed inset-0 z-[998] bg-black/60 backdrop-blur-sm" onClick={() => setShowMobileMenu(false)}>
+            <div className="absolute bottom-[60px] left-4 right-4 bg-[#1e1e3a] border border-white/10 rounded-2xl p-2 grid grid-cols-3 gap-1 shadow-2xl animate-in slide-in-from-bottom-5 duration-200" onClick={e => e.stopPropagation()}>
+              {tabs.slice(4).map((tab) => (
+                <button key={tab.id} onClick={() => {
+                  setShowMobileMenu(false);
+                  if (tab.id === 'marketplace') {
+                    navigate('/market');
+                  } else {
+                    setActiveTab(tab.id);
+                  }
+                }}
+                  className={`flex flex-col items-center py-4 px-1 rounded-xl text-[10px] gap-2 border-none cursor-pointer transition-all ${activeTab === tab.id ? 'bg-[#4b30fb]/20 text-[#4b30fb]' : 'text-white/60 hover:bg-white/5 bg-transparent'
+                    }`}>
+                  <tab.icon size={20} /><span className="text-center line-clamp-1">{tab.label}</span>
+                </button>
+              ))}
+              <button onClick={() => { logout(); navigate('/'); }}
+                className="flex flex-col items-center py-4 px-1 rounded-xl text-[10px] gap-2 border-none cursor-pointer text-red-400 hover:bg-red-500/10 bg-transparent">
+                <LogOut size={20} /><span>Chiqish</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         <main className="flex-1 p-4 md:p-8 pb-20 md:pb-8 overflow-y-auto">
           <div className="max-w-4xl mx-auto">{renderContent()}</div>
