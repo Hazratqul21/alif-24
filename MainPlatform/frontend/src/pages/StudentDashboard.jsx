@@ -253,6 +253,19 @@ const StudentDashboard = () => {
         return () => clearInterval(interval);
     }, [isTimerRunning]);
 
+    // Test Timer logic
+    useEffect(() => {
+        if (!testStarted || !!testResult || testSubmitting) return;
+        if (testTimeLeft <= 0) {
+            handleSubmitTest();
+            return;
+        }
+        const interval = setInterval(() => {
+            setTestTimeLeft(prev => Math.max(0, prev - 1));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [testStarted, testTimeLeft, testResult, testSubmitting]);
+
     const handleDailyBonus = async () => {
         try {
             const result = await coinService.claimDailyBonus();
@@ -1549,11 +1562,25 @@ const StudentDashboard = () => {
                                         <Clock size={14} /> {formatTime(testTimeLeft)}
                                     </div>
                                 )}
-                                {!testStarted && (
-                                    <button onClick={() => { setSelectedTask(null); setTestQuestions([]); setTestResult(null); }} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full">
-                                        <X size={18} />
-                                    </button>
-                                )}
+                                <button 
+                                    onClick={() => { 
+                                        if (testStarted && !testResult) {
+                                            if (window.confirm("Test hali yakunlanmadi. Chiqib ketsangiz natijalar saqlanmaydi. Chiqasizmi?")) {
+                                                setSelectedTask(null); 
+                                                setTestQuestions([]); 
+                                                setTestResult(null); 
+                                                setTestStarted(false);
+                                            }
+                                        } else {
+                                            setSelectedTask(null); 
+                                            setTestQuestions([]); 
+                                            setTestResult(null); 
+                                        }
+                                    }} 
+                                    className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full"
+                                >
+                                    <X size={18} />
+                                </button>
                             </div>
                         </div>
 
