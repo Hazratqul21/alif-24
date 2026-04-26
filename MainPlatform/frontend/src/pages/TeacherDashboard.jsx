@@ -18,7 +18,8 @@ import {
   GraduationCap, Target, TrendingUp, Calendar, MessageSquare,
   Play, Eye, Edit, Trash2, ArrowLeft, LogOut, Zap, Copy,
   Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon, Paperclip,
-  FolderOpen, Sparkles, Upload, List, LayoutGrid, Tag, ShoppingBag
+  FolderOpen, Sparkles, Upload, List, LayoutGrid, Tag, ShoppingBag,
+  Type, Image as ImageIcon
 } from 'lucide-react';
 import GradebookMatrix from '../components/Teacher/GradebookMatrix';
 
@@ -406,14 +407,16 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleTestFinalized = async (finalQuestions) => {
+  const handleTestFinalized = async (finalQuestions, testName) => {
     const testContent = JSON.stringify({
       questions: finalQuestions,
       time_limit_minutes: Math.max(5, finalQuestions.length * 2),
       generated_by: 'parsed'
     });
+    const resolvedName = testName || newAssignment.title || `Test — ${new Date().toLocaleDateString('uz')}`;
     setNewAssignment(prev => ({
       ...prev,
+      title: resolvedName,
       content: testContent,
       description: `Test — ${finalQuestions.length} ta savol`,
       assignment_type: 'test',
@@ -423,7 +426,7 @@ const TeacherDashboard = () => {
     // Also save to backend as SavedTest for the library
     try {
       await teacherService.saveTest({
-        title: newAssignment.title || `Test — ${new Date().toLocaleDateString('uz')}`,
+        title: resolvedName,
         description: `${finalQuestions.length} ta savol`,
         questions: finalQuestions,
         difficulty: 'medium',
@@ -1880,12 +1883,171 @@ const TeacherDashboard = () => {
 
 const TestReviewModal = ({ show, questions, onClose, onSave }) => {
   const [localQuestions, setLocalQuestions] = React.useState(questions);
+  const [pastedText, setPastedText] = React.useState('');
+  const [testName, setTestName] = React.useState('');
+  const [activeSection, setActiveSection] = React.useState('questions'); // questions, paste, file
+  const fileInputRef = React.useRef(null);
+  const imgInputRef = React.useRef(null);
+  const [imgTarget, setImgTarget] = React.useState(null); // { qIdx, type: 'question'|'option', oIdx? }
 
   React.useEffect(() => {
     setLocalQuestions(questions);
   }, [questions]);
 
   if (!show) return null;
+
+  // ========== parseRawText: aqlli matn tahlilchisi ==========
+  const parseRawText = (raw) => {
+    if (!raw || !raw.trim()) return [];
+    const lines = raw.split('\n').map(l => l.trimEnd());
+    const result = [];
+    let current = null;
+    const answerKeyMap = {};
+
+    // 1-qadam: Oxiridagi javob kalitlarini izlash (masalan: "1. A 2. C 3. B")
+    const fullText = raw.trim();
+    const keyPatterns = [
+      /(\d+)\s*[\.\)]\s*([A-Da-d])/g,
+    ];
+    // Oxirgi paragrafdan javob kalitlarini izlash
+    const paragraphs = fullText.split(/\n\s*\n/);
+    const lastParagraph = paragraphs[paragraphs.length - 1]?.trim() || '';
+    // Agar oxirgi paragraf faqat javob kalitlaridan iborat bo'lsa
+    const keyLineMatch = lastParagraph.match(/^[\d\s\.\)\:A-Da-d,]+$/);
+    if (keyLineMatch) {
+      let m;
+      const regex = /(\d+)\s*[\.\)\:]\s*([A-Da-d])/g;
+      while ((m = regex.exec(lastParagraph)) !== null) {
+        const qNum = parseInt(m[1]);
+        const ansLetter = m[2].toUpperCase();
+        answerKeyMap[qNum] = 'ABCD'.indexOf(ansLetter);
+      }
+    }
+
+    // 2-qadam: Savollarni ajratish
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Savol boshlanishini aniqlash: "1. ...", "1) ...", "1️. ..." yoki "2️. ..."
+      const qMatch = line.match(/^(\d+)\s*[\.\)\️⃣]\s*\.?\s*(.+)/);
+      if (qMatch) {
+        if (current) result.push(current);
+        current = {
+          id: Date.now() + result.length,
+          question: qMatch[2].trim(),
+          options: [],
+          correct_answer: 0,
+          type: 'multiple',
+          image: null,
+          optionImages: {},
+        };
+        continue;
+      }
+
+      if (!current) continue;
+
+      // "To'g'ri javob" qatorini aniqlash
+      const correctMatch = line.match(/[Tt]o['']?g['']?ri\s+javob\s*[:\-]?\s*([A-Da-d])/i);
+      if (correctMatch) {
+        const idx = 'ABCD'.indexOf(correctMatch[1].toUpperCase());
+        if (idx >= 0) current.correct_answer = idx;
+        continue;
+      }
+
+      // Variant qatorini aniqlash: "A) ...", "#B) ...", "A. ..."
+      const optMatch = line.match(/^(#)?\s*([A-Da-d])\s*[\.\)]\s*(.+)/);
+      if (optMatch) {
+        const isCorrect = !!optMatch[1];
+        const optText = optMatch[3].trim();
+        const optIdx = current.options.length;
+        current.options.push(optText);
+        if (isCorrect) current.correct_answer = optIdx;
+        continue;
+      }
+
+      // Qolgan qatorlarni savol matni davomi deb qo'shish
+      if (current.options.length === 0) {
+        current.question += '\n' + line;
+      }
+    }
+    if (current) result.push(current);
+
+    // 3-qadam: Oxiridagi javob kalitlari bilan solishtirish
+    if (Object.keys(answerKeyMap).length > 0) {
+      result.forEach((q, idx) => {
+        const qNum = idx + 1;
+        if (answerKeyMap[qNum] !== undefined && answerKeyMap[qNum] >= 0) {
+          q.correct_answer = answerKeyMap[qNum];
+        }
+      });
+    }
+
+    // 4 ta variant bo'lishini ta'minlash
+    result.forEach(q => {
+      while (q.options.length < 4) q.options.push('');
+    });
+
+    return result;
+  };
+
+  const handleSmartPaste = () => {
+    const parsed = parseRawText(pastedText);
+    if (parsed.length === 0) return;
+    setLocalQuestions(prev => [...prev, ...parsed]);
+    setPastedText('');
+    setActiveSection('questions');
+  };
+
+  // Fayl o'qish (TXT)
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    if (ext === 'txt') {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target.result;
+        const parsed = parseRawText(text);
+        if (parsed.length > 0) {
+          setLocalQuestions(prev => [...prev, ...parsed]);
+          setActiveSection('questions');
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      // PDF/DOCX uchun alert
+      alert('PDF va Word fayllar backend orqali tahlil qilinadi. Hozircha TXT fayldan foydalaning yoki matnni paste qiling.');
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Rasm yuklash
+  const handleImageFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !imgTarget) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target.result;
+      const updated = [...localQuestions];
+      if (imgTarget.type === 'question') {
+        updated[imgTarget.qIdx].image = url;
+      } else {
+        if (!updated[imgTarget.qIdx].optionImages) updated[imgTarget.qIdx].optionImages = {};
+        updated[imgTarget.qIdx].optionImages[imgTarget.oIdx] = url;
+      }
+      setLocalQuestions(updated);
+      setImgTarget(null);
+    };
+    reader.readAsDataURL(file);
+    if (imgInputRef.current) imgInputRef.current.value = '';
+  };
+
+  const triggerImageUpload = (qIdx, type, oIdx) => {
+    setImgTarget({ qIdx, type, oIdx });
+    imgInputRef.current?.click();
+  };
 
   const updateQuestion = (idx, field, val) => {
     const updated = [...localQuestions];
@@ -1895,6 +2057,7 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
 
   const updateOption = (qIdx, oIdx, val) => {
     const updated = [...localQuestions];
+    updated[qIdx].options = [...updated[qIdx].options];
     updated[qIdx].options[oIdx] = val;
     setLocalQuestions(updated);
   };
@@ -1908,69 +2071,231 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
       id: Date.now(),
       question: '',
       options: ['', '', '', ''],
-      correct_answer: 0
+      correct_answer: 0,
+      type: 'multiple',
+      image: null,
+      optionImages: {},
     }]);
+  };
+
+  const toggleQuestionType = (qIdx) => {
+    const updated = [...localQuestions];
+    const q = { ...updated[qIdx] };
+    if (q.type === 'text') {
+      q.type = 'multiple';
+      q.options = ['', '', '', ''];
+      q.correct_answer = 0;
+    } else {
+      q.type = 'text';
+      q.options = [];
+      q.correct_answer = '';
+    }
+    updated[qIdx] = q;
+    setLocalQuestions(updated);
+  };
+
+  const removeImage = (qIdx, type, oIdx) => {
+    const updated = [...localQuestions];
+    if (type === 'question') {
+      updated[qIdx] = { ...updated[qIdx], image: null };
+    } else {
+      const imgs = { ...updated[qIdx].optionImages };
+      delete imgs[oIdx];
+      updated[qIdx] = { ...updated[qIdx], optionImages: imgs };
+    }
+    setLocalQuestions(updated);
   };
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#1e1e3a] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="bg-[#1e1e3a] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+        {/* Hidden inputs */}
+        <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleFileUpload} />
+        <input type="file" ref={imgInputRef} className="hidden" accept="image/*" onChange={handleImageFile} />
+
+        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-white/10">
-          <div>
-            <h3 className="text-white font-bold text-lg">Testni tekshirish va tahrirlash</h3>
+          <div className="flex-1 mr-4">
+            <input
+              type="text"
+              value={testName}
+              onChange={(e) => setTestName(e.target.value)}
+              placeholder="Test nomi (masalan: Matematika kasr sonlar)"
+              className="w-full bg-transparent border-none text-white font-bold text-lg focus:outline-none placeholder:text-white/20"
+            />
             <p className="text-white/40 text-xs mt-1">Jami: {localQuestions.length} ta savol</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={20} /></button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs transition-all" title="PDF/Word/TXT fayldan yuklash">
+              <Upload size={14} /> Fayl
+            </button>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={20} /></button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
-          {localQuestions.map((q, qIdx) => (
-            <div key={q.id || qIdx} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4 relative group">
-              <button onClick={() => removeQuestion(qIdx)} className="absolute top-4 right-4 text-white/20 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-all">
-                <Trash2 size={16} />
-              </button>
-              
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Savol {qIdx + 1}</label>
-                <textarea
-                  value={q.question}
-                  onChange={(e) => updateQuestion(qIdx, 'question', e.target.value)}
-                  className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-purple-500/50 min-h-[80px]"
-                  placeholder="Savolni kiriting..."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {q.options.map((opt, oIdx) => (
-                  <div key={oIdx} className={`flex items-center gap-2 p-2 rounded-lg transition-all ${q.correct_answer === oIdx ? 'bg-green-500/20 border border-green-500/30' : 'bg-white/5 border border-transparent'}`}>
-                    <input
-                      type="radio"
-                      name={`correct-${qIdx}`}
-                      checked={q.correct_answer === oIdx}
-                      onChange={() => updateQuestion(qIdx, 'correct_answer', oIdx)}
-                      className="w-4 h-4 accent-green-500"
-                    />
-                    <input
-                      type="text"
-                      value={opt}
-                      onChange={(e) => updateOption(qIdx, oIdx, e.target.value)}
-                      className="bg-transparent border-none text-white text-sm flex-1 focus:outline-none placeholder:text-white/10"
-                      placeholder={`Variant ${String.fromCharCode(65 + oIdx)}`}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-
-          <button onClick={addQuestion} className="w-full py-4 border-2 border-dashed border-white/5 rounded-xl text-white/30 hover:text-white hover:border-white/10 hover:bg-white/5 transition-all text-sm font-medium flex items-center justify-center gap-2">
-            <Plus size={18} /> Yangi savol qo'shish
+        {/* Tabs */}
+        <div className="flex gap-1 px-5 pt-3">
+          <button onClick={() => setActiveSection('questions')}
+            className={`px-4 py-2 rounded-t-lg text-xs font-bold transition-all ${activeSection === 'questions' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}>
+            Savollar ({localQuestions.length})
+          </button>
+          <button onClick={() => setActiveSection('paste')}
+            className={`px-4 py-2 rounded-t-lg text-xs font-bold transition-all ${activeSection === 'paste' ? 'bg-purple-500/20 text-purple-300' : 'text-white/30 hover:text-white/60'}`}>
+            Matndan import
           </button>
         </div>
 
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+          {/* Paste section */}
+          {activeSection === 'paste' && (
+            <div className="space-y-4 animate-in fade-in">
+              <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <FileText size={16} className="text-purple-400" />
+                  <span className="text-white/80 text-sm font-bold">Matnni joylashtiring</span>
+                </div>
+                <textarea
+                  value={pastedText}
+                  onChange={(e) => setPastedText(e.target.value)}
+                  placeholder={"Test matnini shu yerga joylang...\n\nMisol:\n1. Savol matni?\nA) Variant A\n#B) To'g'ri javob\nC) Variant C\nD) Variant D\n\nYoki oxirida: 1. A 2. C 3. B"}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white text-sm focus:outline-none focus:border-purple-500/50 min-h-[200px] font-mono leading-relaxed"
+                />
+                <div className="flex gap-2">
+                  <button onClick={handleSmartPaste} disabled={!pastedText.trim()}
+                    className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl text-sm font-bold transition-all disabled:opacity-30 flex items-center justify-center gap-2">
+                    <Zap size={16} /> Matnni testga aylantirish
+                  </button>
+                  <button onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-3 bg-white/5 hover:bg-white/10 text-white/60 rounded-xl text-sm font-medium transition-all flex items-center gap-2">
+                    <Upload size={16} /> Fayldan
+                  </button>
+                </div>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-xl p-4">
+                <p className="text-white/30 text-[11px] font-bold uppercase tracking-wider mb-2">Qo'llab-quvvatlanadigan formatlar:</p>
+                <div className="space-y-1.5 text-white/40 text-xs">
+                  <p>• <code className="bg-white/10 px-1 rounded">#B) Javob</code> — # belgisi to'g'ri javobni belgilaydi</p>
+                  <p>• <code className="bg-white/10 px-1 rounded">To'g'ri javob C</code> — har bir savoldan keyin</p>
+                  <p>• <code className="bg-white/10 px-1 rounded">1. A 2. C 3. B</code> — oxirida javoblar ro'yxati</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Questions section */}
+          {activeSection === 'questions' && (
+            <>
+              {localQuestions.length === 0 && (
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+                  <FileText className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                  <p className="text-white/50 text-sm">Hozircha savol yo'q</p>
+                  <p className="text-white/30 text-xs mt-1">Qo'lda qo'shing yoki "Matndan import" bo'limidan foydalaning</p>
+                </div>
+              )}
+
+              {localQuestions.map((q, qIdx) => (
+                <div key={q.id || qIdx} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4 relative group">
+                  {/* Savol header */}
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Savol {qIdx + 1}</label>
+                    <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => toggleQuestionType(qIdx)}
+                        className="p-1.5 text-white/30 hover:text-blue-400 transition-colors" title={q.type === 'text' ? 'Variantli qilish' : 'Yozma qilish'}>
+                        <Type size={15} />
+                      </button>
+                      <button onClick={() => triggerImageUpload(qIdx, 'question')}
+                        className="p-1.5 text-white/30 hover:text-yellow-400 transition-colors" title="Rasm qo'shish">
+                        <ImageIcon size={15} />
+                      </button>
+                      <button onClick={() => removeQuestion(qIdx)}
+                        className="p-1.5 text-white/30 hover:text-red-400 transition-colors" title="O'chirish">
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Savol matni + rasm */}
+                  <div className="space-y-2">
+                    {q.image && (
+                      <div className="relative inline-block">
+                        <img src={q.image} className="max-w-[200px] h-auto rounded-lg border border-white/10" alt="" />
+                        <button onClick={() => removeImage(qIdx, 'question')}
+                          className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-400">×</button>
+                      </div>
+                    )}
+                    <textarea
+                      value={q.question}
+                      onChange={(e) => updateQuestion(qIdx, 'question', e.target.value)}
+                      className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-purple-500/50 min-h-[60px]"
+                      placeholder="Savol matni..."
+                    />
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${q.type === 'text' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>
+                      {q.type === 'text' ? 'Yozma javob' : 'Variantli'}
+                    </span>
+                  </div>
+
+                  {/* Javoblar */}
+                  {q.type === 'text' ? (
+                    <input
+                      type="text"
+                      value={q.correct_answer || ''}
+                      onChange={(e) => updateQuestion(qIdx, 'correct_answer', e.target.value)}
+                      className="w-full bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-blue-400/50"
+                      placeholder="To'g'ri javobni yozing..."
+                    />
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {(q.options || []).map((opt, oIdx) => (
+                        <div key={oIdx} className={`flex items-center gap-2 p-2 rounded-lg transition-all ${q.correct_answer === oIdx ? 'bg-green-500/20 border border-green-500/30' : 'bg-white/5 border border-transparent'}`}>
+                          <input
+                            type="radio"
+                            name={`correct-${qIdx}`}
+                            checked={q.correct_answer === oIdx}
+                            onChange={() => updateQuestion(qIdx, 'correct_answer', oIdx)}
+                            className="w-4 h-4 accent-green-500 flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            {q.optionImages?.[oIdx] && (
+                              <div className="relative inline-block mb-1">
+                                <img src={q.optionImages[oIdx]} className="max-w-[80px] h-auto rounded border border-white/10" alt="" />
+                                <button onClick={() => removeImage(qIdx, 'option', oIdx)}
+                                  className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center">×</button>
+                              </div>
+                            )}
+                            <input
+                              type="text"
+                              value={opt}
+                              onChange={(e) => updateOption(qIdx, oIdx, e.target.value)}
+                              className="w-full bg-transparent border-none text-white text-sm focus:outline-none placeholder:text-white/15"
+                              placeholder={`Variant ${String.fromCharCode(65 + oIdx)}`}
+                            />
+                          </div>
+                          <button onClick={() => triggerImageUpload(qIdx, 'option', oIdx)}
+                            className="text-white/15 hover:text-white/50 flex-shrink-0 transition-colors">
+                            <ImageIcon size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <button onClick={addQuestion} className="w-full py-4 border-2 border-dashed border-white/5 rounded-xl text-white/30 hover:text-white hover:border-white/10 hover:bg-white/5 transition-all text-sm font-medium flex items-center justify-center gap-2">
+                <Plus size={18} /> Yangi savol qo'shish
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
         <div className="p-5 border-t border-white/10 bg-black/20 flex gap-3">
           <button onClick={onClose} className="flex-1 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl text-sm font-bold transition-all">Bekor qilish</button>
-          <button onClick={() => onSave(localQuestions)} className="flex-1 py-3 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-all">Tasdiqlash va saqlash</button>
+          <button onClick={() => onSave(localQuestions, testName)} disabled={localQuestions.length === 0}
+            className="flex-1 py-3 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-all disabled:opacity-40">
+            Tasdiqlash va saqlash
+          </button>
         </div>
       </div>
     </div>
