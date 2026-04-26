@@ -102,6 +102,7 @@ const StudentDashboard = () => {
     const [testStarted, setTestStarted] = useState(false);
     const [testSubmitting, setTestSubmitting] = useState(false);
     const [testResult, setTestResult] = useState(null);
+    const [testStartTime, setTestStartTime] = useState(null);
 
     const fetchLMSData = async () => {
         try {
@@ -399,6 +400,7 @@ const StudentDashboard = () => {
         setTestCurrentQ(0);
         setTestAnswers({});
         setTestResult(null);
+        setTestStartTime(Date.now());
     };
 
     const handleSubmitTest = async () => {
@@ -406,7 +408,8 @@ const StudentDashboard = () => {
         setTestSubmitting(true);
         try {
             const assignmentId = selectedTask.assignment_id || selectedTask.id;
-            const res = await studentService.submitTest(assignmentId, testAnswers);
+            const timeSpentSeconds = testStartTime ? Math.floor((Date.now() - testStartTime) / 1000) : 0;
+            const res = await studentService.submitTest(assignmentId, testAnswers, timeSpentSeconds);
             setTestResult(res.data || res);
             setTestStarted(false);
             showNotif('success', `Test topshirildi! ${res.data?.correct_count || 0}/${res.data?.total || 0}`);

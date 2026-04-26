@@ -137,7 +137,7 @@ const AssignmentDetailReport = ({ assignment, onClose }) => {
                     </span>
                   </td>
                   <td className="py-4 text-center font-mono text-xs text-white/40">
-                    {res.time_spent_seconds ? `${Math.floor(res.time_spent_seconds / 60)}:${(res.time_spent_seconds % 60).toString().padStart(2, '0')}` : '-'}
+                    {res.status !== 'pending' ? `${Math.floor((res.time_spent_seconds || 0) / 60)}:${((res.time_spent_seconds || 0) % 60).toString().padStart(2, '0')}` : '-'}
                   </td>
                   <td className="py-4 text-center">
                     <div className="text-lg font-black text-white">{res.score || '-'}</div>

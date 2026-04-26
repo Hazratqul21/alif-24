@@ -155,8 +155,11 @@ class StudentService {
     return apiService.post('/upload/assignment-file', formData);
   }
 
-  async submitTest(assignmentId, answers) {
-    return apiService.post(`/students/assignments/${assignmentId}/submit-test`, { answers });
+  async submitTest(assignmentId, answers, timeSpentSeconds = null) {
+    return apiService.post(`/students/assignments/${assignmentId}/submit-test`, { 
+      answers,
+      time_spent_seconds: timeSpentSeconds
+    });
   }
 
   // ============ Parent Invites ============
