@@ -364,17 +364,33 @@ const StudentDashboard = () => {
         setTestCurrentQ(0);
         setTestStarted(false);
         setTestSubmitting(false);
+
+        // Load test questions
         try {
             const content = task.assignment?.content || task.content;
             if (content) {
                 const parsed = JSON.parse(content);
                 setTestQuestions(parsed.questions || []);
-                setTestTimeLeft((parsed.time_limit_minutes || 10) * 60);
+                setTestTimeLeft((parsed.test_config?.total_time_minutes || parsed.time_limit_minutes || 10) * 60);
             } else {
                 setTestQuestions([]);
             }
-        } catch {
+        } catch (e) {
+            console.error("Error parsing test questions", e);
             setTestQuestions([]);
+        }
+
+        // Load test results if already completed
+        if (task.status === 'completed' && task.submission?.content) {
+            try {
+                const subContent = JSON.parse(task.submission.content);
+                setTestResult({
+                    ...subContent,
+                    max_score: task.xp || 100
+                });
+            } catch (e) {
+                console.error("Error parsing submission results", e);
+            }
         }
     };
 
@@ -1677,54 +1693,77 @@ const StudentDashboard = () => {
 
                         {/* TEST: Result */}
                         {testResult && (
-                            <div className="p-6">
-                                <div className="text-center mb-6">
-                                    <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${(testResult.correct_count / testResult.total) >= 0.7 ? 'bg-green-100' : 'bg-orange-100'}`}>
-                                        {(testResult.correct_count / testResult.total) >= 0.7 ? <Trophy size={40} className="text-green-500" /> : <Target size={40} className="text-orange-500" />}
+                            <div className="p-6 md:p-8 bg-gray-50/50">
+                                <div className="text-center mb-8 bg-white p-8 rounded-3xl shadow-sm border border-indigo-50">
+                                    <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${(testResult.correct_count / testResult.total) >= 0.7 ? 'bg-green-100' : 'bg-orange-100'} transition-transform hover:scale-110 duration-300 shadow-inner`}>
+                                        {(testResult.correct_count / testResult.total) >= 0.7 ? <Trophy size={48} className="text-green-500" /> : <Target size={48} className="text-orange-500" />}
                                     </div>
-                                    <h3 className="text-2xl font-bold text-gray-800">
-                                        {(testResult.correct_count / testResult.total) >= 0.7 ? 'Ajoyib!' : 'Yomon emas!'}
+                                    <h3 className="text-2xl md:text-3xl font-black text-gray-800 mb-2">
+                                        {(testResult.correct_count / testResult.total) >= 0.9 ? 'Juda ajoyib ishlading. Ajoyib!' : (testResult.correct_count / testResult.total) >= 0.7 ? 'Ajoyib natija!' : 'Yomon emas!'}
                                     </h3>
-                                    <p className="text-4xl font-bold text-indigo-600 my-2">{testResult.score} / {testResult.max_score}</p>
-                                    <p className="text-gray-500">To'g'ri javoblar: {testResult.correct_count} / {testResult.total}</p>
-                                    {testResult.coins_earned > 0 && <p className="text-yellow-600 font-bold mt-1">+{testResult.coins_earned} coin!</p>}
+                                    <p className="text-5xl font-black text-indigo-600 my-4 tracking-tighter">{testResult.score} / {testResult.max_score}</p>
+                                    
+                                    <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
+                                        <div className="bg-indigo-50 px-4 py-2 rounded-2xl border border-indigo-100">
+                                            <p className="text-xs text-indigo-400 font-bold uppercase tracking-wider">To'g'ri javoblar</p>
+                                            <p className="text-lg font-black text-indigo-600">{testResult.correct_count} / {testResult.total}</p>
+                                        </div>
+                                        {testResult.coins_earned > 0 && (
+                                            <div className="bg-yellow-50 px-4 py-2 rounded-2xl border border-yellow-100 flex items-center gap-2">
+                                                <div className="bg-yellow-400 p-1 rounded-full shadow-sm">
+                                                    <Coins size={16} className="text-white" />
+                                                </div>
+                                                <p className="text-lg font-black text-yellow-600">+{testResult.coins_earned} coin!</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="space-y-3 mb-6">
+
+                                <div className="space-y-4 mb-8">
+                                    <h4 className="text-lg font-black text-gray-800 flex items-center gap-2 mb-4 px-2">
+                                        <List size={20} className="text-indigo-500" /> Savollar tahlili
+                                    </h4>
                                     {(testResult.results || []).map((r, i) => (
-                                        <div key={i} className={`p-3 rounded-xl border-2 ${r.is_correct ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-                                            <div className="flex items-start gap-2">
-                                                {r.is_correct ? <CheckCircle size={18} className="text-green-500 mt-0.5 shrink-0" /> : <X size={18} className="text-red-500 mt-0.5 shrink-0" />}
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-800">{i + 1}. {r.question}</p>
-                                                    <div className="text-xs mt-1 space-y-1">
-                                                        <p className={r.is_correct ? "text-green-600" : "text-red-500"}>
-                                                            <span className="font-bold">Sizning javob: </span>
-                                                            {(() => {
-                                                                const letter = typeof r.student_answer === 'number' 
-                                                                    ? String.fromCharCode(65 + r.student_answer) 
-                                                                    : String(r.student_answer || '').toUpperCase();
-                                                                return letter + (r.student_option_text ? `) ${r.student_option_text}` : '');
-                                                            })()}
-                                                        </p>
-                                                        {!r.is_correct && (
-                                                            <p className="text-green-600">
-                                                                <span className="font-bold">To'g'ri javob: </span>
-                                                                {(() => {
-                                                                    const letter = typeof r.correct_answer === 'number' 
-                                                                        ? String.fromCharCode(65 + r.correct_answer) 
-                                                                        : String(r.correct_answer || '').toUpperCase();
-                                                                    return letter + (r.correct_option_text ? `) ${r.correct_option_text}` : '');
-                                                                })()}
+                                        <div key={i} className={`p-5 rounded-2xl border-2 transition-all hover:shadow-md ${r.is_correct ? 'border-green-100 bg-white' : 'border-red-100 bg-white'}`}>
+                                            <div className="flex items-start gap-4">
+                                                <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-black text-sm ${r.is_correct ? 'bg-green-500 text-white shadow-[0_0_10px_rgba(34,197,94,0.3)]' : 'bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.3)]'}`}>
+                                                    {i + 1}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-base md:text-lg font-bold text-gray-800 leading-snug mb-3">{r.question}</p>
+                                                    <div className="space-y-2">
+                                                        <div className={`p-3 rounded-xl border flex items-center gap-2 ${r.is_correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${r.is_correct ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                                                {String(r.student_answer || '').toUpperCase()}
+                                                            </div>
+                                                            <p className={`text-sm font-bold ${r.is_correct ? 'text-green-700' : 'text-red-700'}`}>
+                                                                Sizning javob: {r.student_option_text || ''}
                                                             </p>
+                                                        </div>
+                                                        {!r.is_correct && (
+                                                            <div className="p-3 rounded-xl border bg-green-50 border-green-200 flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-lg bg-green-500 text-white flex items-center justify-center font-bold text-xs">
+                                                                    {String(r.correct_answer || '').toUpperCase()}
+                                                                </div>
+                                                                <p className="text-sm font-bold text-green-700">
+                                                                    To'g'ri javob: {r.correct_option_text || ''}
+                                                                </p>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>
+                                                {r.is_correct ? (
+                                                    <CheckCircle size={24} className="text-green-500 shrink-0" />
+                                                ) : (
+                                                    <AlertCircle size={24} className="text-red-500 shrink-0" />
+                                                )}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
+
                                 <button onClick={() => { setSelectedTask(null); setTestQuestions([]); setTestResult(null); }}
-                                    className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700">
+                                    className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
                                     Yopish
                                 </button>
                             </div>

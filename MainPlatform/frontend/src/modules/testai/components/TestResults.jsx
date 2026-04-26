@@ -11,6 +11,7 @@ const TestResults = ({ tests = [] }) => {
   const [filterClass, setFilterClass] = useState('');
   const [notification, setNotification] = useState(null);
   const [viewMode, setViewMode] = useState('list');
+  const [selectedResult, setSelectedResult] = useState(null);
 
   const showNotification = (type, message) => {
     setNotification({ type, message });
@@ -336,57 +337,70 @@ const TestResults = ({ tests = [] }) => {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b-2 border-blue-500/30">
-                          <th className="text-left py-4 px-4 font-black text-blue-400 uppercase text-sm">O'quvchi ID</th>
-                          <th className="text-left py-4 px-4 font-black text-blue-400 uppercase text-sm">Ball</th>
-                          <th className="text-left py-4 px-4 font-black text-blue-400 uppercase text-sm">To'g'ri</th>
+                          <th className="text-left py-4 px-4 font-black text-blue-400 uppercase text-sm">O'quvchi</th>
+                          <th className="text-left py-4 px-4 font-black text-blue-400 uppercase text-sm">To'g'ri / Noto'g'ri</th>
                           <th className="text-left py-4 px-4 font-black text-blue-400 uppercase text-sm">Vaqt</th>
-                          <th className="text-left py-4 px-4 font-black text-blue-400 uppercase text-sm">Boshlangan</th>
-                          <th className="text-left py-4 px-4 font-black text-blue-400 uppercase text-sm">Tugatilgan</th>
+                          <th className="text-left py-4 px-4 font-black text-blue-400 uppercase text-sm">Ball</th>
+                          <th className="text-left py-4 px-4 font-black text-blue-400 uppercase text-sm">Harakat</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredResults.map((result, index) => (
                           <tr 
                             key={result.id} 
-                            className="border-b border-blue-500/10 hover:bg-blue-950/30 transition-all group"
+                            className="border-b border-blue-500/10 hover:bg-blue-950/30 transition-all group cursor-pointer"
+                            onClick={() => {
+                              try {
+                                const subContent = result.content ? JSON.parse(result.content) : {};
+                                setSelectedResult({
+                                  ...subContent,
+                                  student_name: result.student_name || result.student_id,
+                                  max_score: selectedTest.max_score || 100
+                                });
+                              } catch (e) {
+                                console.error("Error parsing result content", e);
+                              }
+                            }}
                             style={{animationDelay: `${index * 0.05}s`}}
                           >
                             <td className="py-4 px-4">
-                              <span className="font-bold text-white group-hover:text-blue-400 transition-colors">
-                                {result.student_id}
-                              </span>
-                            </td>
-                            <td className="py-4 px-4">
-                              <span className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-black border-2 ${
-                                result.score >= 60 
-                                  ? 'bg-green-950/50 text-green-400 border-green-500 neon-glow-green-soft'
-                                  : 'bg-red-950/50 text-red-400 border-red-500 neon-glow-red-soft'
-                              }`}>
-                                {result.score}
-                              </span>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-white group-hover:text-blue-400 transition-colors">
+                                  {result.student_name || result.student_id}
+                                </span>
+                                <span className="text-[10px] text-gray-500 font-mono">{result.student_id}</span>
+                              </div>
                             </td>
                             <td className="py-4 px-4">
                               <span className="text-cyan-400 font-bold">
-                                {result.correct_answers}/{result.total_questions}
+                                {result.status === 'pending' 
+                                  ? `0 / ${selectedTest?.questions_count || 0}`
+                                  : `${result.correct_answers} / ${result.total_questions - result.correct_answers}`}
                               </span>
                             </td>
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-2 text-purple-400 font-bold">
                                 <Clock className="w-4 h-4" />
-                                <span>{Math.round(result.time_spent / 60)} min</span>
+                                <span>
+                                  {result.status === 'pending' ? '00:00' : `${Math.floor(result.time_spent / 60)}:${String(result.time_spent % 60).padStart(2, '0')}`}
+                                </span>
                               </div>
                             </td>
                             <td className="py-4 px-4">
-                              <div className="flex items-center gap-2 text-blue-400 font-bold">
-                                <Calendar className="w-4 h-4" />
-                                <span>{new Date(result.started_at).toLocaleDateString('uz-UZ')}</span>
-                              </div>
+                              <span className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-black border-2 ${
+                                result.status === 'pending'
+                                  ? 'bg-gray-800/50 text-gray-400 border-gray-600'
+                                  : result.score >= 60 
+                                    ? 'bg-green-950/50 text-green-400 border-green-500 neon-glow-green-soft'
+                                    : 'bg-red-950/50 text-red-400 border-red-500 neon-glow-red-soft'
+                              }`}>
+                                {result.status === 'pending' ? 'Bajarmagan' : result.score}
+                              </span>
                             </td>
                             <td className="py-4 px-4">
-                              <div className="flex items-center gap-2 text-blue-400 font-bold">
-                                <Calendar className="w-4 h-4" />
-                                <span>{new Date(result.completed_at).toLocaleDateString('uz-UZ')}</span>
-                              </div>
+                              <button className="p-2 bg-blue-600/20 border border-blue-400 rounded-lg text-blue-400 hover:bg-blue-600 hover:text-white transition-all">
+                                <Eye className="w-4 h-4" />
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -505,6 +519,119 @@ const TestResults = ({ tests = [] }) => {
               </div>
             )}
           </>
+        )}
+
+        {/* Result Detail Modal */}
+        {selectedResult && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedResult(null)}></div>
+            <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto neon-card p-0 animate-fadeIn shadow-[0_0_50px_rgba(59,130,246,0.3)]">
+              {/* Modal Header */}
+              <div className="sticky top-0 z-10 bg-black/90 backdrop-blur-md p-6 border-b border-blue-500/30 flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-black text-white neon-text-blue">{selectedResult.student_name}</h3>
+                  <p className="text-xs text-blue-400 font-mono uppercase tracking-widest mt-1">Test Natijalari Tahlili</p>
+                </div>
+                <button 
+                  onClick={() => setSelectedResult(null)}
+                  className="p-2 bg-red-600/20 border border-red-500 rounded-lg text-red-500 hover:bg-red-600 hover:text-white transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Content - Reusing the premium design logic */}
+              <div className="p-6 md:p-8 space-y-8">
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="md:col-span-1 bg-black/40 p-6 rounded-2xl border border-blue-500/20 flex flex-col items-center justify-center text-center">
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${(selectedResult.correct_count / selectedResult.total) >= 0.7 ? 'bg-green-600/20 border-green-500' : 'bg-orange-600/20 border-orange-500'} border-2 neon-glow-blue-soft`}>
+                      {(selectedResult.correct_count / selectedResult.total) >= 0.7 ? <Award size={40} className="text-green-400" /> : <Target size={40} className="text-orange-400" />}
+                    </div>
+                    <h4 className="text-4xl font-black text-white neon-text-white mb-1">{selectedResult.score}%</h4>
+                    <p className="text-xs text-blue-300 uppercase font-bold tracking-widest">Umumiy Ball</p>
+                  </div>
+
+                  <div className="md:col-span-2 grid grid-cols-2 gap-4">
+                    <div className="bg-black/40 p-6 rounded-2xl border border-blue-500/20">
+                      <p className="text-[10px] text-blue-400 uppercase font-black tracking-widest mb-2">To'g'ri javoblar</p>
+                      <p className="text-3xl font-black text-white neon-text-white">{selectedResult.correct_count} / {selectedResult.total}</p>
+                    </div>
+                    <div className="bg-black/40 p-6 rounded-2xl border border-blue-500/20">
+                      <p className="text-[10px] text-blue-400 uppercase font-black tracking-widest mb-2">Sarflangan vaqt</p>
+                      <p className="text-3xl font-black text-white neon-text-white">
+                        {Math.floor(selectedResult.time_spent_seconds / 60)}:{String(selectedResult.time_spent_seconds % 60).padStart(2, '0')}
+                      </p>
+                    </div>
+                    <div className="bg-black/40 p-6 rounded-2xl border border-blue-500/20 col-span-2">
+                      <p className="text-[10px] text-blue-400 uppercase font-black tracking-widest mb-2">Xulosasi</p>
+                      <p className="text-sm font-bold text-blue-100">
+                        {(selectedResult.correct_count / selectedResult.total) >= 0.9 ? "Mukammal natija! O'quvchi mavzuni to'liq o'zlashtirgan." : (selectedResult.correct_count / selectedResult.total) >= 0.7 ? "Yaxshi natija. Ba'zi xatolar ustida ishlash kerak." : "Mavzuni qayta o'zlashtirish tavsiya etiladi."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-lg font-black text-white flex items-center gap-2 mb-6 px-2">
+                    <List size={20} className="text-blue-500" /> SAVOLLAR TAHLILI
+                  </h4>
+                  {(selectedResult.results || []).map((r, i) => (
+                    <div key={i} className={`p-6 rounded-2xl border-2 transition-all bg-black/40 ${r.is_correct ? 'border-green-500/30' : 'border-red-500/30'}`}>
+                      <div className="flex items-start gap-4">
+                        <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-black text-sm ${r.is_correct ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.5)]' : 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-lg font-bold text-white leading-snug mb-4">{r.question}</p>
+                          <div className="grid sm:grid-cols-2 gap-3">
+                            <div className={`p-4 rounded-xl border flex items-center gap-3 ${r.is_correct ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm ${r.is_correct ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                {String(r.student_answer || '').toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-400 uppercase font-black">O'quvchi javobi</p>
+                                <p className={`text-sm font-bold ${r.is_correct ? 'text-green-400' : 'text-red-400'}`}>
+                                  {r.student_option_text || 'Javob berilmagan'}
+                                </p>
+                              </div>
+                            </div>
+                            {!r.is_correct && (
+                              <div className="p-4 rounded-xl border bg-green-500/10 border-green-500/30 flex items-center gap-3">
+                                <div className="w-7 h-7 rounded-lg bg-green-500 text-white flex items-center justify-center font-bold text-sm">
+                                  {String(r.correct_answer || '').toUpperCase()}
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-gray-400 uppercase font-black">To'g'ri javob</p>
+                                  <p className="text-sm font-bold text-green-400">
+                                    {r.correct_option_text || ''}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {r.is_correct ? (
+                          <CheckCircle size={28} className="text-green-500 shrink-0" />
+                        ) : (
+                          <AlertCircle size={28} className="text-red-500 shrink-0" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-blue-500/30 bg-black/90">
+                <button 
+                  onClick={() => setSelectedResult(null)}
+                  className="neon-button-primary w-full py-4 uppercase tracking-[0.2em]"
+                >
+                  Yopish
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
