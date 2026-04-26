@@ -10,7 +10,7 @@ import AssignmentDetailReport from './AssignmentDetailReport';
 const GradebookMatrix = ({ classroomId }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
-  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 14))); // Default last 2 weeks for compact view
+  const [startDate, setStartDate] = useState(new Date()); // Default to Today
   const [viewMode, setViewMode] = useState('week'); 
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -242,15 +242,17 @@ const GradebookMatrix = ({ classroomId }) => {
                         );
                       })}
 
-                      <td className="p-3 text-center border-r border-white/5 bg-white/[0.02]">
-                        <div className="font-bold text-lg text-[#ffd700] opacity-80">
-                          {student.avg > 0 ? student.avg.toFixed(1) : '-'}
+                      <td className="p-3 text-center border-r border-white/5 bg-[#ffd700]/5">
+                        <div className="font-bold text-lg text-[#ffd700]">
+                          {student.scoresCount > 0 ? student.avg.toFixed(1) : '0.0'}
                         </div>
+                        <div className="text-[8px] text-[#ffd700]/40 uppercase font-black">Ball</div>
                       </td>
-                      <td className="p-3 text-center bg-white/[0.02]">
-                        <div className="font-bold text-xl text-white opacity-90">
-                          {rank}
+                      <td className="p-3 text-center bg-indigo-500/10">
+                        <div className="font-bold text-xl text-white">
+                          #{rank}
                         </div>
+                        <div className="text-[8px] text-indigo-400 uppercase font-black">O'rin</div>
                       </td>
                     </tr>
                   );
