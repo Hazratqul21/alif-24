@@ -1698,9 +1698,21 @@ const StudentDashboard = () => {
                                                     <p className="text-sm font-medium text-gray-800">{i + 1}. {r.question}</p>
                                                     {!r.is_correct && (
                                                         <p className="text-xs mt-1">
-                                                            <span className="text-red-500">Sizning javob: {r.student_answer?.toUpperCase()}</span>
+                                                            <span className="text-red-500">
+                                                                Sizning javob: {
+                                                                    typeof r.student_answer === 'number' 
+                                                                        ? String.fromCharCode(65 + r.student_answer) 
+                                                                        : String(r.student_answer || '').toUpperCase()
+                                                                }
+                                                            </span>
                                                             {' | '}
-                                                            <span className="text-green-600">To'g'ri: {r.correct_answer?.toUpperCase()}</span>
+                                                            <span className="text-green-600">
+                                                                To'g'ri: {
+                                                                    typeof r.correct_answer === 'number' 
+                                                                        ? String.fromCharCode(65 + r.correct_answer) 
+                                                                        : String(r.correct_answer || '').toUpperCase()
+                                                                }
+                                                            </span>
                                                         </p>
                                                     )}
                                                 </div>
