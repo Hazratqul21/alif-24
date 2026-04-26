@@ -60,8 +60,9 @@ const AssignmentCalendar = ({ assignments = [], onAssignmentClick }) => {
   const assignmentsByDate = useMemo(() => {
     const map = {};
     assignments.forEach(a => {
-      if (a.due_date) {
-        const dateStr = a.due_date.split('T')[0];
+      const dateToUse = a.due_date || a.created_at || a.date;
+      if (dateToUse) {
+        const dateStr = dateToUse.split('T')[0];
         if (!map[dateStr]) map[dateStr] = [];
         map[dateStr].push(a);
       }

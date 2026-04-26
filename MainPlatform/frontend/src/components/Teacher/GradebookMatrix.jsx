@@ -10,12 +10,13 @@ import AssignmentDetailReport from './AssignmentDetailReport';
 const GradebookMatrix = ({ classroomId }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
-  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 180))); 
+  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 14))); // Default last 2 weeks for compact view
   const [viewMode, setViewMode] = useState('week'); 
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
   const scrollRef = useRef(null);
+  const dateInputRef = useRef(null);
 
   useEffect(() => {
     fetchGradebook();
@@ -48,16 +49,22 @@ const GradebookMatrix = ({ classroomId }) => {
     setStartDate(prev);
   };
 
+  const handleDayShift = (days) => {
+    const next = new Date(startDate);
+    next.setDate(next.getDate() + days);
+    setStartDate(next);
+  };
+
   const getScoreColor = (score, max) => {
     if (score === null || score === undefined) return 'text-white/10';
-    return 'text-[#ffd700]'; // Golden color as per screenshot
+    return 'text-[#ffd700]'; 
   };
 
   if (loading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-white/40">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
-        <p>Jurnal yuklanmoqda...</p>
+      <div className="flex flex-col items-center justify-center py-10 text-white/40">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
+        <p className="text-sm">Jurnal yuklanmoqda...</p>
       </div>
     );
   }
@@ -66,7 +73,6 @@ const GradebookMatrix = ({ classroomId }) => {
   const assignments = data?.assignments || [];
   const matrix = data?.matrix || {};
 
-  // Calculate stats and sort for ranking
   const studentsWithStats = allStudents.map(student => {
     const studentMatrix = matrix[student.id] || {};
     const scores = Object.values(studentMatrix).map(m => m.score).filter(s => s !== null);
@@ -74,10 +80,7 @@ const GradebookMatrix = ({ classroomId }) => {
     return { ...student, avg, scoresCount: scores.length };
   });
 
-  // Sort by average for ranking
   const rankedStudents = [...studentsWithStats].sort((a, b) => b.avg - a.avg);
-  
-  // Apply search filter
   const students = rankedStudents.filter(s => 
     `${s.first_name} ${s.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -86,105 +89,115 @@ const GradebookMatrix = ({ classroomId }) => {
     return rankedStudents.findIndex(s => s.id === studentId) + 1;
   };
 
+  // Generate 3-day window for the picker
+  const dayWindow = [0, 1, 2].map(offset => {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + offset);
+    return d;
+  });
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
-      {/* Premium Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-[#1e1e3a]/40 p-4 rounded-[2rem] border border-white/5 backdrop-blur-md">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <button onClick={handlePrev} className="p-2 hover:bg-white/10 rounded-full text-white/40 transition-colors">
-              <ChevronLeft size={24} />
+    <div className="space-y-4 animate-in fade-in duration-500 max-w-full overflow-hidden">
+      {/* Compact Controls Bar */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-[#1e1e3a]/60 p-3 rounded-2xl border border-white/5 backdrop-blur-md">
+        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+          <div className="flex items-center gap-1">
+            <button onClick={handlePrev} className="p-1.5 hover:bg-white/10 rounded-full text-white/40 transition-colors">
+              <ChevronLeft size={20} />
             </button>
-            <div className="bg-white/5 border border-white/10 px-6 py-2.5 rounded-2xl text-white font-bold flex items-center gap-3">
-              <Calendar size={18} className="text-indigo-400" />
-              <span className="tracking-tight uppercase text-sm">
+            <div 
+              onClick={() => dateInputRef.current?.showPicker?.() || dateInputRef.current?.click()}
+              className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-xl text-white font-bold flex items-center gap-2 cursor-pointer hover:bg-white/10 relative"
+            >
+              <Calendar size={14} className="text-indigo-400" />
+              <span className="text-xs uppercase whitespace-nowrap">
                 {startDate.getFullYear()} M{(startDate.getMonth() + 1).toString().padStart(2, '0')}
               </span>
+              <input 
+                type="date" 
+                ref={dateInputRef} 
+                className="absolute opacity-0 w-0 h-0" 
+                onChange={(e) => setStartDate(new Date(e.target.value))}
+              />
             </div>
-            <button onClick={handleNext} className="p-2 hover:bg-white/10 rounded-full text-white/40 transition-colors">
-              <ChevronRight size={24} />
+            <button onClick={handleNext} className="p-1.5 hover:bg-white/10 rounded-full text-white/40 transition-colors">
+              <ChevronRight size={20} />
             </button>
           </div>
 
-          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-2xl border border-white/5">
-             {[27, 28, 29].map(day => (
-               <div key={day} className={`w-10 h-10 flex items-center justify-center rounded-xl font-bold text-lg transition-all cursor-pointer ${day === 27 ? 'bg-[#ffd700] text-[#1e1e3a]' : 'text-white/40 hover:bg-white/10'}`}>
-                 {day}
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5 shrink-0">
+             <button onClick={() => handleDayShift(-1)} className="p-1 text-white/20 hover:text-white transition-colors"><ChevronLeft size={14}/></button>
+             {dayWindow.map((d, i) => (
+               <div key={i} className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-sm transition-all cursor-pointer ${i === 0 ? 'bg-[#ffd700] text-[#1e1e3a]' : 'text-white/40 hover:bg-white/10'}`}>
+                 {d.getDate()}
                </div>
              ))}
-             <ChevronRight size={18} className="mx-2 text-white/20" />
+             <button onClick={() => handleDayShift(1)} className="p-1 text-white/20 hover:text-white transition-colors"><ChevronRight size={14}/></button>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={18} />
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:flex-initial">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={14} />
             <input 
               type="text" 
-              placeholder="O'quvchini qidirish..." 
+              placeholder="Qidirish..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-3 text-white text-sm focus:outline-none focus:border-indigo-500/50 w-72 transition-all placeholder:text-white/10"
+              className="bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-white text-xs focus:outline-none focus:border-indigo-500/50 w-full md:w-48 transition-all placeholder:text-white/10"
             />
           </div>
           
-          <div className="flex p-1.5 bg-[#4b30fb]/10 rounded-2xl border border-[#4b30fb]/20">
-            <button 
-              onClick={() => setViewMode('week')}
-              className={`px-5 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${viewMode === 'week' ? 'bg-[#4b30fb] text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+          <div className="flex p-1 bg-[#4b30fb]/10 rounded-xl border border-[#4b30fb]/20 shrink-0">
+            <button onClick={() => setViewMode('week')}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider ${viewMode === 'week' ? 'bg-[#4b30fb] text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
             >Hafta</button>
-            <button 
-              onClick={() => setViewMode('month')}
-              className={`px-5 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${viewMode === 'month' ? 'bg-[#4b30fb] text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+            <button onClick={() => setViewMode('month')}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider ${viewMode === 'month' ? 'bg-[#4b30fb] text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
             >Oy</button>
           </div>
 
-          <button onClick={fetchGradebook} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-white/40 transition-all border border-white/10">
-            <RotateCcw size={20} />
+          <button onClick={fetchGradebook} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 transition-all border border-white/10 shrink-0">
+            <RotateCcw size={16} />
           </button>
         </div>
       </div>
 
-      {/* Premium Matrix Table */}
-      <div className="bg-[#1e1e3a]/40 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl backdrop-blur-2xl">
+      {/* Compact Matrix Table */}
+      <div className="bg-[#1e1e3a]/40 rounded-2xl border border-white/5 overflow-hidden shadow-xl backdrop-blur-xl">
         <div className="overflow-x-auto custom-scrollbar" ref={scrollRef}>
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-white/5">
-                <th className="sticky left-0 z-30 bg-[#1e1e3a] p-6 text-left border-b border-r border-white/5 min-w-[80px] text-white/20 text-[10px] uppercase tracking-[0.2em] font-black">ID</th>
-                <th className="sticky left-[80px] z-30 bg-[#1e1e3a] p-6 text-left border-b border-r border-white/5 min-w-[280px] text-white/20 text-[10px] uppercase tracking-[0.2em] font-black">O'quvchi</th>
+                <th className="sticky left-0 z-30 bg-[#1e1e3a] p-3 text-left border-b border-r border-white/5 min-w-[50px] text-white/20 text-[9px] uppercase tracking-widest font-black">ID</th>
+                <th className="sticky left-[50px] z-30 bg-[#1e1e3a] p-3 text-left border-b border-r border-white/5 min-w-[180px] text-white/20 text-[9px] uppercase tracking-widest font-black">O'quvchi</th>
                 
                 {assignments.length === 0 ? (
-                  <th className="p-6 text-left border-b border-white/5 text-white/10 italic font-medium">Hozircha vazifalar mavjud emas</th>
+                  <th className="p-4 text-left border-b border-white/5 text-white/10 italic text-xs font-medium">Topshiriqlar yo'q</th>
                 ) : (
                   assignments.map(a => (
-                    <th key={a.id} className="p-6 text-center border-b border-r border-white/5 min-w-[180px] group relative cursor-pointer hover:bg-white/5 transition-all" onClick={() => setSelectedAssignment(a)}>
-                      <div className="text-white font-bold text-2xl tracking-tight leading-tight mb-1">{a.title}</div>
-                      <div className="text-[10px] text-white/20 font-black uppercase tracking-[0.15em]">
+                    <th key={a.id} className="p-3 text-center border-b border-r border-white/5 min-w-[110px] group relative cursor-pointer hover:bg-white/5 transition-all" onClick={() => setSelectedAssignment(a)}>
+                      <div className="text-white font-bold text-sm tracking-tight truncate max-w-[100px] mx-auto mb-0.5">{a.title}</div>
+                      <div className="text-[9px] text-white/20 font-black uppercase tracking-wider">
                         {new Date(a.date).toLocaleDateString('uz', { day: '2-digit', month: 'short' })}
                       </div>
                     </th>
                   ))
                 )}
                 
-                <th className="p-6 text-center border-b border-r border-white/5 min-w-[160px] bg-white/5">
-                  <div className="text-white font-bold text-xl tracking-tight mb-1">Umumiy baho</div>
+                <th className="p-3 text-center border-b border-r border-white/5 min-w-[90px] bg-white/5">
+                  <div className="text-white font-bold text-xs">O'rtacha</div>
                 </th>
-                <th className="p-6 text-center border-b border-white/5 min-w-[160px] bg-white/5">
-                   <div className="text-white font-bold text-3xl tracking-tighter flex items-center justify-center gap-2">
-                     Reyting <ChevronRight size={20} className="text-[#ffd700] rotate-90" />
-                   </div>
+                <th className="p-3 text-center border-b border-white/5 min-w-[80px] bg-white/5">
+                   <div className="text-white font-bold text-xs">Reyting</div>
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-white/5 text-xs">
               {students.length === 0 ? (
                 <tr>
-                  <td colSpan={assignments.length + 4} className="p-32 text-center text-white/10">
-                    <div className="flex flex-col items-center gap-4">
-                      <Search size={64} className="opacity-5" />
-                      <p className="text-xl font-medium tracking-tight">O'quvchilar ro'yxati bo'sh</p>
-                    </div>
+                  <td colSpan={assignments.length + 4} className="p-10 text-center text-white/10">
+                    <p className="text-sm">O'quvchilar topilmadi</p>
                   </td>
                 </tr>
               ) : (
@@ -194,12 +207,12 @@ const GradebookMatrix = ({ classroomId }) => {
 
                   return (
                     <tr key={student.id} className="hover:bg-white/[0.02] transition-colors group">
-                      <td className="sticky left-0 z-20 bg-[#1e1e3a] p-6 border-r border-white/5 text-white/20 text-sm font-mono group-hover:bg-[#25254a] transition-colors">
+                      <td className="sticky left-0 z-20 bg-[#1e1e3a] p-3 border-r border-white/5 text-white/20 text-[10px] font-mono group-hover:bg-[#25254a] transition-colors">
                         {student.id.slice(-4)}
                       </td>
-                      <td className="sticky left-[80px] z-20 bg-[#1e1e3a] p-6 border-r border-white/5 group-hover:bg-[#25254a] transition-colors">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-black shadow-xl ${
+                      <td className="sticky left-[50px] z-20 bg-[#1e1e3a] p-3 border-r border-white/5 group-hover:bg-[#25254a] transition-colors">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-black shadow-lg ${
                             rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 
                             rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-500' :
                             rank === 3 ? 'bg-gradient-to-br from-amber-600 to-amber-800' :
@@ -207,11 +220,8 @@ const GradebookMatrix = ({ classroomId }) => {
                           }`}>
                             {student.first_name.charAt(0)}
                           </div>
-                          <div>
-                            <div className="font-bold text-white text-lg tracking-tight group-hover:text-indigo-400 transition-colors">
-                              {student.last_name} {student.first_name}
-                            </div>
-                            <div className="text-[10px] text-white/20 uppercase tracking-widest font-bold">O'quvchi</div>
+                          <div className="font-bold text-white tracking-tight truncate max-w-[140px]">
+                            {student.last_name} {student.first_name}
                           </div>
                         </div>
                       </td>
@@ -220,26 +230,25 @@ const GradebookMatrix = ({ classroomId }) => {
                       {assignments.map(a => {
                         const sub = studentMatrix[a.id];
                         return (
-                          <td key={a.id} className="p-6 text-center border-r border-white/5 transition-all relative group/cell">
-                            <div className={`font-bold text-[42px] leading-none tracking-tighter ${getScoreColor(sub?.score, a.max_score)}`}>
+                          <td key={a.id} className="p-3 text-center border-r border-white/5 transition-all relative group/cell">
+                            <div className={`font-bold text-xl tracking-tighter ${getScoreColor(sub?.score, a.max_score)}`}>
                               {sub?.score !== undefined ? sub.score : '-'}
                             </div>
-                            {sub?.status === 'pending' && <div className="absolute right-4 top-4 w-2 h-2 rounded-full bg-yellow-500 animate-pulse" title="Kutilmoqda" />}
-                            
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 bg-indigo-600/10 backdrop-blur-[2px] transition-all cursor-pointer">
-                               <Edit size={24} className="text-white/80" />
+                            {sub?.status === 'pending' && <div className="absolute right-2 top-2 w-1 h-1 rounded-full bg-yellow-500 animate-pulse" />}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 bg-indigo-600/10 backdrop-blur-[1px] transition-all cursor-pointer">
+                               <Edit size={14} className="text-white/60" />
                             </div>
                           </td>
                         );
                       })}
 
-                      <td className="p-6 text-center border-r border-white/5 bg-white/[0.02]">
-                        <div className="font-bold text-[38px] text-[#ffd700] tracking-tighter opacity-80">
+                      <td className="p-3 text-center border-r border-white/5 bg-white/[0.02]">
+                        <div className="font-bold text-lg text-[#ffd700] opacity-80">
                           {student.avg > 0 ? student.avg.toFixed(1) : '-'}
                         </div>
                       </td>
-                      <td className="p-6 text-center bg-white/[0.02]">
-                        <div className="font-bold text-[56px] text-white leading-none tracking-tighter opacity-90">
+                      <td className="p-3 text-center bg-white/[0.02]">
+                        <div className="font-bold text-xl text-white opacity-90">
                           {rank}
                         </div>
                       </td>
@@ -247,18 +256,6 @@ const GradebookMatrix = ({ classroomId }) => {
                   );
                 })
               )}
-              
-              <tr className="hover:bg-white/[0.03] transition-all cursor-pointer">
-                <td colSpan={2} className="p-8 text-white/30 text-sm text-center border-r border-white/5">
-                  <div className="flex items-center justify-center gap-3 font-bold uppercase tracking-widest text-[10px]">
-                    <Plus size={18} className="text-green-500" /> Yangi o'quvchi qo'shish
-                  </div>
-                </td>
-                {assignments.map(a => (
-                   <td key={a.id} className="border-r border-white/5"></td>
-                ))}
-                <td colSpan={2} className="bg-white/[0.01]"></td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -272,15 +269,11 @@ const GradebookMatrix = ({ classroomId }) => {
       )}
 
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { height: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.01); border-radius: 20px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 20px; border: 2px solid transparent; background-clip: content-box; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.1); border: 2px solid transparent; background-clip: content-box; }
-        
-        @keyframes float {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-5px); }
-          100% { transform: translateY(0px); }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.01); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        @media (max-width: 768px) {
+          .sticky { position: static !important; }
         }
       `}</style>
     </div>
