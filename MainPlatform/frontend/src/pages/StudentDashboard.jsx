@@ -1696,25 +1696,28 @@ const StudentDashboard = () => {
                                                 {r.is_correct ? <CheckCircle size={18} className="text-green-500 mt-0.5 shrink-0" /> : <X size={18} className="text-red-500 mt-0.5 shrink-0" />}
                                                 <div>
                                                     <p className="text-sm font-medium text-gray-800">{i + 1}. {r.question}</p>
-                                                    {!r.is_correct && (
-                                                        <p className="text-xs mt-1">
-                                                            <span className="text-red-500">
-                                                                Sizning javob: {
-                                                                    typeof r.student_answer === 'number' 
-                                                                        ? String.fromCharCode(65 + r.student_answer) 
-                                                                        : String(r.student_answer || '').toUpperCase()
-                                                                }
-                                                            </span>
-                                                            {' | '}
-                                                            <span className="text-green-600">
-                                                                To'g'ri: {
-                                                                    typeof r.correct_answer === 'number' 
-                                                                        ? String.fromCharCode(65 + r.correct_answer) 
-                                                                        : String(r.correct_answer || '').toUpperCase()
-                                                                }
-                                                            </span>
+                                                    <div className="text-xs mt-1 space-y-1">
+                                                        <p className={r.is_correct ? "text-green-600" : "text-red-500"}>
+                                                            <span className="font-bold">Sizning javob: </span>
+                                                            {(() => {
+                                                                const letter = typeof r.student_answer === 'number' 
+                                                                    ? String.fromCharCode(65 + r.student_answer) 
+                                                                    : String(r.student_answer || '').toUpperCase();
+                                                                return letter + (r.student_option_text ? `) ${r.student_option_text}` : '');
+                                                            })()}
                                                         </p>
-                                                    )}
+                                                        {!r.is_correct && (
+                                                            <p className="text-green-600">
+                                                                <span className="font-bold">To'g'ri javob: </span>
+                                                                {(() => {
+                                                                    const letter = typeof r.correct_answer === 'number' 
+                                                                        ? String.fromCharCode(65 + r.correct_answer) 
+                                                                        : String(r.correct_answer || '').toUpperCase();
+                                                                    return letter + (r.correct_option_text ? `) ${r.correct_option_text}` : '');
+                                                                })()}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

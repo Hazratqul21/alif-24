@@ -673,21 +673,49 @@ async def submit_test_assignment(
     correct_count = 0
     total = len(questions)
     results = []
+    
+    def normalize(val):
+        if val is None: return ""
+        v = str(val).strip().lower()
+        # 'a' -> '0', 'b' -> '1' etc.
+        if v in ['a', 'b', 'c', 'd', 'e', 'f']:
+            return str(ord(v) - ord('a'))
+        return v
+
     for i, q in enumerate(questions):
         student_answer = data.answers.get(str(i), "")
         correct_answer = q.get("correct_answer", "")
-        # Javoblar int (variant indeksi) yoki string bo'lishi mumkin
-        # Ikkalasini ham stringga aylantirish kerak
-        student_str = str(student_answer).strip().lower() if student_answer is not None else ""
-        correct_str = str(correct_answer).strip().lower() if correct_answer is not None else ""
+        
+        s_norm = normalize(student_answer)
+        c_norm = normalize(correct_answer)
 
-        is_correct = student_str == correct_str
+        is_correct = s_norm == c_norm
         if is_correct:
             correct_count += 1
+            
+        # Variant matnlarini olish
+        options = q.get("options", [])
+        student_opt_text = ""
+        correct_opt_text = ""
+        
+        try:
+            if isinstance(options, list):
+                s_idx = int(s_norm)
+                if 0 <= s_idx < len(options): student_opt_text = options[s_idx]
+                c_idx = int(c_norm)
+                if 0 <= c_idx < len(options): correct_opt_text = options[c_idx]
+            elif isinstance(options, dict):
+                student_opt_text = options.get(str(student_answer).lower(), "") or options.get(s_norm, "")
+                correct_opt_text = options.get(str(correct_answer).lower(), "") or options.get(c_norm, "")
+        except:
+            pass
+
         results.append({
             "question": q.get("question", ""),
             "student_answer": student_answer,
             "correct_answer": correct_answer,
+            "student_option_text": student_opt_text,
+            "correct_option_text": correct_opt_text,
             "is_correct": is_correct,
         })
 
