@@ -18,7 +18,7 @@ from shared.database.models.classroom import (
     ClassroomStudentStatus, InvitationStatus, InvitationType,
     generate_invite_code,
 )
-from shared.database.models.assignment import Assignment, AssignmentSubmission, SubmissionStatus
+from shared.database.models.assignment import Assignment, AssignmentTarget, AssignmentSubmission, SubmissionStatus, AssignmentTargetType
 from shared.database.models.in_app_notification import InAppNotification, InAppNotifType
 from app.middleware.auth import get_current_user
 from shared.subscription import require_feature, SubscriptionInfo
@@ -822,18 +822,28 @@ async def get_gradebook_matrix(
     ]
     student_ids = [s["id"] for s in students]
 
-    # 3. Get assignments for this classroom in range
-    assign_stmt = select(Assignment).where(Assignment.classroom_id == classroom_id)
+    # 3. Get assignments for this classroom
+    # We include assignments where classroom_id is set OR where an AssignmentTarget exists for this classroom
+    assign_stmt = (
+        select(Assignment)
+        .outerjoin(AssignmentTarget, AssignmentTarget.assignment_id == Assignment.id)
+        .where(
+            or_(
+                Assignment.classroom_id == classroom_id,
+                and_(
+                    AssignmentTarget.target_type == AssignmentTargetType.classroom,
+                    AssignmentTarget.target_id == classroom_id
+                )
+            )
+        )
+    )
+    
     if start_date:
         assign_stmt = assign_stmt.where(Assignment.created_at >= start_date)
-    else:
-        # Default to last 30 days
-        assign_stmt = assign_stmt.where(Assignment.created_at >= datetime.now(timezone.utc) - timedelta(days=30))
-    
     if end_date:
         assign_stmt = assign_stmt.where(Assignment.created_at <= end_date)
     
-    assign_stmt = assign_stmt.order_by(Assignment.created_at.asc())
+    assign_stmt = assign_stmt.order_by(Assignment.created_at.asc()).distinct()
     assign_res = await db.execute(assign_stmt)
     assignments = assign_res.scalars().all()
     assignment_ids = [a.id for a in assignments]

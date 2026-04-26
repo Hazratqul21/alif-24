@@ -52,6 +52,7 @@ const TestAssignModal = ({ test, classrooms = [], onClose, onAssigned, onShowNot
 
       const payload = {
         test_id: test.id,
+        classroom_id: selectedClassId || null,
         class_name: null,
         student_ids: null,
         due_date: dueDate || null,

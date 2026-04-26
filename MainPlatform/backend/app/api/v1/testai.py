@@ -47,7 +47,8 @@ class TestConfig(BaseModel):
 
 class AssignTestRequest(BaseModel):
     test_id: str
-    class_name: Optional[str] = None
+    classroom_id: Optional[str] = None
+    class_name: Optional[str] = None  # Legacy/Backup
     student_ids: Optional[List[str]] = None
     due_date: Optional[datetime] = None
     test_config: Optional[TestConfig] = None
@@ -367,30 +368,38 @@ async def assign_test_advanced(data: AssignTestAdvancedRequest, current_user: Us
     
     notified_students = set()
     
-    # By Classroom ID
-    if data.classroom_id:
+    # Target Classroom
+    target_class_id = data.classroom_id
+    if target_class_id:
+        assignment.classroom_id = target_class_id
+    if not target_class_id and data.class_name:
+        # Fallback to class_name lookup
         from shared.database.models import TeacherProfile
         tp_res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == current_user.id))
         tp = tp_res.scalars().first()
         if tp:
             cls_res = await db.execute(
-                select(Classroom).where(Classroom.id == data.classroom_id, Classroom.teacher_id == tp.id)
+                select(Classroom).where(Classroom.name == data.class_name, Classroom.teacher_id == tp.id)
             )
             classroom = cls_res.scalars().first()
             if classroom:
-                db.add(AssignmentTarget(
-                    assignment_id=assignment.id,
-                    target_type=AssignmentTargetType.classroom,
-                    target_id=classroom.id
-                ))
-                mem_res = await db.execute(
-                    select(ClassroomStudent.student_user_id).where(
-                        ClassroomStudent.classroom_id == classroom.id,
-                        ClassroomStudent.status == ClassroomStudentStatus.active
-                    )
-                )
-                for row in mem_res.fetchall():
-                    notified_students.add(row[0])
+                target_class_id = classroom.id
+                assignment.classroom_id = target_class_id # Update assignment if found via name
+
+    if target_class_id:
+        db.add(AssignmentTarget(
+            assignment_id=assignment.id,
+            target_type=AssignmentTargetType.classroom,
+            target_id=target_class_id
+        ))
+        mem_res = await db.execute(
+            select(ClassroomStudent.student_user_id).where(
+                ClassroomStudent.classroom_id == target_class_id,
+                ClassroomStudent.status == ClassroomStudentStatus.active
+            )
+        )
+        for row in mem_res.fetchall():
+            notified_students.add(row[0])
     
     # By Student IDs
     if data.student_ids:

@@ -9,7 +9,7 @@ import AssignmentDetailReport from './AssignmentDetailReport';
 const GradebookMatrix = ({ classroomId }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
-  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 14))); // Default last 14 days
+  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 180))); // Default last 6 months
   const [viewMode, setViewMode] = useState('week'); // 'week' | 'month'
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
