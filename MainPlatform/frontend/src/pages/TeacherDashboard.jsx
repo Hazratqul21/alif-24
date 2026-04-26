@@ -407,18 +407,19 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleTestFinalized = async (finalQuestions, testName) => {
+  const handleTestFinalized = async (finalQuestions, testName, testSubject) => {
     const testContent = JSON.stringify({
       questions: finalQuestions,
       time_limit_minutes: Math.max(5, finalQuestions.length * 2),
       generated_by: 'parsed'
     });
     const resolvedName = testName || newAssignment.title || `Test — ${new Date().toLocaleDateString('uz')}`;
+    const resolvedSubject = testSubject || '';
     setNewAssignment(prev => ({
       ...prev,
       title: resolvedName,
       content: testContent,
-      description: `Test — ${finalQuestions.length} ta savol`,
+      description: resolvedSubject ? `${resolvedSubject} — ${finalQuestions.length} ta savol` : `Test — ${finalQuestions.length} ta savol`,
       assignment_type: 'test',
     }));
     setShowTestReview(false);
@@ -427,7 +428,8 @@ const TeacherDashboard = () => {
     try {
       await teacherService.saveTest({
         title: resolvedName,
-        description: `${finalQuestions.length} ta savol`,
+        subject: resolvedSubject,
+        description: resolvedSubject ? `${resolvedSubject} — ${finalQuestions.length} ta savol` : `${finalQuestions.length} ta savol`,
         questions: finalQuestions,
         difficulty: 'medium',
         language: 'uz',
@@ -1885,6 +1887,7 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
   const [localQuestions, setLocalQuestions] = React.useState(questions);
   const [pastedText, setPastedText] = React.useState('');
   const [testName, setTestName] = React.useState('');
+  const [testSubject, setTestSubject] = React.useState('');
   const [activeSection, setActiveSection] = React.useState('questions'); // questions, paste, file
   const fileInputRef = React.useRef(null);
   const imgInputRef = React.useRef(null);
@@ -2114,23 +2117,39 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
         <input type="file" ref={imgInputRef} className="hidden" accept="image/*" onChange={handleImageFile} />
 
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-white/10">
-          <div className="flex-1 mr-4">
-            <input
-              type="text"
-              value={testName}
-              onChange={(e) => setTestName(e.target.value)}
-              placeholder="Test nomi (masalan: Matematika kasr sonlar)"
-              className="w-full bg-transparent border-none text-white font-bold text-lg focus:outline-none placeholder:text-white/20"
-            />
-            <p className="text-white/40 text-xs mt-1">Jami: {localQuestions.length} ta savol</p>
+        <div className="p-5 border-b border-white/10 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-white font-bold text-lg">Test Muharriri</h3>
+            <div className="flex items-center gap-2">
+              <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs transition-all" title="PDF/Word/TXT fayldan yuklash">
+                <Upload size={14} /> Fayl
+              </button>
+              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={20} /></button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs transition-all" title="PDF/Word/TXT fayldan yuklash">
-              <Upload size={14} /> Fayl
-            </button>
-            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={20} /></button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Fan nomi</label>
+              <input
+                type="text"
+                value={testSubject}
+                onChange={(e) => setTestSubject(e.target.value)}
+                placeholder="Masalan: Matematika, Tarix, Fizika..."
+                className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-purple-500/50 placeholder:text-white/15"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Test nomi</label>
+              <input
+                type="text"
+                value={testName}
+                onChange={(e) => setTestName(e.target.value)}
+                placeholder="Masalan: Kasr sonlar, Amir Temur davri..."
+                className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-purple-500/50 placeholder:text-white/15"
+              />
+            </div>
           </div>
+          <p className="text-white/30 text-xs">Jami: {localQuestions.length} ta savol</p>
         </div>
 
         {/* Tabs */}
@@ -2292,7 +2311,7 @@ const TestReviewModal = ({ show, questions, onClose, onSave }) => {
         {/* Footer */}
         <div className="p-5 border-t border-white/10 bg-black/20 flex gap-3">
           <button onClick={onClose} className="flex-1 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl text-sm font-bold transition-all">Bekor qilish</button>
-          <button onClick={() => onSave(localQuestions, testName)} disabled={localQuestions.length === 0}
+          <button onClick={() => onSave(localQuestions, testSubject ? `${testSubject} — ${testName}` : testName, testSubject)} disabled={localQuestions.length === 0}
             className="flex-1 py-3 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-all disabled:opacity-40">
             Tasdiqlash va saqlash
           </button>
