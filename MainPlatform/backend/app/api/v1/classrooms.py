@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, and_
+from sqlalchemy import select, func, or_, and_, exists
 from pydantic import BaseModel, Field
 
 from shared.database import get_db
@@ -824,16 +824,20 @@ async def get_gradebook_matrix(
 
     # 3. Get assignments for this classroom
     # We include assignments where classroom_id is set OR where an AssignmentTarget exists for this classroom
+    target_exists = exists().where(
+        and_(
+            AssignmentTarget.assignment_id == Assignment.id,
+            AssignmentTarget.target_type == AssignmentTargetType.classroom,
+            AssignmentTarget.target_id == classroom_id
+        )
+    )
+
     assign_stmt = (
         select(Assignment)
-        .outerjoin(AssignmentTarget, AssignmentTarget.assignment_id == Assignment.id)
         .where(
             or_(
                 Assignment.classroom_id == classroom_id,
-                and_(
-                    AssignmentTarget.target_type == AssignmentTargetType.classroom,
-                    AssignmentTarget.target_id == classroom_id
-                )
+                target_exists
             )
         )
     )
@@ -843,7 +847,7 @@ async def get_gradebook_matrix(
     if end_date:
         assign_stmt = assign_stmt.where(Assignment.created_at <= end_date)
     
-    assign_stmt = assign_stmt.order_by(Assignment.created_at.asc()).distinct()
+    assign_stmt = assign_stmt.order_by(Assignment.created_at.asc())
     assign_res = await db.execute(assign_stmt)
     assignments = assign_res.scalars().all()
     assignment_ids = [a.id for a in assignments]
@@ -883,7 +887,7 @@ async def get_gradebook_matrix(
                     "title": a.title,
                     "type": a.assignment_type.value,
                     "max_score": a.max_score,
-                    "date": a.created_at.isoformat(),
+                    "date": a.created_at.isoformat() if a.created_at else None,
                     "due_date": a.due_date.isoformat() if a.due_date else None,
                 } for a in assignments
             ],
