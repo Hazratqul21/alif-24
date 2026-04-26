@@ -676,12 +676,12 @@ async def submit_test_assignment(
     for i, q in enumerate(questions):
         student_answer = data.answers.get(str(i), "")
         correct_answer = q.get("correct_answer", "")
-        
-        # Convert both to strings for safe comparison (handles int indices)
-        s_ans = str(student_answer).strip().lower() if student_answer is not None else ""
-        c_ans = str(correct_answer).strip().lower() if correct_answer is not None else ""
-        
-        is_correct = s_ans == c_ans
+        # Javoblar int (variant indeksi) yoki string bo'lishi mumkin
+        # Ikkalasini ham stringga aylantirish kerak
+        student_str = str(student_answer).strip().lower() if student_answer is not None else ""
+        correct_str = str(correct_answer).strip().lower() if correct_answer is not None else ""
+
+        is_correct = student_str == correct_str
         if is_correct:
             correct_count += 1
         results.append({
