@@ -823,21 +823,36 @@ async def get_gradebook_matrix(
     student_ids = [s["id"] for s in students]
 
     # 3. Get assignments for this classroom
-    # We include assignments where classroom_id is set OR where an AssignmentTarget exists for this classroom
+    # We include assignments where:
+    # - classroom_id matches
+    # - OR it targets this classroom via AssignmentTarget
+    # - OR it targets any student in this classroom via AssignmentTarget
+    # and in all cases, the assignment must be created by this teacher (to avoid showing other teachers' work)
     target_exists = exists().where(
         and_(
             AssignmentTarget.assignment_id == Assignment.id,
-            AssignmentTarget.target_type == AssignmentTargetType.classroom,
-            AssignmentTarget.target_id == classroom_id
+            or_(
+                and_(
+                    AssignmentTarget.target_type == AssignmentTargetType.classroom,
+                    AssignmentTarget.target_id == classroom_id
+                ),
+                and_(
+                    AssignmentTarget.target_type == AssignmentTargetType.student,
+                    AssignmentTarget.target_id.in_(student_ids)
+                )
+            )
         )
     )
 
     assign_stmt = (
         select(Assignment)
         .where(
-            or_(
-                Assignment.classroom_id == classroom_id,
-                target_exists
+            and_(
+                Assignment.created_by == teacher.id,
+                or_(
+                    Assignment.classroom_id == classroom_id,
+                    target_exists
+                )
             )
         )
     )
@@ -869,8 +884,14 @@ async def get_gradebook_matrix(
     matrix = {sid: {} for sid in student_ids}
     for sub in submissions:
         if sub.student_user_id in matrix:
+            # Fallback to meta_data if score is null
+            score = sub.score
+            if score is None and sub.meta_data:
+                # Try common keys for scores in metadata
+                score = sub.meta_data.get("score") or sub.meta_data.get("correct")
+
             matrix[sub.student_user_id][sub.assignment_id] = {
-                "score": sub.score,
+                "score": score,
                 "status": sub.status.value,
                 "meta": sub.meta_data,
                 "id": sub.id

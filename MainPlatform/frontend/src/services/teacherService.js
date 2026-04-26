@@ -238,12 +238,6 @@ class TeacherService {
         return apiService.post('/testai/assign', data);
     }
 
-    async uploadAssignmentFile(file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        return apiService.post('/teachers/upload-file', formData);
-    }
-
     async getGradebook(classroomId, startDate = null, endDate = null) {
         const params = {};
         if (startDate) params.start_date = startDate;
