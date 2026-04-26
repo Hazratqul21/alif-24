@@ -15,7 +15,7 @@ import {
     Settings, Camera, Edit, Upload, Download, Send, Heart, Share2,
     Video, Phone, Mail, MapPin, GraduationCap, FileText, BarChart3,
     ChevronRight, Plus, X, Eye, Lock, Globe, Palette, Moon, Sun,
-    Image, Flag, Gift, Zap, Shield, HelpCircle, MessageCircle,
+    Image, Flag, Gift, Zap, Shield, HelpCircle, MessageCircle, AlertCircle,
     Home, Book, ClipboardList, Medal, Activity, TrendingDown, Bot, Coins, Flame, Languages, Laptop, Mic,
     School, School as SchoolIcon, UserPlus, LogIn, Tag, Loader2, List
 } from 'lucide-react';

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import apiService from '../../../services/apiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { Award, TrendingUp, Users, Clock, CheckCircle, AlertCircle, Download, Filter, Search, Eye, Calendar, Activity, Target } from 'lucide-react';
+import { Award, TrendingUp, Users, Clock, CheckCircle, AlertCircle, Download, Filter, Search, Eye, Calendar, Activity, Target, ArrowLeft, X, List } from 'lucide-react';
 
-const TestResults = ({ tests = [] }) => {
-  const [selectedTest, setSelectedTest] = useState(null);
+const TestResults = ({ tests = [], initialTest, onBack }) => {
+  const [selectedTest, setSelectedTest] = useState(initialTest || null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,10 +19,12 @@ const TestResults = ({ tests = [] }) => {
   };
 
   useEffect(() => {
-    if (tests.length > 0 && !selectedTest) {
+    if (initialTest) {
+      setSelectedTest(initialTest);
+    } else if (tests.length > 0 && !selectedTest) {
       setSelectedTest(tests[0]);
     }
-  }, [tests]);
+  }, [tests, initialTest]);
 
   useEffect(() => {
     if (selectedTest) {
@@ -106,7 +108,8 @@ const TestResults = ({ tests = [] }) => {
   };
 
   const filteredResults = results.filter(result => 
-    result.student_id.toLowerCase().includes(searchTerm.toLowerCase())
+    result.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (result.student_name && result.student_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const stats = calculateStatistics();
@@ -155,6 +158,15 @@ const TestResults = ({ tests = [] }) => {
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
+          {onBack && (
+            <button 
+              onClick={onBack}
+              className="absolute left-0 top-0 p-3 bg-blue-600/20 border border-blue-400 rounded-xl text-blue-400 hover:bg-blue-600 hover:text-white transition-all flex items-center gap-2 group"
+            >
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              <span className="font-bold text-sm uppercase tracking-widest">Ortga</span>
+            </button>
+          )}
           <div className="inline-flex items-center gap-2 px-6 py-2 mb-6 relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full blur-xl opacity-75 group-hover:opacity-100 transition-opacity"></div>
             <div className="relative flex items-center gap-2 px-4 py-2 bg-black border-2 border-blue-400 rounded-full neon-text-blue">

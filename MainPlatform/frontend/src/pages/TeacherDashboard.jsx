@@ -860,7 +860,16 @@ const TeacherDashboard = () => {
                   {/* Submission content */}
                   {sub.content && (
                     <div className="mt-3 pt-3 border-t border-white/10">
-                      <p className="text-white/60 text-sm">{sub.content}</p>
+                      <p className="text-white/60 text-sm">
+                        {selectedAssignment.assignment_type === 'test' ? (
+                          (() => {
+                            try {
+                              const data = typeof sub.content === 'string' ? JSON.parse(sub.content) : sub.content;
+                              return `Natija: ${data.correct_count} / ${data.total} to'g'ri (${data.score} ball)`;
+                            } catch(e) { return sub.content; }
+                          })()
+                        ) : sub.content}
+                      </p>
                     </div>
                   )}
                   {sub.attachments?.length > 0 && (
@@ -892,7 +901,24 @@ const TeacherDashboard = () => {
                 <div className="bg-white/5 border border-white/10 rounded-xl p-3">
                   <div className="text-white font-medium text-sm">{gradingSubmission.student_name || `ID: ${gradingSubmission.student_user_id}`}</div>
                   <div className="text-white/40 text-xs mt-1">Vazifa: {selectedAssignment.title}</div>
-                  {gradingSubmission.content && <p className="text-white/50 text-sm mt-2">{gradingSubmission.content}</p>}
+                  {gradingSubmission.content && (
+                    <div className="text-white/50 text-sm mt-2 border-t border-white/5 pt-2">
+                      {selectedAssignment.assignment_type === 'test' ? (
+                        (() => {
+                          try {
+                            const data = typeof gradingSubmission.content === 'string' ? JSON.parse(gradingSubmission.content) : gradingSubmission.content;
+                            return (
+                              <div className="space-y-1">
+                                <p className="text-green-400 font-bold">To'g'ri: {data.correct_count} / {data.total}</p>
+                                <p className="text-blue-400 font-bold">Ball: {data.score}</p>
+                                <p className="text-[10px] text-white/30">Vaqt: {Math.floor(data.time_spent_seconds / 60)}m {data.time_spent_seconds % 60}s</p>
+                              </div>
+                            );
+                          } catch(e) { return gradingSubmission.content; }
+                        })()
+                      ) : gradingSubmission.content}
+                    </div>
+                  )}
                 </div>
 
                 {/* Score input */}

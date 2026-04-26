@@ -7,7 +7,7 @@ import {
 import { teacherService } from '../../services/teacherService';
 import TestPreviewModal from './TestPreviewModal';
 import TestAssignModal from './TestAssignModal';
-import TestResultsView from './TestResultsView';
+import TestResults from '../../modules/testai/components/TestResults';
 
 const TestLibrary = ({ classrooms = [], onShowNotif, onOpenTestBuilder }) => {
   const [tests, setTests] = useState([]);
@@ -55,8 +55,9 @@ const TestLibrary = ({ classrooms = [], onShowNotif, onOpenTestBuilder }) => {
 
   if (showResults && selectedTest) {
     return (
-      <TestResultsView
-        test={selectedTest}
+      <TestResults
+        tests={tests}
+        initialTest={selectedTest}
         onBack={() => { setShowResults(false); setSelectedTest(null); }}
       />
     );
