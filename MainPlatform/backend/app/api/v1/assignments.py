@@ -1023,7 +1023,7 @@ async def parent_assign_task(
 # GRADEBOOK DETAIL REPORT
 # ============================================================
 
-@router.get("/{assignment_id}/report")
+@router.get("/teachers/assignments/{assignment_id}/report")
 async def get_assignment_report(
     assignment_id: str,
     current_user: User = Depends(get_current_user),
