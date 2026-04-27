@@ -561,7 +561,7 @@ Maxfiylik: privacy@alif24.uz
               name="first_name"
               value={formData.first_name}
               onChange={handleChange}
-              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               placeholder={t('auth_first_name_placeholder') || 'Ismingiz'}
               required
             />
@@ -578,7 +578,7 @@ Maxfiylik: privacy@alif24.uz
               name="last_name"
               value={formData.last_name}
               onChange={handleChange}
-              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               placeholder={t('auth_last_name_placeholder') || 'Familiyangiz'}
               required
             />
@@ -623,7 +623,7 @@ Maxfiylik: privacy@alif24.uz
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               placeholder="email@example.com"
               required
             />
@@ -641,7 +641,7 @@ Maxfiylik: privacy@alif24.uz
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               placeholder="+998 90 123 45 67"
               required
             />
@@ -663,7 +663,7 @@ Maxfiylik: privacy@alif24.uz
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               placeholder="Kamida 6 ta belgi"
               required
             />
@@ -687,7 +687,7 @@ Maxfiylik: privacy@alif24.uz
               name="confirm_password"
               value={formData.confirm_password}
               onChange={handleChange}
-              className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               placeholder="Parolni takrorlang"
               required
             />
@@ -807,7 +807,7 @@ Maxfiylik: privacy@alif24.uz
               name="date_of_birth"
               value={formData.date_of_birth}
               onChange={handleChange}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               max={new Date().toISOString().split('T')[0]}
             />
           </div>
@@ -847,7 +847,7 @@ Maxfiylik: privacy@alif24.uz
               name="school_name"
               value={formData.school_name}
               onChange={handleChange}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               placeholder="Masalan: 1-son umumiy o'rta ta'lim maktabi"
             />
           </div>
@@ -881,7 +881,7 @@ Maxfiylik: privacy@alif24.uz
               onChange={handleChange}
               min="0"
               max="50"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               placeholder="Masalan: 5"
             />
           </div>
@@ -910,7 +910,7 @@ Maxfiylik: privacy@alif24.uz
               name="organization_name"
               value={formData.organization_name}
               onChange={handleChange}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               placeholder="Masalan: Bilim Ziyo o'quv markazi"
               required
             />
@@ -961,7 +961,7 @@ Maxfiylik: privacy@alif24.uz
               name="organization_address"
               value={formData.organization_address}
               onChange={handleChange}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-gray-900"
               placeholder="Toshkent sh., Chilonzor t."
             />
           </div>
@@ -1051,7 +1051,7 @@ Maxfiylik: privacy@alif24.uz
           maxLength={6}
           value={verificationCode}
           onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-          className="w-52 text-center text-2xl tracking-[0.5em] py-3 border-2 border-indigo-200 rounded-xl focus:outline-none focus:border-indigo-500 bg-gray-50"
+          className="w-52 text-center text-2xl tracking-[0.5em] py-3 border-2 border-indigo-200 rounded-xl focus:outline-none focus:border-indigo-500 bg-gray-50 text-gray-900"
           placeholder="000000"
           autoFocus
         />
