@@ -142,7 +142,8 @@ const ComplexLessonBuilder = ({ classrooms = [], onShowNotif, onSaved }) => {
       onShowNotif?.('success', 'Kompleks dars muvaffaqiyatli yaratildi!');
       onSaved?.();
     } catch (e) {
-      onShowNotif?.('error', e.message || 'Dars yaratishda xatolik');
+      console.error('Complex lesson creation error:', e);
+      onShowNotif?.('error', e.message || 'Darsni saqlashda xatolik yuz berdi. Iltimos qaytadan urinib ko\'ring.');
     } finally {
       setSaving(false);
     }

@@ -1416,7 +1416,7 @@ const StudentDashboard = () => {
                                                                         }
                                                                     }}
                                                                     placeholder="Promokodni kiriting..."
-                                                                    className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400 uppercase"
+                                                                    className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400 uppercase text-black"
                                                                 />
                                                                 <button
                                                                     onClick={() => {
@@ -1581,21 +1581,21 @@ const StudentDashboard = () => {
                                         <Clock size={14} /> {formatTime(testTimeLeft)}
                                     </div>
                                 )}
-                                <button 
-                                    onClick={() => { 
+                                <button
+                                    onClick={() => {
                                         if (testStarted && !testResult) {
                                             if (window.confirm("Test hali yakunlanmadi. Chiqib ketsangiz natijalar saqlanmaydi. Chiqasizmi?")) {
-                                                setSelectedTask(null); 
-                                                setTestQuestions([]); 
-                                                setTestResult(null); 
+                                                setSelectedTask(null);
+                                                setTestQuestions([]);
+                                                setTestResult(null);
                                                 setTestStarted(false);
                                             }
                                         } else {
-                                            setSelectedTask(null); 
-                                            setTestQuestions([]); 
-                                            setTestResult(null); 
+                                            setSelectedTask(null);
+                                            setTestQuestions([]);
+                                            setTestResult(null);
                                         }
-                                    }} 
+                                    }}
                                     className="text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full"
                                 >
                                     <X size={18} />
@@ -1705,7 +1705,7 @@ const StudentDashboard = () => {
                                         {(testResult.correct_count / testResult.total) >= 0.9 ? 'Juda ajoyib ishlading. Ajoyib!' : (testResult.correct_count / testResult.total) >= 0.7 ? 'Ajoyib natija!' : 'Yomon emas!'}
                                     </h3>
                                     <p className="text-5xl font-black text-indigo-600 my-4 tracking-tighter">{testResult.score} / {testResult.max_score}</p>
-                                    
+
                                     <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
                                         <div className="bg-indigo-50 px-4 py-2 rounded-2xl border border-indigo-100">
                                             <p className="text-xs text-indigo-400 font-bold uppercase tracking-wider">To'g'ri javoblar</p>

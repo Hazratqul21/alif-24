@@ -200,12 +200,12 @@ const GlobalSubscriptionModal = () => {
                                                             onChange={e => setPromoCode(p => ({ ...p, [plan.id]: e.target.value.toUpperCase() }))}
                                                             onKeyDown={e => e.key === 'Enter' && validatePromo(plan.id)}
                                                             placeholder="Promokodni kiriting..."
-                                                            className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400 uppercase"
+                                                            className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400 uppercase text-black"
                                                         />
                                                         <button
                                                             onClick={() => validatePromo(plan.id)}
                                                             disabled={promoLoading[plan.id] || !(promoCode[plan.id] || '').trim()}
-                                                            className="bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                                            className="bg-indigo-500 text-black px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                                                         >
                                                             {promoLoading[plan.id] ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                                                         </button>

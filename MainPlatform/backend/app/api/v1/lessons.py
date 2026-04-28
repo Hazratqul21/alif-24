@@ -210,22 +210,47 @@ async def create_lesson(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    teacher = await get_teacher_profile_local(current_user, db)
-    lesson = Lesson(
-        teacher_id=teacher.id,
-        title=data.title,
-        subject=data.subject,
-        grade_level=data.grade_level,
-        content=data.content,
-        video_url=data.video_url,
-        attachments=data.attachments
-    )
-    if hasattr(Lesson, 'language') and data.language:
-        lesson.language = data.language
-    db.add(lesson)
-    await db.commit()
-    await db.refresh(lesson)
-    return {"success": True, "data": lesson_dict(lesson)}
+    # Get teacher profile
+    try:
+        teacher = await get_teacher_profile_local(current_user, db)
+    except Exception as e:
+        logger.error(f"Error getting teacher profile: {str(e)}")
+        raise HTTPException(status_code=403, detail=f"O'qituvchi profili topilmadi: {str(e)}")
+
+    # Create lesson object
+    try:
+        lesson = Lesson(
+            id=data.id if hasattr(data, 'id') and data.id else None, # Allow pre-defined ID
+            teacher_id=teacher.id,
+            title=data.title,
+            subject=data.subject,
+            grade_level=data.grade_level,
+            content=data.content,
+            video_url=data.video_url,
+            attachments=data.attachments
+        )
+        
+        # Set language safely
+        if hasattr(Lesson, 'language') and data.language:
+            lesson.language = data.language
+            
+        db.add(lesson)
+        await db.commit()
+        await db.refresh(lesson)
+        
+        return {"success": True, "data": lesson_dict(lesson, current_user.first_name + " " + current_user.last_name)}
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error creating lesson in database: {str(e)}")
+        # Check if it's a missing column error
+        error_msg = str(e).lower()
+        if "column" in error_msg and "does not exist" in error_msg:
+            raise HTTPException(
+                status_code=500, 
+                detail="Ma'lumotlar bazasi xatosi: ba'zi ustunlar topilmadi. Iltimos, admin bilan bog'laning (migration 033 talab qilinadi)."
+            )
+        raise HTTPException(status_code=500, detail=f"Darsni saqlashda xatolik yuz berdi: {str(e)}")
 
 @router.get("/teachers/lessons")
 async def get_my_lessons(

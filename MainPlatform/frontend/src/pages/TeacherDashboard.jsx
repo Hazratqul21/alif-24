@@ -33,6 +33,7 @@ const TeacherDashboard = () => {
 
   // Real data states
   const [classrooms, setClassrooms] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [lessons, setLessons] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -268,6 +269,7 @@ const TeacherDashboard = () => {
     e.preventDefault();
     if (!newLesson.title.trim()) return showNotif('error', 'Dars nomini kiriting');
     try {
+      setLoading(true);
       const payload = { ...newLesson };
       if (lessonFile) {
         const upRes = await teacherService.uploadAssignmentFile(lessonFile);
@@ -277,12 +279,17 @@ const TeacherDashboard = () => {
         }
       }
       await teacherService.createLesson(payload);
-      showNotif('success', 'Dars yaratildi!');
+      showNotif('success', 'Dars muvaffaqiyatli yaratildi!');
       setShowCreateLesson(false);
       setNewLesson({ title: '', subject: '', grade_level: '', content: '', video_url: '', attachments: null });
       setLessonFile(null);
       fetchLessons();
-    } catch (e) { showNotif('error', e.message || 'Xatolik'); }
+    } catch (e) {
+      console.error("Lesson creation error:", e);
+      showNotif('error', e.message || 'Darsni saqlashda xatolik yuz berdi. Iltimos qaytadan urinib ko\'ring.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateAssignment = async (e) => {
