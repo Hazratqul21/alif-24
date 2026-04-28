@@ -477,6 +477,9 @@ export default function OlympiadDetail() {
                                             <div className="flex-1 min-w-0">
                                                 <p className={`font-medium truncate ${isMe ? 'text-indigo-300' : 'text-white'}`}>
                                                     {entry.student_name}{isMe ? ' (Siz)' : ''}
+                                                    {entry.status === 'registered' && (
+                                                        <span className="ml-2 text-[10px] text-indigo-400/50 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/10">kutilmoqda</span>
+                                                    )}
                                                 </p>
                                                 <p className="text-xs text-indigo-500">
                                                     {entry.correct_answers}/{entry.total_questions} to'g'ri

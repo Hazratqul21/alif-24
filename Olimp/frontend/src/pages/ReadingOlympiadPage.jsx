@@ -80,7 +80,7 @@ export default function ReadingOlympiadPage() {
         if (!id) return;
         const apiUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/api/v1`;
         const wsBase = apiUrl.replace(/^http/, 'ws');
-        const ws = new WebSocket(`${wsBase}/olympiads/${id}/ws/leaderboard`);
+        const ws = new WebSocket(`${wsBase}/olympiad/${id}/ws/leaderboard`);
         ws.onmessage = () => loadLeaderboard();
         return () => ws.close();
     }, [id, loadLeaderboard]);

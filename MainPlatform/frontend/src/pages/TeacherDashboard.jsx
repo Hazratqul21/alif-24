@@ -33,7 +33,6 @@ const TeacherDashboard = () => {
 
   // Real data states
   const [classrooms, setClassrooms] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [lessons, setLessons] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);

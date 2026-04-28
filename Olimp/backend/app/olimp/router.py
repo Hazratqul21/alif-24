@@ -1273,7 +1273,11 @@ async def get_leaderboard(
         .options(selectinload(OlympiadParticipant.student).selectinload(StudentProfile.user))
         .where(
             OlympiadParticipant.olympiad_id == olympiad.id,
-            OlympiadParticipant.status == ParticipationStatus.completed,
+            OlympiadParticipant.status.in_([
+                ParticipationStatus.completed,
+                ParticipationStatus.started,
+                ParticipationStatus.registered
+            ]),
         )
         .order_by(OlympiadParticipant.total_score.desc(), OlympiadParticipant.time_spent_seconds.asc(), OlympiadParticipant.completed_at.asc())
         .limit(limit)
@@ -1301,6 +1305,7 @@ async def get_leaderboard(
             "total_questions": p.correct_answers + p.wrong_answers,
             "time_taken_seconds": p.time_spent_seconds,
             "coins_earned": p.coins_earned,
+            "status": p.status.value if p.status else "registered",
         })
 
     return {
@@ -3400,7 +3405,11 @@ async def get_reading_leaderboard(
         .options(selectinload(OlympiadParticipant.student).selectinload(StudentProfile.user))
         .where(
             OlympiadParticipant.olympiad_id == olympiad.id,
-            OlympiadParticipant.status == ParticipationStatus.completed,
+            OlympiadParticipant.status.in_([
+                ParticipationStatus.completed,
+                ParticipationStatus.started,
+                ParticipationStatus.registered
+            ]),
         )
         .order_by(
             OlympiadParticipant.total_score.desc(),
