@@ -24,7 +24,7 @@ function ModalWrapper({ onClose, title, children, dark = true }) {
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto px-6 py-8 space-y-6 custom-scrollbar">
                     {children}
                 </div>
@@ -45,13 +45,13 @@ export function StorySummaryModal({ data, ertak, onClose, onShowDetails }) {
         readPercent: data.read_percent || 0,
         elapsed: data.reading_duration_seconds || 0
     };
-    
+
     const quizScore = data.quiz_score || 0;
     const answers = data.answers || data.quiz_answers || [];
     const totalCorrect = answers.filter(a => a.is_correct || a.score >= 70).length;
 
     return (
-        <ReadingOlympiadResultSummary 
+        <ReadingOlympiadResultSummary
             ertak={ertak}
             readingStats={stats}
             totalScore={quizScore}
@@ -113,10 +113,10 @@ export function TestDetailedResultModal({ data, questions, onClose, title = "Tes
                 {answers.map((ans, idx) => {
                     const question = questions?.find(q => String(q.id) === String(ans.question_id)) || questions?.[idx];
                     const isCorrect = ans.is_correct ?? false;
-                    
+
                     return (
                         <div key={idx} className={`p-5 rounded-3xl border transition-all ${isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}>
-                            <MathContent content={question?.question_text || question?.question || `Savol #${idx+1}`} className="text-white font-bold text-sm mb-4 leading-relaxed" />
+                            <MathContent content={question?.question_text || question?.question || `Savol #${idx + 1}`} className="text-white font-bold text-sm mb-4 leading-relaxed" />
                             {question?.options && (
                                 <div className="space-y-2">
                                     {question.options.map((opt, oi) => {
@@ -160,11 +160,11 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
         <ModalWrapper onClose={onClose} dark={isStory && viewMode === 'summary'}>
             {isStory ? (
                 viewMode === 'summary' ? (
-                    <StorySummaryModal 
-                        data={data} 
-                        ertak={ertak} 
-                        onClose={onClose} 
-                        onShowDetails={() => setViewMode('details')} 
+                    <StorySummaryModal
+                        data={data}
+                        ertak={ertak}
+                        onClose={onClose}
+                        onShowDetails={() => setViewMode('details')}
                     />
                 ) : (
                     <div className="space-y-6">
@@ -179,7 +179,7 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                             {(data.answers || []).map((ans, idx) => {
                                 const question = ertak?.questions?.find((q, i) => String(q.id || i) === String(ans.question_id)) || ertak?.questions?.[idx];
                                 const isCorrect = (ans.score !== undefined ? ans.score >= 70 : ans.is_correct);
-                                
+
                                 return (
                                     <div key={idx} className={`p-5 rounded-3xl border transition-all ${isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}>
                                         <div className="flex justify-between items-start mb-3">
@@ -188,24 +188,38 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                                                 {ans.score || 0} ball
                                             </span>
                                         </div>
-                                        
+
                                         {question && (
                                             <p className="text-white font-bold text-sm mb-3 leading-relaxed">
                                                 {question.question_text || question.question}
                                             </p>
                                         )}
 
-                                        <div className="bg-black/20 rounded-2xl p-4 border border-white/5">
-                                            <p className="text-white/30 text-[9px] uppercase font-bold mb-2 tracking-tighter">Sizning javobingiz:</p>
-                                            <p className="text-xs text-white/90 font-medium leading-relaxed">
-                                                {ans.answer_text || ans.submitted_answer || "(Javob aniqlanmadi)"}
-                                            </p>
+                                        <div className="bg-black/20 rounded-2xl p-4 border border-white/5 space-y-3">
+                                            <div>
+                                                <p className="text-white/30 text-[9px] uppercase font-bold mb-1 tracking-tighter">Sizning javobingiz:</p>
+                                                <p className={`text-xs font-bold leading-relaxed ${isCorrect ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                    {ans.student_answer || ans.answer_text || ans.submitted_answer || ans.recognized || "(Javob aniqlanmadi)"}
+                                                </p>
+                                            </div>
+                                            
+                                            {!isCorrect && (
+                                                <div className="pt-2 border-t border-white/5">
+                                                    <p className="text-emerald-400/40 text-[9px] uppercase font-bold mb-1 tracking-tighter">To'g'ri javob:</p>
+                                                    <p className="text-xs text-emerald-400 font-bold leading-relaxed">
+                                                        {ans.correct_answer || question?.answer || question?.correct_answer || "—"}
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        <div className="mt-4 flex items-center gap-3">
+                                        <div className="mt-4 flex items-center gap-3 px-1">
                                             <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                                                 <div className={`h-full transition-all duration-1000 ${isCorrect ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${ans.score || 0}%` }} />
                                             </div>
+                                            <span className={`text-[10px] font-black ${isCorrect ? 'text-emerald-500/50' : 'text-rose-500/50'}`}>
+                                                {ans.score || 0}%
+                                            </span>
                                         </div>
                                     </div>
                                 );
@@ -217,10 +231,10 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                     </div>
                 )
             ) : (
-                <TestDetailedResultModal 
-                    data={data} 
-                    questions={type === 'global' ? olympiadQuestions : (ertak?.questions || [])} 
-                    onClose={onClose} 
+                <TestDetailedResultModal
+                    data={data}
+                    questions={type === 'global' ? olympiadQuestions : (ertak?.questions || [])}
+                    onClose={onClose}
                     title={type === 'global' ? "Olimpiada testi" : "Test natijalari"}
                 />
             )}

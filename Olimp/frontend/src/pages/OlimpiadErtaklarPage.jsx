@@ -125,9 +125,17 @@ export function ReadingOlympiadResultSummary({ ertak, readingStats, totalScore, 
                     </div>
                 </div>
                 
-                <div className="bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-2xl p-5 text-center mb-6 shadow-lg shadow-purple-500/20 border border-white/10">
-                    <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Umumiy ball (Reyting uchun)</p>
-                    <p className="text-white text-5xl font-black">{totalScore + 10}</p>
+                <div className="bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-3xl p-6 text-center mb-6 shadow-xl shadow-purple-500/20 border border-white/10 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 opacity-10">
+                        <Trophy className="w-20 h-20 text-white" />
+                    </div>
+                    <p className="text-white/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Umumiy ball (Reyting uchun)</p>
+                    <div className="flex items-center justify-center gap-4">
+                        <div className="text-center">
+                            <p className="text-white text-5xl font-black">{totalScore + 10}</p>
+                            <p className="text-white/40 text-[9px] font-bold mt-1 tracking-widest uppercase">jami</p>
+                        </div>
+                    </div>
                 </div>
 
                 <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3">

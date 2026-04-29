@@ -3178,7 +3178,7 @@ async def submit_reading_result(
             if is_correct:
                 correct_count += 1
 
-            logger.info(f"Quiz Result Processed: q={ans.question_id}, is_correct={is_correct}, score={ans.score}, correct_count_now={correct_count}")
+            logger.info(f"Quiz Result Processed: q={ans.question_id}, is_correct={is_correct}, score={ans.score}")
 
             quiz_details.append({
                 "question_id": ans.question_id,
@@ -3186,6 +3186,7 @@ async def submit_reading_result(
                 "is_correct": is_correct,
                 "score": ans.score, 
                 "points": 100 if is_correct else 0,
+                "correct_answer": question_data.get("correct_answer") if question_data else None
             })
 
             # Save answer only if it's a real OlympiadQuestion AND it's the FIRST attempt
@@ -3225,16 +3226,16 @@ async def submit_reading_result(
     if data.story_id:
         # ── ERTAK (Story) ──
         # O'qish uchun 10 ball + savollar o'rtachasi (0-100)
-        reading_base = 10
-        quiz_avg = sum(item_scores) / len(item_scores) if item_scores else 0
-        total_session_points = int(round(reading_base + quiz_avg))
-        logger.info(f"STORY SCORE: base={reading_base}, quiz_avg={quiz_avg}, total={total_session_points}")
+        reading_points = 10
+        quiz_points = int(round(sum(item_scores) / len(item_scores) if item_scores else 0))
+        total_session_points = reading_points + quiz_points
+        logger.info(f"STORY SCORE: reading={reading_points}, quiz={quiz_points}, total={total_session_points}")
     else:
         # ── TEST ──
         # Har bir to'g'ri javob = 5 ball
-        reading_base = 0
-        quiz_avg = 0
-        total_session_points = correct_count * 5
+        reading_points = 0
+        quiz_points = correct_count * 5
+        total_session_points = reading_points + quiz_points
         logger.info(f"TEST SCORE: correct={correct_count}, per_correct=5, total={total_session_points}")
     
     # quiz_score for frontend display
@@ -3281,6 +3282,8 @@ async def submit_reading_result(
         submission.comprehension_score = correct_count
         submission.comprehension_total = total_questions
         submission.comprehension_answers = quiz_details
+        submission.reading_points = reading_points
+        submission.quiz_points = quiz_points
         submission.total_points = total_session_points
         submission.submitted_at = datetime.now(timezone.utc)
         
