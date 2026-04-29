@@ -32,6 +32,9 @@ function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, 
                     reading_time_seconds: readElapsed || 0,
                     quiz_answers: quizAnswers,
                     quiz_score_direct: quizScoreDirect,
+                    quiz_score: quizScoreDirect,
+                    score: quizScoreDirect,
+                    total_score: quizScoreDirect,
                 });
                 setStatus('done');
                 onSubmitted();
@@ -1153,8 +1156,8 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
                                         <span
                                             key={idx}
                                             className={token.isWord ? `transition-colors duration-150 ${isHighlighted
-                                                    ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
-                                                    : 'text-white/85'
+                                                ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
+                                                : 'text-white/85'
                                                 }` : ''}
                                         >
                                             {token.text}
@@ -1382,7 +1385,7 @@ function TestCard({ questionCount, onClick, globalQuizResult, onViewResult, isSe
                             onClick={(e) => { e.stopPropagation(); onViewResult(); }}
                             className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-medium text-sm hover:bg-emerald-100 transition-all border border-emerald-500/10"
                         >
-                            <Trophy className="w-4 h-4 text-emerald-500" /> Natijani ko'rish
+                            <Trophy className="w-4 h-4 text-emerald-500" /> Test natijasi
                         </button>
                     )}
                     <button className={`w-full flex items-center justify-center gap-2 py-3 ${isCompleted ? 'bg-gradient-to-r from-emerald-500/80 to-emerald-600/80 group-hover:scale-[1.02]' : 'bg-gradient-to-r from-[#f97316] to-[#ef4444] group-hover:scale-[1.02]'} text-white rounded-2xl font-semibold text-sm transition-transform shadow-md ${isCompleted ? 'shadow-emerald-500/20' : 'shadow-orange-500/30'}`}>
@@ -1412,7 +1415,7 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
     const studentRes = ertak.student_result;
     const isReadingCompleted = studentRes && (studentRes.read_percent > 0 || studentRes.wpm > 0);
     const isQuizCompleted = studentRes && (studentRes.total_points > 10 || (studentRes.quiz_answers && studentRes.quiz_answers.length > 0) || (studentRes.answers && studentRes.answers.length > 0));
-    
+
     const isCompleted = isReadingCompleted || isQuizCompleted;
     const isSeen = isCompleted || ertak.isSeen;
 
@@ -1493,7 +1496,7 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
                             onClick={(e) => { e.stopPropagation(); onViewResult('quiz'); }}
                             className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-medium text-xs hover:bg-emerald-100 transition-all border border-emerald-500/10"
                         >
-                            <Trophy className="w-3.5 h-3.5 text-emerald-500" /> Test natijasi
+                            <Trophy className="w-3.5 h-3.5 text-emerald-500" /> O'qish natijasi
                         </button>
                     )}
                     {isReadingCompleted && (
@@ -1696,9 +1699,9 @@ export default function OlimpiadErtaklarPage() {
                                                     readPercent: res.read_percent,
                                                     elapsed: res.reading_duration_seconds
                                                 } : null;
-                                                
-                                                const baseData = { 
-                                                    ...res, 
+
+                                                const baseData = {
+                                                    ...res,
                                                     reading_stats,
                                                     answers: res.answers || res.quiz_answers || [],
                                                     correct_answers: res.correct_answers || res.total_correct || 0,
@@ -1708,17 +1711,17 @@ export default function OlimpiadErtaklarPage() {
 
                                                 if (subType === 'reading') {
                                                     // Force story type but with no answers to show only reading stats
-                                                    setViewingResult({ 
-                                                        type: 'story', 
-                                                        data: { ...baseData, answers: [] }, 
-                                                        ertak 
+                                                    setViewingResult({
+                                                        type: 'story',
+                                                        data: { ...baseData, answers: [] },
+                                                        ertak
                                                     });
                                                 } else {
                                                     // Show as a test result
-                                                    setViewingResult({ 
+                                                    setViewingResult({
                                                         type: 'story_test', // New type for story quizzes
-                                                        data: baseData, 
-                                                        ertak 
+                                                        data: baseData,
+                                                        ertak
                                                     });
                                                 }
                                             }}
