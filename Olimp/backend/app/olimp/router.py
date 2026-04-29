@@ -3145,16 +3145,22 @@ async def submit_reading_result(
                 continue
 
             total_questions += 1
-            if question_data:
+            # Determine correctness
+            if ans.score is not None:
+                # If score is provided (AI voice evaluation), use threshold >= 70 as correct
+                is_correct = ans.score >= 70
+            elif question_data:
                 try:
                     is_correct = (int(ans.answer_index) == int(question_data.get("correct_answer")))
                 except (ValueError, TypeError):
                     is_correct = False
-                
-                if is_correct:
-                    correct_count += 1
-                
-                logger.info(f"Story Result: q={ans.question_id}, is_correct={is_correct}, ans={ans.answer_index}, expected={question_data.get('correct_answer')}")
+            else:
+                is_correct = False
+
+            if is_correct:
+                correct_count += 1
+
+            logger.info(f"Quiz Result Processed: q={ans.question_id}, is_correct={is_correct}, score={ans.score}, correct_count_now={correct_count}")
 
             quiz_details.append({
                 "question_id": ans.question_id,
@@ -3321,7 +3327,11 @@ async def submit_reading_result(
             avg_comp_score = 0
             
         participant.total_score = int(total_points_sum)
-        logger.info(f"AGGREGATION: participant={participant.id}, total_score={total_points_sum}, all_subs_count={len(all_subs)}, coins={total_coins}")
+        participant.correct_answers = int(total_comp_score)
+        participant.wrong_answers = int(max(0, total_comp_qs - total_comp_score))
+        
+        logger.info(f"AGGREGATION: participant={participant.id}, total_score={total_points_sum}, correct={participant.correct_answers}, wrong={participant.wrong_answers}, coins={total_coins}")
+        
         participant.reading_wpm = avg_wpm
         participant.reading_percent = avg_percent
         participant.reading_time_seconds = int(total_duration)

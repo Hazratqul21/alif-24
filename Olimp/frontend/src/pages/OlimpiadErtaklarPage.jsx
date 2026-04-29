@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, Trophy, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
@@ -75,6 +75,13 @@ export function ReadingOlympiadResultSummary({ ertak, readingStats, totalScore, 
     const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-rose-400';
     const scoreBg = (s) => s >= 80 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-rose-500';
 
+    const quizAnswersPayload = useMemo(() => scores.map((s, idx) => ({
+        question_id: questions[idx]?.id || String(idx),
+        answer_index: 0,
+        answer_text: s.recognized,
+        score: s.score
+    })), [scores, questions]);
+
     return (
         <div className="flex flex-col items-center gap-5">
             <div className="text-6xl pt-2 pb-1">💪</div>
@@ -142,12 +149,7 @@ export function ReadingOlympiadResultSummary({ ertak, readingStats, totalScore, 
                     wpm={wpm}
                     readPercent={readPercent}
                     readElapsed={readElapsed}
-                    quizAnswers={scores.map((s, idx) => ({
-                        question_id: questions[idx]?.id || String(idx),
-                        answer_index: 0,
-                        answer_text: s.recognized,
-                        score: s.score
-                    }))}
+                    quizAnswers={quizAnswersPayload}
                     quizScore={totalScore}
                     totalScore={totalScore + 10}
                     submitted={resultSubmitted}
