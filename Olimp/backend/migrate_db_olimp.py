@@ -25,6 +25,18 @@ async def migrate():
             print("Error adding earned_coins:", e)
             
         try:
+            await conn.execute(text("ALTER TABLE olympiad_reading_submissions ADD COLUMN reading_points INTEGER DEFAULT 0"))
+            print("Added reading_points column.")
+        except Exception as e:
+            print("Error adding reading_points:", e)
+
+        try:
+            await conn.execute(text("ALTER TABLE olympiad_reading_submissions ADD COLUMN quiz_points INTEGER DEFAULT 0"))
+            print("Added quiz_points column.")
+        except Exception as e:
+            print("Error adding quiz_points:", e)
+
+        try:
             await conn.execute(text("ALTER TABLE olympiad_reading_submissions ALTER COLUMN reading_task_id DROP NOT NULL"))
             print("Made reading_task_id nullable.")
         except Exception as e:

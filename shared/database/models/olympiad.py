@@ -335,9 +335,9 @@ class OlympiadReadingSubmission(Base):
     graded_at = Column(DateTime(timezone=True), nullable=True)
     
     # Hisoblangan umumiy ball (test + o'qish + admin)
-    reading_points = Column(Integer, default=0)       # O'qish uchun berilgan ball (masalan +10)
-    quiz_points = Column(Integer, default=0)          # Savollar uchun olingan ball (masalan Avg 0-100)
-    total_points = Column(Integer, default=0)         # Jami (reading_points + quiz_points)
+    reading_points = Column(Integer, default=0)       # O'qish uchun berilgan ball (+10)
+    quiz_points = Column(Integer, default=0)          # Savollar uchun olingan ball (0-100 avg)
+    total_points = Column(Integer, default=0)         # Jami ball
     earned_coins = Column(Integer, default=0)
     
     submitted_at = Column(DateTime(timezone=True), server_default=func.now())
