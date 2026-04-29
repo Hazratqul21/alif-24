@@ -14,7 +14,7 @@ if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
 }
 
 // ─── Submit to Olympiad ────────────────────────────────────────────────────────
-function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, quizAnswers = [], quizScoreDirect = null, submitted, onSubmitted, onRefresh }) {
+function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, quizAnswers = [], quizScore = 0, totalScore = 0, submitted, onSubmitted, onRefresh }) {
     const [status, setStatus] = useState(submitted ? 'done' : 'idle');
 
     useEffect(() => {
@@ -31,10 +31,9 @@ function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, 
                     read_percent: readPercent || 0,
                     reading_time_seconds: readElapsed || 0,
                     quiz_answers: quizAnswers,
-                    quiz_score_direct: quizScoreDirect,
-                    quiz_score: quizScoreDirect,
-                    score: quizScoreDirect,
-                    total_score: quizScoreDirect,
+                    quiz_score: quizScore,
+                    score: totalScore,
+                    total_score: totalScore,
                 });
                 setStatus('done');
                 onSubmitted();
@@ -47,7 +46,7 @@ function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, 
             }
         };
         submit();
-    }, [olympiadId, storyId, wpm, readPercent, readElapsed, quizAnswers, quizScoreDirect, submitted]);
+    }, [olympiadId, storyId, wpm, readPercent, readElapsed, quizAnswers, quizScore, totalScore, submitted]);
 
 
     if (!olympiadId) return null;
@@ -149,7 +148,8 @@ export function ReadingOlympiadResultSummary({ ertak, readingStats, totalScore, 
                         answer_text: s.recognized,
                         score: s.score
                     }))}
-                    quizScoreDirect={totalScore + 10}
+                    quizScore={totalScore}
+                    totalScore={totalScore + 10}
                     submitted={resultSubmitted}
                     onSubmitted={() => setResultSubmitted && setResultSubmitted(true)}
                     onRefresh={onRefresh}

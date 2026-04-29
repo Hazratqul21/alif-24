@@ -14,6 +14,10 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
+from dotenv import load_dotenv
+
+# Load environment variables from project root
+load_dotenv(project_root / ".env")
 
 # Import shared database
 from shared.database import Base
