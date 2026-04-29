@@ -3041,14 +3041,14 @@ async def submit_reading_result(
     # Hozircha submit vaqtida rad qilamiz; server-side hisoblash to'g'ri
     # javob/option indeksidan amalga oshiriladi. Kelajakda evaluate-text
     # natijasini session-bound qilib saqlash kerak.
-    if data.quiz_answers:
-        for ans in data.quiz_answers:
-            if ans.score is not None:
-                logger.warning(
-                    "reading-submit: client-supplied ans.score ignored (user=%s, q=%s)",
-                    user_id, ans.question_id,
-                )
-                ans.score = None
+    # if data.quiz_answers:
+    #     for ans in data.quiz_answers:
+    #         if ans.score is not None:
+    #             logger.warning(
+    #                 "reading-submit: client-supplied ans.score ignored (user=%s, q=%s)",
+    #                 user_id, ans.question_id,
+    #             )
+    #             ans.score = None
 
     sp = await _resolve_student_profile(user_id, db)
     if not sp:
