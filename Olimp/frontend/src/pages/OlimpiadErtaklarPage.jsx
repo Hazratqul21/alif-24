@@ -44,7 +44,7 @@ function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, 
             }
         };
         submit();
-    }, [olympiadId]);
+    }, [olympiadId, storyId, wpm, readPercent, readElapsed, quizAnswers, quizScoreDirect, submitted]);
 
 
     if (!olympiadId) return null;
@@ -335,7 +335,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                 readPercent={readPercent}
                                 readElapsed={readElapsed}
                                 quizAnswers={scores.map((s, idx) => ({
-                                    question_id: String(idx),
+                                    question_id: questions[idx]?.id || String(idx),
                                     answer_index: 0,
                                     answer_text: s.recognized,
                                     score: s.score
@@ -355,7 +355,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                         total_questions: questions.length,
                                         reading_stats: readingStats,
                                         answers: scores.map((s, idx) => ({
-                                            question_id: String(idx),
+                                            question_id: questions[idx]?.id || String(idx),
                                             is_correct: s.passed,
                                             score: s.score,
                                             answer_text: s.recognized,
@@ -437,7 +437,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                     <p className={`text-4xl font-black ${scoreColor(scores[qIndex].score)}`}>{scores[qIndex].score}</p>
                                     <p className="text-white/40 text-xs mt-1">ball</p>
                                 </div>
-                                {scores[qIndex].recognized && (
+                                {/*scores[qIndex].recognized && (
                                     <div className="w-full bg-white/5 rounded-xl p-3 space-y-1.5 text-xs">
                                         <p className="text-white/40 uppercase tracking-wider font-bold text-[9px]">Sizning javobingiz:</p>
                                         <p className="text-white/90 leading-relaxed italic">"{scores[qIndex].recognized}"</p>
@@ -446,7 +446,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                             <MathContent content={scores[qIndex].correct} className="text-emerald-400/90" />
                                         </div>
                                     </div>
-                                )}
+                                )*/}
                                 <button onClick={nextQuestion}
                                     className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-medium hover:scale-105 transition-transform">
                                     {qIndex + 1 >= questions.length ? "Natijani ko'rish" : 'Keyingi savol'}
@@ -1152,11 +1152,10 @@ function RecordingModal({ ertak, onClose, olympiadId = null, olympiadQuestions =
                                     return (
                                         <span
                                             key={idx}
-                                            className={token.isWord ? `transition-colors duration-150 ${
-                                                isHighlighted
+                                            className={token.isWord ? `transition-colors duration-150 ${isHighlighted
                                                     ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]'
                                                     : 'text-white/85'
-                                            }` : ''}
+                                                }` : ''}
                                         >
                                             {token.text}
                                         </span>
@@ -1688,7 +1687,18 @@ export default function OlimpiadErtaklarPage() {
                                                     readPercent: res.read_percent,
                                                     elapsed: res.reading_duration_seconds
                                                 } : null;
-                                                setViewingResult({ type: 'story', data: { ...res, reading_stats }, ertak });
+                                                setViewingResult({ 
+                                                    type: 'story', 
+                                                    data: { 
+                                                        ...res, 
+                                                        reading_stats,
+                                                        answers: res.answers || res.quiz_answers || [],
+                                                        correct_answers: res.correct_answers || res.total_correct || 0,
+                                                        total_questions: res.total_questions || ertak.questions?.length || 0,
+                                                        score: res.total_points || res.quiz_score || res.score || 0
+                                                    }, 
+                                                    ertak 
+                                                });
                                             }}
                                             olympiadQuestions={olympiadQuestions}
                                         />
@@ -1705,11 +1715,23 @@ export default function OlimpiadErtaklarPage() {
                 {activeErtak && (
                     <RecordingModal
                         ertak={activeErtak}
-                        onClose={(res) => { 
-                            setActiveErtak(null); 
-                            loadErtaklar(); 
-                            if (res && (res.quiz_score !== undefined || res.answers)) {
-                                setViewingResult({ type: 'story', data: res, ertak: activeErtak });
+                        onClose={(res) => {
+                            setActiveErtak(null);
+                            loadErtaklar();
+                            if (res && (res.quiz_score !== undefined || res.answers || res.quiz_answers)) {
+                                const mappedData = {
+                                    ...res,
+                                    reading_stats: res.reading_stats || (res.read_percent !== undefined ? {
+                                        wpm: res.wpm,
+                                        readPercent: res.read_percent,
+                                        elapsed: res.reading_duration_seconds
+                                    } : null),
+                                    answers: res.answers || res.quiz_answers || [],
+                                    correct_answers: res.correct_answers || res.total_correct || 0,
+                                    total_questions: res.total_questions || activeErtak?.questions?.length || 0,
+                                    score: res.quiz_score ?? res.total_points ?? res.score ?? 0
+                                };
+                                setViewingResult({ type: 'story', data: mappedData, ertak: activeErtak });
                             }
                         }}
                         onRefresh={loadErtaklar}
@@ -1723,11 +1745,18 @@ export default function OlimpiadErtaklarPage() {
                     <OlympiadQuizModal
                         questions={olympiadQuestions}
                         olympiadId={olympiadId}
-                        onClose={(res) => { 
-                            setShowOlympiadQuiz(false); 
-                            loadErtaklar(); 
-                            if (res && (res.quiz_score !== undefined || res.answers)) {
-                                setViewingResult({ type: 'global', data: res });
+                        onClose={(res) => {
+                            setShowOlympiadQuiz(false);
+                            loadErtaklar();
+                            if (res && (res.quiz_score !== undefined || res.answers || res.quiz_answers)) {
+                                const mappedData = {
+                                    ...res,
+                                    answers: res.answers || res.quiz_answers || [],
+                                    correct_answers: res.correct_answers || res.total_correct || 0,
+                                    total_questions: res.total_questions || olympiadQuestions?.length || 0,
+                                    score: res.quiz_score ?? res.total_points ?? res.score ?? 0
+                                };
+                                setViewingResult({ type: 'global', data: mappedData });
                             }
                         }}
                         onRefresh={loadErtaklar}
