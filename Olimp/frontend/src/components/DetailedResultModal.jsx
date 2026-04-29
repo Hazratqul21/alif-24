@@ -32,7 +32,9 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                 <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 px-6 py-6 border-b border-white/5">
                     <div className="flex justify-between items-start mb-6">
                         <div>
-                            <h2 className="text-white font-black text-2xl mb-1">Test natijalari</h2>
+                            <h2 className="text-white font-black text-2xl mb-1">
+                                {type === 'story' || data?.reading_stats ? 'Natijalar' : 'Test natijalari'}
+                            </h2>
                             <p className="text-white/40 text-xs uppercase tracking-widest font-bold">
                                 {type === 'global' ? 'Olimpiada testi' : ertak?.title || 'Batafsil natija'}
                             </p>
@@ -56,6 +58,26 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                             <p className="text-white/30 text-[10px] uppercase font-bold">Ball</p>
                         </div>
                     </div>
+
+                    {/* Reading Stats if available */}
+                    {data?.reading_stats && (
+                        <div className="grid grid-cols-3 gap-3 mt-4">
+                            <div className="bg-blue-500/10 rounded-2xl p-3 border border-blue-500/20 text-center">
+                                <p className="text-blue-400 font-black text-xl leading-none mb-1">{data.reading_stats.wpm || 0}</p>
+                                <p className="text-white/30 text-[9px] uppercase font-bold">So'z/daq</p>
+                            </div>
+                            <div className="bg-indigo-500/10 rounded-2xl p-3 border border-indigo-500/20 text-center">
+                                <p className="text-indigo-400 font-black text-xl leading-none mb-1">{data.reading_stats.readPercent || 0}%</p>
+                                <p className="text-white/30 text-[9px] uppercase font-bold">O'qilgan</p>
+                            </div>
+                            <div className="bg-purple-500/10 rounded-2xl p-3 border border-purple-500/20 text-center">
+                                <p className="text-purple-400 font-black text-xl leading-none mb-1">
+                                    {data.reading_stats.elapsed ? `${Math.floor(data.reading_stats.elapsed / 60)}:${String(data.reading_stats.elapsed % 60).padStart(2, '0')}` : '00:00'}
+                                </p>
+                                <p className="text-white/30 text-[9px] uppercase font-bold">Vaqt</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Answers List */}
@@ -109,11 +131,24 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                                                 </div>
                                             ) : (
                                                 <div className="space-y-2 pt-1">
-                                                   {(ans.submitted_answer !== undefined || ans.selected_answer !== undefined || ans.answer_text) && (
-                                                       <p className="text-sm text-white/60">
-                                                           Sizning javobingiz: <span className="text-white font-medium italic">"{ans.submitted_answer ?? ans.selected_answer ?? ans.answer_text}"</span>
-                                                       </p>
-                                                   )}
+                                                   {(ans.submitted_answer !== undefined || ans.selected_answer !== undefined || ans.answer_text !== undefined) && (() => {
+                                                       // Prioritize text answer for speech questions
+                                                       const isSpeech = !question?.options;
+                                                       let displayAns = "";
+                                                       
+                                                       if (isSpeech) {
+                                                           displayAns = ans.answer_text || ans.submitted_answer || ans.selected_answer || "(Javob aniqlanmadi)";
+                                                       } else {
+                                                           // For multiple choice, 0 is a valid index
+                                                           displayAns = ans.answer_text ?? ans.submitted_answer ?? ans.selected_answer;
+                                                       }
+                                                       
+                                                       return (
+                                                           <p className="text-sm text-white/60">
+                                                               Sizning javobingiz: <span className="text-white font-medium italic">"{displayAns}"</span>
+                                                           </p>
+                                                       );
+                                                   })()}
                                                    {ans.score !== undefined && (
                                                        <div className="flex items-center gap-2 mt-2">
                                                             <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">

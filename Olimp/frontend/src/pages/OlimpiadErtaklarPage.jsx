@@ -340,7 +340,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                     answer_text: s.recognized,
                                     score: s.score
                                 }))}
-                                quizScoreDirect={quizScoreForSubmit}
+                                quizScoreDirect={totalScore + 10}
                                 submitted={resultSubmitted}
                                 onSubmitted={() => setResultSubmitted(true)}
                                 onRefresh={onRefresh}
@@ -349,9 +349,11 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                             <div className="flex flex-col gap-3 w-full mt-4">
                                 <button
                                     onClick={() => onClose({
-                                        quiz_score: quizScoreForSubmit,
+                                        quiz_score: totalScore + 10,
+                                        quiz_average: totalScore,
                                         correct_answers: totalCorrect,
                                         total_questions: questions.length,
+                                        reading_stats: readingStats,
                                         answers: scores.map((s, idx) => ({
                                             question_id: String(idx),
                                             is_correct: s.passed,
@@ -620,7 +622,7 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
 
             <div className="flex flex-col gap-3 w-full">
                 <button
-                    onClick={() => onClose(result)}
+                    onClick={() => onClose({ ...result, reading_stats: readingStats })}
                     className="w-full py-4 bg-slate-100 text-[#1a1a2e] rounded-2xl font-bold text-base hover:bg-slate-200 transition-all"
                 >
                     Batafsil ko'rish
@@ -1679,7 +1681,15 @@ export default function OlimpiadErtaklarPage() {
                                                 markAsSeen(strId);
                                                 setActiveErtak(ertak);
                                             }}
-                                            onViewResult={() => setViewingResult({ type: 'story', data: ertak.student_result, ertak })}
+                                            onViewResult={() => {
+                                                const res = ertak.student_result;
+                                                const reading_stats = res ? {
+                                                    wpm: res.wpm,
+                                                    readPercent: res.read_percent,
+                                                    elapsed: res.reading_duration_seconds
+                                                } : null;
+                                                setViewingResult({ type: 'story', data: { ...res, reading_stats }, ertak });
+                                            }}
                                             olympiadQuestions={olympiadQuestions}
                                         />
                                     );
