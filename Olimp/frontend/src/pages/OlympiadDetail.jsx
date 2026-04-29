@@ -481,14 +481,33 @@ export default function OlympiadDetail() {
                                                         <span className="ml-2 text-[10px] text-indigo-400/50 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/10">kutilmoqda</span>
                                                     )}
                                                 </p>
-                                                <p className="text-xs text-indigo-500">
-                                                    {entry.correct_answers}/{entry.total_questions} to'g'ri
-                                                    {entry.time_taken_seconds > 0 && ` | ${Math.floor(entry.time_taken_seconds / 60)}:${String(entry.time_taken_seconds % 60).padStart(2, '0')}`}
-                                                </p>
+                                                <div className="flex items-center gap-3 text-[10px] text-indigo-500/70 font-medium">
+                                                    <span>{entry.correct_answers}/{entry.total_questions} to'g'ri</span>
+                                                    {entry.reading_wpm > 0 && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span className="text-emerald-400">{entry.reading_wpm} wpm</span>
+                                                        </>
+                                                    )}
+                                                    {entry.time_spent_seconds > 0 && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span>{Math.floor(entry.time_spent_seconds / 60)}:{String(entry.time_spent_seconds % 60).padStart(2, '0')}</span>
+                                                        </>
+                                                    )}
+                                                    {entry.coins_earned > 0 && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span className="text-yellow-500">{entry.coins_earned} 🪙</span>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-lg font-bold text-indigo-400">{entry.score}</p>
-                                                <p className="text-xs text-indigo-600">/{entry.total_points} ball</p>
+                                                <div className="flex flex-col items-end">
+                                                    <p className="text-lg font-bold text-indigo-400 leading-none">{entry.total_score}</p>
+                                                    <p className="text-[10px] text-indigo-600 font-bold uppercase mt-1">ball</p>
+                                                </div>
                                             </div>
                                         </div>
                                     );

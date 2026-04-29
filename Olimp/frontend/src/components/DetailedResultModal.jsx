@@ -48,7 +48,7 @@ export function StorySummaryModal({ data, ertak, onClose, onShowDetails }) {
     
     const quizScore = data.quiz_score || 0;
     const answers = data.answers || data.quiz_answers || [];
-    const totalCorrect = answers.filter(a => a.is_correct || a.score >= 50).length;
+    const totalCorrect = answers.filter(a => a.is_correct || a.score >= 70).length;
 
     return (
         <ReadingOlympiadResultSummary 
@@ -177,18 +177,35 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                         </div>
                         <div className="space-y-4">
                             {(data.answers || []).map((ans, idx) => {
-                                const isCorrect = (ans.score !== undefined ? ans.score >= 50 : ans.is_correct);
+                                const question = ertak?.questions?.find((q, i) => String(q.id || i) === String(ans.question_id)) || ertak?.questions?.[idx];
+                                const isCorrect = (ans.score !== undefined ? ans.score >= 70 : ans.is_correct);
+                                
                                 return (
-                                    <div key={idx} className={`p-5 rounded-3xl border ${isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}>
-                                        <p className="text-white/40 text-[10px] font-black uppercase mb-3 tracking-widest">{idx + 1}-savol</p>
-                                        <p className="text-xs text-white/90 font-medium mb-3 leading-relaxed">
-                                            {ans.answer_text || ans.submitted_answer || "(Javob aniqlanmadi)"}
-                                        </p>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                    <div key={idx} className={`p-5 rounded-3xl border transition-all ${isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}>
+                                        <div className="flex justify-between items-start mb-3">
+                                            <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">{idx + 1}-savol</p>
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${isCorrect ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                                {ans.score || 0} ball
+                                            </span>
+                                        </div>
+                                        
+                                        {question && (
+                                            <p className="text-white font-bold text-sm mb-3 leading-relaxed">
+                                                {question.question_text || question.question}
+                                            </p>
+                                        )}
+
+                                        <div className="bg-black/20 rounded-2xl p-4 border border-white/5">
+                                            <p className="text-white/30 text-[9px] uppercase font-bold mb-2 tracking-tighter">Sizning javobingiz:</p>
+                                            <p className="text-xs text-white/90 font-medium leading-relaxed">
+                                                {ans.answer_text || ans.submitted_answer || "(Javob aniqlanmadi)"}
+                                            </p>
+                                        </div>
+
+                                        <div className="mt-4 flex items-center gap-3">
+                                            <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                                                 <div className={`h-full transition-all duration-1000 ${isCorrect ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${ans.score || 0}%` }} />
                                             </div>
-                                            <span className="text-[10px] font-black text-white/40">{ans.score || 0} ball</span>
                                         </div>
                                     </div>
                                 );
