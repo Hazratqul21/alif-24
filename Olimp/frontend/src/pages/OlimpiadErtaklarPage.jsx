@@ -57,7 +57,12 @@ function SubmitToOlympiad({ olympiadId, storyId, wpm, readPercent, readElapsed, 
         </p>
     );
     if (status === 'done') return (
-        <p className="text-emerald-400 text-xs text-center">✅ Natija olimpiadaga yuborildi!<// ─── Reusable Result Summary Component ──────────────────────────────────────────
+        <p className="text-emerald-400 text-xs text-center">✅ Natija olimpiadaga yuborildi!</p>
+    );
+    return null;
+}
+
+// ─── Reusable Result Summary Component ──────────────────────────────────────────
 export function ReadingOlympiadResultSummary({ ertak, readingStats, totalScore, scores, totalCorrect, questions, onClose, olympiadId, resultSubmitted, setResultSubmitted, onRefresh }) {
     const wpm = readingStats.wpm || 0;
     const readPercent = readingStats.readPercent || 0;
