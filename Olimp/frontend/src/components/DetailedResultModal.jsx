@@ -69,7 +69,7 @@ export function StorySummaryModal({ data, ertak, onClose, onShowDetails }) {
         />
     );
 }
-}
+
 
 /**
  * TestDetailedResultModal
