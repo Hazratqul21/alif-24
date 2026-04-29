@@ -3273,7 +3273,7 @@ async def submit_reading_result(
 
     # Only save/update scores on the submission object if it's the FIRST time
     # OR if the NEW score is better than the existing one.
-    is_better = data.score > (submission.total_points or 0)
+    is_better = total_session_points > (submission.total_points or 0)
     
     if not submission_existed or is_better:
         submission.words_per_minute = data.wpm
