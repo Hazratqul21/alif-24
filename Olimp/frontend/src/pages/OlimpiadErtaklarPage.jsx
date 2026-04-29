@@ -1408,11 +1408,12 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
     const qCount = storyQCount || globalQCount;
 
     // MUHIM: student_result ni to'g'ri tekshirish
-    const isCompleted = ertak.student_result &&
-        (ertak.student_result.total_points !== undefined ||
-            ertak.student_result.read_percent !== undefined ||
-            ertak.student_result.earned_coins !== undefined);
-
+    // MUHIM: natijalarni ajratish
+    const studentRes = ertak.student_result;
+    const isReadingCompleted = studentRes && (studentRes.read_percent > 0 || studentRes.wpm > 0);
+    const isQuizCompleted = studentRes && (studentRes.total_points > 10 || (studentRes.quiz_answers && studentRes.quiz_answers.length > 0) || (studentRes.answers && studentRes.answers.length > 0));
+    
+    const isCompleted = isReadingCompleted || isQuizCompleted;
     const isSeen = isCompleted || ertak.isSeen;
 
     return (
@@ -1487,12 +1488,20 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
                     </div>
                 )}
                 <div className="mt-auto grid grid-cols-1 gap-2">
-                    {isCompleted && (
+                    {isQuizCompleted && (
                         <button
-                            onClick={(e) => { e.stopPropagation(); onViewResult(); }}
-                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-50 text-[#4b30fb] rounded-xl font-medium text-sm hover:bg-indigo-100 transition-all border border-[#4b30fb]/10"
+                            onClick={(e) => { e.stopPropagation(); onViewResult('quiz'); }}
+                            className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-medium text-xs hover:bg-emerald-100 transition-all border border-emerald-500/10"
                         >
-                            <Trophy className="w-4 h-4 text-[#4b30fb]" /> Natijani ko'rish
+                            <Trophy className="w-3.5 h-3.5 text-emerald-500" /> Test natijasi
+                        </button>
+                    )}
+                    {isReadingCompleted && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onViewResult('reading'); }}
+                            className="w-full flex items-center justify-center gap-2 py-2 bg-indigo-50 text-[#4b30fb] rounded-xl font-medium text-xs hover:bg-indigo-100 transition-all border border-[#4b30fb]/10"
+                        >
+                            <Trophy className="w-3.5 h-3.5 text-[#4b30fb]" /> Mutolaa natijasi
                         </button>
                     )}
                     <button className={`w-full flex items-center justify-center gap-2 py-3 ${isCompleted ? 'bg-gradient-to-r from-[#4b30fb]/80 to-[#764ba2]/80 group-hover:scale-[1.02]' : 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] group-hover:scale-[1.02]'} text-white rounded-2xl font-semibold text-sm transition-transform shadow-md ${isCompleted ? 'shadow-purple-500/20' : 'shadow-purple-500/30'}`}>
@@ -1680,25 +1689,38 @@ export default function OlimpiadErtaklarPage() {
                                                 markAsSeen(strId);
                                                 setActiveErtak(ertak);
                                             }}
-                                            onViewResult={() => {
+                                            onViewResult={(subType) => {
                                                 const res = ertak.student_result;
                                                 const reading_stats = res ? {
                                                     wpm: res.wpm,
                                                     readPercent: res.read_percent,
                                                     elapsed: res.reading_duration_seconds
                                                 } : null;
-                                                setViewingResult({ 
-                                                    type: 'story', 
-                                                    data: { 
-                                                        ...res, 
-                                                        reading_stats,
-                                                        answers: res.answers || res.quiz_answers || [],
-                                                        correct_answers: res.correct_answers || res.total_correct || 0,
-                                                        total_questions: res.total_questions || ertak.questions?.length || 0,
-                                                        score: res.total_points || res.quiz_score || res.score || 0
-                                                    }, 
-                                                    ertak 
-                                                });
+                                                
+                                                const baseData = { 
+                                                    ...res, 
+                                                    reading_stats,
+                                                    answers: res.answers || res.quiz_answers || [],
+                                                    correct_answers: res.correct_answers || res.total_correct || 0,
+                                                    total_questions: res.total_questions || ertak.questions?.length || 0,
+                                                    score: res.total_points || res.quiz_score || res.score || 0
+                                                };
+
+                                                if (subType === 'reading') {
+                                                    // Force story type but with no answers to show only reading stats
+                                                    setViewingResult({ 
+                                                        type: 'story', 
+                                                        data: { ...baseData, answers: [] }, 
+                                                        ertak 
+                                                    });
+                                                } else {
+                                                    // Show as a test result
+                                                    setViewingResult({ 
+                                                        type: 'story_test', // New type for story quizzes
+                                                        data: baseData, 
+                                                        ertak 
+                                                    });
+                                                }
                                             }}
                                             olympiadQuestions={olympiadQuestions}
                                         />
@@ -1731,7 +1753,7 @@ export default function OlimpiadErtaklarPage() {
                                     total_questions: res.total_questions || activeErtak?.questions?.length || 0,
                                     score: res.quiz_score ?? res.total_points ?? res.score ?? 0
                                 };
-                                setViewingResult({ type: 'story', data: mappedData, ertak: activeErtak });
+                                setViewingResult({ type: 'story_test', data: mappedData, ertak: activeErtak });
                             }
                         }}
                         onRefresh={loadErtaklar}

@@ -277,10 +277,13 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
     if (!viewingResult) return null;
     const { type, data, ertak } = viewingResult;
 
-    if (type === 'story' || data?.reading_stats) {
+    // Mutolaa natijasi modal (Indigo)
+    if (type === 'story') {
         return <ReadingDetailedResultModal data={data} ertak={ertak} onClose={onClose} />;
     }
 
+    // Test natijalari modal (Emerald)
+    // type === 'global' (Olimpiada testi) yoki 'story_test' (Ertak testi)
     return (
         <TestDetailedResultModal 
             data={data} 
