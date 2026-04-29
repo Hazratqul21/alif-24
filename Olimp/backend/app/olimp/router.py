@@ -3271,7 +3271,10 @@ async def submit_reading_result(
             db.add(submission)
 
     # Only save/update scores on the submission object if it's the FIRST time
-    if not submission_existed:
+    # OR if the NEW score is better than the existing one.
+    is_better = data.score > (submission.total_points or 0)
+    
+    if not submission_existed or is_better:
         submission.words_per_minute = data.wpm
         submission.read_percent = data.read_percent
         submission.reading_duration_seconds = data.reading_time_seconds
@@ -3280,34 +3283,14 @@ async def submit_reading_result(
         submission.comprehension_answers = quiz_details
         submission.total_points = total_session_points
         submission.submitted_at = datetime.now(timezone.utc)
-        submission.earned_coins = int(total_new_coins)
-    else:
-        # Re-take: return FIRST attempt results from DB, don't save anything new.
-        # `reading_attempts` is bumped here ONLY — the normal path has its own
-        # separate increment so we never double-count.
-        logger.info(f"Re-take detected for participant {participant.id}, returning first attempt results.")
-        participant.reading_attempts = (participant.reading_attempts or 0) + 1
-        await db.commit()
         
-        return {
-            "success": True,
-            "data": {
-                "quiz_score": submission.total_points or 0,
-                "total_score": participant.total_score or 0,
-                "correct_answers": submission.comprehension_score or 0,
-                "total_questions": submission.comprehension_total or 0,
-                "wpm": submission.words_per_minute or 0,
-                "read_percent": submission.read_percent or 0,
-                "reading_time_seconds": submission.reading_duration_seconds or 0,
-                "reading_coins": 0,
-                "quiz_coins": 0,
-                "total_coins": 0,
-                "attempt": participant.reading_attempts,
-                "quiz_details": [],
-                "is_retake": True,
-            }
-        }
-
+        if not submission_existed:
+            submission.earned_coins = int(total_new_coins)
+        elif int(total_new_coins) > (submission.earned_coins or 0):
+             submission.earned_coins = int(total_new_coins)
+    
+    # We always increment attempts
+    participant.reading_attempts = (participant.reading_attempts or 0) + 1
     # Ensure current submission is flushed to DB before aggregation
     db.add(participant)
     if submission:
