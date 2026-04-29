@@ -1,51 +1,32 @@
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { X, Trophy, BookOpen, Brain, Star, CheckCircle, ChevronRight } from 'lucide-react';
 import MathContent from './Common/MathContent';
+import { ReadingOlympiadResultSummary } from '../pages/OlimpiadErtaklarPage';
 
 /**
  * Common Wrapper for both modals
  */
-function ModalWrapper({ onClose, title, subtitle, children }) {
+function ModalWrapper({ onClose, title, children, dark = true }) {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3" onClick={onClose}>
-            <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
+            <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
             <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative bg-[#1a1a2e] border border-white/10 rounded-[2rem] w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden"
-                style={{ maxHeight: '90vh' }}
+                className={`relative ${dark ? 'bg-[#0f172a]' : 'bg-[#1a1a2e]'} border border-white/10 rounded-[2.5rem] w-full max-w-md shadow-2xl flex flex-col overflow-hidden`}
+                style={{ maxHeight: '94vh' }}
                 onClick={e => e.stopPropagation()}
             >
-                {/* Header Section */}
-                <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 px-6 py-6 border-b border-white/5">
-                    <div className="flex justify-between items-start mb-6">
-                        <div>
-                            <h2 className="text-white font-black text-2xl mb-1">{title}</h2>
-                            <p className="text-white/40 text-xs uppercase tracking-widest font-bold">
-                                {subtitle}
-                            </p>
-                        </div>
-                        <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/40 hover:text-white">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                    {children[0]}
-                </div>
-
-                {/* Content Section */}
-                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 custom-scrollbar">
-                    {children[1]}
-                </div>
-
-                {/* Footer Section */}
-                <div className="p-6 border-t border-white/5">
-                    <button
-                        onClick={onClose}
-                        className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-indigo-500/20"
-                    >
-                        Tushunarli
+                <div className="absolute top-4 right-4 z-50">
+                    <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/40 hover:text-white">
+                        <X className="w-5 h-5" />
                     </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto px-6 py-8 space-y-6 custom-scrollbar">
+                    {children}
                 </div>
             </motion.div>
         </div>
@@ -53,112 +34,45 @@ function ModalWrapper({ onClose, title, subtitle, children }) {
 }
 
 /**
- * ReadingDetailedResultModal
- * Specifically for story reading and voice quizzes
+ * StorySummaryModal
+ * Wraps the shared component from the main page
  */
-export function ReadingDetailedResultModal({ data, ertak, onClose }) {
+export function StorySummaryModal({ data, ertak, onClose, onShowDetails }) {
     if (!data) return null;
 
-    const answers = data.answers || [];
-    const correctCount = data.correct_answers || 0;
-    const totalCount = data.total_questions || ertak?.questions?.length || 0;
-    const score = data.quiz_score || data.score || data.total_points || 0;
-    const stats = data.reading_stats;
+    const stats = data.reading_stats || {
+        wpm: data.wpm || 0,
+        readPercent: data.read_percent || 0,
+        elapsed: data.reading_duration_seconds || 0
+    };
+    
+    const quizScore = data.quiz_score || 0;
+    const answers = data.answers || data.quiz_answers || [];
+    const totalCorrect = answers.filter(a => a.is_correct || a.score >= 50).length;
 
     return (
-        <ModalWrapper 
-            onClose={onClose} 
-            title="Natijalar" 
-            subtitle={ertak?.title || 'Ertak mutolaasi'}
-        >
-            {/* Header Children */}
-            <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-center">
-                        <p className="text-emerald-400 font-black text-2xl leading-none mb-1">{correctCount}</p>
-                        <p className="text-white/30 text-[10px] uppercase font-bold">To'g'ri</p>
-                    </div>
-                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-center">
-                        <p className="text-rose-400 font-black text-2xl leading-none mb-1">{totalCount - correctCount}</p>
-                        <p className="text-white/30 text-[10px] uppercase font-bold">Noto'g'ri</p>
-                    </div>
-                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-center">
-                        <p className="text-amber-400 font-black text-2xl leading-none mb-1">{score}</p>
-                        <p className="text-white/30 text-[10px] uppercase font-bold">Ball</p>
-                    </div>
-                </div>
-
-            </div>
-
-            {/* Content Children */}
-            <>
-                {answers.length === 0 ? (
-                    <div className="text-center py-10 opacity-40">
-                        <AlertCircle className="w-12 h-12 mx-auto mb-3" />
-                        <p>Batafsil ma'lumot mavjud emas</p>
-                    </div>
-                ) : (
-                    answers.map((ans, idx) => {
-                        const question = ertak?.questions?.find(q => String(q.id) === String(ans.question_id)) || ertak?.questions?.[idx];
-                        const isCorrect = ans.is_correct ?? (ans.score !== undefined ? ans.score >= 50 : false);
-                        
-                        return (
-                            <motion.div
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.05 }}
-                                key={idx}
-                                className={`p-5 rounded-2xl border ${isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}
-                            >
-                                <div className="flex items-start gap-4">
-                                    <div className={`mt-1 p-1.5 rounded-lg ${isCorrect ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                                        {isCorrect ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
-                                    </div>
-                                    <div className="flex-1">
-                                        <MathContent content={question?.question || `Savol #${idx+1}`} className="text-white font-bold text-base mb-3 leading-snug" />
-                                        
-                                        <div className="space-y-2 pt-1">
-                                            {(ans.submitted_answer !== undefined || ans.answer_text !== undefined) && (() => {
-                                                const displayAns = ans.answer_text || ans.submitted_answer || "(Javob aniqlanmadi)";
-                                                return (
-                                                    <p className="text-sm text-white/60">
-                                                        Sizning javobingiz: <span className="text-white font-medium italic">"{displayAns}"</span>
-                                                    </p>
-                                                );
-                                            })()}
-                                            {ans.score !== undefined && (
-                                                <div className="flex items-center gap-2 mt-2">
-                                                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                                        <div 
-                                                            className={`h-full rounded-full ${ans.score >= 80 ? 'bg-emerald-500' : ans.score >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} 
-                                                            style={{ width: `${ans.score}%` }} 
-                                                        />
-                                                    </div>
-                                                    <span className={`text-xs font-black ${ans.score >= 80 ? 'text-emerald-400' : ans.score >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
-                                                        {ans.score} ball
-                                                    </span>
-                                                </div>
-                                            )}
-                                            {question?.answer && (
-                                                <p className="text-sm text-emerald-400/80">
-                                                    To'g'ri javob: <span className="font-medium">{question.answer}</span>
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        );
-                    })
-                )}
-            </>
-        </ModalWrapper>
+        <ReadingOlympiadResultSummary 
+            ertak={ertak}
+            readingStats={stats}
+            totalScore={quizScore}
+            scores={answers}
+            totalCorrect={totalCorrect}
+            questions={ertak?.questions || []}
+            onClose={(res) => {
+                if (res && res.quiz_score !== undefined) {
+                    onShowDetails();
+                } else {
+                    onClose();
+                }
+            }}
+            resultSubmitted={true} // Since we are viewing old results
+        />
     );
+}
 }
 
 /**
  * TestDetailedResultModal
- * Specifically for multiple choice tests
  */
 export function TestDetailedResultModal({ data, questions, onClose, title = "Test natijalari" }) {
     if (!data) return null;
@@ -169,109 +83,130 @@ export function TestDetailedResultModal({ data, questions, onClose, title = "Tes
     const score = data.quiz_score || data.score || 0;
 
     return (
-        <ModalWrapper 
-            onClose={onClose} 
-            title={title} 
-            subtitle="Olimpiada testi"
-        >
-            {/* Header Children */}
-            <div className="grid grid-cols-3 gap-3">
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-center">
-                    <p className="text-emerald-400 font-black text-2xl leading-none mb-1">{correctCount}</p>
-                    <p className="text-white/30 text-[10px] uppercase font-bold">To'g'ri</p>
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-white font-black text-2xl tracking-tight">{title}</h2>
+                    <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest">Olimpiada testi</p>
                 </div>
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-center">
-                    <p className="text-rose-400 font-black text-2xl leading-none mb-1">{totalCount - correctCount}</p>
-                    <p className="text-white/30 text-[10px] uppercase font-bold">Noto'g'ri</p>
-                </div>
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-center">
-                    <p className="text-amber-400 font-black text-2xl leading-none mb-1">{score}</p>
-                    <p className="text-white/30 text-[10px] uppercase font-bold">Ball</p>
+                <div className="p-3 bg-amber-400/20 rounded-2xl border border-amber-400/20">
+                    <Trophy className="w-6 h-6 text-amber-400" />
                 </div>
             </div>
 
-            {/* Content Children */}
-            <>
-                {answers.length === 0 ? (
-                    <div className="text-center py-10 opacity-40">
-                        <AlertCircle className="w-12 h-12 mx-auto mb-3" />
-                        <p>Batafsil ma'lumot mavjud emas</p>
-                    </div>
-                ) : (
-                    answers.map((ans, idx) => {
-                        const question = questions?.find(q => String(q.id) === String(ans.question_id)) || questions?.[idx];
-                        const isCorrect = ans.is_correct ?? false;
-                        
-                        return (
-                            <motion.div
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.05 }}
-                                key={idx}
-                                className={`p-5 rounded-2xl border ${isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}
-                            >
-                                <div className="flex items-start gap-4">
-                                    <div className={`mt-1 p-1.5 rounded-lg ${isCorrect ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                                        {isCorrect ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
-                                    </div>
-                                    <div className="flex-1">
-                                        <MathContent content={question?.question_text || question?.question || `Savol #${idx+1}`} className="text-white font-bold text-base mb-3 leading-snug" />
-                                        
-                                        {question?.options && (
-                                            <div className="grid grid-cols-1 gap-2">
-                                                {question.options.map((opt, oi) => {
-                                                    const isSelected = Number(ans.submitted_answer) === oi || Number(ans.selected_answer) === oi;
-                                                    const isCorrectOpt = Number(question.correct_answer) === oi || Number(question.correct) === oi;
-                                                    
-                                                    let bgClass = "bg-white/5 border-white/5 text-white/50";
-                                                    if (isSelected) {
-                                                        bgClass = isCorrect ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300" : "bg-rose-500/20 border-rose-500/40 text-rose-300";
-                                                    } else if (isCorrectOpt) {
-                                                        bgClass = "bg-emerald-500/10 border-emerald-500/20 text-emerald-400";
-                                                    }
+            <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-center">
+                    <p className="text-emerald-400 font-black text-2xl leading-none mb-1">{correctCount}</p>
+                    <p className="text-white/30 text-[9px] uppercase font-bold tracking-tighter">To'g'ri</p>
+                </div>
+                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-center">
+                    <p className="text-rose-400 font-black text-2xl leading-none mb-1">{totalCount - correctCount}</p>
+                    <p className="text-white/30 text-[9px] uppercase font-bold tracking-tighter">Noto'g'ri</p>
+                </div>
+                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-center">
+                    <p className="text-amber-400 font-black text-2xl leading-none mb-1">{score}</p>
+                    <p className="text-white/30 text-[9px] uppercase font-bold tracking-tighter">Ball</p>
+                </div>
+            </div>
 
-                                                    return (
-                                                        <div key={oi} className={`px-4 py-2.5 rounded-xl border text-sm flex items-center justify-between ${bgClass}`}>
-                                                            <MathContent content={opt} className="flex-1 text-sm" />
-                                                            {isSelected && (isCorrect ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />)}
-                                                            {!isSelected && isCorrectOpt && <CheckCircle2 className="w-4 h-4 opacity-50" />}
-                                                        </div>
-                                                    );
-                                                })}
+            <div className="space-y-4 pt-2">
+                {answers.map((ans, idx) => {
+                    const question = questions?.find(q => String(q.id) === String(ans.question_id)) || questions?.[idx];
+                    const isCorrect = ans.is_correct ?? false;
+                    
+                    return (
+                        <div key={idx} className={`p-5 rounded-3xl border transition-all ${isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}>
+                            <MathContent content={question?.question_text || question?.question || `Savol #${idx+1}`} className="text-white font-bold text-sm mb-4 leading-relaxed" />
+                            {question?.options && (
+                                <div className="space-y-2">
+                                    {question.options.map((opt, oi) => {
+                                        const isSelected = Number(ans.submitted_answer) === oi || Number(ans.selected_answer) === oi;
+                                        const isCorrectOpt = Number(question.correct_answer) === oi || Number(question.correct) === oi;
+                                        let cls = "bg-white/5 border-white/5 text-white/40";
+                                        if (isSelected) cls = isCorrect ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300" : "bg-rose-500/20 border-rose-500/40 text-rose-300";
+                                        else if (isCorrectOpt) cls = "bg-emerald-500/10 border-emerald-500/20 text-emerald-400";
+                                        return (
+                                            <div key={oi} className={`px-4 py-2.5 rounded-xl border text-[11px] font-medium ${cls}`}>
+                                                <MathContent content={opt} />
                                             </div>
-                                        )}
-                                    </div>
+                                        );
+                                    })}
                                 </div>
-                            </motion.div>
-                        );
-                    })
-                )}
-            </>
-        </ModalWrapper>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            <button onClick={onClose} className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest mt-4">
+                Tushunarli
+            </button>
+        </div>
     );
 }
 
 /**
  * Default Export - Router
- * For backward compatibility or easy unified usage
  */
 export default function DetailedResultModal({ viewingResult, onClose, olympiadQuestions }) {
+    const [viewMode, setViewMode] = useState('summary');
+
     if (!viewingResult) return null;
     const { type, data, ertak } = viewingResult;
 
-    // Mutolaa natijasi modal (Indigo)
-    if (type === 'story') {
-        return <ReadingDetailedResultModal data={data} ertak={ertak} onClose={onClose} />;
-    }
+    const isStory = type === 'story' || type === 'story_test';
 
-    // Test natijalari modal (Emerald)
-    // type === 'global' (Olimpiada testi) yoki 'story_test' (Ertak testi)
     return (
-        <TestDetailedResultModal 
-            data={data} 
-            questions={type === 'global' ? olympiadQuestions : (ertak?.questions || [])} 
-            onClose={onClose} 
-            title={type === 'global' ? "Olimpiada testi" : "Test natijalari"}
-        />
+        <ModalWrapper onClose={onClose} dark={isStory && viewMode === 'summary'}>
+            {isStory ? (
+                viewMode === 'summary' ? (
+                    <StorySummaryModal 
+                        data={data} 
+                        ertak={ertak} 
+                        onClose={onClose} 
+                        onShowDetails={() => setViewMode('details')} 
+                    />
+                ) : (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h2 className="text-white font-black text-2xl tracking-tight">Batafsil natija</h2>
+                                <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest">{ertak?.title}</p>
+                            </div>
+                            <button onClick={() => setViewMode('summary')} className="text-indigo-400 text-xs font-black uppercase tracking-widest underline underline-offset-4">Orqaga</button>
+                        </div>
+                        <div className="space-y-4">
+                            {(data.answers || []).map((ans, idx) => {
+                                const isCorrect = (ans.score !== undefined ? ans.score >= 50 : ans.is_correct);
+                                return (
+                                    <div key={idx} className={`p-5 rounded-3xl border ${isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}>
+                                        <p className="text-white/40 text-[10px] font-black uppercase mb-3 tracking-widest">{idx + 1}-savol</p>
+                                        <p className="text-xs text-white/90 font-medium mb-3 leading-relaxed">
+                                            {ans.answer_text || ans.submitted_answer || "(Javob aniqlanmadi)"}
+                                        </p>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                                <div className={`h-full transition-all duration-1000 ${isCorrect ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${ans.score || 0}%` }} />
+                                            </div>
+                                            <span className="text-[10px] font-black text-white/40">{ans.score || 0} ball</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <button onClick={onClose} className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest mt-4">
+                            Yopish
+                        </button>
+                    </div>
+                )
+            ) : (
+                <TestDetailedResultModal 
+                    data={data} 
+                    questions={type === 'global' ? olympiadQuestions : (ertak?.questions || [])} 
+                    onClose={onClose} 
+                    title={type === 'global' ? "Olimpiada testi" : "Test natijalari"}
+                />
+            )}
+        </ModalWrapper>
     );
 }
