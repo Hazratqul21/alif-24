@@ -88,24 +88,6 @@ export function ReadingDetailedResultModal({ data, ertak, onClose }) {
                     </div>
                 </div>
 
-                {stats && (
-                    <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-blue-500/10 rounded-2xl p-3 border border-blue-500/20 text-center">
-                            <p className="text-blue-400 font-black text-xl leading-none mb-1">{stats.wpm || 0}</p>
-                            <p className="text-white/30 text-[9px] uppercase font-bold">So'z/daq</p>
-                        </div>
-                        <div className="bg-indigo-500/10 rounded-2xl p-3 border border-indigo-500/20 text-center">
-                            <p className="text-indigo-400 font-black text-xl leading-none mb-1">{Math.round(stats.readPercent || 0)}%</p>
-                            <p className="text-white/30 text-[9px] uppercase font-bold">O'qilgan</p>
-                        </div>
-                        <div className="bg-purple-500/10 rounded-2xl p-3 border border-purple-500/20 text-center">
-                            <p className="text-purple-400 font-black text-xl leading-none mb-1">
-                                {stats.elapsed ? `${Math.floor(stats.elapsed / 60)}:${String(stats.elapsed % 60).padStart(2, '0')}` : '00:00'}
-                            </p>
-                            <p className="text-white/30 text-[9px] uppercase font-bold">Vaqt</p>
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* Content Children */}

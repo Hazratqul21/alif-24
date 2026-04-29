@@ -1469,24 +1469,14 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
                 </div>
 
                 {isCompleted && ertak.student_result && (
-                    <div className="grid grid-cols-4 gap-1 mb-4">
-                        <div className="bg-emerald-50/50 rounded-lg p-1.5 text-center border border-emerald-100/30">
-                            <p className="text-[9px] text-emerald-600/60 uppercase font-bold leading-none mb-1">Ball</p>
-                            <p className="text-[13px] font-black text-emerald-600 leading-none">{ertak.student_result.total_points ?? 0}</p>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                        <div className="bg-emerald-50/50 rounded-lg p-2 text-center border border-emerald-100/30">
+                            <p className="text-[10px] text-emerald-600/60 uppercase font-bold leading-none mb-1">Ball</p>
+                            <p className="text-base font-black text-emerald-600 leading-none">{ertak.student_result.total_points ?? 0}</p>
                         </div>
-                        <div className="bg-blue-50/50 rounded-lg p-1.5 text-center border border-blue-100/30">
-                            <p className="text-[9px] text-blue-600/60 uppercase font-bold leading-none mb-1">O'qish</p>
-                            <p className="text-[13px] font-black text-blue-600 leading-none">{Math.round(ertak.student_result.read_percent ?? 0)}%</p>
-                        </div>
-                        <div className="bg-purple-50/50 rounded-lg p-1.5 text-center border border-purple-100/30">
-                            <p className="text-[9px] text-purple-600/60 uppercase font-bold leading-none mb-1">Vaqt</p>
-                            <p className="text-[13px] font-black text-purple-600 leading-none">
-                                {ertak.student_result.reading_duration_seconds ? `${Math.floor(ertak.student_result.reading_duration_seconds / 60)}:${String(ertak.student_result.reading_duration_seconds % 60).padStart(2, '0')}` : '—'}
-                            </p>
-                        </div>
-                        <div className="bg-amber-50/50 rounded-lg p-1.5 text-center border border-amber-100/30">
-                            <p className="text-[9px] text-amber-600/60 uppercase font-bold leading-none mb-1">Coin</p>
-                            <p className="text-[13px] font-black text-amber-600 leading-none">+{ertak.student_result.earned_coins ?? 0}</p>
+                        <div className="bg-amber-50/50 rounded-lg p-2 text-center border border-amber-100/30">
+                            <p className="text-[10px] text-amber-600/60 uppercase font-bold leading-none mb-1">Coin</p>
+                            <p className="text-base font-black text-amber-600 leading-none">+{ertak.student_result.earned_coins ?? 0}</p>
                         </div>
                     </div>
                 )}
@@ -1494,17 +1484,9 @@ function ErtakCard({ ertak, index, onClick, onViewResult, olympiadQuestions = []
                     {isQuizCompleted && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onViewResult('quiz'); }}
-                            className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-medium text-xs hover:bg-emerald-100 transition-all border border-emerald-500/10"
+                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-medium text-sm hover:bg-emerald-100 transition-all border border-emerald-500/10"
                         >
-                            <Trophy className="w-3.5 h-3.5 text-emerald-500" /> O'qish natijasi
-                        </button>
-                    )}
-                    {isReadingCompleted && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onViewResult('reading'); }}
-                            className="w-full flex items-center justify-center gap-2 py-2 bg-indigo-50 text-[#4b30fb] rounded-xl font-medium text-xs hover:bg-indigo-100 transition-all border border-[#4b30fb]/10"
-                        >
-                            <Trophy className="w-3.5 h-3.5 text-[#4b30fb]" /> Mutolaa natijasi
+                            <Trophy className="w-4 h-4 text-emerald-500" /> Natijani ko'rish
                         </button>
                     )}
                     <button className={`w-full flex items-center justify-center gap-2 py-3 ${isCompleted ? 'bg-gradient-to-r from-[#4b30fb]/80 to-[#764ba2]/80 group-hover:scale-[1.02]' : 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] group-hover:scale-[1.02]'} text-white rounded-2xl font-semibold text-sm transition-transform shadow-md ${isCompleted ? 'shadow-purple-500/20' : 'shadow-purple-500/30'}`}>
