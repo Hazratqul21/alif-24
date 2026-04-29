@@ -2729,16 +2729,27 @@ async def get_olympiad_stories(
                 )
             )
             for sub in sub_res.scalars().all():
+                # Calculate average quiz score from answers if available (for voice/AI evaluation)
+                # or fallback to percentage of correct answers
+                answers = sub.comprehension_answers or []
+                item_scores = [float(a.get("score", 0)) for a in answers if a.get("score") is not None]
+                if item_scores:
+                    q_avg = sum(item_scores) / len(item_scores)
+                elif sub.comprehension_total:
+                    q_avg = (sub.comprehension_score / sub.comprehension_total) * 100
+                else:
+                    q_avg = 0
+
                 obj = {
                     "wpm": sub.words_per_minute or 0,
                     "read_percent": sub.read_percent or 0,
                     "reading_time_seconds": sub.reading_duration_seconds or 0,
-                    "quiz_score": sub.comprehension_score or 0,
+                    "quiz_score": int(round(q_avg)),
                     "earned_coins": sub.earned_coins or 0,
                     "correct_answers": sub.comprehension_score or 0,
                     "total_questions": sub.comprehension_total or 0,
                     "total_points": sub.total_points or 0,
-                    "answers": sub.comprehension_answers or [],
+                    "answers": answers,
                 }
                 if sub.story_id is not None:
                     subs_map[str(sub.story_id)] = obj

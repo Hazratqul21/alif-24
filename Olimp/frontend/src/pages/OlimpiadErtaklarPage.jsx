@@ -112,12 +112,27 @@ export function ReadingOlympiadResultSummary({ ertak, readingStats, totalScore, 
 
             <div className="w-full mt-1">
                 <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3 flex items-center gap-2">
-                    🧠 SAVOL-JAVOB
+                    🧠 NATIJA TAHLILI
                 </p>
-                <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-[1.25rem] p-6 text-center mb-4">
-                    <p className={`text-[3.5rem] leading-none font-black mb-2 ${scoreColor(totalScore)}`}>{totalScore}</p>
-                    <p className="text-white/40 text-sm font-medium">100 ball dan</p>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 text-center">
+                        <p className="text-white/40 text-[10px] uppercase font-bold mb-1">O'qish uchun</p>
+                        <p className="text-emerald-400 text-2xl font-black">+10</p>
+                    </div>
+                    <div className="bg-[#1b254b]/50 border border-white/[0.03] rounded-2xl p-4 text-center">
+                        <p className="text-white/40 text-[10px] uppercase font-bold mb-1">Savollar bali</p>
+                        <p className={`text-2xl font-black ${scoreColor(totalScore)}`}>{totalScore}</p>
+                    </div>
                 </div>
+                
+                <div className="bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-2xl p-5 text-center mb-6 shadow-lg shadow-purple-500/20 border border-white/10">
+                    <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Umumiy ball (Reyting uchun)</p>
+                    <p className="text-white text-5xl font-black">{totalScore + 10}</p>
+                </div>
+
+                <p className="text-white/50 text-[11px] uppercase tracking-widest font-semibold mb-3">
+                    Batafsil javoblar:
+                </p>
                 <div className="space-y-[6px]">
                     {scores.map((s, i) => (
                         <div key={i} className="flex items-center justify-between bg-[#1b254b]/30 rounded-xl px-5 py-[13px]">
