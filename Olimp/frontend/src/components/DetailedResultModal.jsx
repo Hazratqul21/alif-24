@@ -68,7 +68,7 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                     ) : (
                         answers.map((ans, idx) => {
                             const question = questions?.find(q => String(q.id) === String(ans.question_id)) || questions?.[idx];
-                            const isCorrect = ans.is_correct;
+                            const isCorrect = ans.is_correct ?? (ans.score !== undefined ? ans.score >= 50 : false);
                             
                             return (
                                 <motion.div
@@ -109,10 +109,23 @@ export default function DetailedResultModal({ viewingResult, onClose, olympiadQu
                                                 </div>
                                             ) : (
                                                 <div className="space-y-2 pt-1">
-                                                   {(ans.submitted_answer !== undefined || ans.selected_answer !== undefined) && (
+                                                   {(ans.submitted_answer !== undefined || ans.selected_answer !== undefined || ans.answer_text) && (
                                                        <p className="text-sm text-white/60">
-                                                           Sizning javobingiz: <span className="text-white font-medium">{ans.submitted_answer ?? ans.selected_answer}</span>
+                                                           Sizning javobingiz: <span className="text-white font-medium italic">"{ans.submitted_answer ?? ans.selected_answer ?? ans.answer_text}"</span>
                                                        </p>
+                                                   )}
+                                                   {ans.score !== undefined && (
+                                                       <div className="flex items-center gap-2 mt-2">
+                                                            <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                                                <div 
+                                                                    className={`h-full rounded-full ${ans.score >= 80 ? 'bg-emerald-500' : ans.score >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} 
+                                                                    style={{ width: `${ans.score}%` }} 
+                                                                />
+                                                            </div>
+                                                            <span className={`text-xs font-black ${ans.score >= 80 ? 'text-emerald-400' : ans.score >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
+                                                                {ans.score} ball
+                                                            </span>
+                                                       </div>
                                                    )}
                                                    {(question?.correct_answer !== undefined || question?.answer) && (
                                                        <p className="text-sm text-emerald-400/80">

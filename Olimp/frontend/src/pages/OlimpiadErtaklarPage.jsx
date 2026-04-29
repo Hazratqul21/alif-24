@@ -337,6 +337,7 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                 quizAnswers={scores.map((s, idx) => ({
                                     question_id: String(idx),
                                     answer_index: 0,
+                                    answer_text: s.recognized,
                                     score: s.score
                                 }))}
                                 quizScoreDirect={quizScoreForSubmit}
@@ -345,10 +346,29 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                 onRefresh={onRefresh}
                             />
 
-                            <button onClick={onClose}
-                                className="w-full py-[18px] mt-2 bg-gradient-to-r from-[#5f33f6] to-[#7f3bf6] text-white rounded-2xl font-bold text-[17px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-                                Yopish
-                            </button>
+                            <div className="flex flex-col gap-3 w-full mt-4">
+                                <button
+                                    onClick={() => onClose({
+                                        quiz_score: quizScoreForSubmit,
+                                        correct_answers: totalCorrect,
+                                        total_questions: questions.length,
+                                        answers: scores.map((s, idx) => ({
+                                            question_id: String(idx),
+                                            is_correct: s.passed,
+                                            score: s.score,
+                                            answer_text: s.recognized,
+                                            submitted_answer: s.recognized
+                                        }))
+                                    })}
+                                    className="w-full py-4 bg-white/10 text-white border border-white/10 rounded-2xl font-bold text-base hover:bg-white/20 transition-all"
+                                >
+                                    Batafsil ko'rish
+                                </button>
+                                <button onClick={onClose}
+                                    className="w-full py-[18px] bg-gradient-to-r from-[#5f33f6] to-[#7f3bf6] text-white rounded-2xl font-bold text-[17px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
+                                    Yopish
+                                </button>
+                            </div>
                         </div>
                     );
                 })() : (
@@ -417,7 +437,12 @@ function QuizModal({ ertak, onClose, readingStats = {}, olympiadId = null, onRef
                                 </div>
                                 {scores[qIndex].recognized && (
                                     <div className="w-full bg-white/5 rounded-xl p-3 space-y-1.5 text-xs">
-
+                                        <p className="text-white/40 uppercase tracking-wider font-bold text-[9px]">Sizning javobingiz:</p>
+                                        <p className="text-white/90 leading-relaxed italic">"{scores[qIndex].recognized}"</p>
+                                        <div className="pt-1 border-t border-white/5">
+                                            <p className="text-emerald-400/60 uppercase tracking-wider font-bold text-[9px]">To'g'ri javob:</p>
+                                            <MathContent content={scores[qIndex].correct} className="text-emerald-400/90" />
+                                        </div>
                                     </div>
                                 )}
                                 <button onClick={nextQuestion}
@@ -493,12 +518,20 @@ function OlympiadTestResultModal({ result, onClose }) {
                 </>
             )}
 
-            <button
-                onClick={onClose}
-                className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-purple-500/25"
-            >
-                Yopish
-            </button>
+            <div className="flex flex-col gap-3">
+                <button
+                    onClick={() => onClose(result)}
+                    className="w-full py-4 bg-white/10 text-white border border-white/10 rounded-2xl font-bold text-base hover:bg-white/20 transition-all"
+                >
+                    Batafsil ko'rish
+                </button>
+                <button
+                    onClick={() => onClose()}
+                    className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-purple-500/25"
+                >
+                    Yopish
+                </button>
+            </div>
         </div>
     );
 }
@@ -585,10 +618,18 @@ function OlympiadReadingResultModal({ result, readingStats, olympiadId, storyId,
                 </p>
             </div>
 
-            <button onClick={onClose}
-                className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-purple-500/25">
-                Yopish
-            </button>
+            <div className="flex flex-col gap-3 w-full">
+                <button
+                    onClick={() => onClose(result)}
+                    className="w-full py-4 bg-slate-100 text-[#1a1a2e] rounded-2xl font-bold text-base hover:bg-slate-200 transition-all"
+                >
+                    Batafsil ko'rish
+                </button>
+                <button onClick={() => onClose()}
+                    className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-base hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-purple-500/25">
+                    Yopish
+                </button>
+            </div>
         </div>
     );
 }
@@ -713,9 +754,9 @@ function OlympiadQuizModal({ questions = [], olympiadId, storyId = null, onClose
         }
     };
 
-    const handleClose = () => {
+    const handleClose = (resData = null) => {
         setResult(null);
-        onClose();
+        onClose(resData);
     };
 
     return (
@@ -1654,7 +1695,13 @@ export default function OlimpiadErtaklarPage() {
                 {activeErtak && (
                     <RecordingModal
                         ertak={activeErtak}
-                        onClose={() => { setActiveErtak(null); loadErtaklar(); }}
+                        onClose={(res) => { 
+                            setActiveErtak(null); 
+                            loadErtaklar(); 
+                            if (res && (res.quiz_score !== undefined || res.answers)) {
+                                setViewingResult({ type: 'story', data: res, ertak: activeErtak });
+                            }
+                        }}
                         onRefresh={loadErtaklar}
                         olympiadId={olympiadId}
                         olympiadQuestions={olympiadQuestions}
@@ -1666,7 +1713,13 @@ export default function OlimpiadErtaklarPage() {
                     <OlympiadQuizModal
                         questions={olympiadQuestions}
                         olympiadId={olympiadId}
-                        onClose={() => { setShowOlympiadQuiz(false); loadErtaklar(); }}
+                        onClose={(res) => { 
+                            setShowOlympiadQuiz(false); 
+                            loadErtaklar(); 
+                            if (res && (res.quiz_score !== undefined || res.answers)) {
+                                setViewingResult({ type: 'global', data: res });
+                            }
+                        }}
                         onRefresh={loadErtaklar}
                     />
                 )}
