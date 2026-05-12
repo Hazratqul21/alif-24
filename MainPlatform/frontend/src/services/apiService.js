@@ -1,5 +1,6 @@
-// Backend URL from environment variables or default to relative path
-const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
+// Always use relative path — nginx gateway handles routing.
+// NEVER use absolute URLs to prevent Mixed Content errors on HTTPS.
+const API_URL = '/api/v1';
 
 /** Custom error for subscription-gated content */
 class SubscriptionError extends Error {
