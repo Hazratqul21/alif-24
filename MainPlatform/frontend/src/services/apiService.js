@@ -163,8 +163,11 @@ class ApiService {
    */
   async post(endpoint, data = {}) {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
+    const baseUrl = this.baseUrl.startsWith('http')
+      ? this.baseUrl
+      : `${window.location.origin}${this.baseUrl}`;
     const doFetch = async () => {
-      const resp = await fetch(`${this.baseUrl}${endpoint}`, {
+      const resp = await fetch(`${baseUrl}${endpoint}`, {
         method: "POST", credentials: "include",
         headers: this.getHeaders(isFormData),
         body: isFormData ? data : JSON.stringify(data)
@@ -182,8 +185,11 @@ class ApiService {
    */
   async put(endpoint, data = {}) {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
+    const baseUrl = this.baseUrl.startsWith('http')
+      ? this.baseUrl
+      : `${window.location.origin}${this.baseUrl}`;
     const doFetch = async () => {
-      const resp = await fetch(`${this.baseUrl}${endpoint}`, {
+      const resp = await fetch(`${baseUrl}${endpoint}`, {
         method: "PUT", credentials: "include",
         headers: this.getHeaders(isFormData),
         body: isFormData ? data : JSON.stringify(data)
@@ -201,8 +207,11 @@ class ApiService {
    */
   async patch(endpoint, data = {}) {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
+    const baseUrl = this.baseUrl.startsWith('http')
+      ? this.baseUrl
+      : `${window.location.origin}${this.baseUrl}`;
     const doFetch = async () => {
-      const resp = await fetch(`${this.baseUrl}${endpoint}`, {
+      const resp = await fetch(`${baseUrl}${endpoint}`, {
         method: "PATCH", credentials: "include",
         headers: this.getHeaders(isFormData),
         body: isFormData ? data : JSON.stringify(data)
@@ -218,8 +227,11 @@ class ApiService {
    * @returns {Promise<Object>} Response data
    */
   async delete(endpoint) {
+    const baseUrl = this.baseUrl.startsWith('http')
+      ? this.baseUrl
+      : `${window.location.origin}${this.baseUrl}`;
     const doFetch = async () => {
-      const resp = await fetch(`${this.baseUrl}${endpoint}`, {
+      const resp = await fetch(`${baseUrl}${endpoint}`, {
         method: "DELETE", credentials: "include",
         headers: this.getHeaders()
       });

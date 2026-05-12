@@ -252,6 +252,10 @@ class TeacherService {
     async listTestInMarket(data) {
         return apiService.post('/marketplace/list-resource', data);
     }
+
+    async claimFreeItem(itemId) {
+        return apiService.post(`/marketplace/claim-free/${itemId}`);
+    }
 }
 
 export const teacherService = new TeacherService();

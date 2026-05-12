@@ -90,8 +90,12 @@ async def list_resource_for_sale(
     if current_user.role != UserRole.teacher:
         raise HTTPException(status_code=403, detail="Faqat o'qituvchilar resurs sotishi mumkin")
 
-    res_id = data["resource_id"]
-    res_type = data["resource_type"]
+    # Accept both resource_id and test_id (frontend compatibility)
+    res_id = data.get("resource_id") or data.get("test_id")
+    res_type = data.get("resource_type", "test")
+    
+    if not res_id:
+        raise HTTPException(status_code=400, detail="resource_id yoki test_id majburiy")
 
     # Ownership Verification
     if res_type == MarketplaceItemType.lesson:
@@ -126,6 +130,71 @@ async def list_resource_for_sale(
     await db.refresh(new_item)
     
     return {"success": True, "message": "Resurs sotuvga qo'yildi", "data": new_item}
+
+
+@router.post("/claim-free/{item_id}")
+async def claim_free_item(
+    item_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Claim a free marketplace item — clone resource to user's library.
+    No payment required.
+    """
+    from app.utils.cloner import clone_resource
+
+    # 1. Get the marketplace item
+    res = await db.execute(select(MarketplaceItem).where(MarketplaceItem.id == item_id))
+    item = res.scalars().first()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Resurs topilmadi")
+    
+    if item.price > 0 and not item.is_free:
+        raise HTTPException(status_code=400, detail="Bu resurs pullik. To'lov tizimi hali ishlamaydi.")
+    
+    # 2. Check if already claimed
+    existing = await db.execute(
+        select(MarketplacePurchase).where(
+            and_(
+                MarketplacePurchase.user_id == current_user.id,
+                MarketplacePurchase.item_id == item_id
+            )
+        )
+    )
+    if existing.scalars().first():
+        raise HTTPException(status_code=400, detail="Siz bu resursni allaqachon yuklab olgansiz")
+    
+    # 3. Clone the resource
+    cloned_id = await clone_resource(db, item.resource_id, item.resource_type.value, current_user.id)
+    
+    if not cloned_id:
+        raise HTTPException(status_code=500, detail="Resursni nusxalashda xatolik")
+    
+    # 4. Create purchase record (price = 0)
+    purchase = MarketplacePurchase(
+        id=generate_8_digit_id(),
+        user_id=current_user.id,
+        item_id=item.id,
+        cloned_resource_id=cloned_id,
+        resource_type=item.resource_type,
+        purchase_price=0,
+        commission_paid=0,
+    )
+    db.add(purchase)
+    
+    # 5. Update sales count
+    item.sales_count += 1
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": "Resurs kutubxonangizga muvaffaqiyatli yuklandi!",
+        "cloned_resource_id": cloned_id,
+        "resource_type": item.resource_type.value
+    }
 
 @router.get("/my-listings")
 async def get_my_listings(

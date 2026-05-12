@@ -477,7 +477,7 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
                     setMarketListingLoading(true);
                     try {
                       await teacherService.listTestInMarket({
-                        test_id: marketTest.id,
+                        resource_id: marketTest.id,
                         title: marketForm.title,
                         description: marketForm.description,
                         instructions: marketForm.instructions,

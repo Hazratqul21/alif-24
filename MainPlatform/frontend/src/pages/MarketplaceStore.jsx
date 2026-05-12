@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, Filter, ShoppingCart, Star, 
   ArrowRight, BookOpen, ClipboardList, Package, 
-  ChevronDown, LayoutGrid, List, Sparkles, Trophy
+  ChevronDown, LayoutGrid, List, Sparkles, Trophy,
+  Download, Lock, AlertTriangle, CheckCircle, Loader2, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '../components/Common/Navbar';
@@ -14,11 +15,22 @@ const MarketplaceStore = () => {
   const [activeType, setActiveType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [cart, setCart] = useState([]);
+  
+  // Claiming state
+  const [claimingId, setClaimingId] = useState(null);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     fetchMarketplace();
   }, [activeType, searchTerm]);
+
+  // Auto-hide toast
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
 
   const fetchMarketplace = async () => {
     setLoading(true);
@@ -36,15 +48,65 @@ const MarketplaceStore = () => {
     }
   };
 
-  const addToCart = (item) => {
-    if (!cart.find(i => i.id === item.id)) {
-      setCart([...cart, item]);
+  const handleClaimFree = async (item) => {
+    if (claimingId) return;
+    setClaimingId(item.id);
+    try {
+      const res = await apiService.post(`/marketplace/claim-free/${item.id}`);
+      setToast({ 
+        type: 'success', 
+        message: res.message || "Resurs kutubxonangizga yuklandi!" 
+      });
+      // Update sales count locally
+      setItems(prev => prev.map(i => 
+        i.id === item.id ? { ...i, sales_count: (i.sales_count || 0) + 1 } : i
+      ));
+    } catch (err) {
+      const msg = err.message || "Yuklab olishda xatolik";
+      setToast({ type: msg.includes('allaqachon') ? 'info' : 'error', message: msg });
+    } finally {
+      setClaimingId(null);
     }
+  };
+
+  const handlePaidClick = () => {
+    setToast({ 
+      type: 'warning', 
+      message: "⚠️ To'lov tizimi hali ishlamaydi. Hozircha faqat bepul resurslarni yuklab olishingiz mumkin." 
+    });
   };
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white">
       <Navbar />
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -30, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -30, x: '-50%' }}
+            className="fixed top-24 left-1/2 z-[10000] max-w-md w-full px-4"
+          >
+            <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl border shadow-2xl backdrop-blur-xl ${
+              toast.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
+              toast.type === 'warning' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
+              toast.type === 'info' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' :
+              'bg-red-500/10 border-red-500/30 text-red-400'
+            }`}>
+              {toast.type === 'success' && <CheckCircle size={20} />}
+              {toast.type === 'warning' && <AlertTriangle size={20} />}
+              {toast.type === 'info' && <CheckCircle size={20} />}
+              {toast.type === 'error' && <AlertTriangle size={20} />}
+              <p className="text-sm font-medium flex-1">{toast.message}</p>
+              <button onClick={() => setToast(null)} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 px-6 overflow-hidden">
@@ -138,8 +200,8 @@ const MarketplaceStore = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {loading ? (
              Array(8).fill(0).map((_, i) => (
-               <div key={i} className="bg-white/5 aspect-[3/4] rounded-[40px] animate-pulse border border-white/5" />
-             ))
+                <div key={i} className="bg-white/5 aspect-[3/4] rounded-[40px] animate-pulse border border-white/5" />
+              ))
           ) : items.length === 0 ? (
             <div className="col-span-full py-20 text-center">
               <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-500">
@@ -149,91 +211,96 @@ const MarketplaceStore = () => {
               <p className="text-slate-500">Boshqa kalit so'zlar yoki filtrlar bilan urinib ko'ring.</p>
             </div>
           ) : (
-            items.map((item, idx) => (
-              <motion.div 
-                key={item.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="group relative bg-[#1e1e30] rounded-[40px] border border-white/5 overflow-hidden hover:border-indigo-500/50 transition-all shadow-xl hover:-translate-y-2"
-              >
-                {/* Thumbnail */}
-                <div className="relative aspect-[4/3] overflow-hidden">
-                  <img
-                    src={item.thumbnail_url || `https://source.unsplash.com/random/400x300?education,${idx}`}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                    alt={item.title}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e30] via-transparent to-transparent" />
-                  <div className="absolute top-4 left-4">
-                    <span className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-white border border-white/10">
-                      {item.resource_type === 'lesson' ? 'Dars' : 'Test'}
-                    </span>
-                  </div>
-                  <div className="absolute bottom-4 right-4 bg-indigo-600 px-4 py-1.5 rounded-2xl font-black text-sm shadow-xl">
-                    {item.price === 0 ? 'Bepul' : `${item.price.toLocaleString()} UZS`}
-                  </div>
-                </div>
+            items.map((item, idx) => {
+              const isFree = item.price === 0 || item.is_free;
+              const isClaiming = claimingId === item.id;
 
-                {/* Content */}
-                <div className="p-6">
-                  <div className="flex items-center gap-1 mb-2 text-yellow-500">
-                    <Star size={12} fill="currentColor" />
-                    <span className="text-xs font-black">{item.average_rating || '5.0'}</span>
-                    <span className="text-xs text-slate-500 font-bold ml-1">({item.review_count || 0})</span>
-                  </div>
-                  <h3 className="text-lg font-black leading-tight mb-3 group-hover:text-indigo-400 transition-colors line-clamp-2">
-                    {item.title}
-                  </h3>
-                  <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-tighter">
-                    <div className="flex items-center gap-1">
-                      <BookOpen size={14} /> {item.subject || 'Boshqa'}
+              return (
+                <motion.div 
+                  key={item.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="group relative bg-[#1e1e30] rounded-[40px] border border-white/5 overflow-hidden hover:border-indigo-500/50 transition-all shadow-xl hover:-translate-y-2"
+                >
+                  {/* Thumbnail */}
+                  <div className="relative aspect-[4/3] overflow-hidden">
+                    <div className="w-full h-full bg-gradient-to-br from-indigo-500/20 via-purple-500/10 to-pink-500/20 flex items-center justify-center">
+                      {item.resource_type === 'lesson' 
+                        ? <BookOpen size={48} className="text-indigo-400/50" />
+                        : <ClipboardList size={48} className="text-purple-400/50" />
+                      }
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Trophy size={14} /> {item.grade_level || 'Sinf'}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e30] via-transparent to-transparent" />
+                    <div className="absolute top-4 left-4">
+                      <span className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-white border border-white/10">
+                        {item.resource_type === 'lesson' ? 'Dars' : item.resource_type === 'test' ? 'Test' : item.resource_type}
+                      </span>
+                    </div>
+                    <div className={`absolute bottom-4 right-4 px-4 py-1.5 rounded-2xl font-black text-sm shadow-xl ${
+                      isFree ? 'bg-green-600' : 'bg-indigo-600'
+                    }`}>
+                      {isFree ? '✨ Bepul' : `${(item.price || 0).toLocaleString()} UZS`}
                     </div>
                   </div>
-                </div>
 
-                {/* Footer / Actions */}
-                <div className="p-6 pt-0 flex gap-2">
-                  <button 
-                    onClick={() => addToCart(item)}
-                    className="flex-1 bg-white/5 hover:bg-white/10 py-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-black transition-all border border-white/5"
-                  >
-                    SAVATCHA
-                  </button>
-                  <button className="p-3 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-2xl transition-all border border-indigo-500/20 group-hover:scale-105">
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
-              </motion.div>
-            ))
+                  {/* Content */}
+                  <div className="p-6">
+                    <div className="flex items-center gap-1 mb-2 text-yellow-500">
+                      <Star size={12} fill="currentColor" />
+                      <span className="text-xs font-black">{item.average_rating || '5.0'}</span>
+                      <span className="text-xs text-slate-500 font-bold ml-1">({item.review_count || 0})</span>
+                      {(item.sales_count || 0) > 0 && (
+                        <span className="text-xs text-slate-500 font-bold ml-2">
+                          <Download size={10} className="inline mr-0.5" />{item.sales_count}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-black leading-tight mb-3 group-hover:text-indigo-400 transition-colors line-clamp-2">
+                      {item.title}
+                    </h3>
+                    {item.description && (
+                      <p className="text-slate-500 text-xs mb-3 line-clamp-2">{item.description}</p>
+                    )}
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-tighter">
+                      <div className="flex items-center gap-1">
+                        <BookOpen size={14} /> {item.subject || 'Boshqa'}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Trophy size={14} /> {item.grade_level || 'Sinf'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer / Actions */}
+                  <div className="p-6 pt-0">
+                    {isFree ? (
+                      <button 
+                        onClick={() => handleClaimFree(item)}
+                        disabled={isClaiming}
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs font-black transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 border-none text-white cursor-pointer"
+                      >
+                        {isClaiming ? (
+                          <><Loader2 size={16} className="animate-spin" /> Yuklanmoqda...</>
+                        ) : (
+                          <><Download size={16} /> KUTUBXONAGA YUKLASH</>
+                        )}
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={handlePaidClick}
+                        className="w-full bg-white/5 hover:bg-white/10 py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs font-black transition-all border border-white/10 text-slate-400 cursor-pointer"
+                      >
+                        <Lock size={14} /> SOTIB OLISH ({(item.price || 0).toLocaleString()} UZS)
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })
           )}
         </div>
       </main>
-
-      {/* Floating Cart Button */}
-      <AnimatePresence>
-        {cart.length > 0 && (
-          <motion.button 
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            className="fixed bottom-10 right-10 z-50 bg-white text-black p-6 rounded-full shadow-2xl flex items-center justify-center gap-4 group"
-          >
-            <div className="relative">
-              <ShoppingCart size={24} />
-              <span className="absolute -top-3 -right-3 w-6 h-6 bg-indigo-600 text-white rounded-full text-[10px] font-black flex items-center justify-center border-2 border-white">
-                {cart.length}
-              </span>
-            </div>
-            <span className="font-black text-sm pr-2">KO'RISH</span>
-          </motion.button>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
