@@ -19,15 +19,13 @@ from ..core.config import settings
 from langdetect import detect, LangDetectException
 from ..services.ai_cache_service import AICacheService
 
+from ..services.ai_service import ai_service
+
 router = APIRouter()
 
-# Initialize Async Client
-client = AsyncAzureOpenAI(
-    api_key=settings.AZURE_OPENAI_KEY,
-    api_version=settings.AZURE_OPENAI_API_VERSION,
-    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT
-)
-deployment_name = settings.AZURE_OPENAI_DEPLOYMENT_NAME
+# Deployment name used in this router
+deployment_name = settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-4o-1"
+
 
 class ChatRequest(BaseModel):
     story_text: str
@@ -89,16 +87,13 @@ async def chat_and_ask_question(request: ChatRequest, db: AsyncSession = Depends
         ]
 
         # 3. Call AI with JSON Mode (Async)
-        # 6 CPU server allows handling multiple concurrent AI requests efficiently
-        response = await client.chat.completions.create(
+        content = await ai_service.call_ai(
             model=deployment_name,
             messages=messages,
             response_format={"type": "json_object"},
-            temperature=0.7,
-            timeout=15.0 # Fast response priority
+            temperature=0.7
         )
-        
-        content = response.choices[0].message.content
+
         result = json.loads(content)
         
         # 4. Save to Cache

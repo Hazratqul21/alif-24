@@ -2,7 +2,7 @@
 MathKids Image Reader - Matematik masalalarni rasmdan o'qish
 """
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from openai import AsyncAzureOpenAI
+from app.services.ai_service import ai_service
 import base64
 import logging
 from app.core.config import settings
@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Azure OpenAI configuration
-AZURE_DEPLOYMENT_NAME = settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-5-chat"
+AZURE_DEPLOYMENT_NAME = settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-4o-1"
+
 
 def convert_ocr_to_math(text: str) -> str:
     """OCR natijasini matematik belgilarga o'zgartirish"""
@@ -120,27 +121,17 @@ async def read_math_image(image: UploadFile = File(...)):
         
         text_output = None
 
-        # Azure OpenAI
-        if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
-            raise HTTPException(status_code=500, detail="Azure OpenAI not configured")
-
         try:
-            azure_client = AsyncAzureOpenAI(
-                azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-                api_key=settings.AZURE_OPENAI_KEY,
-                api_version=settings.AZURE_OPENAI_API_VERSION
-            )
-            response = await azure_client.chat.completions.create(
-                model=AZURE_DEPLOYMENT_NAME,
+            text_output = await ai_service.call_ai(
                 messages=vision_messages,
                 max_tokens=1200,
                 temperature=0.3
             )
-            text_output = response.choices[0].message.content.strip()
             logger.info("Azure math OCR success")
-        except Exception as azure_err:
-            logger.warning(f"Azure math OCR failed: {azure_err}")
-            raise HTTPException(status_code=500, detail=f"Azure math OCR failed: {azure_err}")
+        except Exception as ai_err:
+            logger.warning(f"AI math OCR failed: {ai_err}")
+            raise HTTPException(status_code=500, detail=f"AI math OCR failed: {ai_err}")
+
         
         # OCR natijasini matematik belgilarga o'zgartirish
         math_text = convert_ocr_to_math(text_output)

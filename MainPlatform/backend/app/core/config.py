@@ -31,11 +31,11 @@ class Settings:
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # Azure OpenAI (SmartKids / MathKids)
-    AZURE_OPENAI_KEY: str = os.getenv("AZURE_OPENAI_KEY", "")
-    AZURE_OPENAI_ENDPOINT: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-    AZURE_OPENAI_DEPLOYMENT_NAME: str = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-chat")
-    AZURE_OPENAI_API_VERSION: str = os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview")
-    AZURE_OPENAI_REGION: str = os.getenv("AZURE_OPENAI_REGION", "westeurope")
+    AZURE_OPENAI_KEY: str = os.getenv("AZURE_OPENAI_KEY", "ELn7kSp.......")
+    AZURE_OPENAI_ENDPOINT: str = os.getenv("AZURE_OPENAI_ENDPOINT", "https://sherbek26-1133-resource.services.ai.azure.com/openai/v1")
+    AZURE_OPENAI_DEPLOYMENT_NAME: str = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o-1")
+    AZURE_OPENAI_API_VERSION: str = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01")
+    AZURE_OPENAI_REGION: str = os.getenv("AZURE_OPENAI_REGION", "eastus")
 
     # Azure Speech (optional)
     AZURE_SPEECH_KEY: Optional[str] = os.getenv("AZURE_SPEECH_KEY", None)

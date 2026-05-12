@@ -9,22 +9,15 @@ FIX: Previously returned HTTP 200 with {"error": "..."} on failures.
      - 500: AI processing failure
 """
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from openai import AsyncAzureOpenAI
 import base64
 import os
 import logging
 from app.core.config import settings
 
+from app.services.ai_service import ai_service
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-def get_azure_client():
-    """Create Azure OpenAI async client"""
-    return AsyncAzureOpenAI(
-        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-        api_key=settings.AZURE_OPENAI_KEY,
-        api_version=settings.AZURE_OPENAI_API_VERSION
-    )
 
 
 def clean_text_for_tts(text):
@@ -74,25 +67,12 @@ async def read_image(file: UploadFile = File(...)):
             ]
         }]
         
-        text_output = None
-
-        # Azure OpenAI only
-        if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
-            raise HTTPException(status_code=500, detail="Azure OpenAI not configured")
-
-        try:
-            azure_client = get_azure_client()
-            response = await azure_client.chat.completions.create(
-                model=settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-5-chat",
-                messages=vision_messages,
-                max_tokens=1200,
-                temperature=0.3
-            )
-            text_output = response.choices[0].message.content.strip()
-            logger.info("Azure OCR success")
-        except Exception as azure_err:
-            logger.warning(f"Azure OCR failed: {azure_err}")
-            raise HTTPException(status_code=500, detail=f"Azure OCR failed: {azure_err}")
+        text_output = await ai_service.call_ai(
+            messages=vision_messages,
+            max_tokens=1200,
+            temperature=0.3
+        )
+        logger.info("Vision OCR success")
         
         # Matn uzunligini cheklash (250 so'z)
         words = text_output.split()

@@ -7,22 +7,21 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta, timezone
-from openai import AsyncAzureOpenAI
 import logging
-
-logger = logging.getLogger(__name__)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, cast, Date, select
 from shared.database import get_db
 from app.models.reading_analysis import ReadingAnalysis
 from app.core.config import settings
 from langdetect import detect, LangDetectException
-from app.services.ai_cache_service import AICacheService
+from app.services.ai_service import ai_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 # Azure OpenAI configuration
-AZURE_DEPLOYMENT_NAME = settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-5-chat"
+AZURE_DEPLOYMENT_NAME = settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-4o-1"
 
 # Language-specific prompts
 def get_system_prompt(language: str, prompt_type: str):
@@ -197,29 +196,14 @@ class DetectLanguageRequest(BaseModel):
     text: str
 
 
-def get_azure_client():
-    """Azure OpenAI async client yaratish"""
-    return AsyncAzureOpenAI(
-        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-        api_key=settings.AZURE_OPENAI_KEY,
-        api_version=settings.AZURE_OPENAI_API_VERSION
-    )
-
 async def call_ai(messages, response_format=None, temperature=0.7):
-    """Azure OpenAI - returns parsed content string."""
-    if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
-        raise Exception("Azure OpenAI not configured")
-
-    try:
-        azure_client = get_azure_client()
-        kwargs = dict(model=AZURE_DEPLOYMENT_NAME, messages=messages, temperature=temperature)
-        if response_format:
-            kwargs["response_format"] = response_format
-        resp = await azure_client.chat.completions.create(**kwargs)
-        return resp.choices[0].message.content
-    except Exception as e:
-        logger.warning(f"Azure OpenAI failed: {e}")
-        raise Exception(f"Azure OpenAI failed: {e}")
+    """Refactored to use centralized ai_service."""
+    return await ai_service.call_ai(
+        messages=messages,
+        model=AZURE_DEPLOYMENT_NAME,
+        response_format=response_format,
+        temperature=temperature
+    )
 
 
 @router.post("/detect-language")
@@ -442,7 +426,7 @@ async def analyze_reading(request: AnalyzeReadingRequest):
             },
             "en-US": {
                 "system": (
-                    "You are a children's teacher. Analyze the child's story reading. "
+                    "You are an English teacher. Analyze the child's story reading. "
                     "Compare the child's speech (obtained via STT) with the original text. "
                     "Return in the following JSON format: "
                     "{'accuracy_score': 0-100, 'fluency_feedback': 'string', 'pronunciation_feedback': 'string', 'missing_words': ['word'], 'general_feedback': 'string'}"
