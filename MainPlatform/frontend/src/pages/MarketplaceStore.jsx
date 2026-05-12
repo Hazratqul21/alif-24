@@ -39,7 +39,7 @@ const MarketplaceStore = () => {
       if (activeType !== 'all') params.item_type = activeType;
       if (searchTerm) params.search = searchTerm;
       
-      const res = await apiService.get('/marketplace', params);
+      const res = await apiService.get('/marketplace/', params);
       setItems(res.items || []);
     } catch (err) {
       console.error("Market fetch error:", err);

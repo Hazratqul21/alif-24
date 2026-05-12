@@ -95,7 +95,8 @@ app = FastAPI(
     version="2.0.0",
     openapi_tags=tags_metadata,
     openapi_url=f"{settings.API_PREFIX}/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 # Rate Limiter
