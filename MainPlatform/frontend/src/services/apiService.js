@@ -1,4 +1,4 @@
-// Backend URL from environment variables or default to Vercel production
+// Backend URL from environment variables or default to relative path
 const API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
 
 /** Custom error for subscription-gated content */
@@ -21,6 +21,23 @@ class ApiService {
   constructor() {
     this.baseUrl = API_URL;
   }
+
+  /**
+   * Resolve a full URL for an endpoint, ensuring correct protocol.
+   * Prevents Mixed Content errors on HTTPS pages.
+   */
+  _resolveUrl(endpoint) {
+    let base = this.baseUrl.startsWith('http')
+      ? this.baseUrl
+      : `${window.location.origin}${this.baseUrl}`;
+    let full = `${base}${endpoint}`;
+    // Force current page protocol to prevent Mixed Content
+    if (window.location.protocol === 'https:' && full.startsWith('http:')) {
+      full = full.replace(/^http:/, 'https:');
+    }
+    return full;
+  }
+
 
   /**
    * Get authorization headers
@@ -110,7 +127,7 @@ class ApiService {
    */
   async refreshToken() {
     try {
-      const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+      const response = await fetch(this._resolveUrl('/auth/refresh'), {
         method: "POST", credentials: "include",
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -133,12 +150,7 @@ class ApiService {
    * @returns {Promise<Object>} Response data
    */
   async get(endpoint, params = {}) {
-    // Handle relative URLs
-    const baseUrl = this.baseUrl.startsWith('http')
-      ? this.baseUrl
-      : `${window.location.origin}${this.baseUrl}`;
-
-    const url = new URL(`${baseUrl}${endpoint}`);
+    const url = new URL(this._resolveUrl(endpoint));
     Object.keys(params).forEach(key => {
       if (params[key] !== undefined && params[key] !== null) {
         url.searchParams.append(key, params[key]);
@@ -163,11 +175,9 @@ class ApiService {
    */
   async post(endpoint, data = {}) {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
-    const baseUrl = this.baseUrl.startsWith('http')
-      ? this.baseUrl
-      : `${window.location.origin}${this.baseUrl}`;
+    const fullUrl = this._resolveUrl(endpoint);
     const doFetch = async () => {
-      const resp = await fetch(`${baseUrl}${endpoint}`, {
+      const resp = await fetch(fullUrl, {
         method: "POST", credentials: "include",
         headers: this.getHeaders(isFormData),
         body: isFormData ? data : JSON.stringify(data)
@@ -185,11 +195,9 @@ class ApiService {
    */
   async put(endpoint, data = {}) {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
-    const baseUrl = this.baseUrl.startsWith('http')
-      ? this.baseUrl
-      : `${window.location.origin}${this.baseUrl}`;
+    const fullUrl = this._resolveUrl(endpoint);
     const doFetch = async () => {
-      const resp = await fetch(`${baseUrl}${endpoint}`, {
+      const resp = await fetch(fullUrl, {
         method: "PUT", credentials: "include",
         headers: this.getHeaders(isFormData),
         body: isFormData ? data : JSON.stringify(data)
@@ -207,11 +215,9 @@ class ApiService {
    */
   async patch(endpoint, data = {}) {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
-    const baseUrl = this.baseUrl.startsWith('http')
-      ? this.baseUrl
-      : `${window.location.origin}${this.baseUrl}`;
+    const fullUrl = this._resolveUrl(endpoint);
     const doFetch = async () => {
-      const resp = await fetch(`${baseUrl}${endpoint}`, {
+      const resp = await fetch(fullUrl, {
         method: "PATCH", credentials: "include",
         headers: this.getHeaders(isFormData),
         body: isFormData ? data : JSON.stringify(data)
@@ -227,11 +233,9 @@ class ApiService {
    * @returns {Promise<Object>} Response data
    */
   async delete(endpoint) {
-    const baseUrl = this.baseUrl.startsWith('http')
-      ? this.baseUrl
-      : `${window.location.origin}${this.baseUrl}`;
+    const fullUrl = this._resolveUrl(endpoint);
     const doFetch = async () => {
-      const resp = await fetch(`${baseUrl}${endpoint}`, {
+      const resp = await fetch(fullUrl, {
         method: "DELETE", credentials: "include",
         headers: this.getHeaders()
       });
