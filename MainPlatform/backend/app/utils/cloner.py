@@ -16,7 +16,7 @@ async def clone_resource(db: AsyncSession, resource_id: str, resource_type: str,
         
         cloned = Lesson(
             id=generate_8_digit_id(),
-            teacher_id=new_owner_id, # Target teacher
+            teacher_id=new_owner_id, # Target user (could be teacher or regular user)
             title=f"{original.title} (Nusxa)",
             subject=original.subject,
             grade_level=original.grade_level,

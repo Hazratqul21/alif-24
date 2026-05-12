@@ -163,36 +163,49 @@ async def checkout_marketplace(
 
     total_amount = sum(item.price for item in items)
     
-    # In a real app, we'd create a single transaction for the whole cart.
-    # For now, let's optimize for single item or first item for simplicity in the mock.
-    # Or keep it generic for the future.
+    # Check if any items are paid (not free)
+    paid_items = [item for item in items if item.price > 0]
+    if paid_items:
+        raise HTTPException(
+            status_code=403, 
+            detail="To'lov tizimi hali ishlamaydi. Faqat bepul resurslarni yuklashingiz mumkin."
+        )
     
-    # Platform Commission (10%)
-    commission = int(total_amount * 0.1)
-    seller_amount = total_amount - commission
-
-    from shared.database.models.payment import PaymentTransaction, TransactionStatus
+    # For free items, clone directly without payment
+    from app.utils.cloner import clone_resource
     
-    txn = PaymentTransaction(
-        id=generate_8_digit_id(),
-        user_id=current_user.id,
-        marketplace_item_id=items[0].id, # Link to primary item
-        amount=total_amount,
-        commission_amount=commission,
-        seller_amount=seller_amount,
-        provider="payme", # Mock
-        status=TransactionStatus.pending.value,
-        description=f"Marketplace: {len(items)} ta resurs",
-    )
+    cloned_resources = []
+    for item in items:
+        cloned_id = await clone_resource(db, item.resource_id, item.resource_type, current_user.id)
+        
+        # Create ownership record
+        purchase = MarketplacePurchase(
+            id=generate_8_digit_id(),
+            user_id=current_user.id,
+            item_id=item.id,
+            cloned_resource_id=cloned_id,
+            resource_type=item.resource_type,
+            purchase_price=0,
+            commission_paid=0,
+            transaction_id=None
+        )
+        db.add(purchase)
+        cloned_resources.append({
+            "item_id": item.id,
+            "title": item.title,
+            "cloned_id": cloned_id
+        })
+        
+        # Update sales count
+        item.sales_count += 1
     
-    db.add(txn)
     await db.commit()
-    await db.refresh(txn)
-
+    
     return {
         "success": True, 
-        "transaction_id": txn.id,
-        "total": total_amount,
+        "message": f"{len(items)} ta bepul resurs kutubxolangizga yuklandi",
+        "items": cloned_resources,
+        "total": 0,
         "items_count": len(items)
     }
 
@@ -203,66 +216,9 @@ async def complete_purchase_mock(
 ):
     """
     MOCK: Webhook simulation to complete a purchase.
-    Triggers: Cloning, Wallet Update, Ownership record.
+    DISABLED - To'lov tizimi vaqtincha o'chirilgan
     """
-    from shared.database.models.payment import PaymentTransaction, TransactionStatus
-    from shared.database.models.wallet import TeacherWallet, WalletTransaction, WalletTransactionType
-    from app.utils.cloner import clone_resource
-
-    res = await db.execute(select(PaymentTransaction).where(PaymentTransaction.id == txn_id))
-    txn = res.scalars().first()
-    
-    if not txn or txn.status == TransactionStatus.completed.value:
-        return {"success": False, "message": "Already completed or not found"}
-
-    # 1. Update Transaction
-    txn.status = TransactionStatus.completed.value
-    
-    # 2. Get Marketplace Item
-    item_res = await db.execute(select(MarketplaceItem).where(MarketplaceItem.id == txn.marketplace_item_id))
-    item = item_res.scalars().first()
-    
-    if item:
-        # 3. CLONE RESOURCE as requested
-        cloned_id = await clone_resource(db, item.resource_id, item.resource_type, txn.user_id)
-        
-        # 4. Create Ownership
-        purchase = MarketplacePurchase(
-            id=generate_8_digit_id(),
-            user_id=txn.user_id,
-            item_id=item.id,
-            cloned_resource_id=cloned_id,
-            resource_type=item.resource_type,
-            purchase_price=txn.amount,
-            commission_paid=txn.commission_amount,
-            transaction_id=txn.id
-        )
-        db.add(purchase)
-        
-        # 5. Update Seller Wallet
-        wallet_res = await db.execute(select(TeacherWallet).where(TeacherWallet.user_id == item.seller_id))
-        wallet = wallet_res.scalars().first()
-        if not wallet:
-            wallet = TeacherWallet(user_id=item.seller_id)
-            db.add(wallet)
-            await db.flush()
-        
-        wallet.total_earned += txn.amount
-        wallet.total_commission += txn.commission_amount
-        wallet.current_balance += txn.seller_amount # Net to teacher
-        
-        # 6. Wallet Transaction
-        w_txn = WalletTransaction(
-            wallet_id=wallet.id,
-            type=WalletTransactionType.sale,
-            amount=txn.seller_amount,
-            description=f"Sotuv: {item.title}",
-            marketplace_purchase_id=purchase.id,
-            payment_transaction_id=txn.id
-        )
-        db.add(w_txn)
-        
-        item.sales_count += 1
-
-    await db.commit()
-    return {"success": True, "message": "Xarid muvaffaqiyatli yakunlandi, resurs nusxalandi."}
+    return {
+        "success": False, 
+        "message": "To'lov tizimi hali ishlamaydi. Faqat bepul resurslardan foydalaning."
+    }
