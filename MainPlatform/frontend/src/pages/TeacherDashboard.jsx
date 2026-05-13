@@ -19,7 +19,7 @@ import {
   Play, Eye, Edit, Trash2, ArrowLeft, LogOut, Zap, Copy,
   Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon, Paperclip,
   FolderOpen, Sparkles, Upload, List, LayoutGrid, Tag, ShoppingBag,
-  Type, Image as ImageIcon, Menu, Share2, Eye, BarChart3, Tag, Send
+  Type, Image as ImageIcon, Menu, Share2
 } from 'lucide-react';
 import GradebookMatrix from '../components/Teacher/GradebookMatrix';
 import ErtakPreviewModal from '../components/Teacher/ErtakPreviewModal';
