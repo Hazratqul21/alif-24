@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, Integer, Boolean, DateTime, JSON
+from sqlalchemy import Column, String, Text, Integer, Boolean, DateTime, JSON, ForeignKey
 from sqlalchemy.sql import func
 from shared.database.base import Base
 from shared.database.id_generator import generate_8_digit_id
@@ -8,6 +8,7 @@ class Story(Base):
     __table_args__ = {'extend_existing': True}
 
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
+    teacher_id = Column(String(8), ForeignKey("teacher_profiles.id", use_alter=True, name="fk_story_teacher"), nullable=True)
     title = Column(String(200), nullable=False)
     content = Column(Text, nullable=False)
     language = Column(String(5), default="uz")
@@ -20,3 +21,4 @@ class Story(Base):
     questions = Column(JSON, nullable=True, default=lambda: [])
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

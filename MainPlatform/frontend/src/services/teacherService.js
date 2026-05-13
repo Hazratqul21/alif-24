@@ -181,6 +181,23 @@ class TeacherService {
         return apiService.delete(`/teachers/lessons/${lessonId}`);
     }
 
+    // Stories (Ertaklar) API
+    async getErtaklar() {
+        return apiService.get('/teachers/stories');
+    }
+
+    async createErtak(data) {
+        return apiService.post('/teachers/stories', data);
+    }
+
+    async updateErtak(id, data) {
+        return apiService.put(`/teachers/stories/${id}`, data);
+    }
+
+    async deleteErtak(id) {
+        return apiService.delete(`/teachers/stories/${id}`);
+    }
+
     // TestAI Integration
     async parseTextTest(text) {
         return apiService.post('/testai/parse/text', { text });

@@ -61,6 +61,8 @@ const StudentDashboard = () => {
     const [contentLoading, setContentLoading] = useState(false);
     const [selectedLesson, setSelectedLesson] = useState(null);
     const [selectedStory, setSelectedStory] = useState(null);
+    const [storyAssignmentId, setStoryAssignmentId] = useState(null);
+    const [storySubmitting, setStorySubmitting] = useState(false);
 
     // Performance & Leaderboard states
     const [performanceData, setPerformanceData] = useState({ trend: [], subjects: [] });
@@ -418,6 +420,46 @@ const StudentDashboard = () => {
             showNotif('error', err.message || "Test topshirishda xatolik");
         } finally {
             setTestSubmitting(false);
+        }
+    };
+
+    const handleOpenStoryAssignment = async (task) => {
+        try {
+            setLoading(true);
+            const refId = task.assignment?.reference_id || task.reference_id;
+            const res = await studentService.getErtakById(refId);
+            const data = res.data || res;
+            if (data) {
+                setSelectedStory(data);
+                setStoryAssignmentId(task.assignment_id || task.id);
+                // Reset other story states
+                setStoryTtsDone(false);
+                setStoryRecordedUrl(null);
+                setSelectedTask(null); // Close task modal
+            }
+        } catch (err) {
+            showNotif('error', "Ertakni yuklashda xatolik");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSubmitStoryAssignment = async () => {
+        if (!storyAssignmentId || storySubmitting) return;
+        setStorySubmitting(true);
+        try {
+            await studentService.submitAssignment(storyAssignmentId, {
+                content: "Ertak o'qildi va tinglandi.",
+                attachments: []
+            });
+            showNotif('success', "Vazifa topshirildi!");
+            setStoryAssignmentId(null);
+            setSelectedStory(null);
+            await fetchLMSData();
+        } catch (err) {
+            showNotif('error', "Topshirishda xatolik yuz berdi");
+        } finally {
+            setStorySubmitting(false);
         }
     };
 
@@ -1138,6 +1180,7 @@ const StudentDashboard = () => {
                     if (storyRecAudioRef.current) { storyRecAudioRef.current.pause(); storyRecAudioRef.current = null; }
                     setStoryPlaying(false); setStoryTtsLoading(false); setStoryTtsDone(false);
                     setStoryRecording(false); setStoryRecordedUrl(null); setStoryPlayingRec(false);
+                    setStoryAssignmentId(null);
                     setSelectedStory(null);
                 }}>
                     <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -1149,6 +1192,7 @@ const StudentDashboard = () => {
                                 if (storyRecAudioRef.current) { storyRecAudioRef.current.pause(); storyRecAudioRef.current = null; }
                                 setStoryPlaying(false); setStoryTtsLoading(false); setStoryTtsDone(false);
                                 setStoryRecording(false); setStoryRecordedUrl(null); setStoryPlayingRec(false);
+                                setStoryAssignmentId(null);
                                 setSelectedStory(null);
                             }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
                         </div>
@@ -1259,6 +1303,20 @@ const StudentDashboard = () => {
                                 </div>
                             )}
                         </div>
+
+                        {storyAssignmentId && (
+                            <div className="mt-8 border-t pt-6">
+                                <button
+                                    onClick={handleSubmitStoryAssignment}
+                                    disabled={storySubmitting}
+                                    className="w-full py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg"
+                                >
+                                    {storySubmitting ? <Loader2 size={24} className="animate-spin" /> : <CheckCircle size={24} />}
+                                    Topshirish
+                                </button>
+                                <p className="text-center text-gray-400 text-xs mt-3">Vazifani yakunlash uchun ustiga bosing</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -1781,6 +1839,16 @@ const StudentDashboard = () => {
                                         {selectedTask.description || "Vazifa matni mavjud emas."}
                                     </div>
                                 </div>
+                                {selectedTask.assignment?.reference_type === 'ertak' && selectedTask.status === 'pending' && (
+                                    <div className="mb-4">
+                                        <button
+                                            onClick={() => handleOpenStoryAssignment(selectedTask)}
+                                            className="w-full py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-black rounded-2xl hover:from-purple-600 hover:to-indigo-700 transition-all shadow-md flex items-center justify-center gap-2"
+                                        >
+                                            <Book size={24} /> Ertakni o'qish
+                                        </button>
+                                    </div>
+                                )}
                                 {selectedTask.assignment?.attachments?.length > 0 && (
                                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                                         <h4 className="text-sm font-bold text-blue-700 mb-3 flex items-center gap-2"><Download size={16} /> Biriktirilgan fayllar</h4>

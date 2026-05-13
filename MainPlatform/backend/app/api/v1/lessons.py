@@ -32,6 +32,24 @@ class LessonUpdate(BaseModel):
     video_url: Optional[str] = None
     attachments: Optional[Any] = None
 
+class StoryCreate(BaseModel):
+    title: str = Field(..., min_length=2, max_length=200)
+    content: str
+    language: Optional[str] = "uz"
+    age_group: Optional[str] = "Barchasi"
+    audio_url: Optional[str] = None
+    image_url: Optional[str] = None
+    questions: Optional[List[Dict[str, str]]] = None
+
+class StoryUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    language: Optional[str] = None
+    age_group: Optional[str] = None
+    audio_url: Optional[str] = None
+    image_url: Optional[str] = None
+    questions: Optional[List[Dict[str, str]]] = None
+
 async def get_teacher_profile_local(user: User, db: AsyncSession) -> TeacherProfile:
     if user.role != UserRole.teacher:
         raise HTTPException(status_code=403, detail="Faqat o'qituvchilar ruxsatga ega")
@@ -312,6 +330,96 @@ async def delete_lesson(
 
 
 # ============================================================================
+# TEACHER: Stories (Ertaklar) CRUD
+# ============================================================================
+
+@router.post("/teachers/stories")
+async def create_teacher_story(
+    data: StoryCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    teacher = await get_teacher_profile_local(current_user, db)
+    story = Story(
+        teacher_id=teacher.id,
+        title=data.title,
+        content=data.content,
+        language=data.language,
+        age_group=data.age_group,
+        audio_url=data.audio_url,
+        image_url=data.image_url,
+        questions=data.questions or []
+    )
+    if data.audio_url:
+        story.has_audio = True
+        
+    db.add(story)
+    await db.commit()
+    await db.refresh(story)
+    return {"success": True, "data": story}
+
+@router.get("/teachers/stories")
+async def get_my_stories(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    teacher = await get_teacher_profile_local(current_user, db)
+    res = await db.execute(select(Story).where(Story.teacher_id == teacher.id).order_by(desc(Story.created_at)))
+    stories = res.scalars().all()
+    return {"success": True, "data": stories}
+
+@router.get("/teachers/stories/{story_id}")
+async def get_teacher_story_detail(
+    story_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    teacher = await get_teacher_profile_local(current_user, db)
+    res = await db.execute(select(Story).where(Story.id == story_id, Story.teacher_id == teacher.id))
+    story = res.scalars().first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+    return {"success": True, "data": story}
+
+@router.put("/teachers/stories/{story_id}")
+async def update_teacher_story(
+    story_id: str, data: StoryUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    teacher = await get_teacher_profile_local(current_user, db)
+    res = await db.execute(select(Story).where(Story.id == story_id, Story.teacher_id == teacher.id))
+    story = res.scalars().first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+    
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(story, k, v)
+        if k == "audio_url":
+            story.has_audio = True if v else False
+            
+    await db.commit()
+    await db.refresh(story)
+    return {"success": True, "data": story}
+
+@router.delete("/teachers/stories/{story_id}")
+async def delete_teacher_story(
+    story_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    teacher = await get_teacher_profile_local(current_user, db)
+    res = await db.execute(select(Story).where(Story.id == story_id, Story.teacher_id == teacher.id))
+    story = res.scalars().first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+    
+    await db.delete(story)
+    await db.commit()
+    return {"success": True, "message": "Ertak o'chirildi"}
+
+
+# ============================================================================
 # PUBLIC: Stories (Ertaklar) — for students
 # ============================================================================
 
@@ -354,6 +462,34 @@ async def list_public_stories(
             for s in stories
         ],
         "total": total,
+    }
+    
+@router.get("/public/stories/{story_id}")
+async def get_public_story(
+    story_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a single story by ID for students"""
+    res = await db.execute(select(Story).where(Story.id == story_id))
+    story = res.scalars().first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
+    
+    return {
+        "success": True,
+        "data": {
+            "id": story.id,
+            "title": story.title,
+            "content": story.content,
+            "language": story.language,
+            "age_group": story.age_group,
+            "has_audio": story.has_audio,
+            "audio_url": story.audio_url,
+            "image_url": story.image_url,
+            "questions": story.questions,
+            "created_at": story.created_at.isoformat() if story.created_at else None,
+        }
     }
 
 

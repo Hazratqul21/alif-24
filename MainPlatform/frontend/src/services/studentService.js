@@ -119,6 +119,10 @@ class StudentService {
     return apiService.get('/public/stories', params);
   }
 
+  async getErtakById(id) {
+    return apiService.get(`/public/stories/${id}`);
+  }
+
   // ============ LMS: Classrooms ============
 
   async getMyClassrooms() {

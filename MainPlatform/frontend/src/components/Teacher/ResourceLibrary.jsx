@@ -8,7 +8,7 @@ import {
   Tag, ShoppingBag, DollarSign, Info, MessageCircle, GraduationCap, FileCheck
 } from 'lucide-react';
 
-const ResourceLibrary = ({ classrooms = [], onAttach }) => {
+const ResourceLibrary = ({ classrooms = [], ertaklar = [], fetchErtaklar, onAttach }) => {
   // File management state
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [currentFolder, setCurrentFolder] = useState('root');
@@ -27,7 +27,8 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
   const [assignClassName, setAssignClassName] = useState('');
 
   // Marketplace listing state
-  const [marketTest, setMarketTest] = useState(null);
+  const [marketItem, setMarketItem] = useState(null); // Can be test or story
+  const [marketItemType, setMarketItemType] = useState('test');
   const [marketForm, setMarketForm] = useState({
     title: '',
     description: '',
@@ -44,6 +45,7 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
   const [folders, setFolders] = useState([
     { id: 'root', name: 'Barcha fayllar', parent: null },
     { id: 'tests', name: 'Testlar', parent: 'root', icon: '📝', isSpecial: true },
+    { id: 'books', name: 'Kitoblar (Ertaklar)', parent: 'root', icon: '📚', isSpecial: true },
     { id: 'presentations', name: 'Prezentatsiyalar', parent: 'root', icon: '📊' },
     { id: 'documents', name: 'Hujjatlar', parent: 'root', icon: '📄' },
     { id: 'media', name: 'Rasm va Video', parent: 'root', icon: '🖼️' },
@@ -320,8 +322,8 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
         )}
 
         {/* Marketplace Listing Modal */}
-        {marketTest && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4" onClick={() => setMarketTest(null)}>
+        {marketItem && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4" onClick={() => setMarketItem(null)}>
             <div className="bg-[#1e1e3a] border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
               {/* Header */}
               <div className="flex items-center justify-between p-5 border-b border-white/10">
@@ -329,9 +331,9 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
                   <h3 className="text-white font-bold text-lg flex items-center gap-2">
                     <ShoppingBag className="w-5 h-5 text-green-400" /> Marketga joylashtirish
                   </h3>
-                  <p className="text-white/40 text-xs mt-1">{marketTest.title}</p>
+                  <p className="text-white/40 text-xs mt-1">{marketItem.title}</p>
                 </div>
-                <button onClick={() => setMarketTest(null)} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all border-none cursor-pointer bg-transparent">
+                <button onClick={() => setMarketItem(null)} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all border-none cursor-pointer bg-transparent">
                   <X size={20} />
                 </button>
               </div>
@@ -339,12 +341,12 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
 
-                {/* Test nomi */}
+                {/* Resurs nomi */}
                 <div>
-                  <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Test nomi</label>
+                  <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Nomi (Marketda ko'rinadigan)</label>
                   <input type="text" value={marketForm.title}
                     onChange={e => setMarketForm({ ...marketForm, title: e.target.value })}
-                    placeholder="Masalan: Matematikadan 5-sinf final testi"
+                    placeholder={`Masalan: ${marketItemType === 'test' ? 'Matematikadan 5-sinf testi' : 'Oltin baliq ertagi'}`}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-green-500/50 placeholder:text-white/15" />
                 </div>
 
@@ -367,11 +369,11 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
                 </div>
 
                 {/* Namuna (demo) */}
-                {marketTest.questions?.length > 0 && (
+                {marketItemType === 'test' && marketItem.questions?.length > 0 && (
                   <div>
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Namuna (demo) — dastlabki 2 ta savol ko'rsatiladi</label>
                     <div className="bg-black/20 border border-white/5 rounded-xl p-3 space-y-2">
-                      {marketTest.questions.slice(0, 2).map((q, i) => (
+                      {marketItem.questions.slice(0, 2).map((q, i) => (
                         <div key={i} className="text-xs">
                           <p className="text-white/70 font-medium">{i + 1}. {q.question}</p>
                           <div className="flex flex-wrap gap-1.5 mt-1 ml-3">
@@ -383,9 +385,20 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
                           </div>
                         </div>
                       ))}
-                      {marketTest.questions.length > 2 && (
-                        <p className="text-white/20 text-[10px] italic">...va yana {marketTest.questions.length - 2} ta savol</p>
+                      {marketItem.questions.length > 2 && (
+                        <p className="text-white/20 text-[10px] italic">...va yana {marketItem.questions.length - 2} ta savol</p>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {marketItemType === 'ertak' && (
+                  <div>
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Namuna (matnning bir qismi)</label>
+                    <div className="bg-black/20 border border-white/5 rounded-xl p-3">
+                      <p className="text-white/40 text-[11px] italic line-clamp-3">
+                        {marketItem.content}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -467,7 +480,7 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
 
               {/* Footer */}
               <div className="p-5 border-t border-white/10 bg-black/20 flex gap-3">
-                <button onClick={() => setMarketTest(null)}
+                <button onClick={() => setMarketItem(null)}
                   className="flex-1 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl text-sm font-bold transition-all border-none cursor-pointer bg-transparent">
                   Bekor qilish
                 </button>
@@ -477,7 +490,7 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
                     setMarketListingLoading(true);
                     try {
                       await teacherService.listTestInMarket({
-                        resource_id: marketTest.id,
+                        resource_id: marketItem.id,
                         title: marketForm.title,
                         description: marketForm.description,
                         instructions: marketForm.instructions,
@@ -487,10 +500,10 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
                         format: marketForm.format,
                         includes_answers: marketForm.includes_answers,
                         support_info: marketForm.support_info,
-                        resource_type: 'test',
+                        resource_type: marketItemType,
                       });
-                      setMarketTest(null);
-                      alert("Test marketpleysga muvaffaqiyatli joylashtirildi!");
+                      setMarketItem(null);
+                      alert("Resurs marketpleysga muvaffaqiyatli joylashtirildi!");
                     } catch (err) {
                       alert("Xatolik: " + (err.message || "Marketga joylashtirishda muammo"));
                     } finally {
@@ -505,6 +518,82 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ============ RENDER: BOOKS FOLDER (Ertaklar) ============
+  if (currentFolder === 'books') {
+    return (
+      <div className="space-y-4">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1 text-xs">
+          <button onClick={() => setCurrentFolder('root')} className="text-white/40 hover:text-white/60 px-2 py-1 rounded-lg transition-colors">
+            Barcha fayllar
+          </button>
+          <ChevronRight className="w-3 h-3 text-white/20" />
+          <span className="text-white font-bold px-2 py-1 bg-white/10 rounded-lg">📚 Kitoblar</span>
+        </div>
+
+        {/* Books Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-white font-bold text-lg">Mening Kitoblarim (Ertaklar)</h4>
+            <p className="text-white/40 text-xs mt-0.5">{ertaklar.length} ta ertak</p>
+          </div>
+          <button onClick={fetchErtaklar}
+            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-white/40 text-xs transition-colors">
+            Yangilash
+          </button>
+        </div>
+
+        {/* Books List */}
+        {ertaklar.length === 0 ? (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center">
+            <BookOpen className="w-14 h-14 text-white/10 mx-auto mb-3" />
+            <p className="text-white/50 font-medium">Hozircha saqlangan ertak yo'q</p>
+            <p className="text-white/25 text-sm mt-1">Ertaklarim bo'limidan yangi ertak yarating</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {ertaklar.map(ertak => (
+              <div key={ertak.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-white/20 transition-all flex flex-col group relative">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-xl flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-orange-400" />
+                    </div>
+                    <div>
+                      <h5 className="text-white font-bold">{ertak.title}</h5>
+                      <span className="text-[10px] text-white/30 uppercase tracking-widest">{ertak.language} • {ertak.age_group}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => {
+                      setMarketItem(ertak);
+                      setMarketItemType('ertak');
+                      setMarketForm(prev => ({
+                        ...prev,
+                        title: ertak.title || '',
+                        description: `Qiziqarli ertak: ${ertak.title}. Yosh guruhi: ${ertak.age_group}.`,
+                        grade_level: ertak.age_group || '',
+                      }));
+                    }}
+                      className="p-2 hover:bg-green-500/20 rounded-lg text-white/30 hover:text-green-400 transition-all"
+                      title="Marketplacega joylashtirish">
+                      <ShoppingBag className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-white/40 text-xs line-clamp-2 mt-2">{ertak.content}</p>
+                <div className="mt-4 flex items-center justify-between text-[10px] text-white/20">
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(ertak.created_at).toLocaleDateString('uz')}</span>
+                  <span className="bg-white/5 px-2 py-0.5 rounded text-white/40">{ertak.questions?.length || 0} ta savol</span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -583,11 +672,18 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
               <div className="text-white/30 text-[10px] mt-0.5">
                 {f.id === 'tests'
                   ? `${savedTests.length} ta test`
+                  : f.id === 'books'
+                  ? `${ertaklar.length} ta ertak`
                   : `${uploadedFiles.filter(uf => uf.folder === f.id).length} ta fayl`}
               </div>
               {f.id === 'tests' && savedTests.length > 0 && (
                 <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-[9px] font-bold">{savedTests.length}</span>
+                </div>
+              )}
+              {f.id === 'books' && ertaklar.length > 0 && (
+                <div className="absolute top-2 right-2 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-[9px] font-bold">{ertaklar.length}</span>
                 </div>
               )}
             </button>
@@ -631,7 +727,7 @@ const ResourceLibrary = ({ classrooms = [], onAttach }) => {
               <span className="text-lg">{f.icon || '📁'}</span>
               <span className="text-white text-sm font-medium flex-1">{f.name}</span>
               <span className="text-white/20 text-xs">
-                {f.id === 'tests' ? `${savedTests.length} ta test` : `${uploadedFiles.filter(uf => uf.folder === f.id).length} ta fayl`}
+                {f.id === 'tests' ? `${savedTests.length} ta test` : f.id === 'books' ? `${ertaklar.length} ta ertak` : `${uploadedFiles.filter(uf => uf.folder === f.id).length} ta fayl`}
               </span>
               <ChevronRight className="w-4 h-4 text-white/20" />
             </button>

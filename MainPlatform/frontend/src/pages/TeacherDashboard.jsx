@@ -19,7 +19,7 @@ import {
   Play, Eye, Edit, Trash2, ArrowLeft, LogOut, Zap, Copy,
   Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon, Paperclip,
   FolderOpen, Sparkles, Upload, List, LayoutGrid, Tag, ShoppingBag,
-  Type, Image as ImageIcon, Menu
+  Type, Image as ImageIcon, Menu, Share2
 } from 'lucide-react';
 import GradebookMatrix from '../components/Teacher/GradebookMatrix';
 
@@ -64,6 +64,7 @@ const TeacherDashboard = () => {
   const [newAssignment, setNewAssignment] = useState({
     title: '', description: '', assignment_type: 'homework',
     classroom_id: '', due_date: '', max_score: 100,
+    reference_id: '', reference_type: ''
   });
   const [assignTarget, setAssignTarget] = useState('classroom');
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
@@ -89,10 +90,23 @@ const TeacherDashboard = () => {
   const [lessonView, setLessonView] = useState('list'); // list, ai
   const [showStudentImport, setShowStudentImport] = useState(false);
 
+  // Ertaklar states
+  const [ertaklar, setErtaklar] = useState([]);
+  const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
+  const [ertakQuestions, setErtakQuestions] = useState([]);
+  const [editErtak, setEditErtak] = useState(null);
+  const [editErtakForm, setEditErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
+  const [editErtakQuestions, setEditErtakQuestions] = useState([]);
+  const [uploadImage, setUploadImage] = useState(null);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [createErtakModal, setCreateErtakModal] = useState(false);
+
   const tabLabels = {
-    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', jurnal: 'Jurnal', resources: 'Kutubxona', testlarim: 'Testlarim', complex: 'Kompleks dars', marketplace: 'Marketplace', school: 'Maktabim', settings: 'Sozlamalar' },
-    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', jurnal: 'Журнал', resources: 'Библиотека', testlarim: 'Мои тесты', complex: 'Комплекс урок', marketplace: 'Маркетплейс', school: 'Моя школа', settings: 'Настройки' },
-    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', jurnal: 'Gradebook', resources: 'Library', testlarim: 'My Tests', complex: 'Complex Lesson', marketplace: 'Marketplace', school: 'My School', settings: 'Settings' },
+    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', jurnal: 'Jurnal', resources: 'Kutubxona', ertaklar: 'Ertaklarim', testlarim: 'Testlarim', complex: 'Kompleks dars', marketplace: 'Marketplace', school: 'Maktabim', settings: 'Sozlamalar' },
+    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', jurnal: 'Журнал', resources: 'Библиотека', ertaklar: 'Мои сказки', testlarim: 'Мои тесты', complex: 'Комплекс урок', marketplace: 'Маркетплейс', school: 'Моя школа', settings: 'Настройки' },
+    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', jurnal: 'Gradebook', resources: 'Library', ertaklar: 'My Stories', testlarim: 'My Tests', complex: 'Complex Lesson', marketplace: 'Marketplace', school: 'My School', settings: 'Settings' },
   };
   const tl = tabLabels[language] || tabLabels.uz;
 
@@ -101,6 +115,7 @@ const TeacherDashboard = () => {
     { id: 'classes', label: tl.classes, icon: GraduationCap },
     { id: 'jurnal', label: tl.jurnal, icon: LayoutGrid },
     { id: 'lessons', label: tl.lessons, icon: BookOpen },
+    { id: 'ertaklar', label: tl.ertaklar, icon: BookOpen },
     { id: 'assignments', label: tl.assignments, icon: ClipboardList },
     { id: 'testlarim', label: tl.testlarim, icon: FileText },
     { id: 'complex', label: tl.complex, icon: Sparkles },
@@ -151,6 +166,13 @@ const TeacherDashboard = () => {
     } catch (e) { console.error('Lessons fetch error:', e); }
   }, []);
 
+  const fetchErtaklar = useCallback(async () => {
+    try {
+      const res = await teacherService.getErtaklar();
+      setErtaklar(res.data || []);
+    } catch (e) { console.error('Ertaklar fetch error:', e); }
+  }, []);
+
   const fetchUnread = useCallback(async () => {
     try {
       const res = await notificationService.getUnreadCount();
@@ -162,10 +184,11 @@ const TeacherDashboard = () => {
     fetchClassrooms();
     fetchAssignments();
     fetchLessons();
+    fetchErtaklar();
     fetchUnread();
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
-  }, [fetchClassrooms, fetchAssignments, fetchLessons, fetchUnread]);
+  }, [fetchClassrooms, fetchAssignments, fetchLessons, fetchErtaklar, fetchUnread]);
 
   useEffect(() => {
     if (activeTab === 'school' && !mySchool) {
@@ -302,6 +325,10 @@ const TeacherDashboard = () => {
       const payload = { ...newAssignment };
       if (!payload.classroom_id) delete payload.classroom_id;
       if (!payload.due_date) delete payload.due_date;
+      if (!payload.reference_id) {
+        delete payload.reference_id;
+        delete payload.reference_type;
+      }
       if (assignTarget === 'student' && selectedStudentIds.length > 0) {
         payload.target_student_ids = selectedStudentIds;
       }
@@ -327,7 +354,11 @@ const TeacherDashboard = () => {
       await teacherService.createAssignment(payload);
       showNotif('success', 'Vazifa yaratildi va yuborildi!');
       setShowCreateAssignment(false);
-      setNewAssignment({ title: '', description: '', assignment_type: 'homework', classroom_id: '', due_date: '', max_score: 100 });
+      setNewAssignment({
+        title: '', description: '', assignment_type: 'homework',
+        classroom_id: '', due_date: '', max_score: 100,
+        reference_id: '', reference_type: ''
+      });
       setAssignTarget('classroom');
       setSelectedStudentIds([]);
       setAssignmentFile(null);
@@ -338,6 +369,22 @@ const TeacherDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAssignErtak = (ertak) => {
+    setNewAssignment({
+      title: ertak.title,
+      description: `Ertakni o'qing va savollarga javob bering.`,
+      assignment_type: 'reading',
+      classroom_id: '',
+      due_date: '',
+      max_score: 100,
+      reference_id: ertak.id,
+      reference_type: 'ertak'
+    });
+    setAssignTarget('classroom');
+    setSelectedStudentIds([]);
+    setShowCreateAssignment(true);
   };
 
   const handleGenerateAITest = async () => {
@@ -462,6 +509,93 @@ const TeacherDashboard = () => {
     }
   };
 
+  // ============ ERTAKLAR ACTIONS ============
+
+  const handleCreateErtak = async () => {
+    try {
+      setSaving(true);
+      setError('');
+      const payload = {
+        ...ertakForm,
+        questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim())
+      };
+      if (uploadFile) {
+        const upRes = await teacherService.uploadAssignmentFile(uploadFile);
+        if (upRes.url) payload.audio_url = upRes.url;
+      }
+      if (uploadImage) {
+        const imgRes = await teacherService.uploadAssignmentFile(uploadImage);
+        if (imgRes.url) payload.image_url = imgRes.url;
+      }
+
+      await teacherService.createErtak(payload);
+      showNotif('success', 'Ertak yaratildi!');
+      setCreateErtakModal(false);
+      setErtakForm({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
+      setErtakQuestions([]);
+      setUploadFile(null);
+      setUploadImage(null);
+      fetchErtaklar();
+    } catch (err) {
+      setError(err.message || 'Xatolik');
+      showNotif('error', err.message || 'Xatolik');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditErtak = (ertak) => {
+    setEditErtak(ertak);
+    setEditErtakForm({
+      title: ertak.title || '',
+      content: ertak.content || '',
+      language: ertak.language || 'uz',
+      age_group: ertak.age_group || 'Barchasi',
+    });
+    setEditErtakQuestions(ertak.questions || []);
+  };
+
+  const handleUpdateErtak = async () => {
+    if (!editErtak) return;
+    try {
+      setSaving(true);
+      setError('');
+      const payload = {
+        ...editErtakForm,
+        questions: editErtakQuestions.filter(q => q.question?.trim() && q.answer?.trim())
+      };
+      if (uploadFile) {
+        const upRes = await teacherService.uploadAssignmentFile(uploadFile);
+        if (upRes.url) payload.audio_url = upRes.url;
+      }
+      if (uploadImage) {
+        const imgRes = await teacherService.uploadAssignmentFile(uploadImage);
+        if (imgRes.url) payload.image_url = imgRes.url;
+      }
+      await teacherService.updateErtak(editErtak.id, payload);
+      showNotif('success', 'Ertak yangilandi!');
+      setEditErtak(null);
+      setEditErtakQuestions([]);
+      setUploadFile(null);
+      setUploadImage(null);
+      fetchErtaklar();
+    } catch (err) {
+      setError(err.message || 'Xatolik');
+      showNotif('error', err.message || 'Xatolik');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteErtak = async (id) => {
+    if (!confirm("Ertakni o'chirmoqchimisiz?")) return;
+    try {
+      await teacherService.deleteErtak(id);
+      showNotif('success', "Ertak o'chirildi");
+      fetchErtaklar();
+    } catch (e) { showNotif('error', e.message || 'Xatolik'); }
+  };
+
   const handleDeleteClassroom = async (id) => {
     if (!confirm("Sinfni o'chirishni xohlaysizmi?")) return;
     try {
@@ -502,6 +636,7 @@ const TeacherDashboard = () => {
     { icon: GraduationCap, value: classrooms.length, label: 'Sinflar', color: 'from-blue-500 to-blue-600' },
     { icon: BookOpen, value: lessons.length, label: 'Darslar', color: 'from-pink-500 to-pink-600' },
     { icon: Users, value: totalStudents, label: "O'quvchilar", color: 'from-green-500 to-green-600' },
+    { icon: BookOpen, value: ertaklar.length, label: 'Ertaklarim', color: 'from-orange-500 to-orange-600' },
     { icon: ClipboardList, value: assignments.length, label: 'Vazifalar', color: 'from-purple-500 to-purple-600' },
     { icon: Bell, value: unreadCount, label: 'Yangi xabarlar', color: 'from-amber-500 to-amber-600' },
   ];
@@ -558,6 +693,10 @@ const TeacherDashboard = () => {
           }}
             className="flex items-center gap-3 bg-gradient-to-br from-indigo-500 to-violet-500 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
             <FileText size={20} /><span className="font-medium">TestAI</span>
+          </button>
+          <button onClick={() => setCreateErtakModal(true)}
+            className="flex items-center gap-3 bg-gradient-to-br from-orange-500 to-red-500 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
+            <BookOpen size={20} /><span className="font-medium">Yangi ertak</span>
           </button>
         </div>
       </div>
@@ -1163,6 +1302,51 @@ const TeacherDashboard = () => {
     </div>
   );
 
+  // ============ RENDER: ERTAKLAR ============
+
+  const renderErtaklar = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-white">Mening Ertaklarim</h3>
+        <button onClick={() => setCreateErtakModal(true)}
+          className="flex items-center gap-2 bg-gradient-to-br from-orange-500 to-red-500 text-white px-4 py-2 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform text-sm font-medium">
+          <Plus size={16} /> Yangi ertak
+        </button>
+      </div>
+
+      {ertaklar.length === 0 ? (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+          <BookOpen className="w-12 h-12 text-white/20 mx-auto mb-3" />
+          <p className="text-white/60">Hozircha ertaklar yo'q</p>
+          <button onClick={() => setCreateErtakModal(true)} className="mt-4 px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg text-sm">Ertak yaratish</button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {ertaklar.map(ertak => (
+            <div key={ertak.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all flex flex-col justify-between group">
+              <div>
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="text-white font-bold text-lg group-hover:text-orange-400 transition-colors">{ertak.title}</h4>
+                  <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white/40 uppercase tracking-widest">{ertak.language}</span>
+                </div>
+                <p className="text-white/60 text-sm line-clamp-3 mb-4">{ertak.content}</p>
+                <div className="flex items-center gap-3 text-white/30 text-xs">
+                  <span>{ertak.age_group} yosh</span>
+                  <span>•</span>
+                  <span>{ertak.questions?.length || 0} ta savol</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => handleEditErtak(ertak)} className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all"><Edit size={16} /></button>
+                <button onClick={() => handleDeleteErtak(ertak.id)} className="p-2 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   // ============ RENDER: RESOURCES ============
 
   const renderResources = () => (
@@ -1170,7 +1354,7 @@ const TeacherDashboard = () => {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-white">Kutubxona</h3>
       </div>
-      <ResourceLibrary classrooms={classrooms} />
+      <ResourceLibrary classrooms={classrooms} ertaklar={ertaklar} fetchErtaklar={fetchErtaklar} />
     </div>
   );
 
@@ -1224,6 +1408,7 @@ const TeacherDashboard = () => {
         />
       );
       case 'livequiz': return renderLiveQuiz();
+      case 'ertaklar': return renderErtaklar();
       case 'resources': return renderResources();
       case 'school': return renderMySchool();
       case 'settings': return renderSettings();
@@ -1893,6 +2078,184 @@ const TeacherDashboard = () => {
           onImportComplete={() => { fetchClassroomDetail(selectedClassroom); setShowStudentImport(false); }}
           onClose={() => setShowStudentImport(false)}
         />
+      )}
+
+      {/* Create Ertak Modal */}
+      {createErtakModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#1e1e3a] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="p-5 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-white font-bold text-lg">Yangi Ertak Yaratish</h3>
+              <button onClick={() => setCreateErtakModal(false)} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Sarlavha *</label>
+                    <input type="text" value={ertakForm.title} onChange={v => setErtakForm({ ...ertakForm, title: v.target.value })}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500/50" placeholder="Ertak nomi..." />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Til</label>
+                      <select value={ertakForm.language} onChange={v => setErtakForm({ ...ertakForm, language: v.target.value })}
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none">
+                        <option value="uz">O'zbekcha</option>
+                        <option value="ru">Ruscha</option>
+                        <option value="en">Inglizcha</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Yosh guruhi</label>
+                      <select value={ertakForm.age_group} onChange={v => setErtakForm({ ...ertakForm, age_group: v.target.value })}
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none">
+                        <option value="Barchasi">Barchasi</option>
+                        <option value="3-5">3-5 yosh</option>
+                        <option value="6-8">6-8 yosh</option>
+                        <option value="9-12">9-12 yosh</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Ertak Matni *</label>
+                    <textarea value={ertakForm.content} onChange={v => setErtakForm({ ...ertakForm, content: v.target.value })} rows={10}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50 resize-none" placeholder="Ertak mazmunini bu yerga yozing..." />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                    <label className="text-xs font-bold text-white/60 mb-3 block">Media fayllar</label>
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-[10px] text-white/30 block mb-1">Rasm (Muqova)</span>
+                        <input type="file" accept="image/*" onChange={e => setUploadImage(e.target.files[0])} className="text-xs text-white/40" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-white/30 block mb-1">Audio (Ertak ovozi)</span>
+                        <input type="file" accept="audio/*" onChange={e => setUploadFile(e.target.files[0])} className="text-xs text-white/40" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Savollar (Viktoriina)</label>
+                      <button onClick={() => setErtakQuestions([...ertakQuestions, { question: '', answer: '' }])} className="text-[10px] text-orange-400 hover:text-orange-300 font-bold uppercase tracking-widest bg-transparent border-none cursor-pointer">+ Qo'shish</button>
+                    </div>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                      {ertakQuestions.map((q, idx) => (
+                        <div key={idx} className="bg-black/20 rounded-xl p-3 space-y-2 relative group">
+                          <input type="text" value={q.question} onChange={e => { const n = [...ertakQuestions]; n[idx].question = e.target.value; setErtakQuestions(n); }}
+                            className="w-full bg-transparent border-b border-white/10 text-white text-sm focus:outline-none focus:border-orange-500/50 py-1" placeholder="Savol..." />
+                          <input type="text" value={q.answer} onChange={e => { const n = [...ertakQuestions]; n[idx].answer = e.target.value; setErtakQuestions(n); }}
+                            className="w-full bg-transparent text-orange-400 text-xs focus:outline-none py-1" placeholder="To'g'ri javob..." />
+                          <button onClick={() => setErtakQuestions(ertakQuestions.filter((_, i) => i !== idx))} className="absolute top-2 right-2 text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 border-t border-white/10 bg-black/20 flex gap-3">
+              <button onClick={() => setCreateErtakModal(false)} className="flex-1 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl text-sm font-bold transition-all">Bekor qilish</button>
+              <button onClick={handleCreateErtak} disabled={saving || !ertakForm.title || !ertakForm.content}
+                className="flex-1 py-3 bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-orange-500/20 hover:scale-[1.02] transition-all disabled:opacity-40">
+                {saving ? 'Saqlanmoqda...' : 'Ertakni saqlash'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Ertak Modal */}
+      {editErtak && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#1e1e3a] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="p-5 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-white font-bold text-lg">Ertakni Tahrirlash: {editErtak.title}</h3>
+              <button onClick={() => setEditErtak(null)} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Sarlavha *</label>
+                    <input type="text" value={editErtakForm.title} onChange={v => setEditErtakForm({ ...editErtakForm, title: v.target.value })}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500/50" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Til</label>
+                      <select value={editErtakForm.language} onChange={v => setEditErtakForm({ ...editErtakForm, language: v.target.value })}
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none">
+                        <option value="uz">O'zbekcha</option>
+                        <option value="ru">Ruscha</option>
+                        <option value="en">Inglizcha</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Yosh guruhi</label>
+                      <select value={editErtakForm.age_group} onChange={v => setEditErtakForm({ ...editErtakForm, age_group: v.target.value })}
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none">
+                        <option value="Barchasi">Barchasi</option>
+                        <option value="3-5">3-5 yosh</option>
+                        <option value="6-8">6-8 yosh</option>
+                        <option value="9-12">9-12 yosh</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Ertak Matni *</label>
+                    <textarea value={editErtakForm.content} onChange={v => setEditErtakForm({ ...editErtakForm, content: v.target.value })} rows={10}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50 resize-none" />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                    <label className="text-xs font-bold text-white/60 mb-3 block">Media fayllar</label>
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-[10px] text-white/30 block mb-1">Yangi rasm (Ixtiyoriy)</span>
+                        <input type="file" accept="image/*" onChange={e => setUploadImage(e.target.files[0])} className="text-xs text-white/40" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-white/30 block mb-1">Yangi audio (Ixtiyoriy)</span>
+                        <input type="file" accept="audio/*" onChange={e => setUploadFile(e.target.files[0])} className="text-xs text-white/40" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Savollar (Viktoriina)</label>
+                      <button onClick={() => setEditErtakQuestions([...editErtakQuestions, { question: '', answer: '' }])} className="text-[10px] text-orange-400 hover:text-orange-300 font-bold uppercase tracking-widest bg-transparent border-none cursor-pointer">+ Qo'shish</button>
+                    </div>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                      {editErtakQuestions.map((q, idx) => (
+                        <div key={idx} className="bg-black/20 rounded-xl p-3 space-y-2 relative group">
+                          <input type="text" value={q.question} onChange={e => { const n = [...editErtakQuestions]; n[idx].question = e.target.value; setEditErtakQuestions(n); }}
+                            className="w-full bg-transparent border-b border-white/10 text-white text-sm focus:outline-none focus:border-orange-500/50 py-1" placeholder="Savol..." />
+                          <input type="text" value={q.answer} onChange={e => { const n = [...editErtakQuestions]; n[idx].answer = e.target.value; setEditErtakQuestions(n); }}
+                            className="w-full bg-transparent text-orange-400 text-xs focus:outline-none py-1" placeholder="To'g'ri javob..." />
+                          <button onClick={() => setEditErtakQuestions(editErtakQuestions.filter((_, i) => i !== idx))} className="absolute top-2 right-2 text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 border-t border-white/10 bg-black/20 flex gap-3">
+              <button onClick={() => setEditErtak(null)} className="flex-1 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl text-sm font-bold transition-all">Bekor qilish</button>
+              <button onClick={handleUpdateErtak} disabled={saving || !editErtakForm.title || !editErtakForm.content}
+                className="flex-1 py-3 bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-orange-500/20 hover:scale-[1.02] transition-all disabled:opacity-40">
+                {saving ? 'Yangilanmoqda...' : 'O\'zgarishlarni saqlash'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Marketplace Listing Modal */}
