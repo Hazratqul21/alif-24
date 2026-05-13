@@ -305,11 +305,13 @@ class OlympiadReadingSubmission(Base):
             "participant_id", "story_id", "reading_task_id",
             name="uq_reading_submission_per_story",
         ),
+        Index("ix_reading_sub_olympiad_id", "olympiad_id"),
         Index("ix_reading_sub_participant_id", "participant_id"),
         Index("ix_reading_sub_task_id", "reading_task_id"),
     )
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
+    olympiad_id = Column(String(8), ForeignKey("olympiads.id", ondelete="CASCADE"), nullable=False)
     participant_id = Column(String(8), ForeignKey("olympiad_participants.id", ondelete="CASCADE"), nullable=False)
     reading_task_id = Column(String(8), ForeignKey("olympiad_reading_tasks.id", ondelete="SET NULL"), nullable=True)
     story_id = Column(String(8), ForeignKey("olympiad_stories.id", ondelete="SET NULL"), nullable=True)

@@ -89,6 +89,24 @@ def upgrade():
         if not _index_exists(
             inspector, "olympiad_reading_submissions", "ix_reading_submissions_leaderboard"
         ):
+            # Check if olympiad_id column exists
+            if not _column_exists(inspector, "olympiad_reading_submissions", "olympiad_id"):
+                op.add_column(
+                    "olympiad_reading_submissions",
+                    sa.Column("olympiad_id", sa.String(8), sa.ForeignKey("olympiads.id", ondelete="CASCADE"), nullable=True)
+                )
+                # Populate olympiad_id from participant_id -> olympiad_participants.olympiad_id
+                op.execute(
+                    """
+                    UPDATE olympiad_reading_submissions s
+                    SET olympiad_id = p.olympiad_id
+                    FROM olympiad_participants p
+                    WHERE s.participant_id = p.id
+                    """
+                )
+                # Make it non-nullable after population
+                op.alter_column("olympiad_reading_submissions", "olympiad_id", nullable=False)
+
             op.create_index(
                 "ix_reading_submissions_leaderboard",
                 "olympiad_reading_submissions",
