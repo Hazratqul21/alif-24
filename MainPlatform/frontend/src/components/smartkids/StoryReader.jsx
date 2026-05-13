@@ -1461,7 +1461,8 @@ export default function StoryReader({ storyText, age = 7 }) {
         padding: "15px",
         backgroundColor: "#f8f9fa",
         borderRadius: "10px",
-        border: "1px solid #dee2e6"
+        border: "1px solid #dee2e6",
+        color: "#333"
       }}>
         {storyText}
       </div>
@@ -1475,7 +1476,7 @@ export default function StoryReader({ storyText, age = 7 }) {
               <h3 style={{ color: "#333", marginBottom: 15 }}>
                 <HelpCircle size={18} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Savol {questionCount}:
               </h3>
-              <p style={{ fontSize: "1.1em", marginBottom: 20, fontWeight: "bold", color: "#555" }}>
+              <p style={{ fontSize: "1.1em", marginBottom: 20, fontWeight: "bold", color: "#333" }}>
                 {currentQuestion}
               </p>
 

@@ -164,6 +164,7 @@
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 16px;
+  color: #333;
   font-family: inherit;
   resize: vertical;
   transition: border-color 0.3s;
@@ -185,6 +186,7 @@
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 16px;
+  color: #333;
   background-color: white;
   cursor: pointer;
   transition: border-color 0.3s;
@@ -326,7 +328,7 @@
 }
 
 .step-explanation {
-  color: #555;
+  color: #333;
   font-size: 16px;
   line-height: 1.6;
   margin: 0;
@@ -390,7 +392,7 @@
 
 .problem-display p {
   margin: 8px 0 0 0;
-  color: #555;
+  color: #333;
   font-size: 16px;
   line-height: 1.6;
 }
@@ -450,7 +452,7 @@
 }
 
 .step-explanation {
-  color: #555;
+  color: #333;
   font-size: 16px;
   line-height: 1.7;
   margin: 15px 0;
@@ -480,6 +482,7 @@
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 16px;
+  color: #333;
   transition: border-color 0.3s;
 }
 

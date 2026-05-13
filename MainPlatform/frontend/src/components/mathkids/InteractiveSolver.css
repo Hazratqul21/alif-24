@@ -113,6 +113,7 @@
 
 .message-content {
   background: white;
+  color: #333;
   padding: 15px 20px;
   border-radius: 15px;
   max-width: 70%;
