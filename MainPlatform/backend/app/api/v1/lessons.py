@@ -61,6 +61,23 @@ async def get_teacher_profile_local(user: User, db: AsyncSession) -> TeacherProf
         await db.flush()
     return profile
 
+def story_dict(s: Story):
+    return {
+        "id": s.id,
+        "teacher_id": s.teacher_id,
+        "title": s.title,
+        "content": s.content,
+        "language": s.language,
+        "age_group": s.age_group,
+        "has_audio": s.has_audio,
+        "audio_url": s.audio_url,
+        "image_url": s.image_url,
+        "view_count": s.view_count,
+        "questions": s.questions or [],
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+    }
+
 def lesson_dict(l: Lesson, teacher_name: str = None) -> dict:
     d = {
         "id": l.id,
@@ -356,7 +373,7 @@ async def create_teacher_story(
     db.add(story)
     await db.commit()
     await db.refresh(story)
-    return {"success": True, "data": story}
+    return {"success": True, "data": story_dict(story)}
 
 @router.get("/teachers/stories")
 async def get_my_stories(
@@ -366,7 +383,7 @@ async def get_my_stories(
     teacher = await get_teacher_profile_local(current_user, db)
     res = await db.execute(select(Story).where(Story.teacher_id == teacher.id).order_by(desc(Story.created_at)))
     stories = res.scalars().all()
-    return {"success": True, "data": stories}
+    return {"success": True, "data": [story_dict(s) for s in stories]}
 
 @router.get("/teachers/stories/{story_id}")
 async def get_teacher_story_detail(
@@ -379,7 +396,7 @@ async def get_teacher_story_detail(
     story = res.scalars().first()
     if not story:
         raise HTTPException(status_code=404, detail="Ertak topilmadi")
-    return {"success": True, "data": story}
+    return {"success": True, "data": story_dict(story)}
 
 @router.put("/teachers/stories/{story_id}")
 async def update_teacher_story(
@@ -400,7 +417,7 @@ async def update_teacher_story(
             
     await db.commit()
     await db.refresh(story)
-    return {"success": True, "data": story}
+    return {"success": True, "data": story_dict(story)}
 
 @router.delete("/teachers/stories/{story_id}")
 async def delete_teacher_story(
@@ -423,7 +440,6 @@ async def delete_teacher_story(
 # PUBLIC: Stories (Ertaklar) — for students
 # ============================================================================
 
-from shared.database.models.story import Story
 
 @router.get("/public/stories")
 async def list_public_stories(
@@ -447,20 +463,7 @@ async def list_public_stories(
 
     return {
         "success": True,
-        "data": [
-            {
-                "id": s.id,
-                "title": s.title,
-                "content": s.content,
-                "language": s.language,
-                "age_group": s.age_group,
-                "has_audio": s.has_audio,
-                "audio_url": s.audio_url,
-                "image_url": s.image_url,
-                "created_at": s.created_at.isoformat() if s.created_at else None,
-            }
-            for s in stories
-        ],
+        "data": [story_dict(s) for s in stories],
         "total": total,
     }
     
@@ -478,18 +481,7 @@ async def get_public_story(
     
     return {
         "success": True,
-        "data": {
-            "id": story.id,
-            "title": story.title,
-            "content": story.content,
-            "language": story.language,
-            "age_group": story.age_group,
-            "has_audio": story.has_audio,
-            "audio_url": story.audio_url,
-            "image_url": story.image_url,
-            "questions": story.questions,
-            "created_at": story.created_at.isoformat() if story.created_at else None,
-        }
+        "data": story_dict(story)
     }
 
 
