@@ -57,20 +57,25 @@ else:
     engine_args["max_overflow"] = int(os.getenv("DB_MAX_OVERFLOW", "20"))
     engine_args["pool_recycle"] = 300
 
-# Create async engine
-engine = create_async_engine(
-    DATABASE_URL,
-    **engine_args
-)
+# Create async engine - faqat async haydovchi (driver) bo'lsa
+engine = None
+AsyncSessionLocal = None
 
-# Async session factory
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    autocommit=False,
-    autoflush=False,
-    expire_on_commit=False
-)
+if "+asyncpg" in DATABASE_URL or "+aiopg" in DATABASE_URL:
+    try:
+        engine = create_async_engine(
+            DATABASE_URL,
+            **engine_args
+        )
+        AsyncSessionLocal = async_sessionmaker(
+            bind=engine,
+            class_=AsyncSession,
+            autocommit=False,
+            autoflush=False,
+            expire_on_commit=False
+        )
+    except Exception as e:
+        logger.warning(f"Async engine yaratishda xatolik: {e}")
 
 
 async def get_db():
