@@ -22,11 +22,22 @@ if not DATABASE_URL:
         "DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/alif24"
     )
 
-# Supabase/Heroku format: postgres:// -> postgresql+asyncpg://
+# Supabase/Heroku format: postgres:// -> postgresql://
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
-elif DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Alembic yoki boshqa sinxron holatlar uchun asyncpg ni majburiy qilmaslik
+is_async = "+asyncpg" in DATABASE_URL or "+aiopg" in DATABASE_URL
+
+if not is_async:
+    # Agar asyncpg o'rnatilgan bo'lsa va URL da ko'rsatilmagan bo'lsa, qo'shamiz
+    try:
+        import asyncpg
+        if DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
+            DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    except ImportError:
+        # asyncpg yo'q bo'lsa, URL o'zgarishsiz qoladi (psycopg2 ishlatilishi uchun)
+        pass
 
 # Async engine configuration
 engine_args = {

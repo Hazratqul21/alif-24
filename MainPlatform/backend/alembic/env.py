@@ -14,6 +14,7 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
+
 try:
     from dotenv import load_dotenv
     # Load environment variables from project root
@@ -21,12 +22,11 @@ try:
 except ImportError:
     pass
 
-# Import shared database
-from shared.database import Base
+# Import shared database base directly to avoid session initialization if possible
+from shared.database.base import Base
 from shared.database.models import *  # Import all shared models
 
-# Platform-specific models (Alembic autogenerate uchun)
-# Docker ichida konteyner faqat o'z kodini ko'radi, shuning uchun xavfsiz import
+# Platform-specific models
 _platform_imports = [
     "MainPlatform.backend.app.models.ai_cache",
     "MainPlatform.backend.app.models.reading_analysis",
@@ -35,13 +35,11 @@ _platform_imports = [
     "Lessions.backend.app.lessons.models",
 ]
 
-# Modullarni import qilish (takrorlanishning oldini olgan holda)
 for _mod in _platform_imports:
     try:
         if _mod not in sys.modules:
             __import__(_mod)
     except ModuleNotFoundError:
-        # Agar MainPlatform... yo'li bilan topilmasa, mahalliy 'app' dan qidiramiz
         if "MainPlatform.backend." in _mod:
             _local_mod = _mod.replace("MainPlatform.backend.", "")
             try:
@@ -57,7 +55,7 @@ config = context.config
 # Override sqlalchemy.url from DATABASE_URL environment variable
 database_url = os.getenv("DATABASE_URL")
 if database_url:
-    # Alembic sinxron ishlaydi, shuning uchun asyncpg → psycopg2 ga almashtirish kerak
+    # Alembic needs sync driver (psycopg2)
     database_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
     database_url = database_url.replace("postgresql://", "postgresql+psycopg2://")
     config.set_main_option("sqlalchemy.url", database_url)
