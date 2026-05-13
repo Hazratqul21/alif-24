@@ -19,9 +19,11 @@ import {
   Play, Eye, Edit, Trash2, ArrowLeft, LogOut, Zap, Copy,
   Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon, Paperclip,
   FolderOpen, Sparkles, Upload, List, LayoutGrid, Tag, ShoppingBag,
-  Type, Image as ImageIcon, Menu, Share2
+  Type, Image as ImageIcon, Menu, Share2, Eye, BarChart3, Tag, Send
 } from 'lucide-react';
 import GradebookMatrix from '../components/Teacher/GradebookMatrix';
+import ErtakPreviewModal from '../components/Teacher/ErtakPreviewModal';
+import ErtakResults from '../components/Teacher/ErtakResults';
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
@@ -102,6 +104,10 @@ const TeacherDashboard = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [createErtakModal, setCreateErtakModal] = useState(false);
+  const [showErtakPreview, setShowErtakPreview] = useState(false);
+  const [selectedErtakForPreview, setSelectedErtakForPreview] = useState(null);
+  const [showErtakResults, setShowErtakResults] = useState(false);
+  const [selectedErtakForResults, setSelectedErtakForResults] = useState(null);
 
   const tabLabels = {
     uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', jurnal: 'Jurnal', resources: 'Kutubxona', ertaklar: 'Ertaklarim', testlarim: 'Testlarim', complex: 'Kompleks dars', marketplace: 'Marketplace', school: 'Maktabim', settings: 'Sozlamalar' },
@@ -1304,48 +1310,107 @@ const TeacherDashboard = () => {
 
   // ============ RENDER: ERTAKLAR ============
 
-  const renderErtaklar = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-white">Mening Ertaklarim</h3>
-        <button onClick={() => setCreateErtakModal(true)}
-          className="flex items-center gap-2 bg-gradient-to-br from-orange-500 to-red-500 text-white px-4 py-2 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform text-sm font-medium">
-          <Plus size={16} /> Yangi ertak
-        </button>
-      </div>
+  const renderErtaklar = () => {
+    if (showErtakResults && selectedErtakForResults) {
+      return (
+        <ErtakResults 
+          ertak={selectedErtakForResults} 
+          onBack={() => { setShowErtakResults(false); setSelectedErtakForResults(null); }} 
+        />
+      );
+    }
 
-      {ertaklar.length === 0 ? (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
-          <BookOpen className="w-12 h-12 text-white/20 mx-auto mb-3" />
-          <p className="text-white/60">Hozircha ertaklar yo'q</p>
-          <button onClick={() => setCreateErtakModal(true)} className="mt-4 px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg text-sm">Ertak yaratish</button>
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-white">Mening Ertaklarim</h3>
+          <button onClick={() => setCreateErtakModal(true)}
+            className="flex items-center gap-2 bg-gradient-to-br from-orange-500 to-red-500 text-white px-4 py-2 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform text-sm font-medium">
+            <Plus size={16} /> Yangi ertak
+          </button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {ertaklar.map(ertak => (
-            <div key={ertak.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all flex flex-col justify-between group">
-              <div>
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-white font-bold text-lg group-hover:text-orange-400 transition-colors">{ertak.title}</h4>
-                  <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white/40 uppercase tracking-widest">{ertak.language}</span>
+
+        {ertaklar.length === 0 ? (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+            <BookOpen className="w-12 h-12 text-white/20 mx-auto mb-3" />
+            <p className="text-white/60">Hozircha ertaklar yo'q</p>
+            <button onClick={() => setCreateErtakModal(true)} className="mt-4 px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg text-sm">Ertak yaratish</button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {ertaklar.map(ertak => (
+              <div key={ertak.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all flex flex-col justify-between group">
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="text-white font-bold text-lg group-hover:text-orange-400 transition-colors">{ertak.title}</h4>
+                    <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white/40 uppercase tracking-widest">{ertak.language}</span>
+                  </div>
+                  <p className="text-white/60 text-sm line-clamp-3 mb-4">{ertak.content}</p>
+                  <div className="flex items-center gap-3 text-white/30 text-xs">
+                    <span>{ertak.age_group} yosh</span>
+                    <span>•</span>
+                    <span>{ertak.questions?.length || 0} ta savol</span>
+                    {ertak.view_count > 0 && (
+                      <>
+                        <span>•</span>
+                        <span>{ertak.view_count} marta o'qildi</span>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <p className="text-white/60 text-sm line-clamp-3 mb-4">{ertak.content}</p>
-                <div className="flex items-center gap-3 text-white/30 text-xs">
-                  <span>{ertak.age_group} yosh</span>
-                  <span>•</span>
-                  <span>{ertak.questions?.length || 0} ta savol</span>
+                
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => { setSelectedErtakForPreview(ertak); setShowErtakPreview(true); }}
+                      className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                      title="Ko'rish"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleAssignErtak(ertak)}
+                      className="p-2 text-white/40 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                      title="Ulashish"
+                    >
+                      <Send size={16} />
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedErtakForResults(ertak); setShowErtakResults(true); }}
+                      className="p-2 text-white/40 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-all"
+                      title="Natijalar"
+                    >
+                      <BarChart3 size={16} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setMarketItemData({
+                          resource_id: ertak.id,
+                          resource_type: 'bundle', // Marketplace recognizes 'bundle' as stories/materials
+                          title: ertak.title,
+                          price: 10000,
+                          description: ertak.content
+                        });
+                        setShowMarketListModal(true);
+                      }}
+                      className="p-2 text-white/40 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all"
+                      title="Sotuvga qo'yish"
+                    >
+                      <Tag size={16} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handleEditErtak(ertak)} className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all" title="Tahrirlash"><Edit size={16} /></button>
+                    <button onClick={() => handleDeleteErtak(ertak.id)} className="p-2 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all" title="O'chirish"><Trash2 size={16} /></button>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => handleEditErtak(ertak)} className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all"><Edit size={16} /></button>
-                <button onClick={() => handleDeleteErtak(ertak.id)} className="p-2 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // ============ RENDER: RESOURCES ============
 
@@ -2302,6 +2367,13 @@ const TeacherDashboard = () => {
       )}
 
       {/* Test Review & Edit Modal */}
+      {showErtakPreview && selectedErtakForPreview && (
+        <ErtakPreviewModal 
+          ertak={selectedErtakForPreview} 
+          onClose={() => { setShowErtakPreview(false); setSelectedErtakForPreview(null); }} 
+        />
+      )}
+
       <TestReviewModal 
         show={showTestReview} 
         questions={parsedQuestions} 
