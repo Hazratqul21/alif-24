@@ -212,14 +212,23 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
         setPhase('evaluating');
         const text = recognizedRef.current.trim();
         try {
-            const form = new FormData();
-            form.append('recognized_text', text);
-            const r = await fetch(`${API_URL}/olympiad/ertaklar/${ertak.id}/quiz/evaluate-text?question_index=${qIndex}`, { method: 'POST', body: form, credentials: 'include' });
+            const r = await fetch(`${API_URL}/smartkids/evaluate-quiz`, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    story_text: ertak.content,
+                    question: currentQ.question,
+                    child_answer: text,
+                    language: ertak.language || 'uz',
+                    correct_answer: currentQ.answer // O'qituvchi bergan to'g'ri javob
+                }),
+                credentials: 'include' 
+            });
             const json = await r.json();
             const d = json.data || {};
-            setScores(prev => [...prev, { score: d.score ?? 0, recognized: d.recognized_text || text, correct: d.correct_answer || '', passed: d.passed ?? false }]);
+            setScores(prev => [...prev, { score: d.score ?? 0, recognized: text, correct: d.feedback || '', passed: d.passed ?? false }]);
         } catch {
-            setScores(prev => [...prev, { score: 0, recognized: text, correct: '', passed: false }]);
+            setScores(prev => [...prev, { score: 0, recognized: text, correct: 'Xatolik yuz berdi', passed: false }]);
         }
         setPhase('result');
     };

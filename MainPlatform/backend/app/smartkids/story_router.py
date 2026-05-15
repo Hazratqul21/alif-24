@@ -192,6 +192,14 @@ class SaveAnalysisRequest(BaseModel):
     ai_feedback: Optional[str] = None
 
 
+class EvaluateQuizRequest(BaseModel):
+    story_text: str
+    question: str
+    child_answer: str
+    language: Optional[str] = "uz-UZ"
+    correct_answer: Optional[str] = None # O'qituvchi tomonidan qo'yilgan to'g'ri javob (agar bo'lsa)
+
+
 class DetectLanguageRequest(BaseModel):
     text: str
 
@@ -636,3 +644,65 @@ async def get_user_analyses(user_id: str, days: int = 30, db: AsyncSession = Dep
         import traceback
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error fetching analyses: {str(e)}")
+
+
+@router.post("/evaluate-quiz")
+async def evaluate_quiz(request: EvaluateQuizRequest):
+    """
+    Bolaning savolga javobini AI yordamida baholash (100 ballik tizimda)
+    """
+    try:
+        # Get language-specific system prompt
+        system_prompts = {
+            "uz-UZ": (
+                "Siz tajribali pedagog va tahlilchisiz. Bolaning ertak asosidagi savolga bergan javobini baholang. "
+                "Javobni ertak mazmuni va (agar berilgan bo'lsa) o'qituvchi kutgan to'g'ri javob bilan solishtiring. "
+                "100 ballik tizimda baho bering (0 - mutlaqo noto'g'ri, 100 - mukammal javob). "
+                "STT xatolariga (harf xatolari) e'tibor bermang, asosiysi mazmun. "
+                "JSON formatida javob bering: {\"score\": 85, \"feedback\": \"Yaxshi, lekin qahramon ismini unutdingiz\", \"passed\": true}"
+            ),
+            "ru-RU": (
+                "Вы опытный педагог и аналитик. Оцените ответ ребенка на вопрос по сказке. "
+                "Сравните ответ с содержанием сказки и (если дано) правильным ответом учителя. "
+                "Поставьте оценку по 100-балльной системе (0 - совсем неправильно, 100 - идеальный ответ). "
+                "Не обращайте внимания на ошибки STT (опечатки), главное - смысл. "
+                "Ответьте в формате JSON: {\"score\": 85, \"feedback\": \"Хорошо, но вы забыли имя героя\", \"passed\": true}"
+            ),
+            "en-US": (
+                "You are an experienced teacher and analyst. Evaluate the child's answer to a story-based question. "
+                "Compare the answer with the story content and (if provided) the teacher's correct answer. "
+                "Give a score on a 100-point scale (0 - completely wrong, 100 - perfect answer). "
+                "Ignore STT errors (typos), focus on the meaning. "
+                "Respond in JSON format: {\"score\": 85, \"feedback\": \"Good, but you forgot the hero's name\", \"passed\": true}"
+            )
+        }
+        
+        system_prompt = system_prompts.get(request.language, system_prompts["uz-UZ"])
+        
+        user_prompt = (
+            f"Ertak matni:\n{request.story_text}\n\n"
+            f"Savol: {request.question}\n"
+            f"O'qituvchi kutgan to'g'ri javob: {request.correct_answer or 'Ertak mazmuniga asoslangan holda baholang'}\n\n"
+            f"Bolaning javobi: {request.child_answer}\n\n"
+            "Tahlil qiling va JSON formatida ball va qisqa izoh bering."
+        )
+        
+        content = await call_ai(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.3
+        )
+        
+        result = json.loads(content.strip())
+        # To'g'riligini tekshirish
+        score = result.get("score", 0)
+        result["passed"] = score >= 50
+        
+        return {"data": result}
+        
+    except Exception as e:
+        logger.error(f"Error evaluating quiz: {e}")
+        return {"data": {"score": 0, "feedback": "AI baholashda xatolik", "passed": false}}

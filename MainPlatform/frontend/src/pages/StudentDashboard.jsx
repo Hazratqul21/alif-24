@@ -1210,13 +1210,8 @@ const StudentDashboard = () => {
                     </div>
                 </div>
             )}
-            {selectedStory && (
-                <ErtakReadingModal
-                    ertak={selectedStory}
-                    assignmentId={storyAssignmentId}
-                    onClose={() => { setSelectedStory(null); setStoryAssignmentId(null); }}
-                    onDone={handleStoryDone}
-                />
+                    </div>
+                </div>
             )}
             {false && selectedStory && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => {
@@ -2346,6 +2341,15 @@ const StudentDashboard = () => {
                 onClose={() => setShowLevelUpModal(false)}
                 newLevel={dashboardData?.profile?.level || 1}
             />
+
+            {selectedStory && (
+                <ErtakReadingModal
+                    ertak={selectedStory}
+                    assignmentId={storyAssignmentId}
+                    onClose={() => { setSelectedStory(null); setStoryAssignmentId(null); }}
+                    onDone={handleStoryDone}
+                />
+            )}
 
         </>
     );
