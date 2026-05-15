@@ -166,6 +166,15 @@ class StudentService {
     });
   }
 
+  /**
+   * Ertak (story) vazifasini topshirish — Olimpiada uslubida
+   * @param {string} assignmentId
+   * @param {Object} data - { wpm, read_percent, reading_time_seconds, quiz_scores, quiz_average }
+   */
+  async submitErtak(assignmentId, data) {
+    return apiService.post(`/students/assignments/${assignmentId}/submit-ertak`, data);
+  }
+
   // ============ Parent Invites ============
 
   async acceptParentInvite(notifId) {

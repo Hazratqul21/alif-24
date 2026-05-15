@@ -23,6 +23,7 @@ import {
 import StudentPortalHeader from '../components/Student/StudentPortalHeader';
 import ProgressCharts from '../components/Student/ProgressCharts';
 import LevelUpModal from '../components/Student/LevelUpModal';
+import ErtakReadingModal from '../components/ErtakReadingModal';
 
 const STORY_API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
     ? (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') + '/smartkids'
@@ -432,10 +433,7 @@ const StudentDashboard = () => {
             if (data) {
                 setSelectedStory(data);
                 setStoryAssignmentId(task.assignment_id || task.id);
-                // Reset other story states
-                setStoryTtsDone(false);
-                setStoryRecordedUrl(null);
-                setSelectedTask(null); // Close task modal
+                setSelectedTask(null);
             }
         } catch (err) {
             showNotif('error', "Ertakni yuklashda xatolik");
@@ -444,23 +442,11 @@ const StudentDashboard = () => {
         }
     };
 
-    const handleSubmitStoryAssignment = async () => {
-        if (!storyAssignmentId || storySubmitting) return;
-        setStorySubmitting(true);
-        try {
-            await studentService.submitAssignment(storyAssignmentId, {
-                content: "Ertak o'qildi va tinglandi.",
-                attachments: []
-            });
-            showNotif('success', "Vazifa topshirildi!");
-            setStoryAssignmentId(null);
-            setSelectedStory(null);
-            await fetchLMSData();
-        } catch (err) {
-            showNotif('error', "Topshirishda xatolik yuz berdi");
-        } finally {
-            setStorySubmitting(false);
-        }
+    const handleStoryDone = async () => {
+        showNotif('success', "Vazifa topshirildi! 🎉");
+        setSelectedStory(null);
+        setStoryAssignmentId(null);
+        await fetchLMSData();
     };
 
     const content = {
@@ -1174,6 +1160,14 @@ const StudentDashboard = () => {
                 </div>
             )}
             {selectedStory && (
+                <ErtakReadingModal
+                    ertak={selectedStory}
+                    assignmentId={storyAssignmentId}
+                    onClose={() => { setSelectedStory(null); setStoryAssignmentId(null); }}
+                    onDone={handleStoryDone}
+                />
+            )}
+            {false && selectedStory && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => {
                     if (storyAudioRef.current) { storyAudioRef.current.pause(); storyAudioRef.current = null; }
                     if (storyMediaRecRef.current?.state === 'recording') storyMediaRecRef.current.stop();

@@ -803,6 +803,150 @@ async def submit_test_assignment(
 
 
 # ============================================================
+# STUDENT: ERTAK (STORY) AUTO-GRADE
+# ============================================================
+
+class ErtakSubmission(BaseModel):
+    wpm: int = 0
+    read_percent: int = 0
+    reading_time_seconds: int = 0
+    quiz_scores: Optional[List[dict]] = []   # [{score, recognized, correct, passed}]
+    quiz_average: int = 0                    # 0-100
+
+
+@router.post("/students/assignments/{assignment_id}/submit-ertak")
+async def submit_ertak_assignment(
+    assignment_id: str,
+    data: ErtakSubmission,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Ertak vazifasini topshirish — o'qish + savol-javob natijalarini saqlash.
+    O'quvchi Olimpiada tizimidagi kabi o'qib, savollarga ovozli javob beradi.
+    Natija avtomatik hisoblanadi va submission 'graded' holatiga o'tadi.
+    """
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
+
+    # Submission mavjudmi?
+    res = await db.execute(
+        select(AssignmentSubmission).where(
+            AssignmentSubmission.assignment_id == assignment_id,
+            AssignmentSubmission.student_user_id == current_user.id,
+        )
+    )
+    submission = res.scalars().first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Vazifa topilmadi yoki sizga berilmagan")
+    if submission.status == SubmissionStatus.graded:
+        raise HTTPException(status_code=400, detail="Vazifa allaqachon baholangan")
+
+    # Assignment
+    a_res = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
+    assignment = a_res.scalars().first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Vazifa topilmadi")
+
+    # Score hisoblash: o'qish (10 ball fixed) + quiz (max_score ga proporsional)
+    max_score = assignment.max_score or 100
+    reading_points = 10  # har doim 10 ball (o'qish uchun)
+    quiz_points = round((data.quiz_average / 100) * (max_score - reading_points)) if data.quiz_average else 0
+    total_score = min(reading_points + quiz_points, max_score)
+
+    import json
+    summary = {
+        "wpm": data.wpm,
+        "read_percent": data.read_percent,
+        "reading_time_seconds": data.reading_time_seconds,
+        "quiz_average": data.quiz_average,
+        "quiz_scores": data.quiz_scores or [],
+        "reading_points": reading_points,
+        "quiz_points": quiz_points,
+        "total_score": total_score,
+    }
+
+    submission.content = json.dumps(summary, ensure_ascii=False)
+    submission.score = total_score
+    submission.status = SubmissionStatus.graded
+    submission.submitted_at = datetime.now(timezone.utc)
+    submission.graded_at = datetime.now(timezone.utc)
+    submission.feedback = (
+        f"Ertak o'qish: {data.wpm} so'z/daq, {data.read_percent}% o'qildi. "
+        f"Savol-javob: {data.quiz_average}/100. "
+        f"Umumiy ball: {total_score}/{max_score}"
+    )
+    submission.meta_data = {
+        "wpm": data.wpm,
+        "read_percent": data.read_percent,
+        "quiz_average": data.quiz_average,
+        "total_score": total_score,
+    }
+
+    # O'qituvchiga notification
+    student_name = f"{current_user.first_name} {current_user.last_name}".strip()
+    await create_notification(
+        db, assignment.created_by,
+        f"📖 Ertak topshirildi: {assignment.title}",
+        f"{student_name} ertakni o'qib bo'ldi. Ball: {total_score}/{max_score}",
+        InAppNotifType.submission_received,
+        "assignment", assignment_id, current_user.id,
+    )
+
+    # Coin + XP mukofot
+    coins_earned = 0
+    try:
+        from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
+        sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == current_user.id))
+        sp = sp_res.scalars().first()
+        if sp:
+            sc_res = await db.execute(select(StudentCoin).where(StudentCoin.student_id == sp.id))
+            coin = sc_res.scalars().first()
+            if not coin:
+                coin = StudentCoin(student_id=sp.id, current_balance=0, total_earned=0, total_spent=0, total_withdrawn=0)
+                db.add(coin)
+                await db.flush()
+            # O'qish uchun coin: wpm >= 60 → 10, >= 40 → 5, else 2
+            reading_coin = 10 if data.wpm >= 60 else 5 if data.wpm >= 40 else 2
+            # Quiz uchun coin: average >= 80 → 15, >= 50 → 8, else 3
+            quiz_coin = 15 if data.quiz_average >= 80 else 8 if data.quiz_average >= 50 else 3
+            bonus = reading_coin + quiz_coin
+            coin.add_coins(bonus)
+            db.add(CoinTransaction(
+                student_coin_id=coin.id,
+                type=TransactionType.assignment_complete,
+                amount=bonus,
+                description=f"Ertak vazifa bajarildi: {assignment.title}",
+                reference_id=assignment_id,
+                reference_type="assignment",
+            ))
+            coins_earned = bonus
+
+            # Gamification: XP & Streak
+            from app.services.gamification_service import GamificationService
+            xp_amount = 80 + int(data.quiz_average * 0.5)
+            await GamificationService.add_xp(db, sp.id, xp_amount)
+            await GamificationService.update_daily_streak(db, sp.id)
+    except Exception as e:
+        logger.warning(f"Ertak gamification failed for {current_user.id}: {e}")
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Ertak vazifasi topshirildi! Ball: {total_score}/{max_score}",
+        "data": {
+            "score": total_score,
+            "max_score": max_score,
+            "wpm": data.wpm,
+            "read_percent": data.read_percent,
+            "quiz_average": data.quiz_average,
+            "coins_earned": coins_earned,
+        }
+    }
+
+
+# ============================================================
 # PARENT: CHILD ASSIGNMENTS & ASSIGN TASK
 # ============================================================
 
