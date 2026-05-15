@@ -441,7 +441,7 @@ async def delete_teacher_story(
 # ============================================================================
 
 
-@router.get("/public/stories")
+@router.get("/stories")
 async def list_public_stories(
     language: Optional[str] = None,
     age_group: Optional[str] = None,
@@ -472,7 +472,7 @@ async def list_public_stories(
         "total": total,
     }
     
-@router.get("/public/stories/{story_id}")
+@router.get("/stories/{story_id}")
 async def get_public_story(
     story_id: str,
     db: AsyncSession = Depends(get_db),
@@ -489,7 +489,7 @@ async def get_public_story(
         "data": story_dict(story)
     }
 
-@router.post("/public/stories/{story_id}/complete")
+@router.post("/stories/{story_id}/complete")
 async def record_story_completion(
     story_id: str,
     data: dict,
@@ -523,7 +523,7 @@ async def record_story_completion(
     await db.commit()
     return {"success": True, "message": "O'qilgan kitoblar safiga qo'shildi"}
 
-@router.get("/public/stories/my-library")
+@router.get("/stories/my-library")
 async def get_my_library(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -552,7 +552,7 @@ import httpx
 from fastapi import Response as FastAPIResponse
 
 from shared.services.azure_speech_service import speech_service
-@router.post("/public/stories/{story_id}/tts")
+@router.post("/stories/{story_id}/tts")
 async def story_tts(
     story_id: str,
     db: AsyncSession = Depends(get_db),
