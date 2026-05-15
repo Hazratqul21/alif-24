@@ -438,9 +438,13 @@ const StudentDashboard = () => {
             const res = await studentService.getErtakById(refId);
             const data = res.data || res;
             if (data) {
+                // Muhim: Test yoki boshqa modal ochiq bo'lsa yopamiz
+                setSelectedTask(null);
+                setTestQuestions([]);
+                setTestResult(null);
+                
                 setSelectedStory(data);
                 setStoryAssignmentId(task.assignment_id || task.id);
-                setSelectedTask(null);
             }
         } catch (err) {
             showNotif('error', "Ertakni yuklashda xatolik");
@@ -2135,7 +2139,7 @@ const StudentDashboard = () => {
                                     if (isReading) {
                                         return (
                                             <div key={task.id} 
-                                                onClick={() => openTestTask(task)}
+                                                onClick={() => handleOpenStoryAssignment(task)}
                                                 className="bg-white rounded-2xl shadow-sm hover:shadow-xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full relative border border-gray-100"
                                             >
                                                 {!isCompleted && (
@@ -2201,8 +2205,11 @@ const StudentDashboard = () => {
                                         );
                                     }
 
+                                    // TEST yoki boshqa vazifa block...
                                     return (
-                                        <div key={task.id} className={`group bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative overflow-hidden ${isCompleted ? 'opacity-80' : ''}`}>
+                                        <div key={task.id} 
+                                            onClick={() => openTestTask(task)}
+                                            className={`group bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative overflow-hidden ${isCompleted ? 'opacity-80' : ''}`}>
                                             {/* Status Badge */}
                                             <div className="flex justify-between items-start mb-6">
                                                 <div className={`p-4 rounded-2xl ${isCompleted ? 'bg-gray-100 text-gray-400' : 'bg-indigo-50 text-indigo-600'} transition-colors group-hover:scale-110 duration-300`}>

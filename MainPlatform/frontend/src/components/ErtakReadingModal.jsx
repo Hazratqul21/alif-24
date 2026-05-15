@@ -474,7 +474,7 @@ export default function ErtakReadingModal({ ertak, assignmentId, onClose, onDone
                     {step === 'reading' && (
                         <ReadingPhase
                             ertak={ertak}
-                            onDone={(stats) => { setReadingStats(stats); setStep(ertak.questions?.length > 0 ? 'quiz' : 'submitting'); }}
+                            onDone={(stats) => { setReadingStats(stats); setStep('quiz'); }}
                         />
                     )}
 
