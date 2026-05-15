@@ -332,8 +332,8 @@ async def list_ertaklar(
     age_group: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """List all ertaklar (stories)"""
-    stmt = select(Story)
+    """List all ertaklar (stories) — faqat Admin yasagan (teacher_id IS NULL)"""
+    stmt = select(Story).where(Story.teacher_id == None)  # noqa: E711 — faqat Admin ertaklari
 
     if language:
         stmt = stmt.where(Story.language == language)
