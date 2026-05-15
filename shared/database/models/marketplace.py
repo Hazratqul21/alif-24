@@ -9,6 +9,7 @@ from shared.database.id_generator import generate_8_digit_id
 class MarketplaceItemType(str, enum.Enum):
     lesson = "lesson"
     test = "test"
+    ertak = "ertak"
     material = "material"
     bundle = "bundle"
 

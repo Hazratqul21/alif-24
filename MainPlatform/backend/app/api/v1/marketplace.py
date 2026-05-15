@@ -104,6 +104,9 @@ async def list_resource_for_sale(
     elif res_type == MarketplaceItemType.test:
         from shared.database.models.saved_test import SavedTest
         res_check = await db.execute(select(SavedTest).where(and_(SavedTest.id == res_id, SavedTest.creator_id == current_user.id)))
+    elif res_type == MarketplaceItemType.ertak or res_type == "ertak":
+        from shared.database.models.story import Story
+        res_check = await db.execute(select(Story).where(and_(Story.id == res_id, Story.teacher_id == current_user.id)))
     else:
         raise HTTPException(status_code=400, detail="Noto'g'ri resurs turi")
 
@@ -113,8 +116,8 @@ async def list_resource_for_sale(
     new_item = MarketplaceItem(
         id=generate_8_digit_id(),
         seller_id=current_user.id,
-        resource_id=data["resource_id"],
-        resource_type=data["resource_type"],
+        resource_id=res_id,
+        resource_type=res_type,
         title=data["title"],
         description=data.get("description"),
         subject=data.get("subject"),
