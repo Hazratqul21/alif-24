@@ -106,7 +106,12 @@ async def list_resource_for_sale(
         res_check = await db.execute(select(SavedTest).where(and_(SavedTest.id == res_id, SavedTest.creator_id == current_user.id)))
     elif res_type == MarketplaceItemType.ertak or res_type == "ertak":
         from shared.database.models.story import Story
-        res_check = await db.execute(select(Story).where(and_(Story.id == res_id, Story.teacher_id == current_user.id)))
+        from shared.database.models.teacher import TeacherProfile
+        tp_res = await db.execute(select(TeacherProfile).where(TeacherProfile.user_id == current_user.id))
+        teacher_profile = tp_res.scalars().first()
+        if not teacher_profile:
+            raise HTTPException(status_code=403, detail="O'qituvchi profili topilmadi")
+        res_check = await db.execute(select(Story).where(and_(Story.id == res_id, Story.teacher_id == teacher_profile.id)))
     else:
         raise HTTPException(status_code=400, detail="Noto'g'ri resurs turi")
 
