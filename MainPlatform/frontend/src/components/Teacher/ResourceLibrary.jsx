@@ -597,6 +597,154 @@ const ResourceLibrary = ({ classrooms = [], ertaklar = [], fetchErtaklar, onAtta
             ))}
           </div>
         )}
+
+        {/* Marketplace Listing Modal — Ertaklar uchun */}
+        {marketItem && marketItemType === 'ertak' && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4" onClick={() => setMarketItem(null)}>
+            <div className="bg-[#1e1e3a] border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-5 border-b border-white/10">
+                <div>
+                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                    <ShoppingBag className="w-5 h-5 text-green-400" /> Marketga joylashtirish
+                  </h3>
+                  <p className="text-white/40 text-xs mt-1">{marketItem.title}</p>
+                </div>
+                <button onClick={() => setMarketItem(null)} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all border-none cursor-pointer bg-transparent">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Nomi (Marketda ko'rinadigan)</label>
+                  <input type="text" value={marketForm.title}
+                    onChange={e => setMarketForm({ ...marketForm, title: e.target.value })}
+                    placeholder="Masalan: Oltin baliq ertagi"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-green-500/50 placeholder:text-white/15" />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Qisqa tavsif</label>
+                  <textarea value={marketForm.description}
+                    onChange={e => setMarketForm({ ...marketForm, description: e.target.value })}
+                    placeholder="Ertak haqida qisqacha, yosh guruhi, mavzu..."
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-green-500/50 placeholder:text-white/15 h-20 resize-none" />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Ko'rsatmalar (ixtiyoriy)</label>
+                  <textarea value={marketForm.instructions}
+                    onChange={e => setMarketForm({ ...marketForm, instructions: e.target.value })}
+                    placeholder="O'qituvchi yoki ota-ona uchun qo'shimcha ma'lumot..."
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-green-500/50 placeholder:text-white/15 h-16 resize-none" />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Namuna (matnning bir qismi)</label>
+                  <div className="bg-black/20 border border-white/5 rounded-xl p-3">
+                    <p className="text-white/40 text-[11px] italic line-clamp-3">{marketItem.content}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Narxi (UZS)</label>
+                    <div className="relative">
+                      <input type="number" value={marketForm.price}
+                        onChange={e => setMarketForm({ ...marketForm, price: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-green-500/50" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 text-xs font-bold">UZS</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">To'lov turi</label>
+                    <select value={marketForm.price_type}
+                      onChange={e => setMarketForm({ ...marketForm, price_type: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-green-500/50 appearance-none">
+                      <option value="one_time" className="bg-[#1a1a2e]">Bir martalik</option>
+                      <option value="subscription" className="bg-[#1a1a2e]">Obuna asosida</option>
+                      <option value="free" className="bg-[#1a1a2e]">Bepul</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Yosh guruhi / Sinf</label>
+                    <input type="text" value={marketForm.grade_level}
+                      onChange={e => setMarketForm({ ...marketForm, grade_level: e.target.value })}
+                      placeholder="Masalan: 5-7 yosh, 1-sinf"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-green-500/50 placeholder:text-white/15" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Format</label>
+                    <select value={marketForm.format}
+                      onChange={e => setMarketForm({ ...marketForm, format: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-green-500/50 appearance-none">
+                      <option value="online" className="bg-[#1a1a2e]">Onlayn (Alif24)</option>
+                      <option value="pdf" className="bg-[#1a1a2e]">PDF</option>
+                      <option value="word" className="bg-[#1a1a2e]">Word</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5 block">Aloqa / Qo'llab-quvvatlash (ixtiyoriy)</label>
+                  <input type="text" value={marketForm.support_info}
+                    onChange={e => setMarketForm({ ...marketForm, support_info: e.target.value })}
+                    placeholder="Telegram: @username yoki email"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-green-500/50 placeholder:text-white/15" />
+                </div>
+
+                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+                  <p className="text-amber-400/80 text-[11px]">
+                    <Info size={12} className="inline mr-1" />
+                    Platforma komissiyasi: 10% ({(marketForm.price * 0.1).toLocaleString()} so'm). Siz olasiz: {(marketForm.price * 0.9).toLocaleString()} so'm.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-white/10 bg-black/20 flex gap-3">
+                <button onClick={() => setMarketItem(null)}
+                  className="flex-1 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl text-sm font-bold transition-all border-none cursor-pointer bg-transparent">
+                  Bekor qilish
+                </button>
+                <button
+                  disabled={marketListingLoading || !marketForm.title.trim()}
+                  onClick={async () => {
+                    setMarketListingLoading(true);
+                    try {
+                      await teacherService.listTestInMarket({
+                        resource_id: marketItem.id,
+                        title: marketForm.title,
+                        description: marketForm.description,
+                        instructions: marketForm.instructions,
+                        price: marketForm.price_type === 'free' ? 0 : marketForm.price,
+                        price_type: marketForm.price_type,
+                        grade_level: marketForm.grade_level,
+                        format: marketForm.format,
+                        includes_answers: false,
+                        support_info: marketForm.support_info,
+                        resource_type: 'ertak',
+                      });
+                      setMarketItem(null);
+                      alert("Ertak marketpleysga muvaffaqiyatli joylashtirildi!");
+                    } catch (err) {
+                      alert("Xatolik: " + (err.message || "Marketga joylashtirishda muammo"));
+                    } finally {
+                      setMarketListingLoading(false);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-all border-none cursor-pointer disabled:opacity-40 flex items-center justify-center gap-2">
+                  {marketListingLoading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Yuklanmoqda...</>
+                    : <><Tag className="w-4 h-4" /> Marketga joylashtirish</>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
