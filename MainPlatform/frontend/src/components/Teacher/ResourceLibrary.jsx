@@ -250,7 +250,8 @@ const ResourceLibrary = ({ classrooms = [], ertaklar = [], fetchErtaklar, onAtta
                       <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                         <button onClick={(e) => {
                           e.stopPropagation();
-                          setMarketTest(test);
+                          setMarketItem(test);
+                          setMarketItemType('test');
                           setMarketForm(prev => ({
                             ...prev,
                             title: test.title || '',
