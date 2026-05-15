@@ -162,6 +162,7 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
     const audioRef = useRef(null);
     const recognizerRef = useRef(null);
     const recognizedRef = useRef('');
+    const [liveText, setLiveText] = useState('');
 
     const currentQ = questions[qIndex];
     const allDone = qIndex >= questions.length;
@@ -198,7 +199,14 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
             const rec = new SpeechRec();
             rec.lang = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
             rec.continuous = true;
-            rec.onresult = e => { recognizedRef.current = Array.from(e.results).map(r => r[0]?.transcript || '').join(' '); };
+            rec.interimResults = true;
+            rec.onresult = e => {
+                const transcript = Array.from(e.results)
+                    .map(r => r[0]?.transcript || '')
+                    .join(' ');
+                recognizedRef.current = transcript;
+                setLiveText(transcript);
+            };
             rec.start();
             recognizerRef.current = rec;
             setElapsed(0);
@@ -238,6 +246,7 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
     const nextQuestion = () => {
         const newIndex = qIndex + 1;
         setIsAnswering(false);
+        setLiveText('');
         if (newIndex >= questions.length) {
             setQIndex(questions.length); // triggers allDone
         } else {
@@ -343,6 +352,12 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
                         <p className="text-red-400 font-mono text-2xl font-black mb-1">{fmt(elapsed)}</p>
                         <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">Ovoz yozilmoqda...</p>
                     </div>
+
+                    {liveText && (
+                        <div className="w-full bg-white/5 rounded-xl p-3 border border-white/5 animate-in fade-in slide-in-from-bottom-2">
+                            <p className="text-white/60 text-xs italic line-clamp-3">"{liveText}..."</p>
+                        </div>
+                    )}
 
                     <button 
                         onClick={stopAndEvaluate}

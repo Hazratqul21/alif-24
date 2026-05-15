@@ -655,25 +655,28 @@ async def evaluate_quiz(request: EvaluateQuizRequest):
         # Get language-specific system prompt
         system_prompts = {
             "uz-UZ": (
-                "Siz tajribali pedagog va tahlilchisiz. Bolaning ertak asosidagi savolga bergan javobini baholang. "
-                "Javobni ertak mazmuni va (agar berilgan bo'lsa) o'qituvchi kutgan to'g'ri javob bilan solishtiring. "
-                "100 ballik tizimda baho bering (0 - mutlaqo noto'g'ri, 100 - mukammal javob). "
-                "STT xatolariga (harf xatolari) e'tibor bermang, asosiysi mazmun. "
-                "JSON formatida javob bering: {\"score\": 85, \"feedback\": \"Yaxshi, lekin qahramon ismini unutdingiz\", \"passed\": true}"
+                "Siz mehribon bolalar pedagogisiz. Bolaning ertak asosidagi savolga bergan javobini baholang. "
+                "Baho berishda bolaning yoshini va javob mazmunini inobatga oling. "
+                "Javob mutlaqo to'g'ri bo'lmasa-da, agar mazmunan yaqin bo'lsa, rag'batlantiruvchi ball bering (masalan 60-80). "
+                "STT (ovozni matnga aylantirish) xatolariga, grammatikaga e'tibor bermang. "
+                "Agar bola 'bilmayman' desa yoki javob mutlaqo asossiz bo'lsa, 10-30 ball bering va to'g'ri javobni tushuntiring. "
+                "JSON formatida javob bering: {\"score\": 85, \"feedback\": \"Barakalla! To'g'ri aytdingiz, faqat qahramonning ismini ham aytsangiz yanada zo'r bo'lar edi.\", \"passed\": true}"
             ),
             "ru-RU": (
-                "Вы опытный педагог и аналитик. Оцените ответ ребенка на вопрос по сказке. "
-                "Сравните ответ с содержанием сказки и (если дано) правильным ответом учителя. "
-                "Поставьте оценку по 100-балльной системе (0 - совсем неправильно, 100 - идеальный ответ). "
-                "Не обращайте внимания на ошибки STT (опечатки), главное - смысл. "
-                "Ответьте в формате JSON: {\"score\": 85, \"feedback\": \"Хорошо, но вы забыли имя героя\", \"passed\": true}"
+                "Вы добрый детский педагог. Оцените ответ ребенка на вопрос по сказке. "
+                "Учитывайте возраст ребенка и смысл ответа. "
+                "Даже если ответ не совсем точен, но близок по смыслу, ставьте поощрительный балл (например, 60-80). "
+                "Игнорируйте ошибки STT и грамматику. "
+                "Если ребенок говорит 'не знаю' или ответ совсем не по теме, поставьте 10-30 баллов и объясните правильный ответ. "
+                "Ответьте в формате JSON: {\"score\": 85, \"feedback\": \"Молодец! Ты правильно ответил, но если бы ты еще назвал имя героя, было бы еще лучше.\", \"passed\": true}"
             ),
             "en-US": (
-                "You are an experienced teacher and analyst. Evaluate the child's answer to a story-based question. "
-                "Compare the answer with the story content and (if provided) the teacher's correct answer. "
-                "Give a score on a 100-point scale (0 - completely wrong, 100 - perfect answer). "
-                "Ignore STT errors (typos), focus on the meaning. "
-                "Respond in JSON format: {\"score\": 85, \"feedback\": \"Good, but you forgot the hero's name\", \"passed\": true}"
+                "You are a kind children's educator. Evaluate the child's answer to a story-based question. "
+                "Consider the child's age and the meaning of the answer. "
+                "Even if the answer is not perfectly accurate, give an encouraging score (e.g., 60-80) if the meaning is close. "
+                "Ignore STT errors and grammar. "
+                "If the child says 'I don't know' or the answer is completely off-topic, give 10-30 points and explain the correct answer. "
+                "Respond in JSON format: {\"score\": 85, \"feedback\": \"Well done! You answered correctly, but it would have been even better if you mentioned the character's name.\", \"passed\": true}"
             )
         }
         
@@ -682,9 +685,9 @@ async def evaluate_quiz(request: EvaluateQuizRequest):
         user_prompt = (
             f"Ertak matni:\n{request.story_text}\n\n"
             f"Savol: {request.question}\n"
-            f"O'qituvchi kutgan to'g'ri javob: {request.correct_answer or 'Ertak mazmuniga asoslangan holda baholang'}\n\n"
+            f"O'qituvchi kutgan to'g'ri javob (namuna): {request.correct_answer or 'Ertak mazmuniga asoslangan holda baholang'}\n\n"
             f"Bolaning javobi: {request.child_answer}\n\n"
-            "Tahlil qiling va JSON formatida ball va qisqa izoh bering."
+            "Pedagogik nuqtai nazardan baholang, rag'batlantiruvchi ball va JSON formatida javob bering."
         )
         
         content = await call_ai(
