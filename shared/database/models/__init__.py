@@ -135,7 +135,7 @@ from shared.database.models.in_app_notification import (
 )
 
 from shared.database.models.lesson import Lesson
-from shared.database.models.story import Story
+from shared.database.models.story import Story, StoryReadingRecord
 from shared.database.models.platform_content import PlatformContent
 
 # Saved Test System
@@ -304,6 +304,7 @@ __all__ = [
 
     # Story Models
     "Story",
+    "StoryReadingRecord",
 
     # Platform Content
     "PlatformContent",
