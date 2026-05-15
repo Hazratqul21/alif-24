@@ -59,6 +59,7 @@ const StudentDashboard = () => {
     const [parentInvites, setParentInvites] = useState([]);
     const [realLessons, setRealLessons] = useState([]);
     const [realStories, setRealStories] = useState([]);
+    const [libraryStories, setLibraryStories] = useState([]);
     const [contentLoading, setContentLoading] = useState(false);
     const [selectedLesson, setSelectedLesson] = useState(null);
     const [selectedStory, setSelectedStory] = useState(null);
@@ -223,14 +224,20 @@ const StudentDashboard = () => {
             showNotif('info', 'To\'lov bekor qilindi.');
         }
     }, [searchParams]);
-
     useEffect(() => {
         if (activeTab === 'school' && mySchool === undefined) {
             organizationService.getMySchool().then(res => {
                 setMySchool(res.school || res.data?.school || null);
             }).catch(() => setMySchool(null));
         }
-        if (activeTab === 'library' && realLessons.length === 0 && realStories.length === 0 && !contentLoading) {
+        if (activeTab === 'library' && !contentLoading) {
+            setContentLoading(true);
+            studentService.getMyLibraryStories().then(res => {
+                setLibraryStories(res.data || []);
+            }).catch(() => {}).finally(() => setContentLoading(false));
+        }
+        // Public content for dashboard/home
+        if (realLessons.length === 0 && realStories.length === 0 && !contentLoading) {
             setContentLoading(true);
             Promise.allSettled([
                 studentService.getLessons(),
@@ -582,6 +589,7 @@ const StudentDashboard = () => {
             submission: a.status ? a : null,
             score: a.score,
             teacher_name: a.teacher_name,
+            classroom_name: a.classroom_name,
         };
     }) : (dashboardData?.tasks || []);
 
@@ -870,16 +878,30 @@ const StudentDashboard = () => {
                             <CheckCircle size={20} className="text-green-500" /> Vazifalarim
                         </h3>
                         <div className="space-y-4">
-                            {displayTasks.filter(t => t.status === 'pending').slice(0, 3).map(task => (
-                                <div
-                                    key={task.id}
-                                    className="p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-indigo-200 transition-colors cursor-pointer"
-                                    onClick={() => setActiveTab('tasks')}
-                                >
-                                    <h4 className="font-bold text-gray-800 text-sm mb-1">{task.title}</h4>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{task.deadline}</p>
-                                </div>
-                            ))}
+                            {displayTasks.filter(t => t.status === 'pending').slice(0, 3).map(task => {
+                                const isReading = task.assignment?.reference_type === 'ertak';
+                                return (
+                                    <div
+                                        key={task.id}
+                                        className="p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-indigo-200 hover:bg-white hover:shadow-md transition-all cursor-pointer group flex items-start gap-3"
+                                        onClick={() => setActiveTab('tasks')}
+                                    >
+                                        <div className={`p-2 rounded-lg ${isReading ? 'bg-purple-100 text-purple-600' : 'bg-indigo-100 text-indigo-600'} shrink-0 group-hover:scale-110 transition-transform`}>
+                                            {isReading ? <Book size={16} /> : <FileText size={16} />}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h4 className="font-bold text-gray-800 text-sm mb-0.5 line-clamp-1 group-hover:text-indigo-600 transition-colors">{task.title}</h4>
+                                            <p className="text-[10px] text-gray-500 mb-1 flex items-center gap-1">
+                                                <Users size={10} /> {task.teacher_name}
+                                            </p>
+                                            <div className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                <Calendar size={10} />
+                                                {task.deadline}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                             {displayTasks.filter(t => t.status === 'pending').length === 0 && (
                                 <p className="text-center text-gray-400 text-sm font-medium py-4">
                                     Barcha vazifalar bajarilgan! ✨
@@ -1058,7 +1080,7 @@ const StudentDashboard = () => {
             <div className="flex gap-2 flex-wrap">
                 {[
                     { key: 'lessons', label: 'Darslar', icon: <BookOpen size={16} />, count: realLessons.length },
-                    { key: 'stories', label: 'Ertaklar', icon: <Book size={16} />, count: realStories.length },
+                    { key: 'stories', label: 'Ertaklar', icon: <Book size={16} />, count: libraryStories.length },
                 ].map(item => (
                     <button key={item.key} onClick={() => setLibraryFilter(item.key)}
                         className={`px-4 py-2.5 rounded-full font-medium text-sm transition-all flex items-center gap-2 ${libraryFilter === item.key || (libraryFilter === 'all' && item.key === 'lessons') ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
@@ -1070,14 +1092,14 @@ const StudentDashboard = () => {
                 <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" /></div>
             ) : libraryFilter === 'stories' ? (
                 <div>
-                    {realStories.length === 0 ? (
+                    {libraryStories.length === 0 ? (
                         <div className="bg-white rounded-2xl p-12 text-center border border-gray-100">
                             <Book size={48} className="mx-auto mb-3 text-gray-300" />
                             <p className="text-gray-500">Hozircha ertaklar yo'q</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {realStories.map(story => (
+                            {libraryStories.map(story => (
                                 <div key={story.id} onClick={() => setSelectedStory(story)} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group">
                                     {story.image_url ? (
                                         <div className="w-full h-32 mb-3 rounded-xl overflow-hidden">
@@ -1949,11 +1971,20 @@ const StudentDashboard = () => {
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-[56px] h-[56px] transition-all flex-shrink-0 ${activeTab === tab ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+                                className={`flex flex-col items-center justify-center p-2 rounded-lg min-w-[56px] h-[56px] transition-all flex-shrink-0 relative ${activeTab === tab ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
                             >
                                 {tab === 'dashboard' && <Star size={20} />}
                                 {tab === 'classes' && <SchoolIcon size={20} />}
-                                {tab === 'tasks' && <CheckCircle size={20} />}
+                                {tab === 'tasks' && (
+                                    <>
+                                        <CheckCircle size={20} />
+                                        {displayTasks.filter(t => t.status === 'pending').length > 0 && (
+                                            <span className="absolute top-1 right-1 bg-red-500 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">
+                                                {displayTasks.filter(t => t.status === 'pending').length}
+                                            </span>
+                                        )}
+                                    </>
+                                )}
                                 {tab === 'grades' && <BarChart3 size={20} />}
                                 {tab === 'library' && <Book size={20} />}
                                 {tab === 'olympiad' && <Trophy size={20} />}
@@ -1971,9 +2002,14 @@ const StudentDashboard = () => {
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`px-6 py-2.5 rounded-xl font-medium transition-all min-h-[44px] flex items-center justify-center ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-50'}`}
+                                className={`px-6 py-2.5 rounded-xl font-medium transition-all min-h-[44px] flex items-center justify-center relative ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-50'}`}
                             >
                                 {tab === 'olympiad' ? 'Olimpiada' : tab === 'school' ? 'Maktabim' : tab === 'leaderboard' ? 'Reyting' : t.tabs[tab]}
+                                {tab === 'tasks' && displayTasks.filter(t => t.status === 'pending').length > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                                        {displayTasks.filter(t => t.status === 'pending').length}
+                                    </span>
+                                )}
                             </button>
                         ))}
                     </div>
@@ -2045,41 +2081,112 @@ const StudentDashboard = () => {
                     })()}
 
                     {activeTab === 'tasks' && (
-                        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                                <h2 className="text-lg md:text-xl font-bold">Vazifalarim</h2>
-                                <div className="flex gap-2 bg-gray-100 p-1 rounded-lg w-full overflow-x-auto min-w-max">
-                                    {['all', 'pending', 'completed'].map(filter => (
-                                        <button key={filter} onClick={() => setTaskFilter(filter)}
-                                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${taskFilter === filter ? 'bg-white text-blue-600 shadow' : 'text-gray-500'}`}>
-                                            {filter === 'all' ? 'Barchasi' : filter === 'pending' ? 'Bajarilmagan' : 'Bajarilgan'}
+                        <div className="space-y-6">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <h2 className="text-2xl font-black text-gray-800">Vazifalarim</h2>
+                                    <p className="text-gray-500 text-sm">Berilgan barcha topshiriqlar va ularning holati</p>
+                                </div>
+                                <div className="flex gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-full md:w-auto overflow-x-auto no-scrollbar">
+                                    {[
+                                        { id: 'all', label: 'Barchasi' },
+                                        { id: 'pending', label: 'Bajarilmagan' },
+                                        { id: 'completed', label: 'Bajarilgan' }
+                                    ].map(f => (
+                                        <button key={f.id} onClick={() => setTaskFilter(f.id)}
+                                            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${taskFilter === f.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-500 hover:bg-gray-50'}`}>
+                                            {f.label}
                                         </button>
                                     ))}
                                 </div>
                             </div>
-                            <div className="space-y-3">
-                                {displayTasks.filter(tk => taskFilter === 'all' || tk.status === taskFilter).map(task => (
-                                    <div key={task.id} className="flex flex-col md:flex-row md:items-center justify-between p-3 md:p-4 bg-gray-50 border border-gray-100 rounded-xl gap-3">
-                                        <div>
-                                            <h4 className={`font-bold ${task.status === 'completed' ? 'text-gray-500' : 'text-gray-800'}`}>{task.title}</h4>
-                                            <p className="text-sm text-gray-500 flex items-center gap-2 mt-1"><Calendar size={14} /> {task.deadline}</p>
-                                        </div>
-                                        <div className="flex items-center gap-3 self-end md:self-auto">
-                                            {task.status === 'completed' && task.score !== undefined && task.score !== null && (
-                                                <span className="font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full text-xs md:text-sm">{task.score} / {task.xp} ball</span>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {displayTasks.filter(tk => taskFilter === 'all' || tk.status === taskFilter).map(task => {
+                                    const isCompleted = task.status === 'completed';
+                                    const isReading = task.assignment?.reference_type === 'ertak';
+                                    
+                                    return (
+                                        <div key={task.id} className={`group bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative overflow-hidden ${isCompleted ? 'opacity-80' : ''}`}>
+                                            {/* Status Badge */}
+                                            <div className="flex justify-between items-start mb-6">
+                                                <div className={`p-4 rounded-2xl ${isCompleted ? 'bg-gray-100 text-gray-400' : isReading ? 'bg-purple-50 text-purple-600' : 'bg-indigo-50 text-indigo-600'} transition-colors group-hover:scale-110 duration-300`}>
+                                                    {isReading ? <Book size={24} /> : <FileText size={24} />}
+                                                </div>
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${isCompleted ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                                                        {isCompleted ? 'Bajarilgan' : 'Kutilmoqda'}
+                                                    </span>
+                                                    {isCompleted && task.score != null ? (
+                                                        <span className="text-lg font-black text-indigo-600 leading-none">
+                                                            {task.score}<span className="text-[10px] text-gray-400 ml-0.5">/{task.xp}</span>
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-sm font-black text-indigo-600 leading-none">
+                                                            +{task.xp} XP
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Content */}
+                                            <div className="flex-grow">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    {task.classroom_name && (
+                                                        <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                            <School size={10} /> {task.classroom_name}
+                                                        </span>
+                                                    )}
+                                                    {task.teacher_name && (
+                                                        <span className="bg-gray-50 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                            <Users size={10} /> {task.teacher_name}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <h3 className={`font-bold text-lg mb-2 line-clamp-2 transition-colors ${isCompleted ? 'text-gray-500' : 'text-gray-800 group-hover:text-indigo-600'}`}>
+                                                    {task.title}
+                                                </h3>
+                                                <p className="text-gray-500 text-sm mb-6 line-clamp-3 leading-relaxed">
+                                                    {task.description || task.content || "Tavsif mavjud emas"}
+                                                </p>
+                                            </div>
+
+                                            {/* Footer */}
+                                            <div className="mt-auto pt-5 border-t border-gray-50 flex items-center justify-between">
+                                                <div className="flex items-center gap-2 text-gray-400">
+                                                    <Calendar size={14} className={isCompleted ? 'text-gray-300' : 'text-indigo-400'} />
+                                                    <span className="text-xs font-bold uppercase tracking-tighter">{task.deadline}</span>
+                                                </div>
+                                                <button 
+                                                    onClick={() => openTestTask(task)}
+                                                    className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
+                                                        isCompleted 
+                                                        ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' 
+                                                        : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:scale-105 active:scale-95'
+                                                    }`}
+                                                >
+                                                    {isCompleted ? 'Ko\'rish' : 'Bajarish'}
+                                                </button>
+                                            </div>
+
+                                            {/* Decoration */}
+                                            {!isCompleted && (
+                                                <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-indigo-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
                                             )}
-                                            {task.status === 'pending' ? (
-                                                <button onClick={() => openTestTask(task)} className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg font-medium hover:bg-blue-200 transition-colors">Bajarish</button>
-                                            ) : (
-                                                <button onClick={() => openTestTask(task)} className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-300 transition-colors">Ko'rish</button>
-                                            )}
                                         </div>
-                                    </div>
-                                ))}
-                                {displayTasks.filter(tk => taskFilter === 'all' || tk.status === taskFilter).length === 0 && (
-                                    <div className="text-center py-8 text-gray-500">Bu bo'limda vazifalar yo'q.</div>
-                                )}
+                                    );
+                                })}
                             </div>
+
+                            {displayTasks.filter(tk => taskFilter === 'all' || tk.status === taskFilter).length === 0 && (
+                                <div className="bg-white rounded-[2rem] p-16 text-center border border-gray-100 shadow-sm">
+                                    <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <CheckCircle size={40} className="text-gray-200" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-800 mb-1">Hozircha vazifalar yo'q</h3>
+                                    <p className="text-gray-500 text-sm">Barcha topshiriqlarni yakunlagan bo'lishingiz mumkin!</p>
+                                </div>
+                            )}
                         </div>
                     )}
 

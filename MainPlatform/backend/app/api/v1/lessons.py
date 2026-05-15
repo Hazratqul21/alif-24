@@ -6,7 +6,7 @@ from sqlalchemy import select, desc, func, or_
 from pydantic import BaseModel, Field
 
 from shared.database import get_db
-from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, Lesson, Story
+from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, Lesson, Story, StoryReadingRecord
 from shared.database.models.classroom import Classroom, ClassroomStudent, ClassroomStudentStatus
 from app.middleware.auth import get_current_user
 from shared.subscription import require_feature, SubscriptionInfo
@@ -450,8 +450,13 @@ async def list_public_stories(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all stories for students"""
+    """List global stories for students (Library/Browse)"""
     stmt = select(Story)
+    
+    # Faqat global/admin ertaklar (o'qituvchilar o'z sinfiga berganlari vazifada chiqadi)
+    if current_user.role == UserRole.student:
+        stmt = stmt.where(Story.teacher_id == None)
+        
     if language:
         stmt = stmt.where(Story.language == language)
     if age_group:
@@ -483,6 +488,59 @@ async def get_public_story(
         "success": True,
         "data": story_dict(story)
     }
+
+@router.post("/public/stories/{story_id}/complete")
+async def record_story_completion(
+    story_id: str,
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Ertakni o'qib bo'linganligini yozib qo'yish (vazifa bo'lmagan holatda).
+    Kutubxonada ko'rinishi uchun.
+    """
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
+    
+    # Allaqachon o'qilganmi?
+    existing = await db.execute(
+        select(StoryReadingRecord).where(
+            StoryReadingRecord.student_user_id == current_user.id,
+            StoryReadingRecord.story_id == story_id
+        )
+    )
+    if existing.scalars().first():
+        return {"success": True, "message": "Allaqachon o'qilgan"}
+
+    record = StoryReadingRecord(
+        student_user_id=current_user.id,
+        story_id=story_id,
+        wpm=data.get("wpm"),
+        quiz_score=data.get("quiz_score")
+    )
+    db.add(record)
+    await db.commit()
+    return {"success": True, "message": "O'qilgan kitoblar safiga qo'shildi"}
+
+@router.get("/public/stories/my-library")
+async def get_my_library(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """O'quvchi o'qib bo'lgan kitoblar ro'yxati (Kutubxona)"""
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
+
+    stmt = (
+        select(Story)
+        .join(StoryReadingRecord, StoryReadingRecord.story_id == Story.id)
+        .where(StoryReadingRecord.student_user_id == current_user.id)
+        .order_by(desc(StoryReadingRecord.completed_at))
+    )
+    res = await db.execute(stmt)
+    stories = res.scalars().all()
+    return {"success": True, "data": [story_dict(s) for s in stories]}
 
 
 # ============================================================================

@@ -184,6 +184,16 @@ class StudentService {
   async declineParentInvite(notifId) {
     return apiService.post(`/auth/parent-invites/${notifId}/decline`);
   }
+
+  // ============ Library: Read Stories ============
+
+  async getMyLibraryStories() {
+    return apiService.get('/public/stories/my-library');
+  }
+
+  async completePublicStory(storyId, data) {
+    return apiService.post(`/public/stories/${storyId}/complete`, data);
+  }
 }
 
 export const studentService = new StudentService();

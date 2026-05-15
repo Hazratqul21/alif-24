@@ -13,7 +13,7 @@ from sqlalchemy import select, and_, or_
 from pydantic import BaseModel, Field
 
 from shared.database import get_db
-from shared.database.models import User, UserRole, TeacherProfile, StudentProfile
+from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, StoryReadingRecord
 from shared.database.models.classroom import Classroom, ClassroomStudent, ClassroomStudentStatus
 from shared.database.models.assignment import (
     Assignment, AssignmentTarget, AssignmentSubmission,
@@ -518,15 +518,25 @@ async def student_assignments(
 
     result = []
     for s in submissions:
+        # Fetch assignment with classroom joined if possible
         a_res = await db.execute(select(Assignment).where(Assignment.id == s.assignment_id))
         a = a_res.scalars().first()
         if a:
             t_res = await db.execute(select(User).where(User.id == a.created_by))
             t = t_res.scalars().first()
+            
+            # Fetch classroom name if classroom_id exists
+            classroom_name = None
+            if a.classroom_id:
+                from shared.database.models.classroom import Classroom
+                c_res = await db.execute(select(Classroom.name).where(Classroom.id == a.classroom_id))
+                classroom_name = c_res.scalars().first()
+
             result.append({
                 **submission_dict(s),
                 "assignment": assignment_dict(a),
                 "teacher_name": f"{t.first_name} {t.last_name}".strip() if t else None,
+                "classroom_name": classroom_name,
             })
 
     return {"success": True, "data": {"assignments": result, "total": len(result)}}
@@ -927,8 +937,25 @@ async def submit_ertak_assignment(
             xp_amount = 80 + int(data.quiz_average * 0.5)
             await GamificationService.add_xp(db, sp.id, xp_amount)
             await GamificationService.update_daily_streak(db, sp.id)
+    # StoryReadingRecord yaratis (Kutubxonaga tushishi uchun)
+    try:
+        if assignment.reference_type == 'ertak' and assignment.reference_id:
+            # Check if record already exists
+            exist_rec = await db.execute(
+                select(StoryReadingRecord).where(
+                    StoryReadingRecord.student_user_id == current_user.id,
+                    StoryReadingRecord.story_id == assignment.reference_id
+                )
+            )
+            if not exist_rec.scalars().first():
+                db.add(StoryReadingRecord(
+                    student_user_id=current_user.id,
+                    story_id=assignment.reference_id,
+                    wpm=data.wpm,
+                    quiz_score=data.quiz_average
+                ))
     except Exception as e:
-        logger.warning(f"Ertak gamification failed for {current_user.id}: {e}")
+        logger.warning(f"Failed to create StoryReadingRecord in assignment: {e}")
 
     await db.commit()
 

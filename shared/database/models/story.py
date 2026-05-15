@@ -22,3 +22,25 @@ class Story(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class StoryReadingRecord(Base):
+    """
+    O'quvchining ertakni o'qib bo'lganligi haqida yozuv.
+    Kutubxonada 'o'qilgan' kitoblarni ko'rsatish uchun.
+    """
+    __tablename__ = "story_reading_records"
+
+    id = Column(String(8), primary_key=True, default=generate_8_digit_id)
+    student_user_id = Column(String(8), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    story_id = Column(String(8), ForeignKey("ertaklar.id", ondelete="CASCADE"), nullable=False)
+    
+    # Natija ma'lumotlari (ixtiyoriy)
+    wpm = Column(Integer, nullable=True)
+    quiz_score = Column(Integer, nullable=True)
+    
+    completed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    student = relationship("User", foreign_keys=[student_user_id])
+    story = relationship("Story", foreign_keys=[story_id])
+

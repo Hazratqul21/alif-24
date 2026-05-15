@@ -238,13 +238,21 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
         setSubmitting(true);
         const avg = finalScores.length ? Math.round(finalScores.reduce((a, b) => a + b.score, 0) / finalScores.length) : 0;
         try {
-            await studentService.submitErtak(assignmentId, {
-                wpm: readingStats.wpm || 0,
-                read_percent: readingStats.readPercent || 0,
-                reading_time_seconds: readingStats.elapsed || 0,
-                quiz_scores: finalScores,
-                quiz_average: avg,
-            });
+            if (assignmentId) {
+                await studentService.submitErtak(assignmentId, {
+                    wpm: readingStats.wpm || 0,
+                    read_percent: readingStats.readPercent || 0,
+                    reading_time_seconds: readingStats.elapsed || 0,
+                    quiz_scores: finalScores,
+                    quiz_average: avg,
+                });
+            } else {
+                // Agar vazifa bo'lmasa, shunchaki o'qilgan deb belgilash
+                await studentService.completePublicStory(ertak.id, {
+                    wpm: readingStats.wpm || 0,
+                    quiz_score: avg
+                });
+            }
             onDone({ wpm: readingStats.wpm, readPercent: readingStats.readPercent, quiz_average: avg, scores: finalScores });
         } catch (e) {
             console.error(e);
