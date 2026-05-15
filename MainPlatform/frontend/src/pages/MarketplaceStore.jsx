@@ -234,7 +234,7 @@ const MarketplaceStore = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e30] via-transparent to-transparent" />
                     <div className="absolute top-4 left-4">
                       <span className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-white border border-white/10">
-                        {item.resource_type === 'lesson' ? 'Dars' : item.resource_type === 'test' ? 'Test' : item.resource_type}
+                        {item.resource_type === 'lesson' ? 'Dars' : item.resource_type === 'test' ? 'Test' : item.resource_type === 'ertak' ? 'Kitob' : item.resource_type}
                       </span>
                     </div>
                     <div className={`absolute bottom-4 right-4 px-4 py-1.5 rounded-2xl font-black text-sm shadow-xl ${

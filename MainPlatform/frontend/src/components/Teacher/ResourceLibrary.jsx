@@ -45,7 +45,7 @@ const ResourceLibrary = ({ classrooms = [], ertaklar = [], fetchErtaklar, onAtta
   const [folders, setFolders] = useState([
     { id: 'root', name: 'Barcha fayllar', parent: null },
     { id: 'tests', name: 'Testlar', parent: 'root', icon: '📝', isSpecial: true },
-    { id: 'books', name: 'Kitoblar (Ertaklar)', parent: 'root', icon: '📚', isSpecial: true },
+    { id: 'books', name: 'Kitoblar', parent: 'root', icon: '📚', isSpecial: true },
     { id: 'presentations', name: 'Prezentatsiyalar', parent: 'root', icon: '📊' },
     { id: 'documents', name: 'Hujjatlar', parent: 'root', icon: '📄' },
     { id: 'media', name: 'Rasm va Video', parent: 'root', icon: '🖼️' },
@@ -541,8 +541,8 @@ const ResourceLibrary = ({ classrooms = [], ertaklar = [], fetchErtaklar, onAtta
         {/* Books Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="text-white font-bold text-lg">Mening Kitoblarim (Ertaklar)</h4>
-            <p className="text-white/40 text-xs mt-0.5">{ertaklar.length} ta ertak</p>
+            <h4 className="text-white font-bold text-lg">Mening Kitoblarim</h4>
+            <p className="text-white/40 text-xs mt-0.5">{ertaklar.length} ta kitob</p>
           </div>
           <button onClick={fetchErtaklar}
             className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-white/40 text-xs transition-colors">
@@ -554,8 +554,8 @@ const ResourceLibrary = ({ classrooms = [], ertaklar = [], fetchErtaklar, onAtta
         {ertaklar.length === 0 ? (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center">
             <BookOpen className="w-14 h-14 text-white/10 mx-auto mb-3" />
-            <p className="text-white/50 font-medium">Hozircha saqlangan ertak yo'q</p>
-            <p className="text-white/25 text-sm mt-1">Ertaklarim bo'limidan yangi ertak yarating</p>
+            <p className="text-white/50 font-medium">Hozircha saqlangan kitob yo'q</p>
+            <p className="text-white/25 text-sm mt-1">Kitoblarim bo'limidan yangi kitob yarating</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -578,7 +578,7 @@ const ResourceLibrary = ({ classrooms = [], ertaklar = [], fetchErtaklar, onAtta
                       setMarketForm(prev => ({
                         ...prev,
                         title: ertak.title || '',
-                        description: `Qiziqarli ertak: ${ertak.title}. Yosh guruhi: ${ertak.age_group}.`,
+                        description: `Qiziqarli kitob: ${ertak.title}. Yosh guruhi: ${ertak.age_group}.`,
                         grade_level: ertak.age_group || '',
                       }));
                     }}
@@ -728,7 +728,7 @@ const ResourceLibrary = ({ classrooms = [], ertaklar = [], fetchErtaklar, onAtta
                         resource_type: 'ertak',
                       });
                       setMarketItem(null);
-                      alert("Ertak marketpleysga muvaffaqiyatli joylashtirildi!");
+                      alert("Kitob marketpleysga muvaffaqiyatli joylashtirildi!");
                     } catch (err) {
                       alert("Xatolik: " + (err.message || "Marketga joylashtirishda muammo"));
                     } finally {

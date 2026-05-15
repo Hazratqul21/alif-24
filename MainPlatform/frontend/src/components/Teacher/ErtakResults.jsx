@@ -75,7 +75,7 @@ const ErtakResults = ({ ertak, onBack }) => {
           <Users className="w-16 h-16 text-white/10 mx-auto mb-4" />
           <h4 className="text-white/60 font-bold mb-2">Hozircha natijalar yo'q</h4>
           <p className="text-white/30 text-sm max-w-xs mx-auto">
-            Ushbu ertak hali biror sinfga yoki o'quvchiga vazifa sifatida berilmagan.
+            Ushbu kitob hali biror sinfga yoki o'quvchiga vazifa sifatida berilmagan.
           </p>
         </div>
       ) : (

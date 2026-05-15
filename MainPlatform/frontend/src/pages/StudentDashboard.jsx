@@ -447,7 +447,7 @@ const StudentDashboard = () => {
                 setStoryAssignmentId(task.assignment_id || task.id);
             }
         } catch (err) {
-            showNotif('error', "Ertakni yuklashda xatolik");
+            showNotif('error', "Kitobni yuklashda xatolik");
         } finally {
             setLoading(false);
         }
@@ -1083,23 +1083,23 @@ const StudentDashboard = () => {
         <div className="space-y-6">
             <div className="flex gap-2 flex-wrap">
                 {[
+                    { key: 'stories', label: 'Kitoblar', icon: <Book size={16} />, count: libraryStories.length },
                     { key: 'lessons', label: 'Darslar', icon: <BookOpen size={16} />, count: realLessons.length },
-                    { key: 'stories', label: 'Ertaklar', icon: <Book size={16} />, count: libraryStories.length },
                 ].map(item => (
                     <button key={item.key} onClick={() => setLibraryFilter(item.key)}
-                        className={`px-4 py-2.5 rounded-full font-medium text-sm transition-all flex items-center gap-2 ${libraryFilter === item.key || (libraryFilter === 'all' && item.key === 'lessons') ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+                        className={`px-4 py-2.5 rounded-full font-medium text-sm transition-all flex items-center gap-2 ${libraryFilter === item.key || (libraryFilter === 'all' && item.key === 'stories') ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
                         {item.icon} {item.label} <span className="text-xs opacity-70">({item.count})</span>
                     </button>
                 ))}
             </div>
             {contentLoading ? (
                 <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" /></div>
-            ) : libraryFilter === 'stories' ? (
+            ) : (libraryFilter === 'stories' || libraryFilter === 'all') ? (
                 <div>
                     {libraryStories.length === 0 ? (
                         <div className="bg-white rounded-2xl p-12 text-center border border-gray-100">
                             <Book size={48} className="mx-auto mb-3 text-gray-300" />
-                            <p className="text-gray-500">Hozircha ertaklar yo'q</p>
+                            <p className="text-gray-500">Hozircha kitoblar yo'q</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1238,7 +1238,7 @@ const StudentDashboard = () => {
                             <span className="bg-gray-50 text-gray-600 px-3 py-1 rounded-full">{selectedStory.language === 'uz' ? "O'zbek" : selectedStory.language === 'ru' ? 'Rus' : 'English'}</span>
                         </div>
 
-                        {/* Ertak matni */}
+                        {/* Kitob matni */}
                         <div className="prose prose-lg max-w-none text-gray-800 whitespace-pre-wrap leading-relaxed mb-6 bg-gray-50 p-6 rounded-2xl border border-gray-100">{selectedStory.content}</div>
 
                         {/* 1-qadam: AI o'qib bersin */}
@@ -1882,7 +1882,7 @@ const StudentDashboard = () => {
                                             onClick={() => handleOpenStoryAssignment(selectedTask)}
                                             className="w-full py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-black rounded-2xl hover:from-purple-600 hover:to-indigo-700 transition-all shadow-md flex items-center justify-center gap-2"
                                         >
-                                            <Book size={24} /> Ertakni o'qish
+                                            <Book size={24} /> Kitobni o'qish
                                         </button>
                                     </div>
                                 )}
@@ -2161,7 +2161,7 @@ const StudentDashboard = () => {
                                                         {task.title}
                                                     </h3>
                                                     <p className="text-gray-500 text-xs mb-3 line-clamp-2 leading-relaxed italic">
-                                                        {task.description || "Ertakni o'qib, savollarga javob bering"}
+                                                        {task.description || "Kitobni o'qib, savollarga javob bering"}
                                                     </p>
                                                     
                                                     {isCompleted && task.score != null && (

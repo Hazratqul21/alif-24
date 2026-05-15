@@ -110,9 +110,9 @@ const TeacherDashboard = () => {
   const [selectedErtakForResults, setSelectedErtakForResults] = useState(null);
 
   const tabLabels = {
-    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', jurnal: 'Jurnal', resources: 'Kutubxona', ertaklar: 'Ertaklarim', testlarim: 'Testlarim', complex: 'Kompleks dars', marketplace: 'Marketplace', school: 'Maktabim', settings: 'Sozlamalar' },
-    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', jurnal: 'Журнал', resources: 'Библиотека', ertaklar: 'Мои сказки', testlarim: 'Мои тесты', complex: 'Комплекс урок', marketplace: 'Маркетплейс', school: 'Моя школа', settings: 'Настройки' },
-    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', jurnal: 'Gradebook', resources: 'Library', ertaklar: 'My Stories', testlarim: 'My Tests', complex: 'Complex Lesson', marketplace: 'Marketplace', school: 'My School', settings: 'Settings' },
+    uz: { dashboard: 'Bosh sahifa', classes: 'Sinflarim', lessons: 'Darslar', assignments: 'Vazifalar', livequiz: 'Live Quiz', jurnal: 'Jurnal', resources: 'Kutubxona', ertaklar: 'Kitoblarim', testlarim: 'Testlarim', complex: 'Kompleks dars', marketplace: 'Marketplace', school: 'Maktabim', settings: 'Sozlamalar' },
+    ru: { dashboard: 'Главная', classes: 'Мои классы', lessons: 'Уроки', assignments: 'Задания', livequiz: 'Live Quiz', jurnal: 'Журнал', resources: 'Библиотека', ertaklar: 'Мои книги', testlarim: 'Мои тесты', complex: 'Комплекс урок', marketplace: 'Маркетплейс', school: 'Моя школа', settings: 'Настройки' },
+    en: { dashboard: 'Home', classes: 'My Classes', lessons: 'Lessons', assignments: 'Assignments', livequiz: 'Live Quiz', jurnal: 'Gradebook', resources: 'Library', ertaklar: 'My Books', testlarim: 'My Tests', complex: 'Complex Lesson', marketplace: 'Marketplace', school: 'My School', settings: 'Settings' },
   };
   const tl = tabLabels[language] || tabLabels.uz;
 
@@ -380,7 +380,7 @@ const TeacherDashboard = () => {
   const handleAssignErtak = (ertak) => {
     setNewAssignment({
       title: ertak.title,
-      description: `Ertakni o'qing va savollarga javob bering.`,
+      description: `Kitobni o'qing va savollarga javob bering.`,
       assignment_type: 'reading',
       classroom_id: '',
       due_date: '',
@@ -535,7 +535,7 @@ const TeacherDashboard = () => {
       }
 
       await teacherService.createErtak(payload);
-      showNotif('success', 'Ertak yaratildi!');
+      showNotif('success', 'Kitob yaratildi!');
       setCreateErtakModal(false);
       setErtakForm({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
       setErtakQuestions([]);
@@ -579,7 +579,7 @@ const TeacherDashboard = () => {
         if (imgRes.url) payload.image_url = imgRes.url;
       }
       await teacherService.updateErtak(editErtak.id, payload);
-      showNotif('success', 'Ertak yangilandi!');
+      showNotif('success', 'Kitob yangilandi!');
       setEditErtak(null);
       setEditErtakQuestions([]);
       setUploadFile(null);
@@ -594,10 +594,10 @@ const TeacherDashboard = () => {
   };
 
   const handleDeleteErtak = async (id) => {
-    if (!confirm("Ertakni o'chirmoqchimisiz?")) return;
+    if (!confirm("Kitobni o'chirmoqchimisiz?")) return;
     try {
       await teacherService.deleteErtak(id);
-      showNotif('success', "Ertak o'chirildi");
+      showNotif('success', "Kitob o'chirildi");
       fetchErtaklar();
     } catch (e) { showNotif('error', e.message || 'Xatolik'); }
   };
@@ -642,7 +642,7 @@ const TeacherDashboard = () => {
     { icon: GraduationCap, value: classrooms.length, label: 'Sinflar', color: 'from-blue-500 to-blue-600' },
     { icon: BookOpen, value: lessons.length, label: 'Darslar', color: 'from-pink-500 to-pink-600' },
     { icon: Users, value: totalStudents, label: "O'quvchilar", color: 'from-green-500 to-green-600' },
-    { icon: BookOpen, value: ertaklar.length, label: 'Ertaklarim', color: 'from-orange-500 to-orange-600' },
+    { icon: BookOpen, value: ertaklar.length, label: 'Kitoblarim', color: 'from-orange-500 to-orange-600' },
     { icon: ClipboardList, value: assignments.length, label: 'Vazifalar', color: 'from-purple-500 to-purple-600' },
     { icon: Bell, value: unreadCount, label: 'Yangi xabarlar', color: 'from-amber-500 to-amber-600' },
   ];
@@ -702,7 +702,7 @@ const TeacherDashboard = () => {
           </button>
           <button onClick={() => setCreateErtakModal(true)}
             className="flex items-center gap-3 bg-gradient-to-br from-orange-500 to-red-500 text-white p-4 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform">
-            <BookOpen size={20} /><span className="font-medium">Yangi ertak</span>
+            <BookOpen size={20} /><span className="font-medium">Yangi kitob</span>
           </button>
         </div>
       </div>
@@ -2150,7 +2150,7 @@ const TeacherDashboard = () => {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#1e1e3a] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
             <div className="p-5 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-white font-bold text-lg">Yangi Ertak Yaratish</h3>
+              <h3 className="text-white font-bold text-lg">Yangi Kitob Yaratish</h3>
               <button onClick={() => setCreateErtakModal(false)} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -2159,7 +2159,7 @@ const TeacherDashboard = () => {
                   <div>
                     <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Sarlavha *</label>
                     <input type="text" value={ertakForm.title} onChange={v => setErtakForm({ ...ertakForm, title: v.target.value })}
-                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500/50" placeholder="Ertak nomi..." />
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500/50" placeholder="Kitob nomi..." />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -2183,9 +2183,9 @@ const TeacherDashboard = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Ertak Matni *</label>
+                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1 block">Kitob Matni *</label>
                     <textarea value={ertakForm.content} onChange={v => setErtakForm({ ...ertakForm, content: v.target.value })} rows={10}
-                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50 resize-none" placeholder="Ertak mazmunini bu yerga yozing..." />
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50 resize-none" placeholder="Kitob mazmunini bu yerga yozing..." />
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -2197,7 +2197,7 @@ const TeacherDashboard = () => {
                         <input type="file" accept="image/*" onChange={e => setUploadImage(e.target.files[0])} className="text-xs text-white/40" />
                       </div>
                       <div>
-                        <span className="text-[10px] text-white/30 block mb-1">Audio (Ertak ovozi)</span>
+                        <span className="text-[10px] text-white/30 block mb-1">Audio (Kitob ovozi)</span>
                         <input type="file" accept="audio/*" onChange={e => setUploadFile(e.target.files[0])} className="text-xs text-white/40" />
                       </div>
                     </div>
@@ -2227,7 +2227,7 @@ const TeacherDashboard = () => {
               <button onClick={() => setCreateErtakModal(false)} className="flex-1 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl text-sm font-bold transition-all">Bekor qilish</button>
               <button onClick={handleCreateErtak} disabled={saving || !ertakForm.title || !ertakForm.content}
                 className="flex-1 py-3 bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-orange-500/20 hover:scale-[1.02] transition-all disabled:opacity-40">
-                {saving ? 'Saqlanmoqda...' : 'Ertakni saqlash'}
+                {saving ? 'Saqlanmoqda...' : 'Kitobni saqlash'}
               </button>
             </div>
           </div>
@@ -2239,7 +2239,7 @@ const TeacherDashboard = () => {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#1e1e3a] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
             <div className="p-5 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-white font-bold text-lg">Ertakni Tahrirlash: {editErtak.title}</h3>
+              <h3 className="text-white font-bold text-lg">Kitobni Tahrirlash: {editErtak.title}</h3>
               <button onClick={() => setEditErtak(null)} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
