@@ -472,22 +472,40 @@ async def list_public_stories(
         "total": total,
     }
     
-@router.get("/stories/{story_id}")
-async def get_public_story(
-    story_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Get a single story by ID for students"""
-    res = await db.execute(select(Story).where(Story.id == story_id))
-    story = res.scalars().first()
-    if not story:
-        raise HTTPException(status_code=404, detail="Ertak topilmadi")
-    
     return {
         "success": True,
         "data": story_dict(story)
     }
+
+@router.get("/stories/my-library")
+async def get_my_library(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """O'quvchi o'qib bo'lgan kitoblar ro'yxati (Kutubxona)"""
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
+
+    stmt = (
+        select(Story, StoryReadingRecord)
+        .join(StoryReadingRecord, StoryReadingRecord.story_id == Story.id)
+        .where(StoryReadingRecord.student_user_id == current_user.id)
+        .order_by(desc(StoryReadingRecord.completed_at))
+    )
+    res = await db.execute(stmt)
+    results = res.all()
+    
+    data = []
+    for story, record in results:
+        s_dict = story_dict(story)
+        s_dict['reading_record'] = {
+            "wpm": record.wpm,
+            "quiz_score": record.quiz_score,
+            "completed_at": record.completed_at.isoformat() if record.completed_at else None
+        }
+        data.append(s_dict)
+        
+    return {"success": True, "data": data}
 
 @router.post("/stories/{story_id}/complete")
 async def record_story_completion(
@@ -523,35 +541,22 @@ async def record_story_completion(
     await db.commit()
     return {"success": True, "message": "O'qilgan kitoblar safiga qo'shildi"}
 
-@router.get("/stories/my-library")
-async def get_my_library(
-    current_user: User = Depends(get_current_user),
+@router.get("/stories/{story_id}")
+async def get_public_story(
+    story_id: str,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """O'quvchi o'qib bo'lgan kitoblar ro'yxati (Kutubxona)"""
-    if current_user.role != UserRole.student:
-        raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
-
-    stmt = (
-        select(Story, StoryReadingRecord)
-        .join(StoryReadingRecord, StoryReadingRecord.story_id == Story.id)
-        .where(StoryReadingRecord.student_user_id == current_user.id)
-        .order_by(desc(StoryReadingRecord.completed_at))
-    )
-    res = await db.execute(stmt)
-    results = res.all()
+    """Get a single story by ID for students"""
+    res = await db.execute(select(Story).where(Story.id == story_id))
+    story = res.scalars().first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Ertak topilmadi")
     
-    data = []
-    for story, record in results:
-        s_dict = story_dict(story)
-        s_dict['reading_record'] = {
-            "wpm": record.wpm,
-            "quiz_score": record.quiz_score,
-            "completed_at": record.completed_at.isoformat() if record.completed_at else None
-        }
-        data.append(s_dict)
-        
-    return {"success": True, "data": data}
+    return {
+        "success": True,
+        "data": story_dict(story)
+    }
 
 
 # ============================================================================
