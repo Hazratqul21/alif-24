@@ -937,6 +937,9 @@ async def submit_ertak_assignment(
             xp_amount = 80 + int(data.quiz_average * 0.5)
             await GamificationService.add_xp(db, sp.id, xp_amount)
             await GamificationService.update_daily_streak(db, sp.id)
+    except Exception as e:
+        logger.warning(f"Ertak gamification failed for {current_user.id}: {e}")
+
     # StoryReadingRecord yaratis (Kutubxonaga tushishi uchun)
     try:
         if assignment.reference_type == 'ertak' and assignment.reference_id:
