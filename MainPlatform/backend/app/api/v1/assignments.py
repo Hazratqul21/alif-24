@@ -13,7 +13,7 @@ from sqlalchemy import select, and_, or_
 from pydantic import BaseModel, Field
 
 from shared.database import get_db
-from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, StoryReadingRecord
+from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, StoryReadingRecord, Story
 from shared.database.models.classroom import Classroom, ClassroomStudent, ClassroomStudentStatus
 from shared.database.models.assignment import (
     Assignment, AssignmentTarget, AssignmentSubmission,
@@ -630,9 +630,120 @@ async def submit_assignment(
     }
 
 
+class ErtakSubmission(BaseModel):
+    wpm: int = 0
+    read_percent: float = 0
+    reading_time_seconds: int = 0
+    quiz_scores: List[dict] = []
+    quiz_average: float = 0
+
+@router.post("/students/assignments/{assignment_id}/submit-ertak")
+async def submit_ertak_assignment(
+    assignment_id: str,
+    data: ErtakSubmission,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ertak tipli vazifani topshirish — Olympiada uslubida"""
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
+
+    # Submission mavjudmi?
+    res = await db.execute(
+        select(AssignmentSubmission).where(
+            AssignmentSubmission.assignment_id == assignment_id,
+            AssignmentSubmission.student_user_id == current_user.id,
+        )
+    )
+    submission = res.scalars().first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Vazifa topilmadi yoki sizga berilmagan")
+    
+    if submission.status == SubmissionStatus.graded:
+        # Allaqachon topshirilgan bo'lsa ham yangilashga ruxsat beramiz (record uchun)
+        pass
+
+    # Assignment olish
+    a_res = await db.execute(select(Assignment).where(Assignment.id == assignment_id))
+    assignment = a_res.scalars().first()
+    if not assignment or assignment.reference_type != 'ertak':
+        raise HTTPException(status_code=400, detail="Bu vazifa ertak emas")
+
+    story_id = assignment.reference_id
+    if not story_id:
+        raise HTTPException(status_code=400, detail="Ertak ID topilmadi")
+
+    # 1. Submissionni yangilash
+    import json
+    summary = {
+        "wpm": data.wpm,
+        "read_percent": data.read_percent,
+        "reading_time_seconds": data.reading_time_seconds,
+        "answers": data.quiz_scores,
+        "quiz_score": data.quiz_average,
+    }
+    submission.content = json.dumps(summary)
+    submission.score = data.quiz_average
+    submission.status = SubmissionStatus.graded
+    submission.submitted_at = datetime.now(timezone.utc)
+    submission.graded_at = datetime.now(timezone.utc)
+    submission.feedback = f"Ertak o'qildi. WPM: {data.wpm}, Quiz: {data.quiz_average}%"
+
+    # 2. StoryReadingRecord yaratish (Kutubxonaga tushishi uchun)
+    existing_record = await db.execute(
+        select(StoryReadingRecord).where(
+            StoryReadingRecord.student_user_id == current_user.id,
+            StoryReadingRecord.story_id == story_id
+        )
+    )
+    if not existing_record.scalars().first():
+        record = StoryReadingRecord(
+            student_user_id=current_user.id,
+            story_id=story_id,
+            wpm=data.wpm,
+            quiz_score=int(data.quiz_average)
+        )
+        db.add(record)
+
+    # 3. Gamification: Coin & XP
+    coins_earned = 0
+    try:
+        from shared.database.models.coin import StudentCoin, CoinTransaction, TransactionType
+        from app.services.gamification_service import GamificationService
+        
+        sp_res = await db.execute(select(StudentProfile).where(StudentProfile.user_id == current_user.id))
+        sp = sp_res.scalars().first()
+        if sp:
+            # XP
+            xp_amount = assignment.xp or 100
+            await GamificationService.add_xp(db, sp.id, xp_amount)
+            
+            # Coins
+            bonus = (10 if data.wpm >= 60 else 5 if data.wpm >= 40 else 2) + \
+                    (15 if data.quiz_average >= 80 else 8 if data.quiz_average >= 50 else 3)
+            
+            sc_res = await db.execute(select(StudentCoin).where(StudentCoin.student_id == sp.id))
+            coin = sc_res.scalars().first()
+            if coin:
+                coin.add_coins(bonus)
+                db.add(CoinTransaction(
+                    student_coin_id=coin.id,
+                    type=TransactionType.assignment_complete,
+                    amount=bonus,
+                    description=f"Ertak bajarildi: {assignment.title}",
+                    reference_id=assignment_id,
+                    reference_type="assignment",
+                ))
+                coins_earned = bonus
+    except Exception as e:
+        logger.warning(f"Ertak submission gamification error: {e}")
+
+    await db.commit()
+    return {"success": True, "coins_earned": coins_earned}
+
 # ============================================================
 # STUDENT: TEST AUTO-GRADE
-# ============================================================
+# ============================================
 
 class TestSubmission(BaseModel):
     answers: dict  # {"0": "b", "1": "a", ...} — savol indeksi: tanlangan javob

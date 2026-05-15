@@ -116,11 +116,11 @@ class StudentService {
   }
 
   async getErtaklar(params = {}) {
-    return apiService.get('/public/stories', params);
+    return apiService.get('/stories', params);
   }
 
   async getErtakById(id) {
-    return apiService.get(`/public/stories/${id}`);
+    return apiService.get(`/stories/${id}`);
   }
 
   // ============ LMS: Classrooms ============
@@ -188,11 +188,11 @@ class StudentService {
   // ============ Library: Read Stories ============
 
   async getMyLibraryStories() {
-    return apiService.get('/public/stories/my-library');
+    return apiService.get('/stories/my-library');
   }
 
   async completePublicStory(storyId, data) {
-    return apiService.post(`/public/stories/${storyId}/complete`, data);
+    return apiService.post(`/stories/${storyId}/complete`, data);
   }
 }
 

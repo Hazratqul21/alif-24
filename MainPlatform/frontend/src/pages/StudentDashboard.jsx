@@ -1099,26 +1099,51 @@ const StudentDashboard = () => {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {libraryStories.map(story => (
-                                <div key={story.id} onClick={() => setSelectedStory(story)} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group">
-                                    {story.image_url ? (
-                                        <div className="w-full h-32 mb-3 rounded-xl overflow-hidden">
-                                            <img src={story.image_url} alt={story.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            {libraryStories.map(story => {
+                                const record = story.reading_record;
+                                return (
+                                    <div key={story.id} onClick={() => setSelectedStory(story)} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col relative overflow-hidden">
+                                        <div className="w-full aspect-video relative overflow-hidden bg-indigo-50/30">
+                                            {story.image_url ? (
+                                                <img src={story.image_url} alt={story.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <BookOpen size={40} className="text-indigo-200" strokeWidth={1.5} />
+                                                </div>
+                                            )}
+                                            {record && (
+                                                <div className="absolute top-2 right-2 flex gap-1">
+                                                    {record.wpm > 0 && (
+                                                        <div className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm font-bold flex items-center gap-1">
+                                                            <Mic size={10} className="text-emerald-400" /> {record.wpm}
+                                                        </div>
+                                                    )}
+                                                    {record.quiz_score > 0 && (
+                                                        <div className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm font-bold flex items-center gap-1">
+                                                            <Trophy size={10} className="text-amber-400" /> {record.quiz_score}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
-                                    ) : (
-                                        <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center mb-3 group-hover:from-purple-200 group-hover:to-pink-200 transition-all">
-                                            <Book size={24} className="text-purple-600" />
+                                        <div className="p-4 flex flex-col flex-1">
+                                            <h3 className="font-bold text-gray-800 mb-1 group-hover:text-indigo-600 transition-colors line-clamp-1">{story.title}</h3>
+                                            <p className="text-gray-500 text-[11px] line-clamp-2 mb-3 leading-relaxed">
+                                                {story.content?.substring(0, 100)}...
+                                            </p>
+                                            <div className="mt-auto flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="bg-gray-50 text-gray-500 text-[9px] font-bold px-2 py-0.5 rounded-full">{story.age_group || '6-8'} yosh</span>
+                                                    <span className="bg-gray-50 text-gray-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">{story.language || 'uz'}</span>
+                                                </div>
+                                                {story.teacher_name && (
+                                                    <span className="text-[10px] text-gray-400 font-medium italic">Ustoz: {story.teacher_name}</span>
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                    <h3 className="font-bold text-gray-800 mb-1">{story.title}</h3>
-                                    <p className="text-gray-500 text-sm line-clamp-2 mb-2">{story.content?.substring(0, 120)}...</p>
-                                    <div className="flex items-center gap-3 text-xs text-gray-400">
-                                        <span className="bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{story.age_group || '6-8'} yosh</span>
-                                        <span className="bg-gray-50 text-gray-600 px-2 py-0.5 rounded-full">{story.language === 'uz' ? "O'zbek" : story.language === 'ru' ? 'Rus' : 'English'}</span>
-                                        {story.has_audio && <span className="flex items-center gap-1"><Mic size={12} /> Audio</span>}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -2105,13 +2130,83 @@ const StudentDashboard = () => {
                                 {displayTasks.filter(tk => taskFilter === 'all' || tk.status === taskFilter).map(task => {
                                     const isCompleted = task.status === 'completed';
                                     const isReading = task.assignment?.reference_type === 'ertak';
+                                    const ertak = task.assignment?.reference_data || {};
                                     
+                                    if (isReading) {
+                                        return (
+                                            <div key={task.id} 
+                                                onClick={() => openTestTask(task)}
+                                                className="bg-white rounded-2xl shadow-sm hover:shadow-xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full relative border border-gray-100"
+                                            >
+                                                {!isCompleted && (
+                                                    <div className="absolute top-2.5 left-2.5 z-20 bg-rose-500 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow-lg animate-pulse border border-rose-400">
+                                                        Yangi vazifa
+                                                    </div>
+                                                )}
+
+                                                <div className={`w-full aspect-[16/9] relative overflow-hidden flex items-center justify-center ${isCompleted ? 'bg-indigo-50/50' : 'bg-gradient-to-br from-[#4b6ef5] to-[#9b59b6]'}`}>
+                                                    {ertak.image_url ? (
+                                                        <img
+                                                            src={ertak.image_url}
+                                                            alt={task.title}
+                                                            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${isCompleted ? 'opacity-40 grayscale-[0.3]' : 'mix-blend-overlay'}`}
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center group-hover:opacity-90 transition-opacity">
+                                                            <BookOpen size={48} className={`w-14 h-14 ${isCompleted ? 'text-indigo-200' : 'text-white/40'}`} strokeWidth={1.5} />
+                                                        </div>
+                                                    )}
+                                                    <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm z-10 flex items-center gap-1">
+                                                        <Users size={10} /> {task.teacher_name || 'Ustoz'}
+                                                    </div>
+                                                </div>
+                                                <div className="p-4 flex flex-col flex-1">
+                                                    <h3 className={`font-bold text-base mb-1 line-clamp-2 leading-snug transition-colors ${isCompleted ? 'text-gray-400' : 'text-[#1a1a2e] group-hover:text-[#4b30fb]'}`}>
+                                                        {task.title}
+                                                    </h3>
+                                                    <p className="text-gray-500 text-xs mb-3 line-clamp-2 leading-relaxed italic">
+                                                        {task.description || "Ertakni o'qib, savollarga javob bering"}
+                                                    </p>
+                                                    
+                                                    {isCompleted && task.score != null && (
+                                                        <div className="grid grid-cols-2 gap-2 mb-4">
+                                                            <div className="bg-emerald-50/50 rounded-lg p-2 text-center border border-emerald-100/30">
+                                                                <p className="text-[9px] text-emerald-600/60 uppercase font-bold leading-none mb-1">Ball</p>
+                                                                <p className="text-sm font-black text-emerald-600 leading-none">{task.score}</p>
+                                                            </div>
+                                                            <div className="bg-amber-50/50 rounded-lg p-2 text-center border border-amber-100/30">
+                                                                <p className="text-[9px] text-amber-600/60 uppercase font-bold leading-none mb-1">XP</p>
+                                                                <p className="text-sm font-black text-amber-600 leading-none">+{task.xp}</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="mt-auto pt-3 border-t border-gray-50 flex items-center justify-between">
+                                                        <div className="flex items-center gap-2 text-gray-400">
+                                                            <Calendar size={14} className={isCompleted ? 'text-gray-300' : 'text-indigo-400'} />
+                                                            <span className="text-[10px] font-bold uppercase tracking-tighter">{task.deadline}</span>
+                                                        </div>
+                                                        <button 
+                                                            className={`px-5 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                                                                isCompleted 
+                                                                ? 'bg-gray-100 text-gray-400' 
+                                                                : 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg shadow-purple-500/20 group-hover:scale-105 active:scale-95'
+                                                            }`}
+                                                        >
+                                                            {isCompleted ? 'Ko\'rish' : 'Boshlash'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
                                     return (
                                         <div key={task.id} className={`group bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative overflow-hidden ${isCompleted ? 'opacity-80' : ''}`}>
                                             {/* Status Badge */}
                                             <div className="flex justify-between items-start mb-6">
-                                                <div className={`p-4 rounded-2xl ${isCompleted ? 'bg-gray-100 text-gray-400' : isReading ? 'bg-purple-50 text-purple-600' : 'bg-indigo-50 text-indigo-600'} transition-colors group-hover:scale-110 duration-300`}>
-                                                    {isReading ? <Book size={24} /> : <FileText size={24} />}
+                                                <div className={`p-4 rounded-2xl ${isCompleted ? 'bg-gray-100 text-gray-400' : 'bg-indigo-50 text-indigo-600'} transition-colors group-hover:scale-110 duration-300`}>
+                                                    <FileText size={24} />
                                                 </div>
                                                 <div className="flex flex-col items-end gap-2">
                                                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${isCompleted ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>

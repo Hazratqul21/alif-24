@@ -358,63 +358,84 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
 
 // ─── Phase 3: Result Screen ──────────────────────────────────────────────────
 function ResultScreen({ ertak, readingStats, quizResult, onClose }) {
-    const { wpm = 0, readPercent = 0, elapsed = 0 } = readingStats;
+    const { wpm = 0, readPercent = 0, elapsed = 0 } = readingStats || {};
     const { quiz_average = 0, scores = [] } = quizResult || {};
+    const fmtTime = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
+    
     const readingCoin = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
     const quizCoin = quiz_average >= 80 ? 15 : quiz_average >= 50 ? 8 : 3;
-    const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-    const scoreColor = s => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-red-400';
+    const totalCoin = readingCoin + quizCoin;
+    
+    const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
+    const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-rose-400';
+    const scoreBg = (s) => s >= 80 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-rose-500';
 
     return (
-        <div className="flex flex-col items-center gap-5">
-            <div className="text-6xl">💪</div>
+        <div className="flex flex-col items-center gap-5 pt-2">
+            <div className="text-6xl animate-bounce">💪</div>
             <div className="text-center">
-                <p className="text-white font-bold text-2xl mb-1">Ajoyib!</p>
-                <p className="text-white/40 text-sm">{ertak?.title}</p>
+                <p className="text-white font-bold text-2xl mb-1 uppercase tracking-tight">Umumiy natija</p>
+                <p className="text-white/40 text-xs">{ertak.title}</p>
             </div>
 
-            {/* Reading stats */}
+            {/* Reading Stats */}
             <div className="w-full">
-                <p className="text-white/40 text-[11px] uppercase tracking-widest mb-3">📖 O'qish</p>
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-white/5 rounded-2xl p-4 text-center">
-                        <p className={`text-2xl font-black ${scoreColor(wpm)}`}>{wpm}</p>
-                        <p className="text-white/40 text-[10px] mt-1">so'z/daq</p>
+                <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold mb-3">📖 O'QISH NATIJASI</p>
+                <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+                        <p className={`text-xl font-black ${wpmColor}`}>{wpm}</p>
+                        <p className="text-white/40 text-[9px] uppercase">so'z/daq</p>
                     </div>
-                    <div className="bg-white/5 rounded-2xl p-4 text-center">
-                        <p className="text-2xl font-black text-blue-400">{readPercent}%</p>
-                        <p className="text-white/40 text-[10px] mt-1">o'qilgan</p>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+                        <p className="text-xl font-black text-blue-400">{readPercent}%</p>
+                        <p className="text-white/40 text-[9px] uppercase">o'qilgan</p>
                     </div>
-                    <div className="bg-white/5 rounded-2xl p-4 text-center">
-                        <p className="text-2xl font-black text-purple-400">{fmt(elapsed)}</p>
-                        <p className="text-white/40 text-[10px] mt-1">vaqt</p>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+                        <p className="text-xl font-black text-purple-400">{fmtTime}</p>
+                        <p className="text-white/40 text-[9px] uppercase">vaqt</p>
                     </div>
                 </div>
             </div>
 
-            {/* Quiz result */}
-            {scores.length > 0 && (
-                <div className="w-full">
-                    <p className="text-white/40 text-[11px] uppercase tracking-widest mb-3">🧠 Savol-javob</p>
-                    <div className="space-y-2">
+            {/* Quiz Stats */}
+            <div className="w-full">
+                <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold mb-3">🧠 SAVOLLAR TAHLILI</p>
+                <div className="bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-3xl p-5 text-center mb-4 shadow-xl border border-white/10 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 opacity-10">
+                        <Trophy className="w-16 h-16 text-white" />
+                    </div>
+                    <p className="text-white/70 text-[9px] font-bold uppercase tracking-widest mb-1">Jami savollar bali</p>
+                    <p className="text-white text-5xl font-black">{quiz_average}</p>
+                </div>
+
+                {scores.length > 0 && (
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                         {scores.map((s, i) => (
-                            <div key={i} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
-                                <span className="text-white/60 text-sm">{i + 1}-savol</span>
-                                <span className={`font-bold text-sm ${scoreColor(s.score)}`}>{s.score}/100</span>
+                            <div key={i} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-2.5 border border-white/5">
+                                <span className="text-white/60 text-[12px]">{i + 1}-savol</span>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                        <div className={`h-full ${scoreBg(s.score)}`} style={{ width: `${s.score}%` }} />
+                                    </div>
+                                    <span className={`text-[12px] font-bold ${scoreColor(s.score)}`}>{s.score}</span>
+                                </div>
                             </div>
                         ))}
                     </div>
-                </div>
-            )}
+                )}
+            </div>
 
             {/* Coins */}
-            <div className="w-full bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-2xl p-5 text-center">
-                <p className="text-4xl font-black text-yellow-400">+{readingCoin + quizCoin} 🪙</p>
-                <p className="text-white/40 text-xs mt-1">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
+            <div className="w-full bg-gradient-to-r from-yellow-500/10 via-yellow-500/20 to-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                    <span className="text-3xl font-black text-yellow-400">+{totalCoin}</span>
+                    <span className="text-3xl">🪙</span>
+                </div>
+                <p className="text-white/40 text-[11px]">O'qish: +{readingCoin} • Quiz: +{quizCoin}</p>
             </div>
 
             <button onClick={onClose}
-                className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform shadow-xl">
+                className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform shadow-xl shadow-purple-500/20">
                 Yopish
             </button>
         </div>

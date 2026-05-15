@@ -533,14 +533,25 @@ async def get_my_library(
         raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
 
     stmt = (
-        select(Story)
+        select(Story, StoryReadingRecord)
         .join(StoryReadingRecord, StoryReadingRecord.story_id == Story.id)
         .where(StoryReadingRecord.student_user_id == current_user.id)
         .order_by(desc(StoryReadingRecord.completed_at))
     )
     res = await db.execute(stmt)
-    stories = res.scalars().all()
-    return {"success": True, "data": [story_dict(s) for s in stories]}
+    results = res.all()
+    
+    data = []
+    for story, record in results:
+        s_dict = story_dict(story)
+        s_dict['reading_record'] = {
+            "wpm": record.wpm,
+            "quiz_score": record.quiz_score,
+            "completed_at": record.completed_at.isoformat() if record.completed_at else None
+        }
+        data.append(s_dict)
+        
+    return {"success": True, "data": data}
 
 
 # ============================================================================
