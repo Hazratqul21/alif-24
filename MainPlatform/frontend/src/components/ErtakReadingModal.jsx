@@ -133,7 +133,7 @@ function ReadingPhase({ ertak, onDone }) {
 
             {sttError && <p className="text-amber-400 text-xs bg-amber-500/10 rounded-lg px-3 py-2">{sttError}</p>}
 
-            <div className="bg-white/5 rounded-2xl p-5 max-h-60 overflow-y-auto text-base leading-loose">
+            <div className="bg-white/5 rounded-2xl p-5 max-h-80 overflow-y-auto text-base leading-loose whitespace-pre-wrap">
                 {renderedText}
             </div>
 
@@ -156,6 +156,7 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
     const [elapsed, setElapsed] = useState(0);
     const [sttError, setSttError] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [isAnswering, setIsAnswering] = useState(false);
 
     const timerRef = useRef(null);
     const audioRef = useRef(null);
@@ -231,10 +232,12 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
             setScores(prev => [...prev, { score: 0, recognized: text, correct: 'Xatolik yuz berdi', passed: false }]);
         }
         setPhase('result');
+        setIsAnswering(false);
     };
 
     const nextQuestion = () => {
         const newIndex = qIndex + 1;
+        setIsAnswering(false);
         if (newIndex >= questions.length) {
             setQIndex(questions.length); // triggers allDone
         } else {
@@ -312,31 +315,40 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
                 </div>
             )}
 
-            {/* Record phase */}
-            {phase === 'record' && (
-                <div className="flex flex-col items-center gap-4 py-2">
+            {/* Record phase — Initial button */}
+            {phase === 'record' && !isAnswering && (
+                <div className="flex flex-col items-center gap-4 py-4">
                     {sttError && <p className="text-red-400 text-xs">{sttError}</p>}
-                    <p className="text-white/60 text-sm text-center">Mikrofonni bosib javob bering</p>
-                    <button onClick={startRecording}
-                        className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold hover:scale-105 transition-transform shadow-lg">
-                        <Mic className="w-5 h-5" /> Javob berish
+                    <p className="text-white/60 text-sm text-center">Savolga javob berishga tayyormisiz?</p>
+                    <button 
+                        onClick={() => { setIsAnswering(true); startRecording(); }}
+                        className="flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-black text-lg hover:scale-105 transition-all shadow-xl shadow-purple-500/20"
+                    >
+                        <Mic className="w-6 h-6" /> Javob berish
                     </button>
                 </div>
             )}
 
-            {/* Recording active */}
-            {phase === 'record' && recognizerRef.current && (
-                <div className="flex flex-col items-center gap-3">
-                    <div className="relative w-16 h-16">
+            {/* Recording active — Shown after clicking 'Javob berish' */}
+            {phase === 'record' && isAnswering && (
+                <div className="flex flex-col items-center gap-6 py-4 bg-white/5 rounded-3xl border border-white/10 p-6">
+                    <div className="relative w-20 h-20">
                         <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" />
-                        <div className="w-16 h-16 rounded-full bg-red-500/30 border-2 border-red-500 flex items-center justify-center">
-                            <Mic className="w-7 h-7 text-red-400" />
+                        <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg">
+                            <Mic className="w-9 h-9 text-white" />
                         </div>
                     </div>
-                    <span className="text-red-400 font-mono font-bold">{fmt(elapsed)}</span>
-                    <button onClick={stopAndEvaluate}
-                        className="flex items-center gap-2 px-6 py-3 bg-red-500/20 border border-red-500/40 text-red-400 rounded-2xl font-medium hover:bg-red-500/30 transition-all">
-                        <Square className="w-4 h-4" /> Javobni yuborish
+                    
+                    <div className="text-center">
+                        <p className="text-red-400 font-mono text-2xl font-black mb-1">{fmt(elapsed)}</p>
+                        <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">Ovoz yozilmoqda...</p>
+                    </div>
+
+                    <button 
+                        onClick={stopAndEvaluate}
+                        className="w-full flex items-center justify-center gap-3 py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold transition-all border border-white/10"
+                    >
+                        <Square className="w-5 h-5 fill-current" /> Javobni yuborish
                     </button>
                 </div>
             )}
@@ -464,13 +476,14 @@ export default function ErtakReadingModal({ ertak, assignmentId, onClose, onDone
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
                 <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
                 <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-white/10 rounded-3xl p-6 w-full max-w-lg shadow-2xl"
-                    style={{ maxHeight: '90vh', overflowY: 'auto' }}
+                    initial={{ y: "100%", opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: "100%", opacity: 0 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                    className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] sm:border border-white/10 rounded-t-[32px] sm:rounded-3xl p-6 w-full h-[95vh] sm:h-auto sm:max-w-lg shadow-2xl flex flex-col"
                     onClick={e => e.stopPropagation()}
                 >
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
                     <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
                         <X className="w-5 h-5" />
                     </button>
@@ -517,6 +530,7 @@ export default function ErtakReadingModal({ ertak, assignmentId, onClose, onDone
                             <button onClick={onClose} className="px-6 py-3 bg-white/10 text-white rounded-2xl hover:bg-white/20">Yopish</button>
                         </div>
                     )}
+                    </div>
                 </motion.div>
             </div>
         </AnimatePresence>
