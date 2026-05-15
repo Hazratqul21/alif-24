@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Text, Integer, Boolean, DateTime, JSON, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from shared.database.base import Base
 from shared.database.id_generator import generate_8_digit_id
