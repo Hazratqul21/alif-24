@@ -234,7 +234,7 @@ const StudentDashboard = () => {
             setContentLoading(true);
             studentService.getMyLibraryStories().then(res => {
                 setLibraryStories(res.data || []);
-            }).catch(() => {}).finally(() => setContentLoading(false));
+            }).catch(() => { }).finally(() => setContentLoading(false));
         }
         // Public content for dashboard/home
         if (realLessons.length === 0 && realStories.length === 0 && !contentLoading) {
@@ -442,12 +442,12 @@ const StudentDashboard = () => {
                 setSelectedTask(null);
                 setTestQuestions([]);
                 setTestResult(null);
-                
+
                 setSelectedStory(data);
                 setStoryAssignmentId(task.assignment_id || task.id);
             }
         } catch (err) {
-            showNotif('error', "Kitobni yuklashda xatolik");
+            showNotif('error', "Ertakni yuklashda xatolik");
         } finally {
             setLoading(false);
         }
@@ -1094,12 +1094,12 @@ const StudentDashboard = () => {
             </div>
             {contentLoading ? (
                 <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" /></div>
-            ) : (libraryFilter === 'stories' || libraryFilter === 'all') ? (
+            ) : libraryFilter === 'stories' ? (
                 <div>
                     {libraryStories.length === 0 ? (
                         <div className="bg-white rounded-2xl p-12 text-center border border-gray-100">
                             <Book size={48} className="mx-auto mb-3 text-gray-300" />
-                            <p className="text-gray-500">Hozircha kitoblar yo'q</p>
+                            <p className="text-gray-500">Hozircha ertaklar yo'q</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1238,7 +1238,7 @@ const StudentDashboard = () => {
                             <span className="bg-gray-50 text-gray-600 px-3 py-1 rounded-full">{selectedStory.language === 'uz' ? "O'zbek" : selectedStory.language === 'ru' ? 'Rus' : 'English'}</span>
                         </div>
 
-                        {/* Kitob matni */}
+                        {/* Ertak matni */}
                         <div className="prose prose-lg max-w-none text-gray-800 whitespace-pre-wrap leading-relaxed mb-6 bg-gray-50 p-6 rounded-2xl border border-gray-100">{selectedStory.content}</div>
 
                         {/* 1-qadam: AI o'qib bersin */}
@@ -1882,7 +1882,7 @@ const StudentDashboard = () => {
                                             onClick={() => handleOpenStoryAssignment(selectedTask)}
                                             className="w-full py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-black rounded-2xl hover:from-purple-600 hover:to-indigo-700 transition-all shadow-md flex items-center justify-center gap-2"
                                         >
-                                            <Book size={24} /> Kitobni o'qish
+                                            <Book size={24} /> Ertakni o'qish
                                         </button>
                                     </div>
                                 )}
@@ -2127,10 +2127,10 @@ const StudentDashboard = () => {
                                     const isCompleted = task.status === 'completed';
                                     const isReading = task.assignment?.reference_type === 'ertak';
                                     const ertak = task.assignment?.reference_data || {};
-                                    
+
                                     if (isReading) {
                                         return (
-                                            <div key={task.id} 
+                                            <div key={task.id}
                                                 onClick={() => handleOpenStoryAssignment(task)}
                                                 className="bg-white rounded-2xl shadow-sm hover:shadow-xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full relative border border-gray-100"
                                             >
@@ -2161,9 +2161,9 @@ const StudentDashboard = () => {
                                                         {task.title}
                                                     </h3>
                                                     <p className="text-gray-500 text-xs mb-3 line-clamp-2 leading-relaxed italic">
-                                                        {task.description || "Kitobni o'qib, savollarga javob bering"}
+                                                        {task.description || "Ertakni o'qib, savollarga javob bering"}
                                                     </p>
-                                                    
+
                                                     {isCompleted && task.score != null && (
                                                         <div className="grid grid-cols-2 gap-2 mb-4">
                                                             <div className="bg-emerald-50/50 rounded-lg p-2 text-center border border-emerald-100/30">
@@ -2182,12 +2182,11 @@ const StudentDashboard = () => {
                                                             <Calendar size={14} className={isCompleted ? 'text-gray-300' : 'text-indigo-400'} />
                                                             <span className="text-[10px] font-bold uppercase tracking-tighter">{task.deadline}</span>
                                                         </div>
-                                                        <button 
-                                                            className={`px-5 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
-                                                                isCompleted 
-                                                                ? 'bg-gray-100 text-gray-400' 
+                                                        <button
+                                                            className={`px-5 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${isCompleted
+                                                                ? 'bg-gray-100 text-gray-400'
                                                                 : 'bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white shadow-lg shadow-purple-500/20 group-hover:scale-105 active:scale-95'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {isCompleted ? 'Ko\'rish' : 'Boshlash'}
                                                         </button>
@@ -2199,7 +2198,7 @@ const StudentDashboard = () => {
 
                                     // TEST yoki boshqa vazifa block...
                                     return (
-                                        <div key={task.id} 
+                                        <div key={task.id}
                                             onClick={() => openTestTask(task)}
                                             className={`group bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative overflow-hidden ${isCompleted ? 'opacity-80' : ''}`}>
                                             {/* Status Badge */}
@@ -2251,13 +2250,12 @@ const StudentDashboard = () => {
                                                     <Calendar size={14} className={isCompleted ? 'text-gray-300' : 'text-indigo-400'} />
                                                     <span className="text-xs font-bold uppercase tracking-tighter">{task.deadline}</span>
                                                 </div>
-                                                <button 
+                                                <button
                                                     onClick={() => openTestTask(task)}
-                                                    className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
-                                                        isCompleted 
-                                                        ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' 
+                                                    className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${isCompleted
+                                                        ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                                         : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:scale-105 active:scale-95'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {isCompleted ? 'Ko\'rish' : 'Bajarish'}
                                                 </button>
