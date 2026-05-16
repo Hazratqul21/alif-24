@@ -44,18 +44,33 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
 
     const ensureSpeechConfig = async () => {
         if (speechConfigRef.current) return true;
-        try {
-            const resp = await fetch(`${API_URL}/smartkids/speech-token`, { credentials: 'include' });
-            if (!resp.ok) throw new Error('speech-token failed');
-            const data = await resp.json();
-            const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
-            cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
-            speechConfigRef.current = cfg;
-            return true;
-        } catch {
-            setSttError("Ovozli tanishga ulanib bo'lmadi.");
-            return false;
+        
+        const tokenPaths = [
+            `${API_URL}/speech-token`,
+            `${API_URL}/smartkids/speech-token`,
+            `https://alif24.uz/api/v1/speech-token`,
+            `https://alif24.uz/api/v1/smartkids/speech-token`
+        ];
+
+        for (const path of tokenPaths) {
+            try {
+                const resp = await fetch(path, { credentials: 'include' });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.token && data.region) {
+                        const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
+                        cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
+                        speechConfigRef.current = cfg;
+                        return true;
+                    }
+                }
+            } catch (err) {
+                console.warn(`Failed to fetch speech token from ${path}:`, err);
+            }
         }
+        
+        setSttError("Ovozli tanish xizmatiga ulanib bo'lmadi. Iltimos, internetingizni tekshiring.");
+        return false;
     };
 
     const submitResult = async (finalScores) => {
@@ -602,14 +617,27 @@ function RecordingModal({ ertak, onClose }) {
 // ─── Cards & Helpers ──────────────────────────────────────────────────────────
 function SmartKidsCard() {
     return (
-        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} onClick={() => window.open('https://alif24.uz/smartkids', '_blank')} className="bg-white rounded-2xl shadow-md overflow-hidden cursor-pointer flex flex-col h-full">
-            <div className="w-full aspect-[4/3] bg-gradient-to-br from-[#ff8a00] to-[#ff3d00] flex flex-col items-center justify-center text-white p-4">
-                <BookOpen className="w-14 h-14" />
-                <p className="mt-3 font-bold">SmartKids AI</p>
+        <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => window.open('https://alif24.uz/smartkids', '_blank')}
+            className="bg-white rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full border border-white/10"
+        >
+            <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-[#ff8a00] to-[#ff3d00]">
+                <div className="w-full h-full flex flex-col items-center justify-center text-white p-4">
+                    <BookOpen className="w-14 h-14 group-hover:scale-110 transition-transform" strokeWidth={1.5} />
+                    <p className="mt-3 font-black text-lg tracking-tight">SmartKids AI</p>
+                    <p className="text-[10px] text-white/80 text-center mt-1 uppercase tracking-widest font-bold">O'qish va tahlil</p>
+                </div>
             </div>
-            <div className="p-4 flex-1 flex flex-col">
-                <p className="text-xs text-gray-500 mb-4 line-clamp-2">AI yordamida o'qish va tahlil.</p>
-                <button className="mt-auto w-full py-2 bg-orange-500 text-white rounded-xl text-sm font-bold">Ochish</button>
+            <div className="p-5 flex-1 flex flex-col">
+                <h3 className="text-[#1a1a2e] font-bold text-base mb-2 leading-tight">SmartKids AI Platformasi</h3>
+                <p className="text-gray-500 text-xs mb-4 line-clamp-2 leading-relaxed">
+                    Istagan hikoyangizni o'qib, AI yordamida o'z natijangizni tekshiring.
+                </p>
+                <button className="mt-auto w-full py-3 bg-gradient-to-r from-[#ff8a00] to-[#ff3d00] text-white rounded-2xl font-bold text-sm shadow-lg shadow-orange-500/30 group-hover:scale-[1.02] transition-transform">
+                    Ochish
+                </button>
             </div>
         </motion.div>
     );
@@ -617,20 +645,48 @@ function SmartKidsCard() {
 
 function ErtakCard({ ertak, index, onClick }) {
     const [imgError, setImgError] = useState(false);
+    const wordCount = ertak.content ? ertak.content.trim().split(/\s+/).length : 0;
+    const qCount = (ertak.questions || []).length;
+
     return (
-        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} onClick={onClick} className="bg-white rounded-2xl shadow-md overflow-hidden cursor-pointer flex flex-col h-full">
-            <div className="w-full aspect-[4/3] bg-gray-100 relative">
+        <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            onClick={onClick}
+            className="bg-white rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full border border-white/10"
+        >
+            <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-[#4b30fb] to-[#764ba2]">
                 {ertak.image_url && !imgError ? (
-                    <img src={ertak.image_url} alt="" className="w-full h-full object-cover" onError={() => setImgError(true)} />
+                    <img
+                        src={ertak.image_url}
+                        alt={ertak.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={() => setImgError(true)}
+                    />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300">
-                        <BookOpen className="w-10 h-10" />
+                    <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen className="w-12 h-12 text-white/30" />
+                    </div>
+                )}
+                {qCount > 0 && (
+                    <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-full font-bold border border-white/10">
+                        🧠 {qCount} savol
                     </div>
                 )}
             </div>
-            <div className="p-4 flex-1 flex flex-col">
-                <h3 className="text-sm font-bold line-clamp-2 mb-2">{ertak.title}</h3>
-                <button className="mt-auto w-full py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold">Boshlash</button>
+            <div className="p-5 flex-1 flex flex-col">
+                <h3 className="text-[#1a1a2e] font-bold text-base mb-1 line-clamp-2 leading-tight group-hover:text-[#4b30fb] transition-colors">
+                    {ertak.title}
+                </h3>
+                <div className="flex items-center gap-2 text-[10px] text-gray-400 mb-4 font-medium uppercase tracking-wider">
+                    <span>📖 {wordCount} so'z</span>
+                    <span>•</span>
+                    <span>{ertak.language === 'uz' ? "O'zbekcha" : ertak.language === 'ru' ? "Ruscha" : "Inglizcha"}</span>
+                </div>
+                <button className="mt-auto w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-sm shadow-lg shadow-purple-500/30 group-hover:scale-[1.02] transition-transform">
+                    Oqishni boshlash
+                </button>
             </div>
         </motion.div>
     );
