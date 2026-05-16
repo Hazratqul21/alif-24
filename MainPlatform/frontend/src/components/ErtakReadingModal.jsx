@@ -189,32 +189,70 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
         } catch { setPhase('record'); }
     };
 
+    const isManualStopRef = useRef(false);
+
     const startRecording = () => {
         setSttError('');
+        isManualStopRef.current = false;
         recognizedRef.current = '';
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRec) { setSttError("Brauzer ovozni qo'llab-quvvatlamaydi"); return; }
-        try {
-            const rec = new SpeechRec();
-            rec.lang = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
-            rec.continuous = true;
-            rec.interimResults = true;
-            rec.onresult = e => {
-                const transcript = Array.from(e.results)
-                    .map(r => r[0]?.transcript || '')
-                    .join(' ');
-                recognizedRef.current = transcript;
-                // setLiveText(transcript); // O'quvchi gapirgan gap ko'rinmasin
-            };
-            rec.start();
-            recognizerRef.current = rec;
-            setElapsed(0);
-            timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
-            setPhase('record');
-        } catch { setSttError("Mikrofon ochilmadi"); }
+        
+        const initRecognizer = () => {
+            try {
+                const rec = new SpeechRec();
+                rec.lang = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
+                rec.continuous = true;
+                rec.interimResults = true;
+                
+                rec.onresult = e => {
+                    const transcript = Array.from(e.results)
+                        .map(r => r[0]?.transcript || '')
+                        .join(' ');
+                    // Avvalgi yozilgan matnga yangisini qo'shish o'rniga, 
+                    // continuous rejimda barcha natijalarni jamlab boramiz
+                    recognizedRef.current = transcript;
+                };
+
+                rec.onend = () => {
+                    // Agar o'quvchi hali tugmani bosmagan bo'lsa va brauzer to'xtab qolsa, qayta boshlaymiz
+                    if (!isManualStopRef.current && isAnswering) {
+                        try {
+                            rec.start();
+                        } catch (e) {
+                            console.error("STT Restart error:", e);
+                        }
+                    }
+                };
+
+                rec.onerror = (event) => {
+                    if (event.error === 'no-speech') {
+                        // Nutq topilmadi, bu normal holat, onend orqali restart bo'ladi
+                        return;
+                    }
+                    console.error("STT Error:", event.error);
+                    if (event.error === 'not-allowed') {
+                        setSttError("Mikrofonga ruxsat berilmagan");
+                    }
+                };
+
+                rec.start();
+                recognizerRef.current = rec;
+            } catch (err) { 
+                console.error("STT Init error:", err);
+                setSttError("Mikrofonni ishga tushirib bo'lmadi"); 
+            }
+        };
+
+        initRecognizer();
+        setElapsed(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
+        setPhase('record');
     };
 
     const stopAndEvaluate = async () => {
+        isManualStopRef.current = true;
         clearInterval(timerRef.current);
         try { recognizerRef.current?.stop(); } catch (_) {}
         setPhase('evaluating');
