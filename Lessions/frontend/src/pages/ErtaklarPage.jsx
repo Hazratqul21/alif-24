@@ -511,15 +511,22 @@ function RecordingModal({ ertak, onClose }) {
     useEffect(() => {
         if (!transcript || expectedWords.length === 0) return;
 
-        const spokenWords = extractWords(transcript);
-        let currentIndex = 0;
+        // Oxirgi segmentni olish (faqat yangi natijalarni tahlil qilish uchun)
+        // transcriptRef.current faqat final bo'lgan segmentlarni saqlaydi
+        const finalSegments = extractWords(transcriptRef.current);
+        if (finalSegments.length === 0) return;
 
-        for (let sw of spokenWords) {
+        let currentIndex = wordIndexRef.current;
+        // Oxirgi segmentdagi so'zlarni tekshiramiz
+        // Azure varianti kabi faqat oxirgi segmentni tahlil qilamiz
+        const lastSegments = finalSegments.slice(-15); // Oxirgi 15 ta so'zni tekshirish (aniqlik uchun)
+
+        for (let sw of lastSegments) {
             if (currentIndex >= expectedWords.length) break;
             let matchedIndex = -1;
-            const limit = Math.min(currentIndex + 20, expectedWords.length);
+            const limit = Math.min(currentIndex + 10, expectedWords.length);
             for (let k = currentIndex; k < limit; k++) {
-                if (getSimilarity(sw, expectedWords[k]) >= 0.35) {
+                if (getSimilarity(sw, expectedWords[k]) >= 0.55) {
                     matchedIndex = k;
                     break;
                 }
