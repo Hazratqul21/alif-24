@@ -469,10 +469,10 @@ function RecordingModal({ ertak, onClose }) {
                     for (let sw of spokenWords) {
                         if (currentIndex >= expectedWords.length) break;
                         let matchedIndex = -1;
-                        // Kelajakdagi 10 ta so'zni tekshirish (o'tkazib yuborishlar uchun)
-                        const limit = Math.min(currentIndex + 10, expectedWords.length);
+                        // Kelajakdagi 15 ta so'zni tekshirish (o'tkazib yuborishlar uchun)
+                        const limit = Math.min(currentIndex + 15, expectedWords.length);
                         for (let k = currentIndex; k < limit; k++) {
-                            if (getSimilarity(sw, expectedWords[k]) >= 0.6) {
+                            if (getSimilarity(sw, expectedWords[k]) >= 0.5) {
                                 matchedIndex = k;
                                 break;
                             }

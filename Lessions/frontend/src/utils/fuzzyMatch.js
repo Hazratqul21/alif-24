@@ -64,9 +64,10 @@ export function getSimilarity(s1, s2) {
 export function extractWords(text) {
     if (!text) return [];
     // O'zbekcha o', g' harflari uchun tutuq belgilarini saqlab qolamiz
-    // Punktuatsiyani olib tashlash (tutuq belgilaridan tashqari)
-    return text.replace(/[.,/#!$%^&*;:{}=\-_`~()?"«»]/g, "")
-        .replace(/\s{2,}/g, " ")
+    // Yangi qatorlarni va bir nechta bo'shliqlarni bitta bo'shliqqa aylantiramiz
+    return text.replace(/\n/g, " ")
+        .replace(/[.,/#!$%^&*;:{}=\-_`~()?"«»]/g, "")
+        .replace(/\s+/g, " ")
         .trim().split(" ");
 }
 
