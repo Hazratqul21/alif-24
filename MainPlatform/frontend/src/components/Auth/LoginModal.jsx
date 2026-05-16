@@ -242,6 +242,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
                       value={formData.pin}
                       onChange={handleChange}
                       maxLength={6}
+                      autoComplete="one-time-code"
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center tracking-[0.5em] text-lg text-gray-900"
                       placeholder="••••"
                       required
@@ -299,6 +300,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
+                  autoComplete="current-password"
                   className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                   placeholder={t('auth_password_placeholder')}
                   required

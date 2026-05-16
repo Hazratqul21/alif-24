@@ -283,7 +283,6 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
     const nextQuestion = () => {
         const newIndex = qIndex + 1;
         setIsAnswering(false);
-        setLiveText('');
         if (newIndex >= questions.length) {
             setQIndex(questions.length); // triggers allDone
         } else {
