@@ -472,9 +472,9 @@ function RecordingModal({ ertak, onClose }) {
                 };
 
                 rec.onend = () => {
-                    // Faqat brauzer o'zi to'xtatganda va hali o'qishda bo'lsak qayta boshlaymiz
+                    // Faqat brauzer o'zi to'xtatganda va hali o'qishda bo'lsak darhol qayta boshlaymiz
                     if (!isManualStopRef.current && phase === 'reading') {
-                        setTimeout(startStt, 100); // Tezroq restart
+                        startStt(); // Kechikishsiz darhol restart
                     }
                 };
 
