@@ -144,19 +144,19 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
         recognizedTextRef.current = ''; // Bu yerda joriy segment saqlanadi
         transcriptRef.current = '';    // Bu yerda jamlangan matn saqlanadi
         isManualStopRef.current = false;
-        
+
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRec) { setSttError("Brauzer ovozni qo'llab-quvvatlamaydi"); return; }
-        
+
         const runRec = () => {
-            if (isManualStopRef.current || phase !== 'record') return; 
+            if (isManualStopRef.current || phase !== 'record') return;
 
             try {
                 const rec = new SpeechRec();
                 rec.lang = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
                 rec.continuous = false;
                 rec.interimResults = true;
-                
+
                 rec.onresult = e => {
                     const currentTranscript = Array.from(e.results)
                         .map(r => r[0]?.transcript || '')
@@ -168,7 +168,7 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
                     // Segment tugagach jamlaymiz
                     transcriptRef.current = (transcriptRef.current + " " + recognizedTextRef.current).trim();
                     recognizedTextRef.current = "";
-                    
+
                     if (!isManualStopRef.current && phase === 'record') {
                         setTimeout(runRec, 250);
                     }
@@ -453,7 +453,7 @@ function RecordingModal({ ertak, onClose }) {
                 rec.onresult = (e) => {
                     let interimTranscript = '';
                     let finalSegmentText = '';
-                    
+
                     for (let i = e.resultIndex; i < e.results.length; i++) {
                         if (e.results[i].isFinal) {
                             finalSegmentText += e.results[i][0].transcript + " ";
@@ -526,26 +526,23 @@ function RecordingModal({ ertak, onClose }) {
             let matchedIndex = -1;
             const limit = Math.min(currentIndex + 10, expectedWords.length);
             for (let k = currentIndex; k < limit; k++) {
-                if (getSimilarity(sw, expectedWords[k]) >= 0.55) {
-                    matchedIndex = k;
-                    break;
-                }
+                if (getSimilarity(sw, expectedWords[k]) >= 0.45) { matchedIndex = k; break; }
             }
             if (matchedIndex !== -1) currentIndex = matchedIndex + 1;
         }
 
-        if (currentIndex > wordIndexRef.current) {
-            wordIndexRef.current = currentIndex;
-            setCurrentWordIndex(currentIndex);
-        }
+
+        wordIndexRef.current = currentIndex;
+        setCurrentWordIndex(currentIndex);
+
     }, [transcript, expectedWords]);
 
     const stopRecording = () => {
         isManualStopRef.current = true;
         clearInterval(timerRef.current);
         if (recognizerRef.current) {
-            try { 
-                recognizerRef.current.stop(); 
+            try {
+                recognizerRef.current.stop();
                 recognizerRef.current = null;
             } catch (_) { }
         }
