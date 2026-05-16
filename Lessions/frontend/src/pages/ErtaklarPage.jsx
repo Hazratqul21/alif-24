@@ -526,7 +526,7 @@ function RecordingModal({ ertak, onClose }) {
             let matchedIndex = -1;
             const limit = Math.min(currentIndex + 10, expectedWords.length);
             for (let k = currentIndex; k < limit; k++) {
-                if (getSimilarity(sw, expectedWords[k]) >= 0.45) { matchedIndex = k; break; }
+                if (getSimilarity(sw, expectedWords[k]) >= 0.65) { matchedIndex = k; break; }
             }
             if (matchedIndex !== -1) currentIndex = matchedIndex + 1;
         }
