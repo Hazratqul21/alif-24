@@ -133,7 +133,7 @@ function ReadingPhase({ ertak, onDone }) {
 
             {sttError && <p className="text-amber-400 text-xs bg-amber-500/10 rounded-lg px-3 py-2">{sttError}</p>}
 
-            <div className="bg-white/5 rounded-2xl p-5 max-h-80 overflow-y-auto text-base leading-loose whitespace-pre-wrap">
+            <div className="bg-white/5 rounded-2xl p-6 md:p-8 min-h-[40vh] max-h-[60vh] overflow-y-auto text-xl md:text-2xl leading-relaxed md:leading-loose whitespace-pre-wrap shadow-inner border border-white/5">
                 {renderedText}
             </div>
 
@@ -157,12 +157,11 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
     const [sttError, setSttError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [isAnswering, setIsAnswering] = useState(false);
-
+    
     const timerRef = useRef(null);
     const audioRef = useRef(null);
     const recognizerRef = useRef(null);
     const recognizedRef = useRef('');
-    const [liveText, setLiveText] = useState('');
 
     const currentQ = questions[qIndex];
     const allDone = qIndex >= questions.length;
@@ -205,7 +204,7 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
                     .map(r => r[0]?.transcript || '')
                     .join(' ');
                 recognizedRef.current = transcript;
-                setLiveText(transcript);
+                // setLiveText(transcript); // O'quvchi gapirgan gap ko'rinmasin
             };
             rec.start();
             recognizerRef.current = rec;
@@ -353,11 +352,6 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
                         <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">Ovoz yozilmoqda...</p>
                     </div>
 
-                    {liveText && (
-                        <div className="w-full bg-white/5 rounded-xl p-3 border border-white/5 animate-in fade-in slide-in-from-bottom-2">
-                            <p className="text-white/60 text-xs italic line-clamp-3">"{liveText}..."</p>
-                        </div>
-                    )}
 
                     <button 
                         onClick={stopAndEvaluate}
@@ -495,7 +489,7 @@ export default function ErtakReadingModal({ ertak, assignmentId, onClose, onDone
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: "100%", opacity: 0 }}
                     transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                    className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] sm:border border-white/10 rounded-t-[32px] sm:rounded-3xl p-6 w-full h-[95vh] sm:h-auto sm:max-w-lg shadow-2xl flex flex-col"
+                    className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] sm:border border-white/10 rounded-t-[32px] sm:rounded-3xl p-6 w-full h-[98vh] sm:h-auto sm:max-w-2xl shadow-2xl flex flex-col"
                     onClick={e => e.stopPropagation()}
                 >
                     <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
