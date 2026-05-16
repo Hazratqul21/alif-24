@@ -522,24 +522,35 @@ async def record_story_completion(
         raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
     
     # Allaqachon o'qilganmi?
-    existing = await db.execute(
+    # 2. StoryReadingRecord yaratish yoki yangilash
+    existing_res = await db.execute(
         select(StoryReadingRecord).where(
             StoryReadingRecord.student_user_id == current_user.id,
             StoryReadingRecord.story_id == story_id
         )
     )
-    if existing.scalars().first():
-        return {"success": True, "message": "Allaqachon o'qilgan"}
-
-    record = StoryReadingRecord(
-        student_user_id=current_user.id,
-        story_id=story_id,
-        wpm=data.get("wpm"),
-        quiz_score=data.get("quiz_score")
-    )
-    db.add(record)
+    record = existing_res.scalars().first()
+    
+    wpm = data.get("wpm")
+    quiz_score = data.get("quiz_score")
+    
+    if record:
+        # Mavjud bo'lsa yangilaymiz
+        if wpm is not None: record.wpm = int(wpm)
+        if quiz_score is not None: record.quiz_score = int(quiz_score)
+        record.completed_at = datetime.now(timezone.utc)
+    else:
+        # Yangi yaratamiz
+        record = StoryReadingRecord(
+            student_user_id=current_user.id,
+            story_id=story_id,
+            wpm=int(wpm) if wpm is not None else 0,
+            quiz_score=int(quiz_score) if quiz_score is not None else 0
+        )
+        db.add(record)
+        
     await db.commit()
-    return {"success": True, "message": "O'qilgan kitoblar safiga qo'shildi"}
+    return {"success": True, "message": "Natija saqlandi"}
 
 @router.get("/stories/{story_id}")
 async def get_public_story(

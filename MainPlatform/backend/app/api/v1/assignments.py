@@ -689,14 +689,20 @@ async def submit_ertak_assignment(
     submission.graded_at = datetime.now(timezone.utc)
     submission.feedback = f"Ertak o'qildi. WPM: {data.wpm}, Quiz: {data.quiz_average}%"
 
-    # 2. StoryReadingRecord yaratish (Kutubxonaga tushishi uchun)
-    existing_record = await db.execute(
+    # 2. StoryReadingRecord yaratish yoki yangilash (Kutubxonaga tushishi uchun)
+    existing_record_res = await db.execute(
         select(StoryReadingRecord).where(
             StoryReadingRecord.student_user_id == current_user.id,
             StoryReadingRecord.story_id == story_id
         )
     )
-    if not existing_record.scalars().first():
+    record = existing_record_res.scalars().first()
+    if record:
+        # Mavjud bo'lsa yangilaymiz (agar yangi ball yuqoriroq bo'lsa yoki har doim - bu mantiq sizga bog'liq)
+        record.wpm = data.wpm
+        record.quiz_score = int(data.quiz_average)
+        record.updated_at = datetime.now(timezone.utc)
+    else:
         record = StoryReadingRecord(
             student_user_id=current_user.id,
             story_id=story_id,

@@ -43,6 +43,7 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
                 reading_time_seconds: readingStats.elapsed || 0,
                 quiz_scores: finalScores,
                 quiz_average: avg,
+                quiz_score: avg, // Kutubxonada ko'rinishi uchun
                 score: avg // API mosligi uchun
             };
 
