@@ -453,7 +453,8 @@ function RecordingModal({ ertak, onClose }) {
                 rec.onresult = (e) => {
                     let interimTranscript = '';
                     let finalSegmentText = '';
-
+                    
+                    // Faqat yangi kelgan (resultIndex dan boshlab) natijalarni olamiz
                     for (let i = e.resultIndex; i < e.results.length; i++) {
                         if (e.results[i].isFinal) {
                             finalSegmentText += e.results[i][0].transcript + " ";
@@ -471,13 +472,14 @@ function RecordingModal({ ertak, onClose }) {
                 };
 
                 rec.onend = () => {
+                    // Faqat brauzer o'zi to'xtatganda va hali o'qishda bo'lsak qayta boshlaymiz
                     if (!isManualStopRef.current && phase === 'reading') {
-                        setTimeout(startStt, 250);
+                        setTimeout(startStt, 100); // Tezroq restart
                     }
                 };
 
                 rec.onerror = (e) => {
-                    if (e.error === 'no-speech') return;
+                    if (e.error === 'no-speech' || e.error === 'aborted') return;
                     console.error("STT Error:", e.error);
                 };
 
@@ -502,7 +504,10 @@ function RecordingModal({ ertak, onClose }) {
         return () => {
             clearInterval(timerRef.current);
             if (recognizerRef.current) {
-                try { recognizerRef.current.stop(); } catch (_) { }
+                try { 
+                    isManualStopRef.current = true;
+                    recognizerRef.current.stop(); 
+                } catch (_) { }
             }
         };
     }, [phase]);
@@ -511,30 +516,32 @@ function RecordingModal({ ertak, onClose }) {
     useEffect(() => {
         if (!transcript || expectedWords.length === 0) return;
 
-        // Oxirgi segmentni olish (faqat yangi natijalarni tahlil qilish uchun)
-        // transcriptRef.current faqat final bo'lgan segmentlarni saqlaydi
         const finalSegments = extractWords(transcriptRef.current);
         if (finalSegments.length === 0) return;
 
         let currentIndex = wordIndexRef.current;
-        // Oxirgi segmentdagi so'zlarni tekshiramiz
-        // Azure varianti kabi faqat oxirgi segmentni tahlil qilamiz
-        const lastSegments = finalSegments.slice(-15); // Oxirgi 15 ta so'zni tekshirish (aniqlik uchun)
+        // Oxirgi 10 ta so'zni tekshiramiz (yangi segmentni o'z ichiga oladi)
+        const lastSegments = finalSegments.slice(-10);
 
         for (let sw of lastSegments) {
             if (currentIndex >= expectedWords.length) break;
             let matchedIndex = -1;
-            const limit = Math.min(currentIndex + 10, expectedWords.length);
+            // Qidiruv doirasini 3 tagacha qisqartiramiz (sakrab ketmaslik uchun)
+            const limit = Math.min(currentIndex + 3, expectedWords.length);
             for (let k = currentIndex; k < limit; k++) {
-                if (getSimilarity(sw, expectedWords[k]) >= 0.65) { matchedIndex = k; break; }
+                // Aniqlikni 0.7 ga ko'taramiz
+                if (getSimilarity(sw, expectedWords[k]) >= 0.7) {
+                    matchedIndex = k;
+                    break;
+                }
             }
             if (matchedIndex !== -1) currentIndex = matchedIndex + 1;
         }
 
-
-        wordIndexRef.current = currentIndex;
-        setCurrentWordIndex(currentIndex);
-
+        if (currentIndex > wordIndexRef.current) {
+            wordIndexRef.current = currentIndex;
+            setCurrentWordIndex(currentIndex);
+        }
     }, [transcript, expectedWords]);
 
     const stopRecording = () => {
