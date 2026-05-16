@@ -453,24 +453,25 @@ function RecordingModal({ ertak, onClose }) {
                 rec.interimResults = true;
 
                 rec.onresult = (e) => {
-                        const currentTranscript = Array.from(e.results)
+                    const currentTranscript = Array.from(e.results)
                         .map(r => r[0]?.transcript || '')
                         .join(' ');
                     
-                    recognizedTextRef.current = currentTranscript; // Segmentni saqlaymiz
+                    recognizedTextRef.current = currentTranscript;
                     
-                    // Oldingi barcha transkriptga joriy segmentni qo'shamiz
+                    // Oldingi barcha transkriptga joriy segmentni qo'shib ko'rsatamiz
                     const fullText = (transcriptRef.current + " " + currentTranscript).trim();
                     setTranscript(fullText);
 
-                    const spokenWords = extractWords(fullText);
-                    let currentIndex = 0;
+                    // Faqat joriy segmentdagi so'zlarni oxirgi o'qilgan joydan boshlab qidiramiz
+                    const spokenWords = extractWords(currentTranscript);
+                    let currentIndex = wordIndexRef.current;
 
                     for (let sw of spokenWords) {
                         if (currentIndex >= expectedWords.length) break;
                         let matchedIndex = -1;
-                        // Kelajakdagi 15 ta so'zni tekshirish (o'tkazib yuborishlar uchun)
-                        const limit = Math.min(currentIndex + 15, expectedWords.length);
+                        // Keyingi 10 ta so'z orasidan qidiramiz
+                        const limit = Math.min(currentIndex + 10, expectedWords.length);
                         for (let k = currentIndex; k < limit; k++) {
                             if (getSimilarity(sw, expectedWords[k]) >= 0.5) {
                                 matchedIndex = k;
