@@ -26,6 +26,7 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
     const speechConfigRef = useRef(null);
     const recognizerRef = useRef(null);
     const recognizedTextRef = useRef('');
+    const transcriptRef = useRef(''); // Jamlangan matn uchun ref qo'shildi
 
     const currentQ = questions[qIndex];
     const [submitting, setSubmitting] = useState(false);
@@ -140,50 +141,56 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
 
     const startRecording = () => {
         setSttError('');
-        recognizedTextRef.current = '';
+        recognizedTextRef.current = ''; // Bu yerda joriy segment saqlanadi
+        transcriptRef.current = '';    // Bu yerda jamlangan matn saqlanadi
         isManualStopRef.current = false;
         
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRec) { setSttError("Brauzer ovozni qo'llab-quvvatlamaydi"); return; }
         
-        const initRecognizer = () => {
+        const runRec = () => {
+            if (isManualStopRef.current || phase !== 'record') return; 
+
             try {
                 const rec = new SpeechRec();
                 rec.lang = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
-                rec.continuous = true;
+                rec.continuous = false;
                 rec.interimResults = true;
                 
                 rec.onresult = e => {
-                    const transcript = Array.from(e.results)
+                    const currentTranscript = Array.from(e.results)
                         .map(r => r[0]?.transcript || '')
                         .join(' ');
-                    recognizedTextRef.current = transcript;
+                    recognizedTextRef.current = currentTranscript;
                 };
 
                 rec.onend = () => {
-                    if (!isManualStopRef.current && recording) {
-                        setTimeout(() => {
-                            try { if (!isManualStopRef.current) rec.start(); } catch (_) { }
-                        }, 300);
+                    // Segment tugagach jamlaymiz
+                    transcriptRef.current = (transcriptRef.current + " " + recognizedTextRef.current).trim();
+                    recognizedTextRef.current = "";
+                    
+                    if (!isManualStopRef.current && phase === 'record') {
+                        setTimeout(runRec, 250);
                     }
                 };
 
                 rec.onerror = (e) => {
-                    if (e.error === 'no-speech') return;
-                    console.error("STT Error:", e.error);
+                    if (e.error === 'no-speech') {
+                        if (!isManualStopRef.current && phase === 'record') setTimeout(runRec, 250);
+                        return;
+                    }
                 };
 
                 rec.start();
                 recognizerRef.current = rec;
-                setRecording(true);
-                setElapsed(0);
-                if (timerRef.current) clearInterval(timerRef.current);
-                timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
-            } catch (err) {
-                setSttError("Mikrofonni ishga tushirib bo'lmadi");
-            }
+            } catch (err) { }
         };
-        initRecognizer();
+
+        setRecording(true);
+        setElapsed(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
+        runRec();
     };
 
     const stopAndEvaluate = () => {
@@ -193,7 +200,9 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
         if (recognizerRef.current) {
             try { recognizerRef.current.stop(); } catch (_) { }
         }
-        evaluateText(recognizedTextRef.current.trim());
+        // Jamlangan matn + oxirgi segmentni yuboramiz
+        const finalAnswer = (transcriptRef.current + " " + recognizedTextRef.current).trim();
+        evaluateText(finalAnswer);
     };
 
     const nextQuestion = () => {
@@ -430,79 +439,89 @@ function RecordingModal({ ertak, onClose }) {
     useEffect(() => {
         if (phase !== 'reading') return;
 
-        const startStt = () => {
-            setSttError('');
-            transcriptRef.current = '';
-            setTranscript('');
-            setCurrentWordIndex(0);
-            wordIndexRef.current = 0;
-            isManualStopRef.current = false;
+        let activeRec = null;
 
+        const startStt = () => {
             const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRec) { setSttError("Brauzer ovozni qo'llab-quvvatlamaydi"); return; }
+            if (isManualStopRef.current || phase !== 'reading') return;
 
-            const initRecognizer = () => {
-                try {
-                    const rec = new SpeechRec();
-                    rec.lang = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
-                    rec.continuous = true;
-                    rec.interimResults = true;
+            try {
+                const rec = new SpeechRec();
+                rec.lang = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
+                rec.continuous = false; // Har bir segmentdan keyin onend bo'lishi restartni osonlashtiradi
+                rec.interimResults = true;
 
-                    rec.onresult = (e) => {
-                        const transcript = Array.from(e.results)
-                            .map(r => r[0]?.transcript || '')
-                            .join(' ');
-                        
-                        // Faqat yangi natijalarni emas, barcha natijani tahlil qilamiz
-                        transcriptRef.current = transcript;
-                        setTranscript(transcript);
+                rec.onresult = (e) => {
+                        const currentTranscript = Array.from(e.results)
+                        .map(r => r[0]?.transcript || '')
+                        .join(' ');
+                    
+                    recognizedTextRef.current = currentTranscript; // Segmentni saqlaymiz
+                    
+                    // Oldingi barcha transkriptga joriy segmentni qo'shamiz
+                    const fullText = (transcriptRef.current + " " + currentTranscript).trim();
+                    setTranscript(fullText);
 
-                        const spokenWords = extractWords(transcript);
-                        let currentIndex = 0; // Har doim boshidan tekshiramiz (fuzzy matching uchun yaxshiroq)
+                    const spokenWords = extractWords(fullText);
+                    let currentIndex = 0;
 
-                        for (let sw of spokenWords) {
-                            if (currentIndex >= expectedWords.length) break;
-                            let matchedIndex = -1;
-                            // Kelajakdagi 5 ta so'zni tekshirish
-                            const limit = Math.min(currentIndex + 5, expectedWords.length);
-                            for (let k = currentIndex; k < limit; k++) {
-                                if (getSimilarity(sw, expectedWords[k]) >= 0.55) {
-                                    matchedIndex = k;
-                                    break;
-                                }
-                            }
-                            if (matchedIndex !== -1) {
-                                currentIndex = matchedIndex + 1;
+                    for (let sw of spokenWords) {
+                        if (currentIndex >= expectedWords.length) break;
+                        let matchedIndex = -1;
+                        // Kelajakdagi 10 ta so'zni tekshirish (o'tkazib yuborishlar uchun)
+                        const limit = Math.min(currentIndex + 10, expectedWords.length);
+                        for (let k = currentIndex; k < limit; k++) {
+                            if (getSimilarity(sw, expectedWords[k]) >= 0.6) {
+                                matchedIndex = k;
+                                break;
                             }
                         }
-
-                        if (currentIndex > wordIndexRef.current) {
-                            wordIndexRef.current = currentIndex;
-                            setCurrentWordIndex(currentIndex);
+                        if (matchedIndex !== -1) {
+                            currentIndex = matchedIndex + 1;
                         }
-                    };
+                    }
 
-                    rec.onend = () => {
-                        if (!isManualStopRef.current && phase === 'reading') {
-                            setTimeout(() => {
-                                try { if (!isManualStopRef.current) rec.start(); } catch (_) { }
-                            }, 300);
-                        }
-                    };
+                    if (currentIndex > wordIndexRef.current) {
+                        wordIndexRef.current = currentIndex;
+                        setCurrentWordIndex(currentIndex);
+                    }
+                };
 
-                    rec.onerror = (e) => {
-                        if (e.error === 'no-speech') return;
-                        console.error("Reading STT Error:", e.error);
-                    };
+                rec.onend = () => {
+                    // Segment tugaganda transkriptni saqlab qo'yamiz va qayta boshlaymiz
+                    transcriptRef.current = transcriptRef.current + " " + (recognizedTextRef.current || "");
+                    recognizedTextRef.current = "";
+                    
+                    if (!isManualStopRef.current && phase === 'reading') {
+                        setTimeout(startStt, 200);
+                    }
+                };
 
-                    rec.start();
-                    recognizerRef.current = rec;
-                } catch (err) {
-                    setSttError("Mikrofonni ishga tushirib bo'lmadi");
-                }
-            };
-            initRecognizer();
+                rec.onerror = (e) => {
+                    if (e.error === 'no-speech') {
+                        // Ovoz bo'lmasa ham qayta ishga tushirish
+                        if (!isManualStopRef.current) setTimeout(startStt, 200);
+                        return;
+                    }
+                    console.error("Reading STT Error:", e.error);
+                };
+
+                rec.start();
+                activeRec = rec;
+                recognizerRef.current = rec;
+            } catch (err) {
+                console.error("STT Init Error:", err);
+            }
         };
+
+        // Boshlashdan oldin tozalash
+        setSttError('');
+        transcriptRef.current = '';
+        setTranscript('');
+        setCurrentWordIndex(0);
+        wordIndexRef.current = 0;
+        isManualStopRef.current = false;
 
         startStt();
         timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);

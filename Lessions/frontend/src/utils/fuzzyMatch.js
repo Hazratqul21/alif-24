@@ -5,21 +5,27 @@
  * @returns {number} Masofa
  */
 export function levenshteinDistance(a, b) {
+    const normalize = (s) => (s || "").toLowerCase()
+        .replace(/[‘’`‘]/g, "'"); // Barcha turdagi tutuq belgilarini bitta standartga keltiramiz
+
+    const s1 = normalize(a);
+    const s2 = normalize(b);
+
     const matrix = [];
 
     let i;
-    for (i = 0; i <= b.length; i++) {
+    for (i = 0; i <= s2.length; i++) {
         matrix[i] = [i];
     }
 
     let j;
-    for (j = 0; j <= a.length; j++) {
+    for (j = 0; j <= s1.length; j++) {
         matrix[0][j] = j;
     }
 
-    for (i = 1; i <= b.length; i++) {
-        for (j = 1; j <= a.length; j++) {
-            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+    for (i = 1; i <= s2.length; i++) {
+        for (j = 1; j <= s1.length; j++) {
+            if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
                 matrix[i][j] = matrix[i - 1][j - 1];
             } else {
                 matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, // substitution
@@ -29,7 +35,7 @@ export function levenshteinDistance(a, b) {
         }
     }
 
-    return matrix[b.length][a.length];
+    return matrix[s2.length][s1.length];
 }
 
 /**
@@ -57,8 +63,9 @@ export function getSimilarity(s1, s2) {
  */
 export function extractWords(text) {
     if (!text) return [];
-    // Punktuatsiyani olib tashlash va faqat so'zlarni ajratish
-    return text.replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, "")
+    // O'zbekcha o', g' harflari uchun tutuq belgilarini saqlab qolamiz
+    // Punktuatsiyani olib tashlash (tutuq belgilaridan tashqari)
+    return text.replace(/[.,/#!$%^&*;:{}=\-_`~()?"«»]/g, "")
         .replace(/\s{2,}/g, " ")
         .trim().split(" ");
 }
@@ -85,7 +92,7 @@ export function getDisplayTokens(text) {
             tokens.push({ text: part, isWord: false, wordIndex: -1 });
         } else {
             // This is a word or a block of punctuation
-            const cleanText = part.replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, "");
+            const cleanText = part.replace(/[.,/#!$%^&*;:{}=\-_`~()?"«»]/g, "");
             if (cleanText.length > 0) {
                 // It's a valid word
                 tokens.push({ text: part, isWord: true, wordIndex: wIndex });
