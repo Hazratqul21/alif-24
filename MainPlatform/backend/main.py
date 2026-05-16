@@ -122,13 +122,16 @@ else:
         "https://www.alif24.uz",
         "https://olimp.alif24.uz",
         "https://games.alif24.uz",
+        "https://lessions.alif24.uz",
         "https://admin.alif24.uz",
         "https://harf.alif24.uz",
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:5174",
+        "http://localhost:5179",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:5179",
     ]
 
 app.add_middleware(

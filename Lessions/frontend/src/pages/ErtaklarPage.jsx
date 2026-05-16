@@ -52,22 +52,26 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
 
         for (const path of tokenPaths) {
             try {
+                console.log(`Attempting to fetch speech token from: ${path}`);
                 const resp = await fetch(path, { credentials: 'include' });
                 if (resp.ok) {
                     const data = await resp.json();
                     if (data.token && data.region) {
+                        console.log("Speech token received successfully.");
                         const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
                         cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
                         speechConfigRef.current = cfg;
                         return true;
                     }
+                } else {
+                    console.warn(`Token fetch failed for ${path} with status: ${resp.status}`);
                 }
             } catch (err) {
-                console.warn(`Failed to fetch speech token from ${path}:`, err);
+                console.error(`Error fetching speech token from ${path}:`, err);
             }
         }
         
-        setSttError("Ovozli tanish xizmatiga ulanib bo'lmadi. Iltimos, internetingizni tekshiring.");
+        setSttError("Ovozli tanish xizmatiga ulanib bo'lmadi (Token Error). Iltimos, sahifani yangilang yoki internetingizni tekshiring.");
         return false;
     };
 
