@@ -312,41 +312,41 @@ async def analyze_answer(request: AnalyzeRequest):
         # Language-specific prompts
         language_prompts = {
             "uz-UZ": {
-                "system": "Siz bolalar nutqi va fikrlashini tahlil qiluvchi mutaxassissiz. Qisqa va aniq tahlil natijalarini berasiz. JSON formatida javob berasiz.",
-                "audio_note": "Eslatma: STT natijasi: '{stt}', To'g'ri javob: '{correct}'",
+                "system": "Siz bolalar nutqi va fikrlashini tahlil qiluvchi professional pedagog-ekspertsiz. Bolaning javobini ertak matni bilan solishtirib, mantiqiy tahlil qilasiz. JSON formatida javob berasiz.",
+                "audio_note": "Eslatma: STT natijasi: '{stt}', To'g'ri javob namuna: '{correct}'",
                 "instructions": (
                     "Quyidagilarni tahlil qiling va JSON formatida javob bering:\n"
-                    "1. Nutq xatolari (phonetic errors) - masalan: 'r' harfini 'ye' deb aytgan, 'sh' harfini 's' deb aytgan\n"
-                    "2. Fikrlash baholash - 'yaxshi', 'o'rtacha', 'fikrini aytishga qiynaladi', 'juda yaxshi bayon etdi'\n"
-                    "3. Ma'no tahlili - axborotni to'g'ri tahlil qilib ma'nosini aytib berganmi\n"
-                    "4. Qahramonlarni eslash - hikoya qahramonlarini yaxshi eslab qolganmi\n"
-                    "5. Qahramonlarni ajratish - yaxshi va yomon qahramonlarni ajratib ko'rsatganmi"
+                    "1. Nutq xatolari (speech_errors) - faqat qo'pol xatolarni ko'rsating, kichik STT xatolariga e'tibor bermang.\n"
+                    "2. Fikrlash bahosi (thinking_assessment) - bola voqeani tushunganmi? (masalan: 'juda yaxshi tushungan', 'mantiqli fikrlaydi')\n"
+                    "3. Ma'no tahlili (meaning_analysis) - javob so'zma-so'z mos kelishi shart emas, ma'no to'g'ri bo'lsa ijobiy baholang.\n"
+                    "4. Qahramonlarni eslash (character_recall) - asosiy qahramonlarni to'g'ri aytdimi?\n"
+                    "5. Qahramonlarni ajratish (character_distinction) - yaxshi va yomon qaxramonlar farqiga bordimi?"
                 ),
                 "labels": ["speech_errors", "thinking_assessment", "meaning_analysis", "character_recall", "character_distinction"]
             },
             "ru-RU": {
-                "system": "Вы эксперт по анализу речи и мышления детей. Вы даете краткие и точные результаты анализа. Отвечайте в формате JSON.",
-                "audio_note": "Примечание: результат STT: '{stt}', Правильный ответ: '{correct}'",
+                "system": "Вы профессиональный педагог-эксперт по анализу детской речи и мышления. Вы анализируете ответ ребенка в контексте сказки. Отвечайте в формате JSON.",
+                "audio_note": "Примечание: результат STT: '{stt}', Образец ответа: '{correct}'",
                 "instructions": (
                     "Проанализируйте следующее и ответьте в формате JSON:\n"
-                    "1. Речевые ошибки (phonetic errors) - например: произносит 'r' как 'ye', 'sh' как 's'\n"
-                    "2. Оценка мышления - 'хорошо', 'средне', 'трудно выражает мысли', 'очень хорошо изложил'\n"
-                    "3. Анализ смысла - правильно ли проанализировал информацию и передал смысл\n"
-                    "4. Воспроизведение персонажей - хорошо ли запомнил персонажей истории\n"
-                    "5. Различение персонажей - выделил ли хороших и плохих персонажей"
+                    "1. Речевые ошибки (speech_errors) - указывайте только грубые ошибки, игнорируйте мелкие ошибки STT.\n"
+                    "2. Оценка мышления (thinking_assessment) - понял ли ребенок историю? (например: 'отлично понял', 'мыслит логично')\n"
+                    "3. Анализ смысла (meaning_analysis) - дословное совпадение не обязательно, если смысл верный, оценивайте положительно.\n"
+                    "4. Воспроизведение персонажей (character_recall) - правильно ли назвал главных героев?\n"
+                    "5. Различение персонажей (character_distinction) - отличает ли хороших героев от плохих?"
                 ),
                 "labels": ["speech_errors", "thinking_assessment", "meaning_analysis", "character_recall", "character_distinction"]
             },
             "en-US": {
-                "system": "You are an expert in children's speech and thinking analysis. You provide brief and accurate analysis results. Answer in JSON format.",
-                "audio_note": "Note: STT result: '{stt}', Correct answer: '{correct}'",
+                "system": "You are a professional expert in children's speech and cognitive analysis. You analyze the child's answer in relation to the story. Respond in JSON format.",
+                "audio_note": "Note: STT result: '{stt}', Sample answer: '{correct}'",
                 "instructions": (
-                    "Analyze the following and answer in JSON format:\n"
-                    "1. Speech errors (phonetic errors) - e.g.: pronounces 'r' as 'ye', 'sh' as 's'\n"
-                    "2. Thinking assessment - 'good', 'average', 'struggles to express thoughts', 'very well articulated'\n"
-                    "3. Meaning analysis - correctly analyzed information and conveyed meaning\n"
-                    "4. Character recall - well remembered story characters\n"
-                    "5. Character distinction - distinguished good and bad characters"
+                    "Analyze the following and respond in JSON format:\n"
+                    "1. Speech errors (speech_errors) - list only significant errors, ignore minor STT artifacts.\n"
+                    "2. Thinking assessment (thinking_assessment) - did the child understand the story? (e.g., 'understood very well', 'logical thinking')\n"
+                    "3. Meaning analysis (meaning_analysis) - literal matching is not required; if the meaning is correct, evaluate positively.\n"
+                    "4. Character recall (character_recall) - did they correctly remember the main characters?\n"
+                    "5. Character distinction (character_distinction) - did they distinguish between good and bad characters?"
                 ),
                 "labels": ["speech_errors", "thinking_assessment", "meaning_analysis", "character_recall", "character_distinction"]
             }
@@ -412,8 +412,8 @@ async def analyze_reading(request: AnalyzeReadingRequest):
         language_prompts = {
             "uz-UZ": {
                 "system": (
-                    "Siz bolalar o'qituvchisisiz. Bolaning ertak o'qishini tahlil qiling. "
-                    "Bolaning nutqini (STT orqali olingan) asli matn bilan solishtiring. "
+                    "Siz tajribali bolalar o'qituvchisisiz. Bolaning o'qish mahoratini tahlil qilasiz. "
+                    "Asosiy maqsad: bola matnni tushunib o'qiyaptimi? Kichik STT xatolariga bag'rikeng bo'ling. "
                     "Quyidagi JSON formatida qaytaring: "
                     "{'accuracy_score': 0-100, 'fluency_feedback': 'string', 'pronunciation_feedback': 'string', 'missing_words': ['word'], 'general_feedback': 'string'}"
                 ),
@@ -423,8 +423,8 @@ async def analyze_reading(request: AnalyzeReadingRequest):
             },
             "ru-RU": {
                 "system": (
-                    "Вы учитель детей. Проанализируйте чтение сказки ребенком. "
-                    "Сравните речь ребенка (полученную через STT) с исходным текстом. "
+                    "Вы опытный учитель начальных классов. Анализируете навыки чтения ребенка. "
+                    "Цель: понимает ли ребенок то, что читает? Будьте снисходительны к мелким ошибкам STT. "
                     "Верните в следующем JSON формате: "
                     "{'accuracy_score': 0-100, 'fluency_feedback': 'string', 'pronunciation_feedback': 'string', 'missing_words': ['word'], 'general_feedback': 'string'}"
                 ),
@@ -434,8 +434,8 @@ async def analyze_reading(request: AnalyzeReadingRequest):
             },
             "en-US": {
                 "system": (
-                    "You are an English teacher. Analyze the child's story reading. "
-                    "Compare the child's speech (obtained via STT) with the original text. "
+                    "You are an experienced primary school teacher. You analyze the child's reading skills. "
+                    "Goal: does the child understand what they are reading? Be lenient with minor STT artifacts. "
                     "Return in the following JSON format: "
                     "{'accuracy_score': 0-100, 'fluency_feedback': 'string', 'pronunciation_feedback': 'string', 'missing_words': ['word'], 'general_feedback': 'string'}"
                 ),

@@ -2,15 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, ChevronDown } from 'lucide-react';
-import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
-
-// 'Class extends value undefined' xatosini oldini olish uchun (Vite + Speech SDK)
-if (typeof window !== 'undefined' && !window.EventTarget) {
-    window.EventTarget = class EventTarget { };
-}
-if (typeof window !== 'undefined' && !window.AudioContext && window.webkitAudioContext) {
-    window.AudioContext = window.webkitAudioContext;
-}
 import apiService from '../services/apiService';
 import { getSimilarity, extractWords, getDisplayTokens } from '../utils/fuzzyMatch';
 
@@ -57,6 +48,8 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
         };
     }, []);
 
+    const isManualStopRef = useRef(false);
+
     const playQuestionTTS = async () => {
         try {
             const lang = ertak.language || 'uz';
@@ -77,39 +70,28 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
         }
     };
 
-    const ensureSpeechConfig = async () => {
-        if (speechConfigRef.current) return true;
-        try {
-            let resp = await fetch(`${API_URL}/smartkids/speech-token`, { credentials: 'include' });
-            if (!resp.ok) resp = await fetch('https://alif24.uz/api/v1/smartkids/speech-token', { credentials: 'include' });
-            if (!resp.ok) throw new Error('speech-token failed');
-            const data = await resp.json();
-            const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
-            cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
-            speechConfigRef.current = cfg;
-            return true;
-        } catch {
-            setSttError("Ovozli tanishga ulanib bo'lmadi.");
-            return false;
-        }
-    };
-
     const evaluateText = async (text) => {
         setRecording(false);
         setEvaluating(true);
         try {
-            const formData = new FormData();
-            formData.append('recognized_text', text);
-            const res = await fetch(
-                `${API_URL}/ertaklar/${ertak.id}/quiz/evaluate-text?question_index=${qIndex}`,
-                { method: 'POST', body: formData, credentials: 'include' }
-            );
+            const res = await fetch(`${API_URL}/smartkids/evaluate-quiz`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    story_text: ertak.content,
+                    question: currentQ.question,
+                    child_answer: text,
+                    language: ertak.language || 'uz',
+                    correct_answer: currentQ.answer
+                }),
+                credentials: 'include'
+            });
             const json = await res.json();
             const d = json.data || {};
             setScores(prev => [...prev, {
                 score: d.score ?? 0,
-                recognized: d.recognized_text || '',
-                correct: d.correct_answer || currentQ.answer,
+                recognized: text,
+                correct: d.feedback || currentQ.answer,
                 passed: d.passed ?? false,
             }]);
         } catch {
@@ -120,41 +102,60 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
         }
     };
 
-    const startRecording = async () => {
+    const startRecording = () => {
         setSttError('');
         recognizedTextRef.current = '';
-        const ok = await ensureSpeechConfig();
-        if (!ok) return;
-        try {
-            setRecording(true);
-            setElapsed(0);
-            timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
-            const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
-            const recognizer = new SpeechSDK.SpeechRecognizer(speechConfigRef.current, audioConfig);
-            recognizerRef.current = recognizer;
-            recognizer.recognized = (s, e) => {
-                if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech)
-                    recognizedTextRef.current += (e.result.text + ' ');
-            };
-            recognizer.startContinuousRecognitionAsync();
-        } catch {
-            setRecording(false);
-            setSttError("Mikrofon ochilmadi. Ruxsatni tekshiring.");
-        }
+        isManualStopRef.current = false;
+        
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRec) { setSttError("Brauzer ovozni qo'llab-quvvatlamaydi"); return; }
+        
+        const initRecognizer = () => {
+            try {
+                const rec = new SpeechRec();
+                rec.lang = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
+                rec.continuous = true;
+                rec.interimResults = true;
+                
+                rec.onresult = e => {
+                    const transcript = Array.from(e.results)
+                        .map(r => r[0]?.transcript || '')
+                        .join(' ');
+                    recognizedTextRef.current = transcript;
+                };
+
+                rec.onend = () => {
+                    if (!isManualStopRef.current && recording) {
+                        try { rec.start(); } catch (_) { }
+                    }
+                };
+
+                rec.onerror = (e) => {
+                    if (e.error === 'no-speech') return;
+                    console.error("STT Error:", e.error);
+                };
+
+                rec.start();
+                recognizerRef.current = rec;
+                setRecording(true);
+                setElapsed(0);
+                if (timerRef.current) clearInterval(timerRef.current);
+                timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
+            } catch (err) {
+                setSttError("Mikrofonni ishga tushirib bo'lmadi");
+            }
+        };
+        initRecognizer();
     };
 
     const stopAndEvaluate = () => {
+        isManualStopRef.current = true;
+        setRecording(false);
         clearInterval(timerRef.current);
         if (recognizerRef.current) {
-            const rec = recognizerRef.current;
-            recognizerRef.current = null;
-            rec.stopContinuousRecognitionAsync(() => {
-                try { rec.close(); } catch (_) { }
-                evaluateText(recognizedTextRef.current.trim());
-            });
-        } else {
-            evaluateText(recognizedTextRef.current.trim());
+            try { recognizerRef.current.stop(); } catch (_) { }
         }
+        evaluateText(recognizedTextRef.current.trim());
     };
 
     const nextQuestion = () => {
@@ -378,76 +379,81 @@ function RecordingModal({ ertak, onClose }) {
         return () => clearTimeout(t);
     }, [phase, count]);
 
-    const ensureSpeechConfig = async () => {
-        if (speechConfigRef.current) return true;
-        try {
-            const resp = await fetch(`${API_URL}/smartkids/speech-token`, { credentials: 'include' });
-            if (!resp.ok) {
-                const mainResp = await fetch('https://alif24.uz/api/v1/smartkids/speech-token', { credentials: 'include' });
-                if (!mainResp.ok) throw new Error('speech-token failed');
-                const data = await mainResp.json();
-                const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
-                cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
-                speechConfigRef.current = cfg;
-                return true;
-            }
-            const data = await resp.json();
-            const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
-            cfg.speechRecognitionLanguage = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
-            speechConfigRef.current = cfg;
-            return true;
-        } catch {
-            setSttError("Ovozli tanishga ulanib bo'lmadi.");
-            return false;
-        }
-    };
+    const isManualStopRef = useRef(false);
 
     useEffect(() => {
         if (phase !== 'reading') return;
 
-        const startStt = async () => {
+        const startStt = () => {
             setSttError('');
             transcriptRef.current = '';
             setTranscript('');
             setCurrentWordIndex(0);
             wordIndexRef.current = 0;
+            isManualStopRef.current = false;
 
-            const ok = await ensureSpeechConfig();
-            if (!ok) return;
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRec) { setSttError("Brauzer ovozni qo'llab-quvvatlamaydi"); return; }
 
-            try {
-                const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
-                const recognizer = new SpeechSDK.SpeechRecognizer(speechConfigRef.current, audioConfig);
-                recognizerRef.current = recognizer;
+            const initRecognizer = () => {
+                try {
+                    const rec = new SpeechRec();
+                    rec.lang = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
+                    rec.continuous = true;
+                    rec.interimResults = true;
 
-                recognizer.recognized = (s, e) => {
-                    if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
-                        const newText = e.result.text;
-                        transcriptRef.current += (newText + ' ');
-                        setTranscript(transcriptRef.current);
+                    rec.onresult = (e) => {
+                        const transcript = Array.from(e.results)
+                            .map(r => r[0]?.transcript || '')
+                            .join(' ');
+                        
+                        // Faqat yangi natijalarni emas, barcha natijani tahlil qilamiz
+                        transcriptRef.current = transcript;
+                        setTranscript(transcript);
 
-                        const spokenWords = extractWords(newText);
-                        let currentIndex = wordIndexRef.current;
+                        const spokenWords = extractWords(transcript);
+                        let currentIndex = 0; // Har doim boshidan tekshiramiz (fuzzy matching uchun yaxshiroq)
 
                         for (let sw of spokenWords) {
                             if (currentIndex >= expectedWords.length) break;
                             let matchedIndex = -1;
+                            // Kelajakdagi 5 ta so'zni tekshirish
                             const limit = Math.min(currentIndex + 5, expectedWords.length);
                             for (let k = currentIndex; k < limit; k++) {
-                                if (getSimilarity(sw, expectedWords[k]) >= 0.55) { matchedIndex = k; break; }
+                                if (getSimilarity(sw, expectedWords[k]) >= 0.55) {
+                                    matchedIndex = k;
+                                    break;
+                                }
                             }
-                            if (matchedIndex !== -1) currentIndex = matchedIndex + 1;
+                            if (matchedIndex !== -1) {
+                                currentIndex = matchedIndex + 1;
+                            }
                         }
 
-                        wordIndexRef.current = currentIndex;
-                        setCurrentWordIndex(currentIndex);
-                    }
-                };
+                        if (currentIndex > wordIndexRef.current) {
+                            wordIndexRef.current = currentIndex;
+                            setCurrentWordIndex(currentIndex);
+                        }
+                    };
 
-                recognizer.startContinuousRecognitionAsync();
-            } catch {
-                setSttError("Mikrofon ochilmadi. Ruxsatni tekshiring.");
-            }
+                    rec.onend = () => {
+                        if (!isManualStopRef.current && phase === 'reading') {
+                            try { rec.start(); } catch (_) { }
+                        }
+                    };
+
+                    rec.onerror = (e) => {
+                        if (e.error === 'no-speech') return;
+                        console.error("Reading STT Error:", e.error);
+                    };
+
+                    rec.start();
+                    recognizerRef.current = rec;
+                } catch (err) {
+                    setSttError("Mikrofonni ishga tushirib bo'lmadi");
+                }
+            };
+            initRecognizer();
         };
 
         startStt();
@@ -456,27 +462,20 @@ function RecordingModal({ ertak, onClose }) {
         return () => {
             clearInterval(timerRef.current);
             if (recognizerRef.current) {
-                try { recognizerRef.current.stopContinuousRecognitionAsync(); recognizerRef.current.close(); } catch (_) { }
+                try { recognizerRef.current.stop(); } catch (_) { }
             }
         };
     }, [phase]);
 
     const stopRecording = () => {
+        isManualStopRef.current = true;
         clearInterval(timerRef.current);
         if (recognizerRef.current) {
-            const rec = recognizerRef.current;
-            recognizerRef.current = null;
-            rec.stopContinuousRecognitionAsync(() => {
-                try { rec.close(); } catch (_) { }
-                setPhase('done');
-                if ((ertak.questions || []).length > 0)
-                    autoQuizTimerRef.current = setTimeout(() => setShowQuiz(true), 2000);
-            });
-        } else {
-            setPhase('done');
-            if ((ertak.questions || []).length > 0)
-                autoQuizTimerRef.current = setTimeout(() => setShowQuiz(true), 2000);
+            try { recognizerRef.current.stop(); } catch (_) { }
         }
+        setPhase('done');
+        if ((ertak.questions || []).length > 0)
+            autoQuizTimerRef.current = setTimeout(() => setShowQuiz(true), 2000);
     };
 
     const togglePlay = async () => {
