@@ -439,8 +439,6 @@ function RecordingModal({ ertak, onClose }) {
     useEffect(() => {
         if (phase !== 'reading') return;
 
-        let activeRec = null;
-
         const startStt = () => {
             const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRec) { setSttError("Brauzer ovozni qo'llab-quvvatlamaydi"); return; }
@@ -449,74 +447,48 @@ function RecordingModal({ ertak, onClose }) {
             try {
                 const rec = new SpeechRec();
                 rec.lang = ertak.language === 'ru' ? 'ru-RU' : ertak.language === 'en' ? 'en-US' : 'uz-UZ';
-                rec.continuous = false; // Har bir segmentdan keyin onend bo'lishi restartni osonlashtiradi
+                rec.continuous = true;
                 rec.interimResults = true;
 
                 rec.onresult = (e) => {
-                    const currentTranscript = Array.from(e.results)
-                        .map(r => r[0]?.transcript || '')
-                        .join(' ');
+                    let interimTranscript = '';
+                    let finalSegmentText = '';
                     
-                    recognizedTextRef.current = currentTranscript;
-                    
-                    // Oldingi barcha transkriptga joriy segmentni qo'shib ko'rsatamiz
-                    const fullText = (transcriptRef.current + " " + currentTranscript).trim();
-                    setTranscript(fullText);
-
-                    // Faqat joriy segmentdagi so'zlarni oxirgi o'qilgan joydan boshlab qidiramiz
-                    const spokenWords = extractWords(currentTranscript);
-                    let currentIndex = wordIndexRef.current;
-
-                    for (let sw of spokenWords) {
-                        if (currentIndex >= expectedWords.length) break;
-                        let matchedIndex = -1;
-                        // Keyingi 10 ta so'z orasidan qidiramiz
-                        const limit = Math.min(currentIndex + 10, expectedWords.length);
-                        for (let k = currentIndex; k < limit; k++) {
-                            if (getSimilarity(sw, expectedWords[k]) >= 0.5) {
-                                matchedIndex = k;
-                                break;
-                            }
-                        }
-                        if (matchedIndex !== -1) {
-                            currentIndex = matchedIndex + 1;
+                    for (let i = e.resultIndex; i < e.results.length; i++) {
+                        if (e.results[i].isFinal) {
+                            finalSegmentText += e.results[i][0].transcript + " ";
+                        } else {
+                            interimTranscript += e.results[i][0].transcript;
                         }
                     }
 
-                    if (currentIndex > wordIndexRef.current) {
-                        wordIndexRef.current = currentIndex;
-                        setCurrentWordIndex(currentIndex);
+                    if (finalSegmentText) {
+                        transcriptRef.current += finalSegmentText;
                     }
+
+                    const currentFullText = (transcriptRef.current + interimTranscript).trim();
+                    setTranscript(currentFullText);
                 };
 
                 rec.onend = () => {
-                    // Segment tugaganda transkriptni saqlab qo'yamiz va qayta boshlaymiz
-                    transcriptRef.current = transcriptRef.current + " " + (recognizedTextRef.current || "");
-                    recognizedTextRef.current = "";
-                    
                     if (!isManualStopRef.current && phase === 'reading') {
-                        setTimeout(startStt, 200);
+                        setTimeout(startStt, 250);
                     }
                 };
 
                 rec.onerror = (e) => {
-                    if (e.error === 'no-speech') {
-                        // Ovoz bo'lmasa ham qayta ishga tushirish
-                        if (!isManualStopRef.current) setTimeout(startStt, 200);
-                        return;
-                    }
-                    console.error("Reading STT Error:", e.error);
+                    if (e.error === 'no-speech') return;
+                    console.error("STT Error:", e.error);
                 };
 
                 rec.start();
-                activeRec = rec;
                 recognizerRef.current = rec;
             } catch (err) {
-                console.error("STT Init Error:", err);
+                console.error("STT Start Error:", err);
             }
         };
 
-        // Boshlashdan oldin tozalash
+        // Initial setup
         setSttError('');
         transcriptRef.current = '';
         setTranscript('');
@@ -534,6 +506,32 @@ function RecordingModal({ ertak, onClose }) {
             }
         };
     }, [phase]);
+
+    // Track words whenever transcript changes
+    useEffect(() => {
+        if (!transcript || expectedWords.length === 0) return;
+
+        const spokenWords = extractWords(transcript);
+        let currentIndex = 0;
+
+        for (let sw of spokenWords) {
+            if (currentIndex >= expectedWords.length) break;
+            let matchedIndex = -1;
+            const limit = Math.min(currentIndex + 20, expectedWords.length);
+            for (let k = currentIndex; k < limit; k++) {
+                if (getSimilarity(sw, expectedWords[k]) >= 0.35) {
+                    matchedIndex = k;
+                    break;
+                }
+            }
+            if (matchedIndex !== -1) currentIndex = matchedIndex + 1;
+        }
+
+        if (currentIndex > wordIndexRef.current) {
+            wordIndexRef.current = currentIndex;
+            setCurrentWordIndex(currentIndex);
+        }
+    }, [transcript, expectedWords]);
 
     const stopRecording = () => {
         isManualStopRef.current = true;
