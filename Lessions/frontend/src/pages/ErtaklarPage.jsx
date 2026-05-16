@@ -28,8 +28,43 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
     const recognizedTextRef = useRef('');
 
     const currentQ = questions[qIndex];
+    const [submitting, setSubmitting] = useState(false);
     const totalScore = scores.length ? Math.round(scores.reduce((a, b) => a + b.score, 0) / scores.length) : 0;
     const allDone = qIndex >= questions.length;
+
+    const submitResult = async (finalScores) => {
+        if (submitting) return;
+        setSubmitting(true);
+        try {
+            const avg = finalScores.length ? Math.round(finalScores.reduce((a, b) => a + b.score, 0) / finalScores.length) : 0;
+            const data = {
+                wpm: readingStats.wpm || 0,
+                read_percent: readingStats.readPercent || 0,
+                reading_time_seconds: readingStats.elapsed || 0,
+                quiz_scores: finalScores,
+                quiz_average: avg,
+                score: avg // API mosligi uchun
+            };
+
+            // Agar assignmentId bo'lsa (vazifa sifatida), submit-ertak endpointiga yuboramiz
+            if (ertak.assignment_id) {
+                await apiService.post(`/students/assignments/${ertak.assignment_id}/submit-ertak`, data);
+            } else {
+                // Oddiy ertak bo'lsa, complete endpointiga
+                await apiService.post(`/stories/${ertak.id}/complete`, data);
+            }
+        } catch (e) {
+            console.error("Natijani saqlashda xatolik:", e);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    useEffect(() => {
+        if (allDone && !submitting) {
+            submitResult(scores);
+        }
+    }, [allDone]);
 
     useEffect(() => {
         if (phase !== 'tts' || !currentQ) return;
@@ -126,7 +161,9 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
 
                 rec.onend = () => {
                     if (!isManualStopRef.current && recording) {
-                        try { rec.start(); } catch (_) { }
+                        setTimeout(() => {
+                            try { if (!isManualStopRef.current) rec.start(); } catch (_) { }
+                        }, 300);
                     }
                 };
 
@@ -198,6 +235,14 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
                 )}
 
                 {allDone ? (() => {
+                    if (submitting) {
+                        return (
+                            <div className="flex flex-col items-center gap-4 py-12">
+                                <div className="w-12 h-12 border-4 border-[#4b30fb]/30 border-t-[#4b30fb] rounded-full animate-spin" />
+                                <p className="text-white/50 text-sm">Natijalar saqlanmoqda...</p>
+                            </div>
+                        );
+                    }
                     const wpm = readingStats.wpm || 0;
                     const readPercent = readingStats.readPercent || 0;
                     const readElapsed = readingStats.elapsed || 0;
@@ -438,7 +483,9 @@ function RecordingModal({ ertak, onClose }) {
 
                     rec.onend = () => {
                         if (!isManualStopRef.current && phase === 'reading') {
-                            try { rec.start(); } catch (_) { }
+                            setTimeout(() => {
+                                try { if (!isManualStopRef.current) rec.start(); } catch (_) { }
+                            }, 300);
                         }
                     };
 
@@ -471,11 +518,18 @@ function RecordingModal({ ertak, onClose }) {
         isManualStopRef.current = true;
         clearInterval(timerRef.current);
         if (recognizerRef.current) {
-            try { recognizerRef.current.stop(); } catch (_) { }
+            try { 
+                recognizerRef.current.stop(); 
+                recognizerRef.current = null;
+            } catch (_) { }
         }
         setPhase('done');
-        if ((ertak.questions || []).length > 0)
-            autoQuizTimerRef.current = setTimeout(() => setShowQuiz(true), 2000);
+        // Natijani ko'rib olishi uchun 3 soniya vaqt beramiz va savollarga o'tamiz
+        if ((ertak.questions || []).length > 0) {
+            autoQuizTimerRef.current = setTimeout(() => {
+                setShowQuiz(true);
+            }, 3000);
+        }
     };
 
     const togglePlay = async () => {
@@ -616,7 +670,7 @@ function RecordingModal({ ertak, onClose }) {
                             </div>
                             <button onClick={stopRecording}
                                 className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/40 text-red-400 rounded-full font-semibold text-sm hover:bg-red-500/30 transition-all">
-                                <Square className="w-3.5 h-3.5" /> Tugatish
+                                <Square className="w-3.5 h-3.5" /> Tugatdim
                             </button>
                         </div>
                     )}
