@@ -655,39 +655,47 @@ async def evaluate_quiz(request: EvaluateQuizRequest):
         # Get language-specific system prompt
         system_prompts = {
             "uz-UZ": (
-                "Siz mehribon bolalar pedagogisiz. Bolaning ertak asosidagi savolga bergan javobini baholang. "
+                "Siz mehribon lekin adolatli bolalar pedagogisiz. Bolaning ertak asosidagi savolga bergan javobini baholang. "
+                "DIQQAT: Agar bolaning javobi savolga yoki ertak mazmuniga mutlaqo aloqasiz bo'lsa (masalan, mavzudan tashqari gaplar, boshqa narsalar haqida gapirish), qat'iy ravishda 0 dan 5 ballgacha bering. "
                 "Baho berishda bolaning yoshini va javob mazmunini inobatga oling. "
-                "Javob mutlaqo to'g'ri bo'lmasa-da, agar mazmunan yaqin bo'lsa, rag'batlantiruvchi ball bering (masalan 60-80). "
+                "Javob mutlaqo to'g'ri bo'lmasa-da, lekin mavzuga oid va mantiqli bo'lsa, rag'batlantiruvchi ball bering (masalan 50-70). "
                 "STT (ovozni matnga aylantirish) xatolariga, grammatikaga e'tibor bermang. "
-                "Agar bola 'bilmayman' desa yoki javob mutlaqo asossiz bo'lsa, 10-30 ball bering va to'g'ri javobni tushuntiring. "
+                "Agar bola 'bilmayman' desa yoki javob savolga javob berishga urinish bo'lsa-yu, lekin xato bo'lsa 10-25 ball bering va to'g'ri javobni tushuntiring. "
                 "JSON formatida javob bering: {\"score\": 85, \"feedback\": \"Barakalla! To'g'ri aytdingiz, faqat qahramonning ismini ham aytsangiz yanada zo'r bo'lar edi.\", \"passed\": true}"
             ),
             "ru-RU": (
-                "Вы добрый детский педагог. Оцените ответ ребенка на вопрос по сказке. "
+                "Вы добрый, но справедливый детский педагог. Оцените ответ ребенка на вопрос по сказке. "
+                "ВНИМАНИЕ: Если ответ ребенка совершенно не относится к вопросу или содержанию сказки (разговоры не по теме), строго ставьте от 0 до 5 баллов. "
                 "Учитывайте возраст ребенка и смысл ответа. "
-                "Даже если ответ не совсем точен, но близок по смыслу, ставьте поощрительный балл (например, 60-80). "
+                "Даже если ответ не совсем точен, но относится к теме и логичен, ставьте поощрительный балл (например, 50-70). "
                 "Игнорируйте ошибки STT и грамматику. "
-                "Если ребенок говорит 'не знаю' или ответ совсем не по теме, поставьте 10-30 баллов и объясните правильный ответ. "
+                "Если ребенок говорит 'не знаю' или пытается ответить, но ошибается, поставьте 10-25 баллов и объясните правильный ответ. "
                 "Ответьте в формате JSON: {\"score\": 85, \"feedback\": \"Молодец! Ты правильно ответил, но если бы ты еще назвал имя героя, было бы еще лучше.\", \"passed\": true}"
             ),
             "en-US": (
-                "You are a kind children's educator. Evaluate the child's answer to a story-based question. "
+                "You are a kind but fair children's educator. Evaluate the child's answer to a story-based question. "
+                "IMPORTANT: If the child's answer is completely unrelated to the question or the story content (off-topic talk), strictly give between 0 and 5 points. "
                 "Consider the child's age and the meaning of the answer. "
-                "Even if the answer is not perfectly accurate, give an encouraging score (e.g., 60-80) if the meaning is close. "
+                "Even if the answer is not perfectly accurate, give an encouraging score (e.g., 50-70) if it is on-topic and logical. "
                 "Ignore STT errors and grammar. "
-                "If the child says 'I don't know' or the answer is completely off-topic, give 10-30 points and explain the correct answer. "
+                "If the child says 'I don't know' or tries to answer but is wrong, give 10-25 points and explain the correct answer. "
                 "Respond in JSON format: {\"score\": 85, \"feedback\": \"Well done! You answered correctly, but it would have been even better if you mentioned the character's name.\", \"passed\": true}"
             )
         }
         
-        system_prompt = system_prompts.get(request.language, system_prompts["uz-UZ"])
+        lang = request.language or "uz-UZ"
+        if lang == "uz": lang = "uz-UZ"
+        elif lang == "ru": lang = "ru-RU"
+        elif lang == "en": lang = "en-US"
+        
+        system_prompt = system_prompts.get(lang, system_prompts["uz-UZ"])
         
         user_prompt = (
             f"Ertak matni:\n{request.story_text}\n\n"
             f"Savol: {request.question}\n"
             f"O'qituvchi kutgan to'g'ri javob (namuna): {request.correct_answer or 'Ertak mazmuniga asoslangan holda baholang'}\n\n"
             f"Bolaning javobi: {request.child_answer}\n\n"
-            "Pedagogik nuqtai nazardan baholang, rag'batlantiruvchi ball va JSON formatida javob bering."
+            "Pedagogik nuqtai nazardan haqqoniy baholang va JSON formatida javob bering."
         )
         
         content = await call_ai(
