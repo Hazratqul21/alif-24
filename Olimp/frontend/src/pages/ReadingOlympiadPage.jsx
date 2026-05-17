@@ -75,6 +75,11 @@ export default function ReadingOlympiadPage() {
                 setIsMultiStage(false);
                 if (oData.my_participation) {
                     setRegistered(true);
+                    if (studentId) {
+                        await loadMultiStageDashboard(studentId);
+                    }
+                } else {
+                    setRegistered(false);
                 }
                 loadLeaderboard();
             }
@@ -148,6 +153,7 @@ export default function ReadingOlympiadPage() {
             setRegError(null);
             await apiService.post(`/olympiad/${id}/register`, { student_id: studentId });
             setRegistered(true);
+            await loadAll(studentId);
         } catch (err) {
             if (isProfileBlocker(err.message)) {
                 setShowProfileModal(true);
@@ -236,8 +242,34 @@ export default function ReadingOlympiadPage() {
             </header>
 
             <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-                {isMultiStage ? (
-                    !registered ? (
+                {registered ? (
+                    dashboardLoading || !dashboardData ? (
+                        <div className="flex justify-center py-12">
+                            <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                        </div>
+                    ) : (
+                        <StudentOlympiadDashboard
+                            olympiad={olympiad}
+                            stages={dashboardData.stages || []}
+                            myParticipation={dashboardData.student || {}}
+                            stageResults={dashboardData.stages?.filter(s => s.my_result).map(s => ({
+                                id: s.id,
+                                stage_id: s.id,
+                                score: s.my_result.score,
+                                is_passed: s.my_result.is_passed,
+                                duration_seconds: 0
+                            }))}
+                            leaderboard={leaderboard}
+                            onStartTask={goToReading}
+                            isTaskActive={
+                                dashboardData.stages?.length > 0
+                                    ? dashboardData.stages?.find(s => s.stage_number === (dashboardData.student?.current_stage || 1))?.is_active
+                                    : true
+                            }
+                        />
+                    )
+                ) : (
+                    isMultiStage ? (
                         <div className="space-y-6">
                             {/* Hero Card */}
                             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8 text-left space-y-5">
@@ -279,45 +311,21 @@ export default function ReadingOlympiadPage() {
                             {regError && <p className="text-red-400 text-sm flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {regError}</p>}
                         </div>
                     ) : (
-                        dashboardLoading || !dashboardData ? (
-                            <div className="flex justify-center py-12">
-                                <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-                            </div>
-                        ) : (
-                            <StudentOlympiadDashboard
-                                olympiad={olympiad}
-                                stages={dashboardData.stages || []}
-                                myParticipation={dashboardData.student || {}}
-                                stageResults={dashboardData.stages?.filter(s => s.my_result).map(s => ({
-                                    id: s.id,
-                                    stage_id: s.id,
-                                    score: s.my_result.score,
-                                    is_passed: s.my_result.is_passed,
-                                    duration_seconds: 0
-                                }))}
-                                leaderboard={leaderboard}
-                                onStartTask={goToReading}
-                                isTaskActive={dashboardData.stages?.find(s => s.stage_number === (dashboardData.student?.current_stage || 1))?.is_active}
-                            />
-                        )
-                    )
-                ) : (
-                    <>
-                        {/* Olympiad Card */}
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8">
-                            <h1 className="text-2xl md:text-3xl font-bold text-white mb-3">{olympiad?.title}</h1>
-                            {olympiad?.description && <p className="text-indigo-300 mb-5">{olympiad.description}</p>}
+                        <>
+                            {/* Olympiad Card */}
+                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8">
+                                <h1 className="text-2xl md:text-3xl font-bold text-white mb-3">{olympiad?.title}</h1>
+                                {olympiad?.description && <p className="text-indigo-300 mb-5">{olympiad.description}</p>}
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                                <MiniCard icon={<Calendar className="w-4 h-4" />} label="Boshlanish" value={olympiad?.start_time ? new Date(olympiad.start_time).toLocaleDateString('uz') : '—'} />
-                                <MiniCard icon={<Clock className="w-4 h-4" />} label="Tugash" value={olympiad?.end_time ? new Date(olympiad.end_time).toLocaleDateString('uz') : '—'} />
-                                <MiniCard icon={<Users className="w-4 h-4" />} label="Ishtirokchilar" value={`${olympiad?.participant_count || 0} nafar`} />
-                                <MiniCard icon={<Trophy className="w-4 h-4" />} label="Fan" value={olympiad?.subject || '—'} />
-                            </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                                    <MiniCard icon={<Calendar className="w-4 h-4" />} label="Boshlanish" value={olympiad?.start_time ? new Date(olympiad.start_time).toLocaleDateString('uz') : '—'} />
+                                    <MiniCard icon={<Clock className="w-4 h-4" />} label="Tugash" value={olympiad?.end_time ? new Date(olympiad.end_time).toLocaleDateString('uz') : '—'} />
+                                    <MiniCard icon={<Users className="w-4 h-4" />} label="Ishtirokchilar" value={`${olympiad?.participant_count || 0} nafar`} />
+                                    <MiniCard icon={<Trophy className="w-4 h-4" />} label="Fan" value={olympiad?.subject || '—'} />
+                                </div>
 
-                            {/* Registration / Start reading */}
-                            {!registered ? (
+                                {/* Registration / Start reading */}
                                 <div>
                                     <button onClick={handleRegister} disabled={registering || !['active', 'upcoming'].includes(olympiad?.status)}
                                         className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-purple-600/30">
@@ -325,26 +333,17 @@ export default function ReadingOlympiadPage() {
                                     </button>
                                     {regError && <p className="text-red-400 text-sm mt-2 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {regError}</p>}
                                 </div>
-                            ) : (
-                                <div className="text-center">
-                                    <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
-                                    <p className="text-green-400 font-medium mb-4">Ro'yxatdan o'tdingiz!</p>
-                                    <button onClick={goToReading}
-                                        className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-500/20">
-                                        📖 O'qishni boshlash
-                                    </button>
-                                </div>
-                            )}
-                        </motion.div>
+                            </motion.div>
 
-                        {/* Leaderboard */}
-                        <LeaderboardTable
-                            leaderboard={leaderboard}
-                            loading={lbLoading}
-                            currentUserId={currentUserId}
-                            olympiadTitle={olympiad?.title}
-                        />
-                    </>
+                            {/* Leaderboard */}
+                            <LeaderboardTable
+                                leaderboard={leaderboard}
+                                loading={lbLoading}
+                                currentUserId={currentUserId}
+                                olympiadTitle={olympiad?.title}
+                            />
+                        </>
+                    )
                 )}
             </div>
         </div>
