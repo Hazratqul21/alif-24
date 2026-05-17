@@ -44,10 +44,7 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
         if (speechConfigRef.current) return true;
         
         const tokenPaths = [
-            `${API_URL}/speech-token`,
-            `${API_URL}/smartkids/speech-token`,
-            `https://alif24.uz/api/v1/speech-token`,
-            `https://alif24.uz/api/v1/smartkids/speech-token`
+            `${API_URL}/speech-token`
         ];
 
         for (const path of tokenPaths) {
@@ -149,7 +146,7 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
         setRecording(false);
         setEvaluating(true);
         try {
-            const res = await fetch(`${API_URL}/smartkids/evaluate-quiz`, {
+            const res = await fetch(`${API_URL}/evaluate-quiz`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -374,7 +371,7 @@ function RecordingModal({ ertak, onClose }) {
     const ensureSpeechConfig = async () => {
         if (speechConfigRef.current) return true;
         try {
-            const resp = await fetch(`${API_URL}/smartkids/speech-token`, { credentials: 'include' });
+            const resp = await fetch(`${API_URL}/speech-token`, { credentials: 'include' });
             if (!resp.ok) throw new Error('speech-token failed');
             const data = await resp.json();
             const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);

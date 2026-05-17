@@ -61,6 +61,13 @@ class ErtakCreate(BaseModel):
     questions: List[QuizQuestion] = []  # Admin tomonidan qo'shilgan savollar
 
 
+class EvaluateQuizRequest(BaseModel):
+    story_text: str
+    question: str
+    child_answer: str
+    language: Optional[str] = "uz-UZ"
+    correct_answer: Optional[str] = None
+
 def _lesson_to_dict(lesson: Lesson) -> dict:
     return {
         "id": lesson.id,
@@ -681,3 +688,94 @@ async def speech_tts_get(
     except Exception as e:
         logger.error(f"Speech TTS error: {e}")
         raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
+
+
+# ============= Speech Token =============
+@router.get("/speech-token")
+async def get_speech_token():
+    """
+    Azure Speech SDK uchun token olish.
+    """
+    try:
+        return await speech_service.get_token_for_client()
+    except Exception as e:
+        logger.error(f"Speech token error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============= General Quiz Evaluation (AI) =============
+@router.post("/evaluate-quiz")
+async def evaluate_quiz_general(request: EvaluateQuizRequest):
+    """
+    Bolaning savolga javobini AI yordamida baholash (100 ballik tizimda)
+    """
+    import json
+    
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
+        import difflib
+        r_lower = request.child_answer.lower()
+        c_lower = (request.correct_answer or "").lower()
+        score = 0
+        if r_lower and c_lower:
+            ratio = difflib.SequenceMatcher(None, r_lower, c_lower).ratio()
+            score = int(ratio * 100)
+            score = min(100, max(0, score))
+        return {"data": {"score": score, "feedback": "AI sozlanmagan", "passed": score >= 60}}
+
+    lang = request.language or "uz-UZ"
+    if lang == "uz": lang = "uz-UZ"
+    elif lang == "ru": lang = "ru-RU"
+    elif lang == "en": lang = "en-US"
+
+    system_prompts = {
+        "uz-UZ": (
+            "Siz mehribon va professional bolalar pedagogisiz. Vazifangiz: bolaning ertak asosidagi savolga bergan javobini tahlil qilish va baholash.\n"
+            "JSON formatida javob bering: {\"score\": ball, \"feedback\": \"rag'batlantiruvchi va tushuntiruvchi izoh\", \"passed\": true/false}"
+        ),
+        "ru-RU": (
+            "Вы добрый и профессиональный детский педагог. Ваша задача: проанализировать и оценить ответ ребенка на вопрос по сказке.\n"
+            "Ответьте в формате JSON: {\"score\": балл, \"feedback\": \"поощрительный комментарий\", \"passed\": true/false}"
+        ),
+        "en-US": (
+            "You are a kind and professional children's educator. Your task: analyze and evaluate the child's answer to a story-based question.\n"
+            "Respond in JSON format: {\"score\": score, \"feedback\": \"encouraging comment\", \"passed\": true/false}"
+        )
+    }
+    
+    system_prompt = system_prompts.get(lang, system_prompts["uz-UZ"])
+    
+    user_prompt = (
+        f"Ertak matni:\n{request.story_text}\n\n"
+        f"Savol: {request.question}\n"
+        f"O'qituvchi kutgan to'g'ri javob: {request.correct_answer or 'Ertak mazmuniga asoslangan holda baholang'}\n\n"
+        f"Bolaning javobi: {request.child_answer}\n\n"
+        "Pedagogik nuqtai nazardan haqqoniy baholang va JSON formatida javob bering."
+    )
+    
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "gpt-4o-mini",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    "temperature": 0.3,
+                    "response_format": {"type": "json_object"}
+                }
+            )
+            if resp.status_code == 200:
+                raw = resp.json()["choices"][0]["message"]["content"].strip()
+                result = json.loads(raw)
+                score = result.get("score", 0)
+                result["passed"] = score >= 50
+                return {"data": result}
+            else:
+                return {"data": {"score": 0, "feedback": "AI baholashda xatolik", "passed": False}}
+    except Exception as e:
+        logger.error(f"Error evaluating quiz: {e}")
+        return {"data": {"score": 0, "feedback": "AI baholashda xatolik", "passed": False}}
