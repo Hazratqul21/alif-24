@@ -710,18 +710,12 @@ async def evaluate_quiz_general(request: EvaluateQuizRequest):
     Bolaning savolga javobini AI yordamida baholash (100 ballik tizimda)
     """
     import json
-    
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key:
-        import difflib
-        r_lower = request.child_answer.lower()
-        c_lower = (request.correct_answer or "").lower()
-        score = 0
-        if r_lower and c_lower:
-            ratio = difflib.SequenceMatcher(None, r_lower, c_lower).ratio()
-            score = int(ratio * 100)
-            score = min(100, max(0, score))
-        return {"data": {"score": score, "feedback": "AI sozlanmagan", "passed": score >= 60}}
+    try:
+        from MainPlatform.backend.app.services.ai_service import ai_service
+        from MainPlatform.backend.app.core.config import settings as mp_settings
+    except ImportError as e:
+        logger.error(f"Could not import ai_service: {e}")
+        return {"data": {"score": 0, "feedback": "AI xizmati ulanmagan", "passed": False}}
 
     lang = request.language or "uz-UZ"
     if lang == "uz": lang = "uz-UZ"
@@ -731,14 +725,33 @@ async def evaluate_quiz_general(request: EvaluateQuizRequest):
     system_prompts = {
         "uz-UZ": (
             "Siz mehribon va professional bolalar pedagogisiz. Vazifangiz: bolaning ertak asosidagi savolga bergan javobini tahlil qilish va baholash.\n"
+            "BAHOLASH MEZONLARI:\n"
+            "1. MA'NO VA MANTIQ (Eng muhimi): O'quvchi javobi namuna (correct_answer) bilan so'zma-so'z mos kelishi shart emas. Agar bola savolning mohiyatini tushungan bo'lsa va javobi ertak matniga mantiqan to'g'ri kelsa, unga yuqori ball (85-100) bering.\n"
+            "2. KALIT SO'ZLAR: Javobda voqelikdagi asosiy ob'ektlar yoki harakatlar mavjud bo'lsa, bu to'g'ri javob hisoblanadi.\n"
+            "3. YOSH VA USLUB: O'quvchi bolaligini inobatga oling. Uning tili sodda, gaplari qisqa bo'lishi normal holat. Grammatikaga va STT xatolariga e'tibor bermang.\n"
+            "4. BALLAR:\n"
+            "   - 85-100 ball: Ma'no to'g'ri, savolga javob berilgan.\n"
+            "   - 50-84 ball: Javob qisman to'g'ri yoki asosiy fikrni aytishga yaqin kelgan.\n"
+            "   - 10-49 ball: Javob xato, lekin mavzu atrofida gapirishga harakat qilgan.\n"
+            "   - 0-9 ball: Javob mutlaqo aloqasiz.\n"
             "JSON formatida javob bering: {\"score\": ball, \"feedback\": \"rag'batlantiruvchi va tushuntiruvchi izoh\", \"passed\": true/false}"
         ),
         "ru-RU": (
             "Вы добрый и профессиональный детский педагог. Ваша задача: проанализировать и оценить ответ ребенка на вопрос по сказке.\n"
+            "КРИТЕРИИ ОЦЕНКИ:\n"
+            "1. СМЫСЛ И ЛОГИКА: Ответ ребенка не должен дословно совпадать с образцом. Если ребенок понял суть, ставьте высокий балл (85-100).\n"
+            "2. КЛЮЧЕВЫЕ СЛОВА: Наличие главных объектов из истории = правильный ответ.\n"
+            "3. ВОЗРАСТ: Учитывайте, что это ребенок. Игнорируйте грамматику и ошибки STT.\n"
+            "4. БАЛЛЫ: 85-100 (верно), 50-84 (частично), 10-49 (неверно, но по теме), 0-9 (не по теме).\n"
             "Ответьте в формате JSON: {\"score\": балл, \"feedback\": \"поощрительный комментарий\", \"passed\": true/false}"
         ),
         "en-US": (
             "You are a kind and professional children's educator. Your task: analyze and evaluate the child's answer to a story-based question.\n"
+            "EVALUATION CRITERIA:\n"
+            "1. MEANING AND LOGIC: If the child understood the essence of the question, give a high score (85-100).\n"
+            "2. KEYWORDS: Mentioning main objects/actions is considered correct.\n"
+            "3. AGE: Ignore grammar and STT errors completely.\n"
+            "4. SCORING: 85-100 (correct), 50-84 (partial), 10-49 (incorrect but on topic), 0-9 (unrelated).\n"
             "Respond in JSON format: {\"score\": score, \"feedback\": \"encouraging comment\", \"passed\": true/false}"
         )
     }
@@ -748,34 +761,25 @@ async def evaluate_quiz_general(request: EvaluateQuizRequest):
     user_prompt = (
         f"Ertak matni:\n{request.story_text}\n\n"
         f"Savol: {request.question}\n"
-        f"O'qituvchi kutgan to'g'ri javob: {request.correct_answer or 'Ertak mazmuniga asoslangan holda baholang'}\n\n"
+        f"O'qituvchi kutgan to'g'ri javob (namuna): {request.correct_answer or 'Ertak mazmuniga asoslangan holda baholang'}\n\n"
         f"Bolaning javobi: {request.child_answer}\n\n"
         "Pedagogik nuqtai nazardan haqqoniy baholang va JSON formatida javob bering."
     )
     
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={
-                    "model": "gpt-4o-mini",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "temperature": 0.3,
-                    "response_format": {"type": "json_object"}
-                }
-            )
-            if resp.status_code == 200:
-                raw = resp.json()["choices"][0]["message"]["content"].strip()
-                result = json.loads(raw)
-                score = result.get("score", 0)
-                result["passed"] = score >= 50
-                return {"data": result}
-            else:
-                return {"data": {"score": 0, "feedback": "AI baholashda xatolik", "passed": False}}
+        content = await ai_service.call_ai(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=mp_settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-4o-1",
+            response_format={"type": "json_object"},
+            temperature=0.3
+        )
+        result = json.loads(content.strip())
+        score = result.get("score", 0)
+        result["passed"] = score >= 50
+        return {"data": result}
     except Exception as e:
         logger.error(f"Error evaluating quiz: {e}")
         return {"data": {"score": 0, "feedback": "AI baholashda xatolik", "passed": False}}

@@ -1903,7 +1903,7 @@ export default function StoryReader({ storyText, age = 7 }) {
               fontSize: '24px',
               lineHeight: '1.6',
               padding: '20px',
-              backgroundColor: '#fafafa',
+              backgroundColor: '#000000ff',
               borderRadius: '10px',
               border: '1px solid #eee',
               whiteSpace: 'pre-wrap'
