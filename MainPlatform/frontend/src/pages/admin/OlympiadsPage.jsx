@@ -945,48 +945,84 @@ const handleCreate = async () => {
 
                 {/* Visual Timeline and Dates Section */}
                 {o.is_multi_stage ? (
-                    <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 space-y-4">
-                        <h3 className="text-white font-bold flex items-center gap-2"><Calendar className="w-5 h-5 text-indigo-400" /> Bosqichlar va Muddatlar</h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                            {/* Registration & Overall Info */}
-                            <div className="bg-gray-900/40 p-4 rounded-xl border border-gray-800 flex flex-col justify-between space-y-3">
-                                <div>
-                                    <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Ro'yxatdan o'tish</span>
-                                    <p className="text-white font-bold mt-1">Sinf / Yoshi</p>
-                                    <p className="text-gray-400 text-xs mt-1">Sinflar: {o.allowed_classes ? o.allowed_classes.join(', ') : 'Hammasi'}</p>
-                                    <p className="text-gray-400 text-xs">Yosh: {o.min_age} - {o.max_age}</p>
+                    <div className="bg-[#1a1a2e]/60 border border-white/10 rounded-3xl p-6 space-y-6 animate-fadeIn">
+                        <div className="space-y-4">
+                            <h3 className="text-xl font-bold text-white">Olimpiada</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8 text-sm text-white/70">
+                                <div className="flex gap-4">
+                                    <span className="text-white/40 min-w-[70px]">Ro'yxat:</span>
+                                    <span className="font-semibold text-white">{o.registration_start ? new Date(o.registration_start).toLocaleString('uz-UZ') : '—'}</span>
                                 </div>
-                                <div className="pt-3 border-t border-gray-800/60 space-y-1">
-                                    <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider block">Ro'yxat muddati</span>
-                                    <div className="flex justify-between text-xs"><span className="text-gray-500">Boshlanish:</span><span className="text-white font-medium">{new Date(o.registration_start).toLocaleString('uz-UZ')}</span></div>
-                                    <div className="flex justify-between text-xs"><span className="text-gray-500">Tugash:</span><span className="text-white font-medium">{new Date(o.registration_end).toLocaleString('uz-UZ')}</span></div>
+                                <div className="flex gap-4">
+                                    <span className="text-white/40 min-w-[70px]">Tugash:</span>
+                                    <span className="font-semibold text-white">{o.registration_end ? new Date(o.registration_end).toLocaleString('uz-UZ') : '—'}</span>
                                 </div>
-                                <div className="pt-3 border-t border-gray-800/60 space-y-1">
-                                    <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider block">Musobaqa muddati</span>
-                                    <div className="flex justify-between text-xs"><span className="text-gray-500">Boshlanish:</span><span className="text-white font-medium">{new Date(o.start_time).toLocaleString('uz-UZ')}</span></div>
-                                    <div className="flex justify-between text-xs"><span className="text-gray-500">Tugash:</span><span className="text-white font-medium">{new Date(o.end_time).toLocaleString('uz-UZ')}</span></div>
+                                <div className="flex gap-4">
+                                    <span className="text-white/40 min-w-[70px]">Yosh:</span>
+                                    <span className="font-semibold text-white">{o.min_age || 6}-{o.max_age || 18}</span>
+                                </div>
+                                <div className="flex gap-4">
+                                    <span className="text-white/40 min-w-[70px]">Sinflar:</span>
+                                    <span className="font-semibold text-white">{o.allowed_classes ? o.allowed_classes.join(', ') : '1-11'}</span>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Stage cards */}
-                            {stages.map((st) => (
-                                <button key={st.id} onClick={() => handleStageChange(st.id)} className={`text-left p-4 rounded-xl border flex flex-col justify-between transition-all ${selectedStageId === st.id ? 'bg-indigo-600/10 border-indigo-500/50 shadow-lg shadow-indigo-500/5' : 'bg-gray-900/40 border-gray-800 hover:border-gray-700'}`}>
-                                    <div>
-                                        <div className="flex justify-between items-start">
-                                            <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">{st.stage_number}-bosqich</span>
-                                            <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded font-mono capitalize">{st.scope_type}</span>
+                        <div className="border-t border-white/5 pt-6 space-y-4">
+                            <h4 className="text-lg font-bold text-white">Bosqichlar ({stages.length})</h4>
+                            <div className="space-y-3">
+                                {stages.map((st) => {
+                                    const scopeNames = {
+                                        school: "Maktab",
+                                        district: "Tuman",
+                                        region: "Viloyat",
+                                        state: "Respublika"
+                                    };
+                                    const contentNames = {
+                                        mixed: "Aralash",
+                                        story: "Ertak",
+                                        quiz: "Test"
+                                    };
+                                    const num = st.stage_number;
+                                    const currentScope = scopeNames[st.scope_type] || "Maktab";
+                                    const currentContent = contentNames[st.content_type] || "Aralash";
+
+                                    const formatDateRange = (start, end) => {
+                                        if (!start) return '—';
+                                        const s = new Date(start);
+                                        const e = new Date(end);
+                                        const sStr = s.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                        const sTime = s.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+                                        const eStr = e.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                        const eTime = e.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+                                        if (sStr === eStr) {
+                                            return `${sStr}, ${sTime} - ${eTime}`;
+                                        }
+                                        return `${sStr}, ${sTime} - ${eStr}, ${eTime}`;
+                                    };
+
+                                    return (
+                                        <div key={st.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl gap-4 hover:border-indigo-500/30 transition-all duration-300">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-600/90 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-600/20">
+                                                    {num}
+                                                </div>
+                                                <div>
+                                                    <h5 className="text-white font-bold text-base">{st.title || `${num}-bosqich`}</h5>
+                                                    <p className="text-white/40 text-xs font-medium">
+                                                        {currentScope} • {currentContent} • Top {st.passing_percent}%
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right text-xs md:text-sm text-white/50">
+                                                <span className="font-semibold text-white/90">
+                                                    {formatDateRange(st.start_time, st.end_time)}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <p className="text-white font-bold mt-1 truncate">{st.title || `${st.stage_number}-bosqich`}</p>
-                                        <p className="text-gray-400 text-xs mt-1">Tur: <span className="capitalize text-gray-300 font-medium">{st.content_type}</span></p>
-                                        <p className="text-gray-400 text-xs">O'tish: <span className="text-gray-300 font-medium">{st.passing_percent}%</span> (min {st.passing_min_count} ta)</p>
-                                    </div>
-                                    <div className="mt-3 pt-3 border-t border-gray-800/60 space-y-1 w-full">
-                                        <div className="flex justify-between text-xs"><span className="text-gray-500">Boshlanish:</span><span className="text-white font-medium">{st.start_time ? new Date(st.start_time).toLocaleString('uz-UZ') : 'Noma\'lum'}</span></div>
-                                        <div className="flex justify-between text-xs"><span className="text-gray-500">Tugash:</span><span className="text-white font-medium">{st.end_time ? new Date(st.end_time).toLocaleString('uz-UZ') : 'Noma\'lum'}</span></div>
-                                    </div>
-                                </button>
-                            ))}
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 ) : (

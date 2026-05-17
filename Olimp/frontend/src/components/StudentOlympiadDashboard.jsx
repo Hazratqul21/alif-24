@@ -92,60 +92,93 @@ export default function StudentOlympiadDashboard({
         </div>
       </motion.div>
 
-      {/* 2. StageJourney Map */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-        <h3 className="text-white font-extrabold text-lg mb-6 flex items-center gap-2">
-          <Star className="w-5 h-5 text-indigo-400" /> Bosqichlar xaritasi (Stage Journey)
-        </h3>
-        
-        <div className="relative flex flex-col md:flex-row justify-between items-stretch md:items-center gap-6 md:gap-4">
-          {/* Connector Line for Desktop */}
-          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/10 -translate-y-1/2 hidden md:block z-0" />
+      {/* 2. Visual Timeline and Dates Section */}
+      <div className="bg-[#1a1a2e]/60 border border-white/10 rounded-3xl p-6 space-y-6">
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold text-white">Olimpiada</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8 text-sm text-white/70 text-left">
+            <div className="flex gap-4">
+              <span className="text-white/40 min-w-[70px]">Ro'yxat:</span>
+              <span className="font-semibold text-white">
+                {olympiad.registration_start ? new Date(olympiad.registration_start).toLocaleString('uz-UZ') : '—'}
+              </span>
+            </div>
+            <div className="flex gap-4">
+              <span className="text-white/40 min-w-[70px]">Tugash:</span>
+              <span className="font-semibold text-white">
+                {olympiad.registration_end ? new Date(olympiad.registration_end).toLocaleString('uz-UZ') : '—'}
+              </span>
+            </div>
+            <div className="flex gap-4">
+              <span className="text-white/40 min-w-[70px]">Yosh:</span>
+              <span className="font-semibold text-white">
+                {olympiad.min_age || 6}-{olympiad.max_age || 18}
+              </span>
+            </div>
+            <div className="flex gap-4">
+              <span className="text-white/40 min-w-[70px]">Sinflar:</span>
+              <span className="font-semibold text-white">
+                {olympiad.allowed_classes ? olympiad.allowed_classes.join(', ') : '1-11'}
+              </span>
+            </div>
+          </div>
+        </div>
 
-          {stages.map((st, i) => {
-            const num = st.stage_number;
-            const isPast = currentStageNumber > num;
-            const isCurrent = currentStageNumber === num;
-            const isLocked = currentStageNumber < num;
-            const Icon = STAGE_ICONS[num] || Trophy;
+        <div className="border-t border-white/5 pt-6 space-y-4">
+          <h4 className="text-lg font-bold text-white">Bosqichlar ({stages.length})</h4>
+          <div className="space-y-3">
+            {stages.map((st) => {
+              const scopeNames = {
+                school: "Maktab",
+                district: "Tuman",
+                region: "Viloyat",
+                state: "Respublika"
+              };
+              const contentNames = {
+                mixed: "Aralash",
+                story: "Ertak",
+                quiz: "Test"
+              };
+              const num = st.stage_number;
+              const currentScope = scopeNames[st.scope_type] || "Maktab";
+              const currentContent = contentNames[st.content_type] || "Aralash";
 
-            return (
-              <div key={st.id} className="relative z-10 flex-1 flex flex-col items-center text-center group">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all duration-300 ${
-                  isCurrent ? 'bg-indigo-600 border-indigo-400 text-white ring-4 ring-indigo-500/30 scale-110 shadow-lg shadow-indigo-600/20 animate-pulse' :
-                  isPast ? 'bg-emerald-600 border-emerald-500 text-white' :
-                  'bg-[#1a1a2e] border-white/10 text-white/30'
-                }`}>
-                  {isPast ? <CheckCircle className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
-                </div>
+              const formatDateRange = (start, end) => {
+                if (!start) return '—';
+                const s = new Date(start);
+                const e = new Date(end);
+                const sStr = s.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const sTime = s.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+                const eStr = e.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const eTime = e.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+                if (sStr === eStr) {
+                  return `${sStr}, ${sTime} - ${eTime}`;
+                }
+                return `${sStr}, ${sTime} - ${eStr}, ${eTime}`;
+              };
 
-                <div className="mt-3 space-y-1 max-w-[160px]">
-                  <p className={`text-xs font-bold tracking-wider uppercase ${isCurrent ? 'text-indigo-400' : isPast ? 'text-emerald-400' : 'text-white/30'}`}>
-                    {num}-bosqich
-                  </p>
-                  <p className={`text-sm font-extrabold truncate ${isLocked ? 'text-white/30' : 'text-white'}`}>
-                    {st.title || `${num}-bosqich`}
-                  </p>
-                  <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    isCurrent ? 'bg-indigo-500/20 text-indigo-300' :
-                    isPast ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/5 text-white/20'
-                  }`}>
-                    {STAGE_SCOPES[st.scope_type] || 'Maktab'}
-                  </span>
+              return (
+                <div key={st.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl gap-4 hover:border-indigo-500/30 transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-indigo-600/90 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-600/20">
+                      {num}
+                    </div>
+                    <div>
+                      <h5 className="text-white font-bold text-base">{st.title || `${num}-bosqich`}</h5>
+                      <p className="text-white/40 text-xs font-medium">
+                        {currentScope} • {currentContent} • Top {st.passing_percent}%
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right text-xs md:text-sm text-white/50">
+                    <span className="font-semibold text-white/90">
+                      {formatDateRange(st.start_time, st.end_time)}
+                    </span>
+                  </div>
                 </div>
-                
-                {/* Details Popup on Hover */}
-                <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-white/10 p-3 rounded-xl shadow-xl w-48 text-left text-xs text-white/80 z-20 space-y-1.5 animate-fadeIn">
-                  <p className="font-bold text-white">{st.title}</p>
-                  <p><span className="text-white/40">Turi:</span> <span className="capitalize font-medium">{st.content_type}</span></p>
-                  <p><span className="text-white/40">O'tish balli:</span> <span className="font-medium text-emerald-400">{st.passing_percent}%</span></p>
-                  <p className="border-t border-white/5 pt-1 text-[10px] text-white/50">
-                    Boshlanish: {st.start_time ? new Date(st.start_time).toLocaleDateString('uz') : '—'}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
