@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, School, GraduationCap, CheckCircle, ArrowLeft, ArrowRight, AlertCircle, Building } from 'lucide-react';
 
@@ -26,13 +26,29 @@ const STEPS = [
   { title: "Tasdiqlash", desc: "Ma'lumotlarni tekshiring", icon: CheckCircle }
 ];
 
-export default function OlympiadRegistrationFlow({ onSubmit, loading, allowedClasses = [] }) {
+export default function OlympiadRegistrationFlow({ onSubmit, loading, allowedClasses = [], studentProfile = null }) {
   const [step, setStep] = useState(1);
   const [region, setRegion] = useState("");
   const [district, setDistrict] = useState("");
   const [schoolNumber, setSchoolNumber] = useState("");
   const [classNumber, setClassNumber] = useState("");
   const [validationError, setValidationError] = useState("");
+
+  useEffect(() => {
+    if (studentProfile) {
+      const extractNumber = (val) => {
+        if (!val) return "";
+        const matches = String(val).match(/\d+/);
+        return matches ? matches[0] : "";
+      };
+      if (studentProfile.school_name && !schoolNumber) {
+        setSchoolNumber(extractNumber(studentProfile.school_name));
+      }
+      if (studentProfile.grade && !classNumber) {
+        setClassNumber(extractNumber(studentProfile.grade));
+      }
+    }
+  }, [studentProfile]);
 
   const handleSelectRegion = (r) => {
     setRegion(r);

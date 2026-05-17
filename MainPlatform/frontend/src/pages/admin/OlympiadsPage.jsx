@@ -948,17 +948,23 @@ const handleCreate = async () => {
                         <h3 className="text-white font-bold flex items-center gap-2"><Calendar className="w-5 h-5 text-indigo-400" /> Bosqichlar va Muddatlar</h3>
                         
                         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                            {/* Registration Info */}
-                            <div className="bg-gray-900/40 p-4 rounded-xl border border-gray-800 flex flex-col justify-between">
+                            {/* Registration & Overall Info */}
+                            <div className="bg-gray-900/40 p-4 rounded-xl border border-gray-800 flex flex-col justify-between space-y-3">
                                 <div>
                                     <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Ro'yxatdan o'tish</span>
                                     <p className="text-white font-bold mt-1">Sinf / Yoshi</p>
                                     <p className="text-gray-400 text-xs mt-1">Sinflar: {o.allowed_classes ? o.allowed_classes.join(', ') : 'Hammasi'}</p>
                                     <p className="text-gray-400 text-xs">Yosh: {o.min_age} - {o.max_age}</p>
                                 </div>
-                                <div className="mt-3 pt-3 border-t border-gray-800/60 space-y-1">
+                                <div className="pt-3 border-t border-gray-800/60 space-y-1">
+                                    <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider block">Ro'yxat muddati</span>
                                     <div className="flex justify-between text-xs"><span className="text-gray-500">Boshlanish:</span><span className="text-white font-medium">{new Date(o.registration_start).toLocaleString('uz-UZ')}</span></div>
                                     <div className="flex justify-between text-xs"><span className="text-gray-500">Tugash:</span><span className="text-white font-medium">{new Date(o.registration_end).toLocaleString('uz-UZ')}</span></div>
+                                </div>
+                                <div className="pt-3 border-t border-gray-800/60 space-y-1">
+                                    <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider block">Musobaqa muddati</span>
+                                    <div className="flex justify-between text-xs"><span className="text-gray-500">Boshlanish:</span><span className="text-white font-medium">{new Date(o.start_time).toLocaleString('uz-UZ')}</span></div>
+                                    <div className="flex justify-between text-xs"><span className="text-gray-500">Tugash:</span><span className="text-white font-medium">{new Date(o.end_time).toLocaleString('uz-UZ')}</span></div>
                                 </div>
                             </div>
 

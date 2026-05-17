@@ -342,6 +342,8 @@ async def get_me(
         logger.warning(f"Student profile query failed for user {current_user.id}: {e}")
 
     user_data = current_user.to_dict()
+    if student_record:
+        user_data["student_profile"] = student_record
     if subscription_data:
         user_data["subscription"] = subscription_data
 

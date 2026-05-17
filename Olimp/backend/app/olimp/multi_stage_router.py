@@ -428,6 +428,17 @@ async def register_multi_stage(
     if existing:
         raise HTTPException(400, "Siz allaqachon ro'yxatdan o'tgansiz")
 
+    # Auto-fill student profile fields if they are not already set
+    profile_updated = False
+    if not getattr(profile, "school_name", None) and data.school_number:
+        profile.school_name = f"{data.school_number}-maktab"
+        profile_updated = True
+    if not getattr(profile, "grade", None) and data.class_number:
+        profile.grade = f"{data.class_number}-sinf"
+        profile_updated = True
+    if profile_updated:
+        db.add(profile)
+
     participant = OlympiadParticipant(
         olympiad_id=olympiad_id,
         student_id=profile.id,

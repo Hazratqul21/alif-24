@@ -21,6 +21,7 @@ export default function ReadingOlympiadPage() {
     const [olympiad, setOlympiad] = useState(null);
     const [leaderboard, setLeaderboard] = useState([]);
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [studentProfile, setStudentProfile] = useState(null);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -41,6 +42,9 @@ export default function ReadingOlympiadPage() {
             if (user?.id) {
                 setCurrentUserId(user.id);
                 localStorage.setItem('userId', user.id);
+                if (user.student_profile) {
+                    setStudentProfile(user.student_profile);
+                }
                 loadAll(user.id);
             } else {
                 loadAll(null);
@@ -236,12 +240,30 @@ export default function ReadingOlympiadPage() {
                     !registered ? (
                         <div className="space-y-6">
                             {/* Hero Card */}
-                            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8 text-left">
-                                <h1 className="text-2xl md:text-3xl font-extrabold text-white mb-2">{olympiad?.title}</h1>
-                                <p className="text-indigo-200/80 text-sm mb-4">{olympiad?.description || "Ko'p bosqichli hududiy tanlov olimpiadasi."}</p>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    <MiniCard icon={<Calendar className="w-4 h-4" />} label="Boshlanish" value={olympiad?.start_time ? new Date(olympiad.start_time).toLocaleDateString('uz') : '—'} />
-                                    <MiniCard icon={<Clock className="w-4 h-4" />} label="Tugash" value={olympiad?.end_time ? new Date(olympiad.end_time).toLocaleDateString('uz') : '—'} />
+                            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8 text-left space-y-5">
+                                <div>
+                                    <h1 className="text-2xl md:text-3xl font-extrabold text-white mb-2">{olympiad?.title}</h1>
+                                    <p className="text-indigo-200/80 text-sm">{olympiad?.description || "Ko'p bosqichli hududiy tanlov olimpiadasi."}</p>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="bg-white/5 p-4 rounded-xl border border-white/5 space-y-2">
+                                        <p className="text-[10px] text-emerald-400 uppercase font-black tracking-wider">📝 Ro'yxatdan o'tish muddati</p>
+                                        <div className="space-y-1 text-xs">
+                                            <p className="text-white/60 flex justify-between"><span>Boshlanishi:</span> <span className="font-bold text-white">{olympiad?.registration_start ? new Date(olympiad.registration_start).toLocaleString('uz-UZ') : '—'}</span></p>
+                                            <p className="text-white/60 flex justify-between"><span>Tugashi:</span> <span className="font-bold text-white">{olympiad?.registration_end ? new Date(olympiad.registration_end).toLocaleString('uz-UZ') : '—'}</span></p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white/5 p-4 rounded-xl border border-white/5 space-y-2">
+                                        <p className="text-[10px] text-amber-400 uppercase font-black tracking-wider">🏆 Musobaqa muddati (Bosqichlar)</p>
+                                        <div className="space-y-1 text-xs">
+                                            <p className="text-white/60 flex justify-between"><span>Boshlanishi:</span> <span className="font-bold text-white">{olympiad?.start_time ? new Date(olympiad.start_time).toLocaleString('uz-UZ') : '—'}</span></p>
+                                            <p className="text-white/60 flex justify-between"><span>Tugashi:</span> <span className="font-bold text-white">{olympiad?.end_time ? new Date(olympiad.end_time).toLocaleString('uz-UZ') : '—'}</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
                                     <MiniCard icon={<Users className="w-4 h-4" />} label="Ishtirokchilar" value={`${olympiad?.participant_count || 0} nafar`} />
                                     <MiniCard icon={<Trophy className="w-4 h-4" />} label="Fan" value={olympiad?.subject || '—'} />
                                 </div>
@@ -252,6 +274,7 @@ export default function ReadingOlympiadPage() {
                                 onSubmit={handleRegisterMultiStage}
                                 loading={registering}
                                 allowedClasses={olympiad?.allowed_classes || []}
+                                studentProfile={studentProfile}
                             />
                             {regError && <p className="text-red-400 text-sm flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {regError}</p>}
                         </div>
