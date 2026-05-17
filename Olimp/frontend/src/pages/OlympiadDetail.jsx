@@ -84,7 +84,7 @@ export default function OlympiadDetail() {
         try {
             setDashboardLoading(true);
             const studentId = userId || currentUserId || localStorage.getItem('userId');
-            const data = await apiService.get(`/olympiad/${id}/dashboard?student_id=${studentId}`);
+            const data = await apiService.get(`/olympiad/multi-stage/${id}/dashboard?student_id=${studentId}`);
             const dbData = data.data || data;
             setDashboardData(dbData);
             
@@ -93,7 +93,7 @@ export default function OlympiadDetail() {
             const currentStage = dbData.stages?.find(s => s.stage_number === currentStageNum) || dbData.stages?.[0];
             if (currentStage?.id) {
                 setLbLoading(true);
-                const lbRes = await apiService.get(`/olympiad/${id}/stages/${currentStage.id}/leaderboard?student_id=${studentId}`);
+                const lbRes = await apiService.get(`/olympiad/multi-stage/${id}/stages/${currentStage.id}/leaderboard?student_id=${studentId}`);
                 const lb = lbRes.data?.leaderboard || lbRes.data || lbRes.leaderboard || [];
                 setLeaderboard(Array.isArray(lb) ? lb : []);
             }
