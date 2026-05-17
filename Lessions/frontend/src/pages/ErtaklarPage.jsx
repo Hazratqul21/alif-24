@@ -44,7 +44,10 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
         if (speechConfigRef.current) return true;
         
         const tokenPaths = [
-            `${API_URL}/speech-token`
+            `${API_URL}/speech-token`,
+            `${API_URL}/smartkids/speech-token`,
+            `https://alif24.uz/api/v1/speech-token`,
+            `https://alif24.uz/api/v1/smartkids/speech-token`
         ];
 
         for (const path of tokenPaths) {
