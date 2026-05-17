@@ -5,7 +5,7 @@ Olympiad Models - Olimpiada tizimi (to'liq versiya)
 Only moderators can create olympiads.
 Only monthly subscribers can participate.
 """
-from sqlalchemy import Column, String, Boolean, Integer, Float, DateTime, Text, ForeignKey, Enum as SQLEnum, JSON, Index, UniqueConstraint, event
+from sqlalchemy import Column, String, Boolean, Integer, Float, DateTime, Text, ForeignKey, Enum as SQLEnum, JSON, Index, UniqueConstraint, event, ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -99,6 +99,11 @@ class Olympiad(Base):
     # Banner rasm (URL yoki fayl yo'li)
     banner_image = Column(String(500), nullable=True)
 
+    # Ko'p bosqichli olimpiada (multi-stage)
+    is_multi_stage = Column(Boolean, default=False)     # True = ko'p bosqichli
+    total_stages = Column(Integer, default=1)            # Bosqichlar soni (1-5)
+    allowed_classes = Column(JSON, nullable=True)        # [5,6,7,8] yoki null
+
     # Tashkilotchi (moderator)
     created_by = Column(String(8), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
@@ -132,6 +137,7 @@ class OlympiadQuestion(Base):
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
     olympiad_id = Column(String(8), ForeignKey("olympiads.id", ondelete="CASCADE"), nullable=False)
+    stage_id = Column(String(8), ForeignKey("olympiad_stages.id", ondelete="SET NULL"), nullable=True)
     
     # Savol ma'lumotlari
     question_text = Column(Text, nullable=False)
@@ -198,6 +204,13 @@ class OlympiadParticipant(Base):
     quiz_score = Column(Integer, default=0)              # savollar bali (0-100)
     reading_attempts = Column(Integer, default=0)        # o'qish urinishlari
     
+    # Ko'p bosqichli olimpiada uchun (multi-stage)
+    region = Column(String(100), nullable=True)           # Viloyat
+    district = Column(String(100), nullable=True)         # Tuman
+    school_number = Column(Integer, nullable=True)        # Maktab raqami
+    class_number = Column(Integer, nullable=True)         # Sinf
+    current_stage = Column(Integer, default=1)            # Hozirgi bosqich
+    
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
@@ -260,6 +273,7 @@ class OlympiadReadingTask(Base):
     
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
     olympiad_id = Column(String(8), ForeignKey("olympiads.id", ondelete="CASCADE"), nullable=False)
+    stage_id = Column(String(8), ForeignKey("olympiad_stages.id", ondelete="SET NULL"), nullable=True)
     
     # Matn
     title = Column(String(300), nullable=False)  # "Hikoya: Kichkintoy va Quyosh"

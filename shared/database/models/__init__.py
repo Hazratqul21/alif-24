@@ -73,6 +73,14 @@ from shared.database.models.olympiad_content import (
     OlympiadStory,
 )
 
+# Olympiad Stage (multi-stage support)
+from shared.database.models.olympiad_stage import (
+    ScopeType,
+    StageContentType,
+    OlympiadStage,
+    OlympiadStageResult,
+)
+
 # Game System
 from shared.database.models.game import (
     GameType,
@@ -250,6 +258,10 @@ __all__ = [
     "OlympiadReadingSubmission",
     "OlympiadLesson",
     "OlympiadStory",
+    "ScopeType",
+    "StageContentType",
+    "OlympiadStage",
+    "OlympiadStageResult",
     
     # Game Models
     "GameType",

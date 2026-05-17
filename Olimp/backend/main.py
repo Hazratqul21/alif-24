@@ -254,6 +254,19 @@ app.include_router(
     tags=["Speech"]
 )
 
+# Include Multi-Stage Olympiad router
+from app.olimp.multi_stage_router import multi_stage_router
+app.include_router(
+    multi_stage_router,
+    prefix="/api/v1/olympiad",
+    tags=["Multi-Stage Olympiad"]
+)
+app.include_router(
+    multi_stage_router,
+    prefix="/api/v1/olympiads",
+    tags=["Multi-Stage Olympiad"]
+)
+
 # Include Gamification router
 app.include_router(
     gamification_router.router,
