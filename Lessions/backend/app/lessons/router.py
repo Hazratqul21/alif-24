@@ -708,78 +708,27 @@ async def get_speech_token():
 async def evaluate_quiz_general(request: EvaluateQuizRequest):
     """
     Bolaning savolga javobini AI yordamida baholash (100 ballik tizimda)
+    MainPlatform/backend/app/smartkids/story_router.py dagi tayyor logikaga ulanadi.
     """
-    import json
     try:
-        from MainPlatform.backend.app.services.ai_service import ai_service
-        from MainPlatform.backend.app.core.config import settings as mp_settings
+        from MainPlatform.backend.app.smartkids.story_router import evaluate_quiz as main_evaluate_quiz
+        from MainPlatform.backend.app.smartkids.story_router import EvaluateQuizRequest as MainEvaluateQuizRequest
+        
+        # Pydantic modelni MainPlatform versiyasiga o'tkazish
+        main_request = MainEvaluateQuizRequest(
+            story_text=request.story_text,
+            question=request.question,
+            child_answer=request.child_answer,
+            language=request.language,
+            correct_answer=request.correct_answer
+        )
+        
+        # Asosiy logikani chaqirish
+        return await main_evaluate_quiz(main_request)
+        
     except ImportError as e:
-        logger.error(f"Could not import ai_service: {e}")
+        logger.error(f"Could not import evaluate_quiz from story_router: {e}")
         return {"data": {"score": 0, "feedback": "AI xizmati ulanmagan", "passed": False}}
-
-    lang = request.language or "uz-UZ"
-    if lang == "uz": lang = "uz-UZ"
-    elif lang == "ru": lang = "ru-RU"
-    elif lang == "en": lang = "en-US"
-
-    system_prompts = {
-        "uz-UZ": (
-            "Siz mehribon va professional bolalar pedagogisiz. Vazifangiz: bolaning ertak asosidagi savolga bergan javobini tahlil qilish va baholash.\n"
-            "BAHOLASH MEZONLARI:\n"
-            "1. MA'NO VA MANTIQ (Eng muhimi): O'quvchi javobi namuna (correct_answer) bilan so'zma-so'z mos kelishi shart emas. Agar bola savolning mohiyatini tushungan bo'lsa va javobi ertak matniga mantiqan to'g'ri kelsa, unga yuqori ball (85-100) bering.\n"
-            "2. KALIT SO'ZLAR: Javobda voqelikdagi asosiy ob'ektlar yoki harakatlar mavjud bo'lsa, bu to'g'ri javob hisoblanadi.\n"
-            "3. YOSH VA USLUB: O'quvchi bolaligini inobatga oling. Uning tili sodda, gaplari qisqa bo'lishi normal holat. Grammatikaga va STT xatolariga e'tibor bermang.\n"
-            "4. BALLAR:\n"
-            "   - 85-100 ball: Ma'no to'g'ri, savolga javob berilgan.\n"
-            "   - 50-84 ball: Javob qisman to'g'ri yoki asosiy fikrni aytishga yaqin kelgan.\n"
-            "   - 10-49 ball: Javob xato, lekin mavzu atrofida gapirishga harakat qilgan.\n"
-            "   - 0-9 ball: Javob mutlaqo aloqasiz.\n"
-            "JSON formatida javob bering: {\"score\": ball, \"feedback\": \"rag'batlantiruvchi va tushuntiruvchi izoh\", \"passed\": true/false}"
-        ),
-        "ru-RU": (
-            "Вы добрый и профессиональный детский педагог. Ваша задача: проанализировать и оценить ответ ребенка на вопрос по сказке.\n"
-            "КРИТЕРИИ ОЦЕНКИ:\n"
-            "1. СМЫСЛ И ЛОГИКА: Ответ ребенка не должен дословно совпадать с образцом. Если ребенок понял суть, ставьте высокий балл (85-100).\n"
-            "2. КЛЮЧЕВЫЕ СЛОВА: Наличие главных объектов из истории = правильный ответ.\n"
-            "3. ВОЗРАСТ: Учитывайте, что это ребенок. Игнорируйте грамматику и ошибки STT.\n"
-            "4. БАЛЛЫ: 85-100 (верно), 50-84 (частично), 10-49 (неверно, но по теме), 0-9 (не по теме).\n"
-            "Ответьте в формате JSON: {\"score\": балл, \"feedback\": \"поощрительный комментарий\", \"passed\": true/false}"
-        ),
-        "en-US": (
-            "You are a kind and professional children's educator. Your task: analyze and evaluate the child's answer to a story-based question.\n"
-            "EVALUATION CRITERIA:\n"
-            "1. MEANING AND LOGIC: If the child understood the essence of the question, give a high score (85-100).\n"
-            "2. KEYWORDS: Mentioning main objects/actions is considered correct.\n"
-            "3. AGE: Ignore grammar and STT errors completely.\n"
-            "4. SCORING: 85-100 (correct), 50-84 (partial), 10-49 (incorrect but on topic), 0-9 (unrelated).\n"
-            "Respond in JSON format: {\"score\": score, \"feedback\": \"encouraging comment\", \"passed\": true/false}"
-        )
-    }
-    
-    system_prompt = system_prompts.get(lang, system_prompts["uz-UZ"])
-    
-    user_prompt = (
-        f"Ertak matni:\n{request.story_text}\n\n"
-        f"Savol: {request.question}\n"
-        f"O'qituvchi kutgan to'g'ri javob (namuna): {request.correct_answer or 'Ertak mazmuniga asoslangan holda baholang'}\n\n"
-        f"Bolaning javobi: {request.child_answer}\n\n"
-        "Pedagogik nuqtai nazardan haqqoniy baholang va JSON formatida javob bering."
-    )
-    
-    try:
-        content = await ai_service.call_ai(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            model=mp_settings.AZURE_OPENAI_DEPLOYMENT_NAME or "gpt-4o-1",
-            response_format={"type": "json_object"},
-            temperature=0.3
-        )
-        result = json.loads(content.strip())
-        score = result.get("score", 0)
-        result["passed"] = score >= 50
-        return {"data": result}
     except Exception as e:
-        logger.error(f"Error evaluating quiz: {e}")
+        logger.error(f"Error calling main evaluate_quiz: {e}")
         return {"data": {"score": 0, "feedback": "AI baholashda xatolik", "passed": False}}
