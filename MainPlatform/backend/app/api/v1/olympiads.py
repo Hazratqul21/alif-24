@@ -218,6 +218,7 @@ class QuestionCreate(BaseModel):
     options: List[str] = Field(..., min_length=2, max_length=6)
     correct_answer: int = Field(..., ge=0)
     points: int = Field(default=5, ge=1, le=100)
+    stage_id: Optional[str] = None
 
 
 class ReadingTaskCreate(BaseModel):
@@ -226,6 +227,7 @@ class ReadingTaskCreate(BaseModel):
     difficulty: str = "medium"
     time_limit_seconds: int = Field(default=300, ge=10, le=3600)
     comprehension_questions: Optional[List[dict]] = None
+    stage_id: Optional[str] = None
 
 
 class OlympiadLessonCreate(BaseModel):
@@ -247,6 +249,7 @@ class OlympiadStoryCreate(BaseModel):
     audio_url: Optional[str] = None
     image_url: Optional[str] = None
     questions: Optional[List[dict]] = None
+    stage_id: Optional[str] = None
 
 
 class GradeReading(BaseModel):
@@ -543,6 +546,7 @@ async def add_question(
         correct_answer=data.correct_answer,
         points=data.points,
         order=current_count,
+        stage_id=data.stage_id,
     )
     db.add(q)
     await db.commit()
@@ -554,15 +558,19 @@ async def add_question(
 @router.get("/{olympiad_id}/questions")
 async def list_questions(
     olympiad_id: str,
+    stage_id: Optional[str] = Query(None),
     admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
-    """List questions (admin only)"""
+    """List questions (admin only), optionally filtered by stage_id"""
     hide_answer = False
+    filters = [OlympiadQuestion.olympiad_id == olympiad_id]
+    if stage_id:
+        filters.append(OlympiadQuestion.stage_id == stage_id)
 
     result = await db.execute(
         select(OlympiadQuestion)
-        .where(OlympiadQuestion.olympiad_id == olympiad_id)
+        .where(*filters)
         .order_by(asc(OlympiadQuestion.order))
     )
     questions = result.scalars().all()
@@ -634,6 +642,7 @@ async def add_reading_task(
         time_limit_seconds=data.time_limit_seconds,
         comprehension_questions=data.comprehension_questions,
         order=current_count,
+        stage_id=data.stage_id,
     )
     db.add(rt)
     await db.commit()
@@ -645,15 +654,19 @@ async def add_reading_task(
 @router.get("/{olympiad_id}/reading-tasks")
 async def list_reading_tasks(
     olympiad_id: str,
+    stage_id: Optional[str] = Query(None),
     admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
-    """List reading tasks (admin only)"""
+    """List reading tasks (admin only), optionally filtered by stage_id"""
     hide_answers = False
+    filters = [OlympiadReadingTask.olympiad_id == olympiad_id]
+    if stage_id:
+        filters.append(OlympiadReadingTask.stage_id == stage_id)
 
     result = await db.execute(
         select(OlympiadReadingTask)
-        .where(OlympiadReadingTask.olympiad_id == olympiad_id)
+        .where(*filters)
         .order_by(asc(OlympiadReadingTask.order))
     )
     tasks = result.scalars().all()

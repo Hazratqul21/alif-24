@@ -141,6 +141,43 @@ async def create_multi_stage_olympiad(
     }
 
 
+# ============= ADMIN: Bosqichlar ro'yxati =============
+
+@router.get("/admin/{olympiad_id}/stages")
+async def get_olympiad_stages(
+    olympiad_id: str,
+    db: AsyncSession = Depends(get_db),
+    _admin: bool = Depends(verify_admin),
+):
+    """Olimpiada bosqichlarini qaytarish (kontent editor uchun)"""
+    res = await db.execute(select(Olympiad).where(Olympiad.id == olympiad_id))
+    olympiad = res.scalars().first()
+    if not olympiad:
+        raise HTTPException(404, "Olimpiada topilmadi")
+
+    stages_res = await db.execute(
+        select(OlympiadStage)
+        .where(OlympiadStage.olympiad_id == olympiad_id)
+        .order_by(OlympiadStage.stage_number)
+    )
+    stages = stages_res.scalars().all()
+
+    return {
+        "success": True,
+        "data": [{
+            "id": s.id,
+            "stage_number": s.stage_number,
+            "title": s.title,
+            "scope_type": s.scope_type.value,
+            "content_type": s.content_type.value,
+            "start_time": s.start_time.isoformat() if s.start_time else None,
+            "end_time": s.end_time.isoformat() if s.end_time else None,
+            "passing_percent": s.passing_percent,
+            "passing_min_count": s.passing_min_count,
+        } for s in stages]
+    }
+
+
 # ============= ADMIN: Statistika =============
 
 @router.get("/admin/{olympiad_id}/stats")

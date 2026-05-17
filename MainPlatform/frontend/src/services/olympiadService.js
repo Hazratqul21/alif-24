@@ -67,7 +67,7 @@ const olympiadService = {
 
     // ==================== ADMIN: Questions ====================
     addQuestion: (olympiadId, data) => api.post(`/${olympiadId}/questions`, data),
-    listQuestions: (olympiadId) => api.get(`/${olympiadId}/questions`),
+    listQuestions: (olympiadId, stageId) => api.get(`/${olympiadId}/questions`, { params: stageId ? { stage_id: stageId } : {} }),
     deleteQuestion: (olympiadId, questionId) => api.delete(`/${olympiadId}/questions/${questionId}`),
 
     // ==================== ADMIN: Test Parser ====================
@@ -83,7 +83,7 @@ const olympiadService = {
 
     // ==================== ADMIN: Reading Tasks ====================
     addReadingTask: (olympiadId, data) => api.post(`/${olympiadId}/reading-tasks`, data),
-    listReadingTasks: (olympiadId) => api.get(`/${olympiadId}/reading-tasks`),
+    listReadingTasks: (olympiadId, stageId) => api.get(`/${olympiadId}/reading-tasks`, { params: stageId ? { stage_id: stageId } : {} }),
     deleteReadingTask: (olympiadId, taskId) => api.delete(`/${olympiadId}/reading-tasks/${taskId}`),
 
     // NOTE: Student participation endpoints (register, start, submit, etc.)
@@ -115,6 +115,7 @@ const olympiadService = {
 
     // ==================== ADMIN: Multi-Stage Olympiad ====================
     createMultiStageOlympiad: (data) => api.post('/multi-stage/admin/create', data),
+    getOlympiadStages: (olympiadId) => api.get(`/multi-stage/admin/${olympiadId}/stages`),
     getMultiStageStats: (olympiadId, params = {}) => api.get(`/multi-stage/admin/${olympiadId}/stats`, { params }),
     finalizeStage: (olympiadId, stageId) => api.post(`/multi-stage/admin/${olympiadId}/stages/${stageId}/finalize`),
 };
