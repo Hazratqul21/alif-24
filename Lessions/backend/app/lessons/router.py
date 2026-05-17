@@ -708,27 +708,108 @@ async def get_speech_token():
 async def evaluate_quiz_general(request: EvaluateQuizRequest):
     """
     Bolaning savolga javobini AI yordamida baholash (100 ballik tizimda)
-    MainPlatform/backend/app/smartkids/story_router.py dagi tayyor logikaga ulanadi.
+    Lessions backend o'zining mustaqil AI xizmatidan foydalanadi.
     """
+    import os, json
+    from openai import AsyncAzureOpenAI, AsyncOpenAI
+    
     try:
-        from MainPlatform.backend.app.smartkids.story_router import evaluate_quiz as main_evaluate_quiz
-        from MainPlatform.backend.app.smartkids.story_router import EvaluateQuizRequest as MainEvaluateQuizRequest
+        api_key = os.getenv("AZURE_OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
+        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o-1")
         
-        # Pydantic modelni MainPlatform versiyasiga o'tkazish
-        main_request = MainEvaluateQuizRequest(
-            story_text=request.story_text,
-            question=request.question,
-            child_answer=request.child_answer,
-            language=request.language,
-            correct_answer=request.correct_answer
+        if not api_key:
+            raise ValueError("AI API kaliti topilmadi (AZURE_OPENAI_KEY yoki OPENAI_API_KEY)")
+
+        if endpoint and not endpoint.endswith("/openai/v1"):
+            # Azure
+            client = AsyncAzureOpenAI(
+                api_key=api_key,
+                api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01"),
+                azure_endpoint=endpoint
+            )
+            model_kwargs = {"model": deployment_name}
+        else:
+            # Standard OpenAI or custom endpoint (like sambanova)
+            base_url = endpoint if endpoint else None
+            client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+            model_kwargs = {"model": deployment_name if endpoint else "gpt-4o-mini"}
+
+        lang = request.language or "uz-UZ"
+        if lang == "uz": lang = "uz-UZ"
+        elif lang == "ru": lang = "ru-RU"
+        elif lang == "en": lang = "en-US"
+
+        system_prompts = {
+            "uz-UZ": (
+                "Siz mehribon va professional bolalar pedagogisiz. Vazifangiz: bolaning ertak asosidagi savolga bergan javobini tahlil qilish va baholash.\n\n"
+                "BAHOLASH MEZONLARI:\n"
+                "1. MA'NO VA MANTIQ (Eng muhimi): O'quvchi javobi namuna (correct_answer) bilan so'zma-so'z mos kelishi shart emas. Agar bola savolning mohiyatini tushungan bo'lsa va javobi ertak matniga mantiqan to'g'ri kelsa, unga yuqori ball (85-100) bering.\n"
+                "2. KALIT SO'ZLAR: Javobda voqelikdagi asosiy ob'ektlar yoki harakatlar (masalan: qush, qalam, tush) mavjud bo'lsa, bu to'g'ri javob hisoblanadi.\n"
+                "3. YOSH VA USLUB: O'quvchi bolaligini inobatga oling. Uning tili sodda, gaplari qisqa bo'lishi normal holat. Grammatikaga va STT (ovozni matnga aylantirish) xatolariga mutlaqo e'tibor bermang.\n"
+                "4. BALLAR:\n"
+                "   - 85-100 ball: Ma'no to'g'ri, savolga javob berilgan (hatto juda sodda tilda bo'lsa ham).\n"
+                "   - 50-84 ball: Javob qisman to'g'ri yoki bola asosiy fikrni aytishga yaqin kelgan.\n"
+                "   - 10-49 ball: Javob xato, lekin bola mavzu atrofida gapirishga harakat qilgan yoki 'bilmayman' degan.\n"
+                "   - 0-9 ball: Javob savolga yoki ertakka mutlaqo aloqasiz (boshqa narsalar haqida gapirish).\n\n"
+                "JSON formatida javob bering: {\"score\": ball, \"feedback\": \"rag'batlantiruvchi va tushuntiruvchi izoh\", \"passed\": true/false}"
+            ),
+            "ru-RU": (
+                "Вы добрый и профессиональный детский педагог. Ваша задача: проанализировать и оценить ответ ребенка на вопрос по сказке.\n\n"
+                "КРИТЕРИИ ОЦЕНКИ:\n"
+                "1. СМЫСЛ И ЛОГИКА (Главное): Ответ ребенка не должен дословно совпадать с образцом (correct_answer). Если ребенок понял суть вопроса и ответ логически соответствует сказке, ставьте высокий балл (85-100).\n"
+                "2. КЛЮЧЕВЫЕ СЛОВА: Если в ответе упоминаются главные объекты или действия из истории (например: птица, ручка, сон), это считается правильным ответом.\n"
+                "3. ВОЗРАСТ И СТИЛЬ: Учитывайте, что это ребенок. Простой язык и короткие предложения — это нормально. Полностью игнорируйте грамматику и ошибки STT (перевода голоса в текст).\n"
+                "4. БАЛЛЫ:\n"
+                "   - 85-100 баллов: Смысл верный, на вопрос дан ответ (даже если очень простым языком).\n"
+                "   - 50-84 баллов: Ответ частично верный или ребенок был близок к основной мысли.\n"
+                "   - 10-49 баллов: Ответ неверный, но ребенок пытался говорить по теме или сказал 'не знаю'.\n"
+                "   - 0-9 баллов: Ответ абсолютно не по теме вопроса или сказки.\n\n"
+                "Ответьте в формате JSON: {\"score\": балл, \"feedback\": \"поощрительный комментарий\", \"passed\": true/false}"
+            ),
+            "en-US": (
+                "You are a kind and professional children's educator. Your task: analyze and evaluate the child's answer to a story-based question.\n\n"
+                "EVALUATION CRITERIA:\n"
+                "1. MEANING AND LOGIC (Most important): The child's answer does not have to literally match the sample (correct_answer). If the child understood the essence of the question and their answer logically matches the story content, give a high score (85-100).\n"
+                "2. KEYWORDS: If the answer contains main objects or actions from the story (e.g., bird, pen, dream), it is considered a correct answer.\n"
+                "3. AGE AND STYLE: Consider that the student is a child. Simple language and short sentences are normal. Ignore grammar and STT (speech-to-text) errors completely.\n"
+                "4. SCORING:\n"
+                "   - 85-100 points: Correct meaning, question answered (even if in very simple language).\n"
+                "   - 50-84 points: Partially correct answer or the child was close to the main idea.\n"
+                "   - 10-49 points: Incorrect answer, but the child tried to speak on topic or said 'I don't know'.\n"
+                "   - 0-9 points: The answer is completely unrelated to the question or the story.\n\n"
+                "Respond in JSON format: {\"score\": score, \"feedback\": \"encouraging comment\", \"passed\": true/false}"
+            )
+        }
+        
+        system_prompt = system_prompts.get(lang, system_prompts["uz-UZ"])
+        
+        user_prompt = (
+            f"Ertak matni:\n{request.story_text}\n\n"
+            f"Savol: {request.question}\n"
+            f"O'qituvchi kutgan to'g'ri javob (namuna): {request.correct_answer or 'Ertak mazmuniga asoslangan holda baholang'}\n\n"
+            f"Bolaning javobi: {request.child_answer}\n\n"
+            "Pedagogik nuqtai nazardan haqqoniy baholang va JSON formatida javob bering."
+        )
+
+        response = await client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.3,
+            **model_kwargs
         )
         
-        # Asosiy logikani chaqirish
-        return await main_evaluate_quiz(main_request)
+        content = response.choices[0].message.content
+        result = json.loads(content.strip())
+        score = result.get("score", 0)
+        result["passed"] = score >= 50
+        return {"data": result}
         
-    except ImportError as e:
-        logger.error(f"Could not import evaluate_quiz from story_router: {e}")
-        return {"data": {"score": 0, "feedback": "AI xizmati ulanmagan", "passed": False}}
     except Exception as e:
-        logger.error(f"Error calling main evaluate_quiz: {e}")
-        return {"data": {"score": 0, "feedback": "AI baholashda xatolik", "passed": False}}
+        logger.error(f"Error calling local evaluate_quiz: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {"data": {"score": 0, "feedback": "AI baholashda xatolik yuz berdi", "passed": False}}
