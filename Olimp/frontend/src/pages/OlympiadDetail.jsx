@@ -8,6 +8,7 @@ import { useSoundFx } from '../hooks/useSoundFx';
 import ShareCard from '../components/ShareCard';
 import { SkeletonLeaderboard } from '../components/Skeleton';
 import ProfileCompletionModal from '../components/Common/ProfileCompletionModal';
+import StudentOlympiadDashboard from '../components/StudentOlympiadDashboard';
 
 export default function OlympiadDetail() {
     const { id } = useParams();
@@ -19,6 +20,8 @@ export default function OlympiadDetail() {
     const [registered, setRegistered] = useState(false);
     const [regError, setRegError] = useState(null);
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [dashboardData, setDashboardData] = useState(null);
+    const [dashboardLoading, setDashboardLoading] = useState(false);
 
     const { triggerConfetti } = useConfetti();
     const { playSuccess, playLevelUp } = useSoundFx();
@@ -77,6 +80,31 @@ export default function OlympiadDetail() {
         };
     }, [id, showLeaderboard]);
 
+    const loadMultiStageDashboard = async (userId) => {
+        try {
+            setDashboardLoading(true);
+            const studentId = userId || currentUserId || localStorage.getItem('userId');
+            const data = await apiService.get(`/olympiad/${id}/dashboard?student_id=${studentId}`);
+            const dbData = data.data || data;
+            setDashboardData(dbData);
+            
+            // Also load stage-specific leaderboard
+            const currentStageNum = dbData.student?.current_stage || 1;
+            const currentStage = dbData.stages?.find(s => s.stage_number === currentStageNum) || dbData.stages?.[0];
+            if (currentStage?.id) {
+                setLbLoading(true);
+                const lbRes = await apiService.get(`/olympiad/${id}/stages/${currentStage.id}/leaderboard?student_id=${studentId}`);
+                const lb = lbRes.data?.leaderboard || lbRes.data || lbRes.leaderboard || [];
+                setLeaderboard(Array.isArray(lb) ? lb : []);
+            }
+        } catch (err) {
+            console.error('loadMultiStageDashboard error', err);
+        } finally {
+            setDashboardLoading(false);
+            setLbLoading(false);
+        }
+    };
+
     const loadOlympiad = async (userId = null) => {
         try {
             setLoading(true);
@@ -96,6 +124,9 @@ export default function OlympiadDetail() {
                     loadLeaderboard();
                 } else if (part.status === 'registered' || part.status === 'started') {
                     setRegistered(true);
+                    if (studentId) {
+                        await loadMultiStageDashboard(studentId);
+                    }
                     // Load questions so they can resume
                     const qData = await apiService.get(`/olympiad/${id}/questions`);
                     const qs = qData.data?.questions || qData.data || qData.questions || [];
@@ -146,6 +177,9 @@ export default function OlympiadDetail() {
             setRegError(null);
             await apiService.post(`/olympiad/${id}/register`, { student_id: studentId });
             setRegistered(true);
+
+            // Load multi-stage dashboard
+            await loadMultiStageDashboard(studentId);
 
             // Load questions after registration
             const qData = await apiService.get(`/olympiad/${id}/questions`);
@@ -299,55 +333,68 @@ export default function OlympiadDetail() {
             </header>
 
             <div className="max-w-4xl mx-auto px-4 py-8">
-                {/* Olympiad Info */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 mb-8"
-                >
-                    <h1 className="text-3xl font-bold text-white mb-4">{olympiad?.title}</h1>
-
-                    {olympiad?.description && (
-                        <p className="text-indigo-300 mb-6">{olympiad.description}</p>
-                    )}
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <InfoCard icon={<Calendar className="w-4 h-4" />} label="Boshlanish" value={olympiad?.start_time ? new Date(olympiad.start_time).toLocaleDateString('uz') : '—'} />
-                        <InfoCard icon={<Clock className="w-4 h-4" />} label="Tugash" value={olympiad?.end_time ? new Date(olympiad.end_time).toLocaleDateString('uz') : '—'} />
-                        <InfoCard icon={<Users className="w-4 h-4" />} label="Maksimum" value={`${olympiad?.max_participants || '∞'} nafar`} />
-                        <InfoCard icon={<Trophy className="w-4 h-4" />} label="Fan" value={olympiad?.subject || '—'} />
-                    </div>
-
-                    {/* Registration */}
-                    {!registered && !quizStarted && (
-                        <div>
-                            <button
-                                onClick={handleRegister}
-                                disabled={registering || !['active'].includes(olympiad?.status)}
-                                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-600/30"
-                            >
-                                {registering ? 'Yuklanmoqda...' : olympiad?.status === 'active' ? "Ro'yxatdan o'tish va boshlash" : olympiad?.status === 'upcoming' ? 'Olimpiada hali boshlanmagan' : 'Olimpiada faol emas'}
-                            </button>
-                            {regError && <p className="text-red-400 text-sm mt-2 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {regError}</p>}
+                {registered && !quizStarted ? (
+                    dashboardLoading || !dashboardData ? (
+                        <div className="flex justify-center py-12">
+                            <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
                         </div>
-                    )}
+                    ) : (
+                        <StudentOlympiadDashboard
+                            olympiad={olympiad}
+                            stages={dashboardData.stages || []}
+                            myParticipation={dashboardData.student || {}}
+                            stageResults={dashboardData.stages?.filter(s => s.my_result).map(s => ({
+                                id: s.id,
+                                stage_id: s.id,
+                                score: s.my_result.score,
+                                is_passed: s.my_result.is_passed,
+                                duration_seconds: 0
+                            }))}
+                            leaderboard={leaderboard}
+                            onStartTask={handleStartQuiz}
+                            isTaskActive={
+                                dashboardData.stages?.length > 0
+                                    ? new Date() >= new Date(dashboardData.stages[0].start_time) &&
+                                      new Date() <= new Date(dashboardData.stages[0].end_time)
+                                    : false
+                            }
+                        />
+                    )
+                ) : (
+                    /* Olympiad Info */
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 mb-8"
+                    >
+                        <h1 className="text-3xl font-bold text-white mb-4">{olympiad?.title}</h1>
 
-                    {/* Success registration */}
-                    {registered && !quizStarted && (
-                        <div className="text-center">
-                            <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
-                            <p className="text-green-400 font-medium mb-4">Ro'yxatdan muvaffaqiyatli o'tdingiz!</p>
-                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                <Link
-                                    to={`/olympiad/${id}/content`}
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all"
+                        {olympiad?.description && (
+                            <p className="text-indigo-300 mb-6">{olympiad.description}</p>
+                        )}
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <InfoCard icon={<Calendar className="w-4 h-4" />} label="Boshlanish" value={olympiad?.start_time ? new Date(olympiad.start_time).toLocaleDateString('uz') : '—'} />
+                            <InfoCard icon={<Clock className="w-4 h-4" />} label="Tugash" value={olympiad?.end_time ? new Date(olympiad.end_time).toLocaleDateString('uz') : '—'} />
+                            <InfoCard icon={<Users className="w-4 h-4" />} label="Maksimum" value={`${olympiad?.max_participants || '∞'} nafar`} />
+                            <InfoCard icon={<Trophy className="w-4 h-4" />} label="Fan" value={olympiad?.subject || '—'} />
+                        </div>
+
+                        {/* Registration */}
+                        {!registered && !quizStarted && (
+                            <div>
+                                <button
+                                    onClick={handleRegister}
+                                    disabled={registering || !['active'].includes(olympiad?.status)}
+                                    className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-600/30"
                                 >
-                                    📚 Kontentlar
-                                </Link>
+                                    {registering ? 'Yuklanmoqda...' : olympiad?.status === 'active' ? "Ro'yxatdan o'tish va boshlash" : olympiad?.status === 'upcoming' ? 'Olimpiada hali boshlanmagan' : 'Olimpiada faol emas'}
+                                </button>
+                                {regError && <p className="text-red-400 text-sm mt-2 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {regError}</p>}
                             </div>
-                        </div>
-                    )}
-                </motion.div>
+                        )}
+                    </motion.div>
+                )}
 
                 {/* Quiz */}
                 {quizStarted && !submitted && (
