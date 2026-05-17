@@ -352,6 +352,30 @@ async def create_olympiad(
         created_by=None,
     )
     db.add(olympiad)
+    await db.flush()
+
+    # Automatically create a stage record in the database for single-stage
+    from shared.database.models.olympiad_stage import OlympiadStage, ScopeType, StageContentType
+
+    stage_content = StageContentType.mixed
+    if oly_type == OlympiadType.story:
+        stage_content = StageContentType.reading
+    elif oly_type == OlympiadType.quiz:
+        stage_content = StageContentType.test
+
+    stage = OlympiadStage(
+        olympiad_id=olympiad.id,
+        stage_number=1,
+        title=olympiad.title or "Asosiy bosqich",
+        scope_type=ScopeType.school,
+        content_type=stage_content,
+        start_time=olympiad.start_time,
+        end_time=olympiad.end_time,
+        passing_percent=30.0,
+        passing_min_count=1,
+    )
+    db.add(stage)
+
     try:
         await db.commit()
         await db.refresh(olympiad)
@@ -478,6 +502,45 @@ async def update_olympiad(
         elif field == "banner_image":
             value = value if value else None
         setattr(o, field, value)
+
+    # Automatically find and update the OlympiadStage with stage_number == 1
+    # if it's a single stage olympiad
+    if not o.is_multi_stage:
+        from shared.database.models.olympiad_stage import OlympiadStage, ScopeType, StageContentType
+        
+        stage_res = await db.execute(
+            select(OlympiadStage).where(
+                OlympiadStage.olympiad_id == o.id,
+                OlympiadStage.stage_number == 1
+            )
+        )
+        stage = stage_res.scalars().first()
+        
+        stage_content = StageContentType.mixed
+        if o.type == OlympiadType.story:
+            stage_content = StageContentType.reading
+        elif o.type == OlympiadType.quiz:
+            stage_content = StageContentType.test
+
+        if stage:
+            stage.title = o.title or "Asosiy bosqich"
+            stage.start_time = o.start_time
+            stage.end_time = o.end_time
+            stage.content_type = stage_content
+        else:
+            # If for some reason it didn't exist (legacy), let's create it!
+            new_stage = OlympiadStage(
+                olympiad_id=o.id,
+                stage_number=1,
+                title=o.title or "Asosiy bosqich",
+                scope_type=ScopeType.school,
+                content_type=stage_content,
+                start_time=o.start_time,
+                end_time=o.end_time,
+                passing_percent=30.0,
+                passing_min_count=1,
+            )
+            db.add(new_stage)
 
     try:
         await db.commit()
