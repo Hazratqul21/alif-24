@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2, Search, ChevronLeft, ArrowRight, Filter, Eye, XCircle, CheckCircle2 } from 'lucide-react';
+import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2, Search, ChevronLeft, ArrowRight, Filter, Eye, XCircle, CheckCircle2, Layers } from 'lucide-react';
 import DetailedResultModal from '../../components/Common/DetailedResultModal';
 import MathContent from '../../components/Common/MathContent';
 import olympiadService from '../../services/olympiadService';
 import adminService from '../../services/adminService';
 import testAiService from '../../services/testAiService';
+import MultiStageOlympiadModal from '../../components/MultiStageOlympiadModal';
 
 export default function OlympiadsPage() {
     const [activeView, setActiveView] = useState('list');
@@ -111,6 +112,7 @@ export default function OlympiadsPage() {
     const [wizardStep, setWizardStep] = useState(1);
     const [listFilter, setListFilter] = useState('all');
     const [listSearch, setListSearch] = useState('');
+    const [showMultiStageModal, setShowMultiStageModal] = useState(false);
 
     const GRADE_OPTIONS = [
         { value: '', label: 'Tanlanmagan' },
@@ -521,10 +523,22 @@ const handleCreate = async () => {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-white flex items-center gap-3"><Trophy className="text-amber-400" /> Olimpiadalar</h1>
-                <button onClick={() => { resetCreateForm(); setActiveView('create'); }} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition font-medium text-sm">
-                    <Plus size={18} /> Yangi olimpiada
-                </button>
+                <div className="flex items-center gap-3">
+                    <button onClick={() => setShowMultiStageModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium text-sm">
+                        <Layers size={18} /> Ko'p bosqichli
+                    </button>
+                    <button onClick={() => { resetCreateForm(); setActiveView('create'); }} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition font-medium text-sm">
+                        <Plus size={18} /> Oddiy olimpiada
+                    </button>
+                </div>
             </div>
+
+            {showMultiStageModal && (
+                <MultiStageOlympiadModal
+                    onClose={() => setShowMultiStageModal(false)}
+                    onCreated={() => { setShowMultiStageModal(false); fetchOlympiads(); }}
+                />
+            )}
             {/* Filter + Search */}
             <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex gap-2 flex-wrap">

@@ -112,6 +112,11 @@ const olympiadService = {
     deleteOlympiadStory: (olympiadId, storyId) => api.delete(`/${olympiadId}/content/stories/${storyId}`),
     publishOlympiadLesson: (olympiadId, lessonId) => api.post(`/${olympiadId}/content/lessons/${lessonId}/publish`),
     publishOlympiadStory: (olympiadId, storyId) => api.post(`/${olympiadId}/content/stories/${storyId}/publish`),
+
+    // ==================== ADMIN: Multi-Stage Olympiad ====================
+    createMultiStageOlympiad: (data) => api.post('/multi-stage/admin/create', data),
+    getMultiStageStats: (olympiadId, params = {}) => api.get(`/multi-stage/admin/${olympiadId}/stats`, { params }),
+    finalizeStage: (olympiadId, stageId) => api.post(`/multi-stage/admin/${olympiadId}/stages/${stageId}/finalize`),
 };
 
 export default olympiadService;
