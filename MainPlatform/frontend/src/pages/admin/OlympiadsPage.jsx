@@ -9,6 +9,7 @@ import MultiStageOlympiadModal from '../../components/MultiStageOlympiadModal';
 
 export default function OlympiadsPage() {
     const [activeView, setActiveView] = useState('list');
+    const [viewingStageContent, setViewingStageContent] = useState(false);
     const [olympiads, setOlympiads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedOlympiad, setSelectedOlympiad] = useState(null);
@@ -1008,7 +1009,15 @@ const handleCreate = async () => {
                 )}
 
                 <div className="flex justify-center">
-                    <button onClick={() => { setActiveView('content'); loadContentData(); }} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-500/20">
+                    <button onClick={() => {
+                        setActiveView('content');
+                        if (selectedOlympiad?.is_multi_stage) {
+                            setViewingStageContent(false);
+                        } else {
+                            setViewingStageContent(true);
+                            loadContentData();
+                        }
+                    }} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-500/20">
                         <BookOpen size={20} /> Kontent yasash
                     </button>
                 </div>
@@ -1591,13 +1600,129 @@ const handleCreate = async () => {
     const renderContent = () => {
         if (contentLoading) return <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" /></div>;
 
+        if (selectedOlympiad?.is_multi_stage && !viewingStageContent) {
+            return (
+                <div className="animate-fadeIn">
+                    <div className="flex items-center gap-3 mb-6">
+                        <button onClick={() => setActiveView('detail')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm font-semibold">← Ortga</button>
+                        <div>
+                            <h2 className="text-2xl font-bold text-white">Bosqichlar ro'yxati</h2>
+                            <p className="text-gray-400 text-sm">Olimpiada bosqichlarini tanlang va ularning kontentlarini alohida boshqaring {selectedOlympiad ? `— ${selectedOlympiad.title}` : ''}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {stages.map((st) => {
+                            const scopeNames = {
+                                school: "Maktab miqyosida",
+                                district: "Tuman miqyosida",
+                                region: "Viloyat miqyosida",
+                                state: "Respublika miqyosida"
+                            };
+                            const scopeColor = {
+                                school: "from-blue-500/20 to-indigo-500/20 border-blue-500/30 text-blue-400",
+                                district: "from-amber-500/20 to-orange-500/20 border-amber-500/30 text-amber-400",
+                                region: "from-purple-500/20 to-pink-500/20 border-purple-500/30 text-purple-400",
+                                state: "from-emerald-500/20 to-teal-500/20 border-emerald-500/30 text-emerald-400"
+                            };
+                            const currentScope = scopeNames[st.scope_type] || "Noma'lum miqyos";
+                            const currentColor = scopeColor[st.scope_type] || "from-gray-800 to-gray-900 border-gray-700 text-gray-400";
+
+                            return (
+                                <div key={st.id} className="relative group bg-gray-900/60 border border-gray-800 rounded-3xl p-6 hover:border-indigo-500/50 transition-all duration-300 flex flex-col justify-between shadow-xl backdrop-blur-md">
+                                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 transition-all duration-300" />
+                                    
+                                    <div>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <span className="text-4xl font-extrabold text-indigo-500/30">0{st.stage_number}</span>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border bg-gradient-to-r ${currentColor}`}>
+                                                {currentScope}
+                                            </span>
+                                        </div>
+
+                                        <h3 className="text-xl font-bold text-white mb-2 group-hover:text-indigo-400 transition-colors">
+                                            {st.title || `${st.stage_number}-bosqich`}
+                                        </h3>
+
+                                        <div className="space-y-2 mb-6 text-sm text-gray-400">
+                                            <div className="flex justify-between">
+                                                <span>Boshlanishi:</span>
+                                                <span className="text-white font-medium">
+                                                    {st.start_time ? new Date(st.start_time).toLocaleString('uz-UZ') : '—'}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Tugashi:</span>
+                                                <span className="text-white font-medium">
+                                                    {st.end_time ? new Date(st.end_time).toLocaleString('uz-UZ') : '—'}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between border-t border-gray-800/80 pt-2 mt-2">
+                                                <span>O'tish foizi / soni:</span>
+                                                <span className="text-indigo-400 font-semibold">
+                                                    {st.passing_percent}% / min. {st.passing_min_count} ta
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={async () => {
+                                            setSelectedStageId(st.id);
+                                            setViewingStageContent(true);
+                                            setContentLoading(true);
+                                            try {
+                                                const [lessRes, ertRes] = await Promise.allSettled([
+                                                    olympiadService.getOlympiadLessons(selectedOlympiad.id),
+                                                    olympiadService.getOlympiadStories(selectedOlympiad.id, st.id),
+                                                ]);
+                                                if (lessRes.status === 'fulfilled') {
+                                                    const ld = lessRes.value.data || [];
+                                                    setContentLessons(Array.isArray(ld) ? ld : []);
+                                                }
+                                                if (ertRes.status === 'fulfilled') {
+                                                    const ed = ertRes.value.data?.ertaklar || ertRes.value.data || [];
+                                                    setContentErtaklar(Array.isArray(ed) ? ed : []);
+                                                }
+                                                await loadTestSets(selectedOlympiad.id);
+                                            } catch (e) {
+                                                console.error(e);
+                                            } finally {
+                                                setContentLoading(false);
+                                            }
+                                        }}
+                                        className="w-full py-3 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/20 text-indigo-400 hover:text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2"
+                                    >
+                                        <BookOpen className="w-4 h-4" /> Kontentni boshqarish
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        }
+
+        const selectedStage = stages.find(s => s.id === selectedStageId);
+
         return (
             <div>
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                        <button onClick={() => setActiveView('detail')} className="text-gray-400 hover:text-white">← Ortga</button>
+                        {selectedOlympiad?.is_multi_stage ? (
+                            <button onClick={() => setViewingStageContent(false)} className="text-gray-400 hover:text-white flex items-center gap-1">← Bosqichlar</button>
+                        ) : (
+                            <button onClick={() => setActiveView('detail')} className="text-gray-400 hover:text-white flex items-center gap-1">← Ortga</button>
+                        )}
                         <div>
-                            <h2 className="text-2xl font-bold text-white">Kontentlar</h2>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-2xl font-bold text-white">Kontentlar</h2>
+                                {selectedStage && (
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                        {selectedStage.title || `${selectedStage.stage_number}-bosqich`}
+                                    </span>
+                                )}
+                            </div>
                             <p className="text-gray-500 text-sm">Darslar va ertaklar boshqaruvi {selectedOlympiad ? `— ${selectedOlympiad.title}` : ''}</p>
                         </div>
                     </div>
