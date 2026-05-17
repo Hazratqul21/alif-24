@@ -87,15 +87,17 @@ async def run_migration():
     async with engine.begin() as conn:
         # Execute each statement separately
         for statement in MIGRATION_SQL.split(";"):
-            statement = statement.strip()
-            if statement and not statement.startswith("--"):
-                try:
-                    await conn.execute(text(statement))
-                    # Print first 60 chars of each statement
-                    preview = statement.replace("\n", " ")[:60]
-                    print(f"  ✅ {preview}...")
-                except Exception as e:
-                    print(f"  ⚠️  {str(e)[:80]}")
+            # Remove comment lines before checking
+            lines = [l for l in statement.strip().splitlines() if not l.strip().startswith("--")]
+            clean = "\n".join(lines).strip()
+            if not clean:
+                continue
+            try:
+                await conn.execute(text(clean))
+                preview = clean.replace("\n", " ")[:60]
+                print(f"  ✅ {preview}...")
+            except Exception as e:
+                print(f"  ⚠️  {str(e)[:80]}")
     
     print("\n✅ Migration muvaffaqiyatli tugadi!")
     print("   - olympiad_stages jadvali yaratildi")
