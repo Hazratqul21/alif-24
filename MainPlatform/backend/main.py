@@ -330,6 +330,9 @@ app.include_router(coins.router, prefix=f"{settings.API_PREFIX}/coins", tags=["c
 app.include_router(organizations.router, prefix=f"{settings.API_PREFIX}/organization", tags=["organization"])
 # Olympiads
 app.include_router(olympiads.router, prefix=f"{settings.API_PREFIX}/olympiads", tags=["olympiads"])
+# Multi-Stage Olympiad (ko'p bosqichli)
+from app.api.v1.multi_stage_olympiad import router as multi_stage_olympiad_router
+app.include_router(multi_stage_olympiad_router, prefix=f"{settings.API_PREFIX}/olympiads/multi-stage", tags=["multi-stage-olympiad"])
 # Reading Competition
 app.include_router(reading_competition.router, prefix=f"{settings.API_PREFIX}/admin/reading", tags=["reading-competition"])
 # Payments
