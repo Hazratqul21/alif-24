@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import apiService from '../services/apiService';
 import ProfileCompletionModal from '../components/Common/ProfileCompletionModal';
+import OlympiadRegistrationFlow from '../components/OlympiadRegistrationFlow';
+import StudentOlympiadDashboard from '../components/StudentOlympiadDashboard';
 
 // ─── Helper ────────────────────────────────────────────────────────────────────
 const fmtSec = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -27,6 +29,10 @@ export default function ReadingOlympiadPage() {
     const [regError, setRegError] = useState(null);
     const [lbLoading, setLbLoading] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
+
+    const [isMultiStage, setIsMultiStage] = useState(false);
+    const [dashboardData, setDashboardData] = useState(null);
+    const [dashboardLoading, setDashboardLoading] = useState(false);
 
     // ─── Load data ──────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -53,15 +59,50 @@ export default function ReadingOlympiadPage() {
             const oData = data.data || data;
             setOlympiad(oData);
 
-            if (oData.my_participation) {
-                setRegistered(true);
+            if (oData.is_multi_stage) {
+                setIsMultiStage(true);
+                if (oData.my_participation && studentId) {
+                    setRegistered(true);
+                    await loadMultiStageDashboard(studentId);
+                } else {
+                    setRegistered(false);
+                }
+            } else {
+                setIsMultiStage(false);
+                if (oData.my_participation) {
+                    setRegistered(true);
+                }
+                loadLeaderboard();
             }
-
-            loadLeaderboard();
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadMultiStageDashboard = async (userId) => {
+        try {
+            setDashboardLoading(true);
+            const studentId = userId || currentUserId || localStorage.getItem('userId');
+            const data = await apiService.get(`/olympiad/${id}/dashboard?student_id=${studentId}`);
+            const dbData = data.data || data;
+            setDashboardData(dbData);
+            
+            // Also load stage-specific leaderboard
+            const currentStageNum = dbData.student?.current_stage || 1;
+            const currentStage = dbData.stages?.find(s => s.stage_number === currentStageNum) || dbData.stages?.[0];
+            if (currentStage?.id) {
+                setLbLoading(true);
+                const lbRes = await apiService.get(`/olympiad/${id}/stages/${currentStage.id}/leaderboard?student_id=${studentId}`);
+                const lb = lbRes.data?.leaderboard || lbRes.data || lbRes.leaderboard || [];
+                setLeaderboard(Array.isArray(lb) ? lb : []);
+            }
+        } catch (err) {
+            console.error('loadMultiStageDashboard error', err);
+        } finally {
+            setDashboardLoading(false);
+            setLbLoading(false);
         }
     };
 
@@ -110,6 +151,29 @@ export default function ReadingOlympiadPage() {
             } else {
                 setRegError(err.message);
             }
+        } finally {
+            setRegistering(false);
+        }
+    };
+
+    const handleRegisterMultiStage = async (regData) => {
+        const studentId = currentUserId || localStorage.getItem('userId');
+        if (!studentId) {
+            setRegError("Iltimos, avval tizimga kiring. alif24.uz ga o'ting.");
+            return;
+        }
+        try {
+            setRegistering(true);
+            setRegError(null);
+            const payload = {
+                student_id: studentId,
+                ...regData
+            };
+            await apiService.post(`/olympiad/${id}/register`, payload);
+            setRegistered(true);
+            await loadAll(studentId);
+        } catch (err) {
+            setRegError(err.message);
         } finally {
             setRegistering(false);
         }
@@ -168,48 +232,97 @@ export default function ReadingOlympiadPage() {
             </header>
 
             <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-
-                {/* Olympiad Card */}
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8">
-                    <h1 className="text-2xl md:text-3xl font-bold text-white mb-3">{olympiad?.title}</h1>
-                    {olympiad?.description && <p className="text-indigo-300 mb-5">{olympiad.description}</p>}
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                        <MiniCard icon={<Calendar className="w-4 h-4" />} label="Boshlanish" value={olympiad?.start_time ? new Date(olympiad.start_time).toLocaleDateString('uz') : '—'} />
-                        <MiniCard icon={<Clock className="w-4 h-4" />} label="Tugash" value={olympiad?.end_time ? new Date(olympiad.end_time).toLocaleDateString('uz') : '—'} />
-                        <MiniCard icon={<Users className="w-4 h-4" />} label="Ishtirokchilar" value={`${olympiad?.participant_count || 0} nafar`} />
-                        <MiniCard icon={<Trophy className="w-4 h-4" />} label="Fan" value={olympiad?.subject || '—'} />
-                    </div>
-
-                    {/* Registration / Start reading */}
-                    {!registered ? (
-                        <div>
-                            <button onClick={handleRegister} disabled={registering || !['active', 'upcoming'].includes(olympiad?.status)}
-                                className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-purple-600/30">
-                                {registering ? 'Yuklanmoqda...' : "Ro'yxatdan o'tish"}
-                            </button>
-                            {regError && <p className="text-red-400 text-sm mt-2 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {regError}</p>}
+                {isMultiStage ? (
+                    !registered ? (
+                        <div className="space-y-6">
+                            {/* Hero Card */}
+                            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8 text-left">
+                                <h1 className="text-2xl md:text-3xl font-extrabold text-white mb-2">{olympiad?.title}</h1>
+                                <p className="text-indigo-200/80 text-sm mb-4">{olympiad?.description || "Ko'p bosqichli hududiy tanlov olimpiadasi."}</p>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <MiniCard icon={<Calendar className="w-4 h-4" />} label="Boshlanish" value={olympiad?.start_time ? new Date(olympiad.start_time).toLocaleDateString('uz') : '—'} />
+                                    <MiniCard icon={<Clock className="w-4 h-4" />} label="Tugash" value={olympiad?.end_time ? new Date(olympiad.end_time).toLocaleDateString('uz') : '—'} />
+                                    <MiniCard icon={<Users className="w-4 h-4" />} label="Ishtirokchilar" value={`${olympiad?.participant_count || 0} nafar`} />
+                                    <MiniCard icon={<Trophy className="w-4 h-4" />} label="Fan" value={olympiad?.subject || '—'} />
+                                </div>
+                            </div>
+                            
+                            {/* 4-Step Registration Wizard */}
+                            <OlympiadRegistrationFlow 
+                                onSubmit={handleRegisterMultiStage}
+                                loading={registering}
+                                allowedClasses={olympiad?.allowed_classes || []}
+                            />
+                            {regError && <p className="text-red-400 text-sm flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {regError}</p>}
                         </div>
                     ) : (
-                        <div className="text-center">
-                            <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
-                            <p className="text-green-400 font-medium mb-4">Ro'yxatdan o'tdingiz!</p>
-                            <button onClick={goToReading}
-                                className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-500/20">
-                                📖 O'qishni boshlash
-                            </button>
-                        </div>
-                    )}
-                </motion.div>
+                        dashboardLoading || !dashboardData ? (
+                            <div className="flex justify-center py-12">
+                                <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                            </div>
+                        ) : (
+                            <StudentOlympiadDashboard
+                                olympiad={olympiad}
+                                stages={dashboardData.stages || []}
+                                myParticipation={dashboardData.student || {}}
+                                stageResults={dashboardData.stages?.filter(s => s.my_result).map(s => ({
+                                    id: s.id,
+                                    stage_id: s.id,
+                                    score: s.my_result.score,
+                                    is_passed: s.my_result.is_passed,
+                                    duration_seconds: 0
+                                }))}
+                                leaderboard={leaderboard}
+                                onStartTask={goToReading}
+                                isTaskActive={dashboardData.stages?.find(s => s.stage_number === (dashboardData.student?.current_stage || 1))?.is_active}
+                            />
+                        )
+                    )
+                ) : (
+                    <>
+                        {/* Olympiad Card */}
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8">
+                            <h1 className="text-2xl md:text-3xl font-bold text-white mb-3">{olympiad?.title}</h1>
+                            {olympiad?.description && <p className="text-indigo-300 mb-5">{olympiad.description}</p>}
 
-                {/* Leaderboard */}
-                <LeaderboardTable
-                    leaderboard={leaderboard}
-                    loading={lbLoading}
-                    currentUserId={currentUserId}
-                    olympiadTitle={olympiad?.title}
-                />
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                                <MiniCard icon={<Calendar className="w-4 h-4" />} label="Boshlanish" value={olympiad?.start_time ? new Date(olympiad.start_time).toLocaleDateString('uz') : '—'} />
+                                <MiniCard icon={<Clock className="w-4 h-4" />} label="Tugash" value={olympiad?.end_time ? new Date(olympiad.end_time).toLocaleDateString('uz') : '—'} />
+                                <MiniCard icon={<Users className="w-4 h-4" />} label="Ishtirokchilar" value={`${olympiad?.participant_count || 0} nafar`} />
+                                <MiniCard icon={<Trophy className="w-4 h-4" />} label="Fan" value={olympiad?.subject || '—'} />
+                            </div>
+
+                            {/* Registration / Start reading */}
+                            {!registered ? (
+                                <div>
+                                    <button onClick={handleRegister} disabled={registering || !['active', 'upcoming'].includes(olympiad?.status)}
+                                        className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-purple-600/30">
+                                        {registering ? 'Yuklanmoqda...' : "Ro'yxatdan o'tish"}
+                                    </button>
+                                    {regError && <p className="text-red-400 text-sm mt-2 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {regError}</p>}
+                                </div>
+                            ) : (
+                                <div className="text-center">
+                                    <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                                    <p className="text-green-400 font-medium mb-4">Ro'yxatdan o'tdingiz!</p>
+                                    <button onClick={goToReading}
+                                        className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-500/20">
+                                        📖 O'qishni boshlash
+                                    </button>
+                                </div>
+                            )}
+                        </motion.div>
+
+                        {/* Leaderboard */}
+                        <LeaderboardTable
+                            leaderboard={leaderboard}
+                            loading={lbLoading}
+                            currentUserId={currentUserId}
+                            olympiadTitle={olympiad?.title}
+                        />
+                    </>
+                )}
             </div>
         </div>
     );

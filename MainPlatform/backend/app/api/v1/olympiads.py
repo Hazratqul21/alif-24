@@ -858,6 +858,7 @@ async def add_olympiad_story(
         audio_url=data.audio_url,
         image_url=data.image_url,
         questions=data.questions,
+        stage_id=data.stage_id,
     )
     db.add(story)
     await db.commit()
@@ -868,11 +869,16 @@ async def add_olympiad_story(
 @router.get("/{olympiad_id}/content/stories")
 async def list_olympiad_stories(
     olympiad_id: str,
+    stage_id: Optional[str] = Query(None),
     admin: Dict = Depends(verify_admin_olympiad),
     db: AsyncSession = Depends(get_db),
 ):
-    """List isolated stories for an olympiad"""
-    result = await db.execute(select(OlympiadStory).where(OlympiadStory.olympiad_id == olympiad_id))
+    """List isolated stories for an olympiad, optionally filtered by stage_id"""
+    filters = [OlympiadStory.olympiad_id == olympiad_id]
+    if stage_id:
+        filters.append(OlympiadStory.stage_id == stage_id)
+        
+    result = await db.execute(select(OlympiadStory).where(*filters))
     stories = result.scalars().all()
     
     items = [
@@ -881,6 +887,7 @@ async def list_olympiad_stories(
             "language": s.language, "age_group": s.age_group, "has_audio": s.has_audio,
             "audio_url": s.audio_url, "image_url": s.image_url, "view_count": s.view_count,
             "questions": s.questions, "is_published": s.is_published,
+            "stage_id": s.stage_id,
             "created_at": s.created_at.isoformat() if s.created_at else None
         } for s in stories
     ]

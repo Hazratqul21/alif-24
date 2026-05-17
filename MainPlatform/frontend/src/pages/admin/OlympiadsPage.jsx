@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2, Search, ChevronLeft, ArrowRight, Filter, Eye, XCircle, CheckCircle2, Layers } from 'lucide-react';
+import { Trophy, Plus, Trash2, X, Users, Clock, BookOpen, Mic, CheckCircle, Play, Pause, ChevronRight, FileText, AlertCircle, Target, AudioLines, Waves, Book, Globe, Pencil, Paperclip, HelpCircle, ToggleLeft, Image, AlignLeft, Upload, Sparkles, AlignJustify, Loader2, Search, ChevronLeft, ArrowRight, Filter, Eye, XCircle, CheckCircle2, Layers, Calendar } from 'lucide-react';
 import DetailedResultModal from '../../components/Common/DetailedResultModal';
 import MathContent from '../../components/Common/MathContent';
 import olympiadService from '../../services/olympiadService';
@@ -12,6 +12,8 @@ export default function OlympiadsPage() {
     const [olympiads, setOlympiads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedOlympiad, setSelectedOlympiad] = useState(null);
+    const [stages, setStages] = useState([]);
+    const [selectedStageId, setSelectedStageId] = useState('');
     const [stats, setStats] = useState(null);
     const [notification, setNotification] = useState(null);
     const [saving, setSaving] = useState(false);
@@ -165,20 +167,82 @@ export default function OlympiadsPage() {
 
     useEffect(() => { fetchOlympiads(); }, [fetchOlympiads]);
 
+    const fetchStageContent = async (olympiadId, stageId) => {
+        try {
+            const [qRes, rtRes] = await Promise.allSettled([
+                olympiadService.listQuestions(olympiadId, stageId),
+                olympiadService.listReadingTasks(olympiadId, stageId)
+            ]);
+            if (qRes.status === 'fulfilled') setQuestions(qRes.value.questions || []);
+            if (rtRes.status === 'fulfilled') setReadingTasks(rtRes.value.reading_tasks || []);
+        } catch (e) {
+            console.error("fetchStageContent error:", e);
+        }
+    };
+
+    const handleStageChange = async (stageId) => {
+        setSelectedStageId(stageId);
+        if (!selectedOlympiad) return;
+        if (activeView === 'detail') {
+            await fetchStageContent(selectedOlympiad.id, stageId);
+        } else if (activeView === 'content') {
+            try {
+                setContentLoading(true);
+                const ertRes = await olympiadService.getOlympiadStories(selectedOlympiad.id, stageId);
+                const ed = ertRes.data?.ertaklar || ertRes.data || [];
+                setContentErtaklar(Array.isArray(ed) ? ed : []);
+            } catch (err) {
+                console.error("load stories error:", err);
+            } finally {
+                setContentLoading(false);
+            }
+        }
+    };
+
     const fetchDetail = async (id) => {
         try {
-            const [oRes, qRes, rtRes, pRes, sRes] = await Promise.allSettled([
+            const [oRes, pRes, sRes] = await Promise.allSettled([
                 olympiadService.getOlympiad(id),
-                olympiadService.listQuestions(id),
-                olympiadService.listReadingTasks(id),
                 olympiadService.getParticipants(id),
                 olympiadService.getOlympiadStats(id),
             ]);
-            if (oRes.status === 'fulfilled') setSelectedOlympiad(oRes.value.olympiad || oRes.value);
-            if (qRes.status === 'fulfilled') setQuestions(qRes.value.questions || []);
-            if (rtRes.status === 'fulfilled') setReadingTasks(rtRes.value.reading_tasks || []);
+            
+            let isMulti = false;
+            let o = null;
+            if (oRes.status === 'fulfilled') {
+                o = oRes.value.olympiad || oRes.value;
+                setSelectedOlympiad(o);
+                isMulti = o.is_multi_stage;
+            }
             if (pRes.status === 'fulfilled') setParticipants(pRes.value.participants || []);
             if (sRes.status === 'fulfilled') setStats(sRes.value.stats || null);
+
+            if (isMulti) {
+                try {
+                    const stRes = await olympiadService.getOlympiadStages(id);
+                    const stagesList = stRes.data?.data || stRes.data || [];
+                    setStages(stagesList);
+                    if (stagesList.length > 0) {
+                        const firstStageId = stagesList[0].id;
+                        setSelectedStageId(firstStageId);
+                        await fetchStageContent(id, firstStageId);
+                    } else {
+                        setQuestions([]);
+                        setReadingTasks([]);
+                    }
+                } catch (stErr) {
+                    console.error("Failed to fetch stages", stErr);
+                }
+            } else {
+                setStages([]);
+                setSelectedStageId('');
+                const [qRes, rtRes] = await Promise.allSettled([
+                    olympiadService.listQuestions(id),
+                    olympiadService.listReadingTasks(id),
+                ]);
+                if (qRes.status === 'fulfilled') setQuestions(qRes.value.questions || []);
+                if (rtRes.status === 'fulfilled') setReadingTasks(rtRes.value.reading_tasks || []);
+            }
         } catch (e) { console.error(e); }
     };
 
@@ -321,11 +385,12 @@ const handleCreate = async () => {
         try {
             await olympiadService.addQuestion(selectedOlympiad.id, {
                 ...qForm, options: qForm.options.filter(o => o.trim()),
+                stage_id: selectedOlympiad.is_multi_stage ? selectedStageId : undefined
             });
             notify('success', 'Savol qo\'shildi');
             setShowAddQuestion(false);
             setQForm({ question_text: '', options: ['', '', '', ''], correct_answer: 0, points: 5 });
-            const res = await olympiadService.listQuestions(selectedOlympiad.id);
+            const res = await olympiadService.listQuestions(selectedOlympiad.id, selectedOlympiad.is_multi_stage ? selectedStageId : undefined);
             setQuestions(res.questions || []);
         } catch (e) {
             const msg = parseError(e);
@@ -442,11 +507,14 @@ const handleCreate = async () => {
         if (rtForm.title.length < 3) return notify('error', 'Sarlavha kamida 3 ta belgi bo\'lishi kerak');
         if (rtForm.text_content.length < 10) return notify('error', 'Matn kamida 10 ta belgi bo\'lishi kerak');
         try {
-            await olympiadService.addReadingTask(selectedOlympiad.id, rtForm);
+            await olympiadService.addReadingTask(selectedOlympiad.id, {
+                ...rtForm,
+                stage_id: selectedOlympiad.is_multi_stage ? selectedStageId : undefined
+            });
             notify('success', 'O\'qish vazifasi qo\'shildi');
             setShowAddReading(false);
             setRtForm({ title: '', text_content: '', difficulty: 'medium', time_limit_seconds: 300, comprehension_questions: [] });
-            const res = await olympiadService.listReadingTasks(selectedOlympiad.id);
+            const res = await olympiadService.listReadingTasks(selectedOlympiad.id, selectedOlympiad.is_multi_stage ? selectedStageId : undefined);
             setReadingTasks(res.reading_tasks || []);
         } catch (e) {
             notify('error', parseError(e) || 'Xatolik');
@@ -874,6 +942,65 @@ const handleCreate = async () => {
                     )}
                 </div>
 
+                {/* Visual Timeline and Dates Section */}
+                {o.is_multi_stage ? (
+                    <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 space-y-4">
+                        <h3 className="text-white font-bold flex items-center gap-2"><Calendar className="w-5 h-5 text-indigo-400" /> Bosqichlar va Muddatlar</h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                            {/* Registration Info */}
+                            <div className="bg-gray-900/40 p-4 rounded-xl border border-gray-800 flex flex-col justify-between">
+                                <div>
+                                    <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Ro'yxatdan o'tish</span>
+                                    <p className="text-white font-bold mt-1">Sinf / Yoshi</p>
+                                    <p className="text-gray-400 text-xs mt-1">Sinflar: {o.allowed_classes ? o.allowed_classes.join(', ') : 'Hammasi'}</p>
+                                    <p className="text-gray-400 text-xs">Yosh: {o.min_age} - {o.max_age}</p>
+                                </div>
+                                <div className="mt-3 pt-3 border-t border-gray-800/60 space-y-1">
+                                    <div className="flex justify-between text-xs"><span className="text-gray-500">Boshlanish:</span><span className="text-white font-medium">{new Date(o.registration_start).toLocaleString('uz-UZ')}</span></div>
+                                    <div className="flex justify-between text-xs"><span className="text-gray-500">Tugash:</span><span className="text-white font-medium">{new Date(o.registration_end).toLocaleString('uz-UZ')}</span></div>
+                                </div>
+                            </div>
+
+                            {/* Stage cards */}
+                            {stages.map((st) => (
+                                <button key={st.id} onClick={() => handleStageChange(st.id)} className={`text-left p-4 rounded-xl border flex flex-col justify-between transition-all ${selectedStageId === st.id ? 'bg-indigo-600/10 border-indigo-500/50 shadow-lg shadow-indigo-500/5' : 'bg-gray-900/40 border-gray-800 hover:border-gray-700'}`}>
+                                    <div>
+                                        <div className="flex justify-between items-start">
+                                            <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">{st.stage_number}-bosqich</span>
+                                            <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded font-mono capitalize">{st.scope_type}</span>
+                                        </div>
+                                        <p className="text-white font-bold mt-1 truncate">{st.title || `${st.stage_number}-bosqich`}</p>
+                                        <p className="text-gray-400 text-xs mt-1">Tur: <span className="capitalize text-gray-300 font-medium">{st.content_type}</span></p>
+                                        <p className="text-gray-400 text-xs">O'tish: <span className="text-gray-300 font-medium">{st.passing_percent}%</span> (min {st.passing_min_count} ta)</p>
+                                    </div>
+                                    <div className="mt-3 pt-3 border-t border-gray-800/60 space-y-1 w-full">
+                                        <div className="flex justify-between text-xs"><span className="text-gray-500">Boshlanish:</span><span className="text-white font-medium">{st.start_time ? new Date(st.start_time).toLocaleString('uz-UZ') : 'Noma\'lum'}</span></div>
+                                        <div className="flex justify-between text-xs"><span className="text-gray-500">Tugash:</span><span className="text-white font-medium">{st.end_time ? new Date(st.end_time).toLocaleString('uz-UZ') : 'Noma\'lum'}</span></div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 className="text-white font-bold text-sm mb-2 flex items-center gap-1.5"><Calendar className="w-4 h-4 text-emerald-400" /> Ro'yxatdan o'tish</h4>
+                            <div className="bg-gray-900/40 p-3 rounded-xl border border-gray-800 space-y-2">
+                                <div className="flex justify-between text-sm"><span className="text-gray-500">Boshlanish:</span><span className="text-white font-medium">{new Date(o.registration_start).toLocaleString('uz-UZ')}</span></div>
+                                <div className="flex justify-between text-sm"><span className="text-gray-500">Tugash:</span><span className="text-white font-medium">{new Date(o.registration_end).toLocaleString('uz-UZ')}</span></div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 className="text-white font-bold text-sm mb-2 flex items-center gap-1.5"><Clock className="w-4 h-4 text-amber-400" /> Olimpiada muddati</h4>
+                            <div className="bg-gray-900/40 p-3 rounded-xl border border-gray-800 space-y-2">
+                                <div className="flex justify-between text-sm"><span className="text-gray-500">Boshlanish:</span><span className="text-white font-medium">{new Date(o.start_time).toLocaleString('uz-UZ')}</span></div>
+                                <div className="flex justify-between text-sm"><span className="text-gray-500">Tugash:</span><span className="text-white font-medium">{new Date(o.end_time).toLocaleString('uz-UZ')}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex justify-center">
                     <button onClick={() => { setActiveView('content'); loadContentData(); }} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-500/20">
                         <BookOpen size={20} /> Kontent yasash
@@ -894,6 +1021,24 @@ const handleCreate = async () => {
                                 <div className="text-xs text-gray-500">{s.label}</div>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {o.is_multi_stage && stages.length > 0 && (
+                    <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-4 flex flex-col gap-3 animate-fadeIn">
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5"><Layers className="w-4 h-4 text-indigo-400" /> Bosqich kontentini ko'rish</span>
+                        <div className="flex flex-wrap gap-2">
+                            {stages.map((st) => (
+                                <button
+                                    key={st.id}
+                                    onClick={() => handleStageChange(st.id)}
+                                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 ${selectedStageId === st.id ? 'bg-indigo-600 text-white shadow shadow-indigo-500/20' : 'bg-gray-900/60 text-gray-400 hover:text-white border border-gray-800'}`}
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-current animate-pulse"></span>
+                                    {st.title || `${st.stage_number}-bosqich`}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
 
@@ -1082,7 +1227,7 @@ const handleCreate = async () => {
             setContentLoading(true);
             const [lessRes, ertRes] = await Promise.allSettled([
                 olympiadService.getOlympiadLessons(selectedOlympiad.id),
-                olympiadService.getOlympiadStories(selectedOlympiad.id),
+                olympiadService.getOlympiadStories(selectedOlympiad.id, selectedOlympiad.is_multi_stage ? selectedStageId : undefined),
             ]);
             if (lessRes.status === 'fulfilled') {
                 const ld = lessRes.value.data || [];
@@ -1145,7 +1290,11 @@ const handleCreate = async () => {
         }
         try {
             setSaving(true); setError('');
-            const payload = { ...ertakForm, questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim()) };
+            const payload = {
+                ...ertakForm,
+                questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim()),
+                stage_id: selectedOlympiad.is_multi_stage ? selectedStageId : undefined
+            };
             if (contentUploadFile) {
                 const upRes = await adminService.uploadFile(contentUploadFile);
                 if (upRes.data?.url) payload.audio_url = upRes.data.url;
@@ -1456,6 +1605,24 @@ const handleCreate = async () => {
                         <Plus className="w-4 h-4" /> {contentTab === 'ertaklar' ? 'Yangi ertak' : 'Test tuzish'}
                     </button>
                 </div>
+
+                {selectedOlympiad?.is_multi_stage && stages.length > 0 && (
+                    <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-4 flex flex-col gap-3 mb-6 animate-fadeIn">
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5"><Layers className="w-4 h-4 text-indigo-400" /> Tanlangan bosqich</span>
+                        <div className="flex flex-wrap gap-2">
+                            {stages.map((st) => (
+                                <button
+                                    key={st.id}
+                                    onClick={() => handleStageChange(st.id)}
+                                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 ${selectedStageId === st.id ? 'bg-indigo-600 text-white shadow shadow-indigo-500/20' : 'bg-gray-900/60 text-gray-400 hover:text-white border border-gray-800'}`}
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-current animate-pulse"></span>
+                                    {st.title || `${st.stage_number}-bosqich`}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div className="flex gap-2 mb-6">
                     {[

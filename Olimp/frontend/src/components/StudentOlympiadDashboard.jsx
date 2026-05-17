@@ -1,238 +1,325 @@
-import { useState, useEffect } from 'react';
-import { Trophy, MapPin, Clock, ChevronRight, Lock, Unlock, Star, Users } from 'lucide-react';
-import apiService from '../services/apiService';
+import { motion } from 'framer-motion';
+import { Trophy, CheckCircle, Clock, Lock, Sparkles, Star, Users, MapPin, Calendar, BookOpen, AlertCircle, ArrowRight, School } from 'lucide-react';
 
-/**
- * StudentOlympiadDashboard — O'quvchining ko'p bosqichli olimpiada sahifasi
- * - HeroSection: ism, maktab, viloyat
- * - StageJourney: 1→2→3→4 progress
- * - CurrentStageCard: joriy bosqich
- * - RivalsTable: scope bo'yicha raqiblar
- */
-export default function StudentOlympiadDashboard({ olympiadId, studentId }) {
-    const [data, setData] = useState(null);
-    const [leaderboard, setLeaderboard] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [activeStageId, setActiveStageId] = useState(null);
+const STAGE_SCOPES = {
+  'school': 'Maktab',
+  'district': 'Tuman',
+  'region': 'Viloyat',
+  'national': 'Respublika'
+};
 
-    useEffect(() => {
-        loadDashboard();
-    }, [olympiadId, studentId]);
+const STAGE_ICONS = {
+  1: MapPin,
+  2: Users,
+  3: Trophy,
+  4: Sparkles
+};
 
-    const loadDashboard = async () => {
-        try {
-            const res = await apiService.get(`/olympiad/multi-stage/${olympiadId}/dashboard?student_id=${studentId}`);
-            if (res.success) {
-                setData(res.data);
-                // Auto-select current stage for leaderboard
-                const current = res.data.stages?.find(s => s.is_accessible && s.is_active);
-                if (current) {
-                    setActiveStageId(current.id);
-                    loadLeaderboard(current.id);
-                }
-            }
-        } catch (err) {
-            console.error("Dashboard yuklashda xatolik:", err);
-        } finally {
-            setLoading(false);
-        }
-    };
+export default function StudentOlympiadDashboard({
+  olympiad,
+  stages = [],
+  myParticipation = {},
+  stageResults = [],
+  leaderboard = [],
+  onStartTask,
+  isTaskActive = false
+}) {
+  const currentStageNumber = myParticipation.current_stage || 1;
+  
+  // Find current stage config
+  const currentStage = stages.find(s => s.stage_number === currentStageNumber) || stages[0] || {};
+  
+  // Find if current stage task is already completed
+  const currentStageResult = stageResults.find(r => r.stage_id === currentStage.id);
+  const isCompleted = !!currentStageResult;
 
-    const loadLeaderboard = async (stageId) => {
-        try {
-            const res = await apiService.get(
-                `/olympiad/multi-stage/${olympiadId}/stages/${stageId}/leaderboard?student_id=${studentId}`
-            );
-            if (res.success) {
-                setLeaderboard(res.data.leaderboard || []);
-            }
-        } catch (err) {
-            console.error("Leaderboard xatolik:", err);
-        }
-    };
+  // Format second to mm:ss
+  const fmtSec = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-            </div>
-        );
-    }
-
-    if (!data) {
-        return (
-            <div className="text-center py-20 text-white/50">
-                <p>Ma'lumotlar topilmadi</p>
-            </div>
-        );
-    }
-
-    const { student, olympiad, stages } = data;
-
-    return (
-        <div className="space-y-6">
-            {/* Hero Section */}
-            <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border border-indigo-500/20 rounded-2xl p-6">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-white">{student.name}</h1>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-white/60">
-                            <span className="flex items-center gap-1">
-                                <MapPin className="w-4 h-4" /> {student.region}, {student.district}
-                            </span>
-                            <span>🏫 {student.school_number}-maktab</span>
-                            <span>📚 {student.class_number}-sinf</span>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-sm text-white/50">Joriy bosqich</p>
-                        <p className="text-3xl font-bold text-indigo-400">{student.current_stage}</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Stage Journey */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-amber-400" /> Bosqichlar yo'li
-                </h2>
-                <div className="flex items-center gap-2">
-                    {stages.map((s, idx) => (
-                        <div key={s.id} className="flex items-center flex-1">
-                            <button
-                                onClick={() => {
-                                    if (s.is_accessible) {
-                                        setActiveStageId(s.id);
-                                        loadLeaderboard(s.id);
-                                    }
-                                }}
-                                className={`relative flex-1 p-4 rounded-xl border-2 transition-all ${
-                                    s.is_accessible && s.is_active
-                                        ? 'bg-indigo-600/20 border-indigo-500 ring-2 ring-indigo-400/30'
-                                        : s.my_result?.is_passed
-                                        ? 'bg-emerald-600/20 border-emerald-500'
-                                        : s.is_accessible
-                                        ? 'bg-white/5 border-white/20 hover:border-white/40 cursor-pointer'
-                                        : 'bg-white/5 border-white/10 opacity-50'
-                                }`}
-                            >
-                                <div className="flex items-center gap-2 mb-1">
-                                    {s.is_accessible ? (
-                                        <Unlock className="w-4 h-4 text-emerald-400" />
-                                    ) : (
-                                        <Lock className="w-4 h-4 text-white/30" />
-                                    )}
-                                    <span className="text-sm font-bold text-white">{s.stage_number}-bosqich</span>
-                                </div>
-                                <p className="text-xs text-white/50">{s.title}</p>
-                                <p className="text-xs text-white/30 mt-1">
-                                    {s.scope_type === 'school' && '🏫 Maktab'}
-                                    {s.scope_type === 'district' && '🏘️ Tuman'}
-                                    {s.scope_type === 'region' && '🗺️ Viloyat'}
-                                    {s.scope_type === 'republic' && '🇺🇿 Respublika'}
-                                </p>
-
-                                {s.my_result && (
-                                    <div className="mt-2 flex items-center gap-2">
-                                        <span className="text-xs font-bold text-amber-400">⭐ {s.my_result.score} ball</span>
-                                        <span className="text-xs text-white/40">#{s.my_result.rank}</span>
-                                        {s.my_result.is_passed && (
-                                            <span className="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-full">O'tdi ✓</span>
-                                        )}
-                                    </div>
-                                )}
-                            </button>
-                            {idx < stages.length - 1 && (
-                                <ChevronRight className={`w-5 h-5 mx-1 flex-shrink-0 ${
-                                    s.my_result?.is_passed ? 'text-emerald-400' : 'text-white/20'
-                                }`} />
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Current Stage Details */}
-            {stages.filter(s => s.is_accessible).map(s => (
-                <div key={s.id} className={`bg-white/5 border rounded-2xl p-6 ${
-                    s.is_active ? 'border-indigo-500/50' : 'border-white/10'
-                }`}>
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-bold text-white flex items-center gap-2">
-                            <span className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-sm">{s.stage_number}</span>
-                            {s.title}
-                            {s.is_active && (
-                                <span className="text-xs bg-emerald-600 text-white px-2 py-1 rounded-full animate-pulse">FAOL</span>
-                            )}
-                        </h3>
-                        <div className="text-right text-xs text-white/40">
-                            <div className="flex items-center gap-1"><Clock className="w-3 h-3" /> {s.start_time ? new Date(s.start_time).toLocaleString('uz') : '—'}</div>
-                            <div>↓ {s.end_time ? new Date(s.end_time).toLocaleString('uz') : '—'}</div>
-                        </div>
-                    </div>
-
-                    {s.requirements && (
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4">
-                            <p className="text-sm text-amber-300 font-medium">📋 Shartlar:</p>
-                            <p className="text-sm text-white/70 mt-1">{s.requirements}</p>
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-3 text-sm text-white/50">
-                        <span>📝 Kontent: {s.content_type === 'test' ? 'Test' : s.content_type === 'reading' ? "O'qish" : 'Aralash'}</span>
-                        <span>🎯 Qamrov: {s.scope_type === 'school' ? 'Maktab' : s.scope_type === 'district' ? 'Tuman' : s.scope_type === 'region' ? 'Viloyat' : 'Respublika'}</span>
-                    </div>
-
-                    {s.is_active && !s.my_result && (
-                        <button className="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition flex items-center justify-center gap-2">
-                            🚀 Boshlash
-                        </button>
-                    )}
-                </div>
-            ))}
-
-            {/* Rivals Table */}
-            {leaderboard.length > 0 && (
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                        <Users className="w-5 h-5 text-indigo-400" /> Raqiblar jadvali
-                    </h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="text-white/40 border-b border-white/10">
-                                    <th className="text-left py-2 px-3">#</th>
-                                    <th className="text-left py-2 px-3">Ism</th>
-                                    <th className="text-left py-2 px-3">Maktab</th>
-                                    <th className="text-right py-2 px-3">Ball</th>
-                                    <th className="text-right py-2 px-3">Holat</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {leaderboard.map(r => (
-                                    <tr key={r.rank} className={`border-b border-white/5 ${r.is_me ? 'bg-indigo-600/20' : ''}`}>
-                                        <td className="py-3 px-3">
-                                            {r.rank <= 3 ? ['🥇','🥈','🥉'][r.rank - 1] : <span className="text-white/40">{r.rank}</span>}
-                                        </td>
-                                        <td className="py-3 px-3 text-white font-medium">
-                                            {r.name} {r.is_me && <span className="text-xs text-indigo-400">(Siz)</span>}
-                                        </td>
-                                        <td className="py-3 px-3 text-white/50">{r.school_number}-maktab</td>
-                                        <td className="py-3 px-3 text-right font-bold text-amber-400">{r.score}</td>
-                                        <td className="py-3 px-3 text-right">
-                                            {r.is_passed ? (
-                                                <span className="text-xs bg-emerald-600 text-white px-2 py-1 rounded-full">O'tdi</span>
-                                            ) : (
-                                                <span className="text-xs text-white/30">—</span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
+  return (
+    <div className="space-y-6 text-left">
+      
+      {/* 1. HeroSection */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }} 
+        animate={{ opacity: 1, y: 0 }}
+        className="relative bg-gradient-to-r from-indigo-900/60 to-purple-900/60 border border-indigo-500/20 rounded-2xl p-6 md:p-8 overflow-hidden shadow-xl"
+      >
+        <div className="absolute top-0 right-0 p-8 opacity-5">
+          <Trophy className="w-64 h-64 text-indigo-400" />
         </div>
-    );
+        <div className="relative z-10 space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="bg-indigo-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 animate-spin" /> Ko'p bosqichli
+            </span>
+            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-3 py-1 rounded-full">
+              Faol ishtirokchi
+            </span>
+          </div>
+          <h1 className="text-2xl md:text-4xl font-extrabold text-white">{olympiad.title}</h1>
+          <p className="text-indigo-200/80 text-sm md:text-base max-w-2xl">{olympiad.description || "Nizomga muvofiq, maktab, tuman, viloyat va respublika bosqichlaridan iborat nufuzli olimpiada."}</p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-white/40 text-[10px] uppercase font-bold tracking-wider">Hududingiz</p>
+                <p className="text-white font-bold text-sm truncate">{myParticipation.region}, {myParticipation.district}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                <School className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-white/40 text-[10px] uppercase font-bold tracking-wider">Muassasa / Sinf</p>
+                <p className="text-white font-bold text-sm">{myParticipation.school_number}-maktab, {myParticipation.class_number}-sinf</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-white/40 text-[10px] uppercase font-bold tracking-wider">Joriy bosqich</p>
+                <p className="text-white font-bold text-sm">{currentStageNumber}-bosqich ({STAGE_SCOPES[currentStage.scope_type] || 'Maktab'})</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 2. StageJourney Map */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <h3 className="text-white font-extrabold text-lg mb-6 flex items-center gap-2">
+          <Star className="w-5 h-5 text-indigo-400" /> Bosqichlar xaritasi (Stage Journey)
+        </h3>
+        
+        <div className="relative flex flex-col md:flex-row justify-between items-stretch md:items-center gap-6 md:gap-4">
+          {/* Connector Line for Desktop */}
+          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/10 -translate-y-1/2 hidden md:block z-0" />
+
+          {stages.map((st, i) => {
+            const num = st.stage_number;
+            const isPast = currentStageNumber > num;
+            const isCurrent = currentStageNumber === num;
+            const isLocked = currentStageNumber < num;
+            const Icon = STAGE_ICONS[num] || Trophy;
+
+            return (
+              <div key={st.id} className="relative z-10 flex-1 flex flex-col items-center text-center group">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all duration-300 ${
+                  isCurrent ? 'bg-indigo-600 border-indigo-400 text-white ring-4 ring-indigo-500/30 scale-110 shadow-lg shadow-indigo-600/20 animate-pulse' :
+                  isPast ? 'bg-emerald-600 border-emerald-500 text-white' :
+                  'bg-[#1a1a2e] border-white/10 text-white/30'
+                }`}>
+                  {isPast ? <CheckCircle className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
+                </div>
+
+                <div className="mt-3 space-y-1 max-w-[160px]">
+                  <p className={`text-xs font-bold tracking-wider uppercase ${isCurrent ? 'text-indigo-400' : isPast ? 'text-emerald-400' : 'text-white/30'}`}>
+                    {num}-bosqich
+                  </p>
+                  <p className={`text-sm font-extrabold truncate ${isLocked ? 'text-white/30' : 'text-white'}`}>
+                    {st.title || `${num}-bosqich`}
+                  </p>
+                  <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    isCurrent ? 'bg-indigo-500/20 text-indigo-300' :
+                    isPast ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/5 text-white/20'
+                  }`}>
+                    {STAGE_SCOPES[st.scope_type] || 'Maktab'}
+                  </span>
+                </div>
+                
+                {/* Details Popup on Hover */}
+                <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-white/10 p-3 rounded-xl shadow-xl w-48 text-left text-xs text-white/80 z-20 space-y-1.5 animate-fadeIn">
+                  <p className="font-bold text-white">{st.title}</p>
+                  <p><span className="text-white/40">Turi:</span> <span className="capitalize font-medium">{st.content_type}</span></p>
+                  <p><span className="text-white/40">O'tish balli:</span> <span className="font-medium text-emerald-400">{st.passing_percent}%</span></p>
+                  <p className="border-t border-white/5 pt-1 text-[10px] text-white/50">
+                    Boshlanish: {st.start_time ? new Date(st.start_time).toLocaleDateString('uz') : '—'}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 3. CurrentStageCard & Action Button */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          <motion.div 
+            initial={{ opacity: 0, x: -15 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-2xl p-6 relative overflow-hidden"
+          >
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl" />
+            
+            <div className="relative z-10 flex flex-col justify-between h-full space-y-6">
+              <div>
+                <span className="text-[10px] font-bold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full uppercase tracking-wider">
+                  Joriy topshiriq
+                </span>
+                <h2 className="text-xl md:text-2xl font-black text-white mt-3">{currentStage.title || `${currentStageNumber}-bosqich`}</h2>
+                <p className="text-white/70 text-sm mt-2">
+                  Ushbu bosqichda siz <span className="text-indigo-400 font-bold uppercase">{currentStage.content_type === 'test' ? 'Test sinovlari' : 'Matn o\'qish (vazifalar)'}</span> orqali bilimingizni namoyish etasiz.
+                  Natijangiz kamida <span className="text-emerald-400 font-extrabold">{currentStage.passing_percent}%</span> bo'lishi lozim.
+                </p>
+
+                <div className="grid grid-cols-2 gap-4 mt-6">
+                  <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                    <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Bosqich boshlanishi</p>
+                    <p className="text-white font-bold text-sm mt-0.5 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-indigo-400" />
+                      {currentStage.start_time ? new Date(currentStage.start_time).toLocaleString('uz-UZ') : 'Noma\'lum'}
+                    </p>
+                  </div>
+                  <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                    <p className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Bosqich tugashi</p>
+                    <p className="text-white font-bold text-sm mt-0.5 flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-400" />
+                      {currentStage.end_time ? new Date(currentStage.end_time).toLocaleString('uz-UZ') : 'Noma\'lum'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/5">
+                {isCompleted ? (
+                  <div className="text-center p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-2 animate-fadeIn">
+                    <CheckCircle className="w-10 h-10 text-emerald-400 mx-auto" />
+                    <p className="text-emerald-400 font-black text-base">Topshiriq muvaffaqiyatli bajarildi!</p>
+                    <p className="text-white/60 text-xs">
+                      Sizning natijangiz: <span className="text-white font-bold">{currentStageResult.score} ball</span>. 
+                      Navbatdagi bosqich natijalari hisoblanishini va keyingi bosqich ochilishini kuting.
+                    </p>
+                  </div>
+                ) : !isTaskActive ? (
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-amber-300 text-xs">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 animate-pulse" />
+                    <div>
+                      <p className="font-extrabold text-sm">Topshiriq hozircha faol emas!</p>
+                      <p className="mt-0.5 text-white/60">Ushbu bosqich belgilangan vaqt oralig'ida ochiladi yoki siz sinf mezonlariga mos kelmaysiz.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={onStartTask}
+                    className="w-full py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 bg-[length:200%_auto] text-white font-black rounded-xl hover:bg-right transition-all duration-500 shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2 hover:gap-3"
+                  >
+                    <span>{currentStage.content_type === 'test' ? '✏️ Test sinovini boshlash' : '📖 O\'qish vazifasini boshlash'}</span>
+                    <ArrowRight className="w-4 h-4 transition-all" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* 4. Previous ResultsGrid */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+            <h3 className="text-white font-extrabold text-lg flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-emerald-400" /> Avvalgi bosqichlar natijalari
+            </h3>
+
+            {stageResults.length === 0 ? (
+              <p className="text-center py-6 text-white/30 text-sm">Hozircha natijalar mavjud emas</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {stageResults.map((res) => {
+                  const st = stages.find(s => s.id === res.stage_id) || {};
+                  return (
+                    <div key={res.id} className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">
+                            {st.stage_number}-bosqich ({STAGE_SCOPES[st.scope_type]})
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            res.is_passed ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                          }`}>
+                            {res.is_passed ? "O'tdi" : "O'ta olmadi"}
+                          </span>
+                        </div>
+                        <h4 className="text-white font-bold text-sm mt-1 truncate">{st.title || 'Bosqich'}</h4>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-white/5 text-xs">
+                        <div>
+                          <p className="text-white/40">To'plangan ball</p>
+                          <p className="text-white font-black">{res.score} ball</p>
+                        </div>
+                        <div>
+                          <p className="text-white/40">Sarflangan vaqt</p>
+                          <p className="text-white font-bold font-mono">{fmtSec(res.duration_seconds)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 5. RivalsTable / Geographically scoped Leaderboard */}
+        <div className="space-y-6">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-amber-400" />
+                <h3 className="text-white font-extrabold text-lg">Reyting jadvali</h3>
+              </div>
+              <p className="text-white/40 text-xs mt-1">
+                Joriy bosqich doirasi: <span className="text-indigo-400 font-bold uppercase">{STAGE_SCOPES[currentStage.scope_type]}</span> bo'yicha filterlangan.
+              </p>
+            </div>
+
+            {leaderboard.length === 0 ? (
+              <p className="text-center py-8 text-white/30 text-xs">Ishtirokchilar yo'q</p>
+            ) : (
+              <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+                {leaderboard.map((entry, idx) => {
+                  const isMe = String(entry.student_id) === String(localStorage.getItem('userId'));
+                  const rank = idx + 1;
+                  const colors = rank === 1 ? 'text-yellow-400' : rank === 2 ? 'text-gray-300' : rank === 3 ? 'text-amber-600' : 'text-white/30';
+                  
+                  return (
+                    <div 
+                      key={entry.student_id || idx}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                        isMe ? 'bg-indigo-600/20 border-indigo-500/40 shadow shadow-indigo-500/5' : 'bg-white/5 border-white/5 hover:border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className={`w-6 text-center font-black text-sm ${colors}`}>
+                          {rank}
+                        </span>
+                        <div className="min-w-0">
+                          <p className={`text-xs font-bold truncate ${isMe ? 'text-indigo-300' : 'text-white'}`}>
+                            {entry.student_name}{isMe ? ' (Siz)' : ''}
+                          </p>
+                          <p className="text-[10px] text-white/30 mt-0.5 truncate">
+                            {entry.region ? `${entry.region.substring(0,10)}. / ${entry.school_number}-maktab` : '—'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-xs font-black text-emerald-400">{entry.total_score || entry.score || 0} b</p>
+                        <p className="text-[9px] text-white/30 font-mono mt-0.5">{entry.reading_wpm ? `${entry.reading_wpm} wpm` : ''}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

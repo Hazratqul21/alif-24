@@ -61,6 +61,7 @@ class MultiStageRegister(BaseModel):
     district: str
     school_number: int = Field(..., ge=1, le=9999)
     class_number: Optional[int] = Field(default=None, ge=1, le=11)
+    student_id: Optional[str] = None
 
 
 class RegistrationTimeUpdate(BaseModel):
@@ -399,9 +400,58 @@ async def register_multi_stage(
     if not validate_district(data.region, data.district):
         raise HTTPException(400, f"Noto'g'ri tuman: {data.district}")
 
-    # TODO: JWT dan user_id olish (hozircha query param)
-    # Hozircha test uchun oddiy
-    return {"success": True, "message": "Endpoint tayyor — JWT integratsiyasi kerak"}
+    # Resolve student profile
+    user_id = data.student_id
+    if not user_id:
+        raise HTTPException(401, "student_id is required")
+
+    sp = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user_id))
+    profile = sp.scalars().first()
+    if not profile:
+        user_res = await db.execute(select(User).where(User.id == user_id))
+        user = user_res.scalars().first()
+        if not user:
+            raise HTTPException(400, "Foydalanuvchi topilmadi")
+        profile = StudentProfile(user_id=user_id)
+        db.add(profile)
+        await db.commit()
+        await db.refresh(profile)
+
+    # Check if already registered
+    exist_res = await db.execute(
+        select(OlympiadParticipant).where(
+            OlympiadParticipant.olympiad_id == olympiad_id,
+            OlympiadParticipant.student_id == profile.id
+        )
+    )
+    existing = exist_res.scalars().first()
+    if existing:
+        raise HTTPException(400, "Siz allaqachon ro'yxatdan o'tgansiz")
+
+    participant = OlympiadParticipant(
+        olympiad_id=olympiad_id,
+        student_id=profile.id,
+        status=ParticipationStatus.registered,
+        region=data.region,
+        district=data.district,
+        school_number=data.school_number,
+        class_number=data.class_number,
+        current_stage=1,
+    )
+    db.add(participant)
+    await db.commit()
+    await db.refresh(participant)
+
+    return {
+        "success": True,
+        "message": "Muvaffaqiyatli ro'yxatdan o'tdingiz",
+        "data": {
+            "id": participant.id,
+            "olympiad_id": participant.olympiad_id,
+            "student_id": user_id,
+            "registered_at": participant.registered_at.isoformat() if participant.registered_at else None,
+        }
+    }
 
 
 # ============= O'QUVCHI: Dashboard =============

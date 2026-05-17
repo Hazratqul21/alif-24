@@ -50,6 +50,7 @@ class OlympiadStory(Base):
 
     id = Column(String(8), primary_key=True, default=generate_8_digit_id)
     olympiad_id = Column(String(8), ForeignKey("olympiads.id", ondelete="CASCADE"), nullable=False)
+    stage_id = Column(String(8), ForeignKey("olympiad_stages.id", ondelete="SET NULL"), nullable=True)
 
     title = Column(String(200), nullable=False)
     content = Column(Text, nullable=False)
