@@ -125,60 +125,82 @@ export default function StudentOlympiadDashboard({
         </div>
 
         <div className="border-t border-white/5 pt-6 space-y-4">
-          <h4 className="text-lg font-bold text-white">Bosqichlar ({stages.length})</h4>
-          <div className="space-y-3">
-            {stages.map((st) => {
-              const scopeNames = {
-                school: "Maktab",
-                district: "Tuman",
-                region: "Viloyat",
-                state: "Respublika"
-              };
-              const contentNames = {
-                mixed: "Aralash",
-                story: "Ertak",
-                quiz: "Test"
-              };
-              const num = st.stage_number;
-              const currentScope = scopeNames[st.scope_type] || "Maktab";
-              const currentContent = contentNames[st.content_type] || "Aralash";
+          {(() => {
+            const displayStages = olympiad.is_multi_stage && stages && stages.length > 0
+              ? stages
+              : [
+                  {
+                    id: 'single_stage',
+                    stage_number: 1,
+                    title: olympiad.title || "Asosiy bosqich",
+                    scope_type: "school",
+                    content_type: olympiad.type || "mixed",
+                    start_time: olympiad.start_time,
+                    end_time: olympiad.end_time,
+                    passing_percent: olympiad.passing_percent || 30,
+                    passing_min_count: 1
+                  }
+                ];
 
-              const formatDateRange = (start, end) => {
-                if (!start) return '—';
-                const s = new Date(start);
-                const e = new Date(end);
-                const sStr = s.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const sTime = s.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-                const eStr = e.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const eTime = e.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-                if (sStr === eStr) {
-                  return `${sStr}, ${sTime} - ${eTime}`;
-                }
-                return `${sStr}, ${sTime} - ${eStr}, ${eTime}`;
-              };
+            return (
+              <>
+                <h4 className="text-lg font-bold text-white">Bosqichlar ({displayStages.length})</h4>
+                <div className="space-y-3">
+                  {displayStages.map((st) => {
+                    const scopeNames = {
+                      school: "Maktab",
+                      district: "Tuman",
+                      region: "Viloyat",
+                      state: "Respublika"
+                    };
+                    const contentNames = {
+                      mixed: "Aralash",
+                      story: "Ertak",
+                      quiz: "Test"
+                    };
+                    const num = st.stage_number;
+                    const currentScope = scopeNames[st.scope_type] || "Maktab";
+                    const currentContent = contentNames[st.content_type] || "Aralash";
 
-              return (
-                <div key={st.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl gap-4 hover:border-indigo-500/30 transition-all duration-300">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-indigo-600/90 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-600/20">
-                      {num}
-                    </div>
-                    <div>
-                      <h5 className="text-white font-bold text-base">{st.title || `${num}-bosqich`}</h5>
-                      <p className="text-white/40 text-xs font-medium">
-                        {currentScope} • {currentContent} • Top {st.passing_percent}%
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right text-xs md:text-sm text-white/50">
-                    <span className="font-semibold text-white/90">
-                      {formatDateRange(st.start_time, st.end_time)}
-                    </span>
-                  </div>
+                    const formatDateRange = (start, end) => {
+                      if (!start) return '—';
+                      const s = new Date(start);
+                      const e = new Date(end);
+                      const sStr = s.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                      const sTime = s.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+                      const eStr = e.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                      const eTime = e.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+                      if (sStr === eStr) {
+                        return `${sStr}, ${sTime} - ${eTime}`;
+                      }
+                      return `${sStr}, ${sTime} - ${eStr}, ${eTime}`;
+                    };
+
+                    return (
+                      <div key={st.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl gap-4 hover:border-indigo-500/30 transition-all duration-300">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-indigo-600/90 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-600/20">
+                            {num}
+                          </div>
+                          <div>
+                            <h5 className="text-white font-bold text-base">{st.title || `${num}-bosqich`}</h5>
+                            <p className="text-white/40 text-xs font-medium">
+                              {currentScope} • {currentContent} • Top {st.passing_percent}%
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right text-xs md:text-sm text-white/50">
+                          <span className="font-semibold text-white/90">
+                            {formatDateRange(st.start_time, st.end_time)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </>
+            );
+          })()}
         </div>
       </div>
 
