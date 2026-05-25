@@ -35,6 +35,7 @@ const TeacherDashboard = () => {
 
   // Real data states
   const [classrooms, setClassrooms] = useState([]);
+  const [uniqueStudentCount, setUniqueStudentCount] = useState(0);
   const [lessons, setLessons] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -155,6 +156,7 @@ const TeacherDashboard = () => {
     try {
       const res = await teacherService.getMyClassrooms();
       setClassrooms(res.data?.classes || []);
+      setUniqueStudentCount(res.data?.unique_student_count || 0);
     } catch (e) { console.error('Classrooms fetch error:', e); }
   }, []);
 
@@ -637,7 +639,7 @@ const TeacherDashboard = () => {
 
   // ============ STATS ============
 
-  const totalStudents = classrooms.reduce((sum, c) => sum + (c.student_count || 0), 0);
+  const totalStudents = uniqueStudentCount;
   const stats = [
     { icon: GraduationCap, value: classrooms.length, label: 'Sinflar', color: 'from-blue-500 to-blue-600' },
     { icon: BookOpen, value: lessons.length, label: 'Darslar', color: 'from-pink-500 to-pink-600' },

@@ -160,7 +160,26 @@ async def _fetch_my_classrooms(current_user, db):
             )
         )
         result.append(classroom_dict(c, cnt.scalar() or 0))
-    return {"success": True, "data": {"classes": result, "total": len(result)}}
+
+    unique_student_count = 0
+    if classrooms:
+        class_ids = [c.id for c in classrooms]
+        uniq_cnt = await db.execute(
+            select(func.count(ClassroomStudent.student_user_id.distinct())).where(
+                ClassroomStudent.classroom_id.in_(class_ids),
+                ClassroomStudent.status == ClassroomStudentStatus.active,
+            )
+        )
+        unique_student_count = uniq_cnt.scalar() or 0
+
+    return {
+        "success": True,
+        "data": {
+            "classes": result,
+            "total": len(result),
+            "unique_student_count": unique_student_count
+        }
+    }
 
 
 @router.get("/teachers/my-classes")
