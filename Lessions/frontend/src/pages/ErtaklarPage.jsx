@@ -104,8 +104,14 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
     const questions = ertak.questions || [];
     const hasQuestions = questions.length > 0;
     const hasTest = ertak.test && ertak.test.length > 0;
+    
+    const getInitialStep = () => {
+        if (ertak.forceTestDirect && hasTest) return 'test';
+        if (ertak.forceQuizDirect && hasQuestions) return 'quiz';
+        return hasQuestions ? 'quiz' : (hasTest ? 'test' : 'result');
+    };
 
-    const [step, setStep] = useState(hasQuestions ? 'quiz' : (hasTest ? 'test' : 'result'));
+    const [step, setStep] = useState(getInitialStep());
     const [qIndex, setQIndex] = useState(0);
     const [phase, setPhase] = useState('tts');
     const [scores, setScores] = useState([]);
@@ -817,17 +823,18 @@ function SmartKidsCard() {
     );
 }
 
-function ErtakCard({ ertak, index, onClick }) {
+function ErtakCard({ ertak, index, onRead, onQuiz, onTest }) {
     const [imgError, setImgError] = useState(false);
     const wordCount = ertak.content ? ertak.content.trim().split(/\s+/).length : 0;
     const qCount = (ertak.questions || []).length;
+    const testCount = (ertak.test || []).length;
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            onClick={onClick}
+            onClick={onRead}
             className="bg-white rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full border border-white/10"
         >
             <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-[#4b30fb] to-[#764ba2]">
@@ -849,18 +856,44 @@ function ErtakCard({ ertak, index, onClick }) {
                     </div>
                 )}
             </div>
-            <div className="p-5 flex-1 flex flex-col">
-                <h3 className="text-[#1a1a2e] font-bold text-base mb-1 line-clamp-2 leading-tight group-hover:text-[#4b30fb] transition-colors">
-                    {ertak.title}
-                </h3>
-                <div className="flex items-center gap-2 text-[10px] text-gray-400 mb-4 font-medium uppercase tracking-wider">
-                    <span>📖 {wordCount} so'z</span>
-                    <span>•</span>
-                    <span>{ertak.language === 'uz' ? "O'zbekcha" : ertak.language === 'ru' ? "Ruscha" : "Inglizcha"}</span>
+            <div className="p-5 flex-1 flex flex-col justify-between">
+                <div>
+                    <h3 className="text-[#1a1a2e] font-bold text-base mb-1 line-clamp-2 leading-tight group-hover:text-[#4b30fb] transition-colors">
+                        {ertak.title}
+                    </h3>
+                    <div className="flex items-center gap-2 text-[10px] text-gray-400 mb-4 font-medium uppercase tracking-wider">
+                        <span>📖 {wordCount} so'z</span>
+                        <span>•</span>
+                        <span>{ertak.language === 'uz' ? "O'zbekcha" : ertak.language === 'ru' ? "Ruscha" : "Inglizcha"}</span>
+                    </div>
                 </div>
-                <button className="mt-auto w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-bold text-sm shadow-lg shadow-purple-500/30 group-hover:scale-[1.02] transition-transform">
-                    Oqishni boshlash
-                </button>
+                
+                <div className="flex flex-col gap-2 mt-auto">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onRead(); }}
+                        className="w-full py-2.5 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-xl font-bold text-xs shadow-md shadow-purple-500/20 hover:scale-[1.02] transition-all"
+                    >
+                        O'qish 📖
+                    </button>
+                    
+                    {qCount > 0 && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onQuiz(); }}
+                            className="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded-xl font-bold text-xs border border-emerald-500/20 hover:scale-[1.02] transition-all"
+                        >
+                            Savollar 🧠
+                        </button>
+                    )}
+                    
+                    {testCount > 0 && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onTest(); }}
+                            className="w-full py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 rounded-xl font-bold text-xs border border-blue-500/20 hover:scale-[1.02] transition-all"
+                        >
+                            Testlar 📝
+                        </button>
+                    )}
+                </div>
             </div>
         </motion.div>
     );
@@ -878,6 +911,8 @@ export default function ErtaklarPage({ lang = 'uz' }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeErtak, setActiveErtak] = useState(null);
+    const [directQuizErtak, setDirectQuizErtak] = useState(null);
+    const [directTestErtak, setDirectTestErtak] = useState(null);
     const [selectedAgeGroup, setSelectedAgeGroup] = useState('all');
     const [showAgeDropdown, setShowAgeDropdown] = useState(false);
 
@@ -931,12 +966,35 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                 {loading ? <div className="py-20 animate-spin">⌛</div> : (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-left">
                         {lang === 'uz' && <SmartKidsCard />}
-                        {filtered.map((e, i) => <ErtakCard key={e.id} ertak={e} index={i} onClick={() => setActiveErtak(e)} />)}
+                        {filtered.map((e, i) => (
+                            <ErtakCard 
+                                key={e.id} 
+                                ertak={e} 
+                                index={i} 
+                                onRead={() => setActiveErtak(e)} 
+                                onQuiz={() => setDirectQuizErtak(e)}
+                                onTest={() => setDirectTestErtak(e)}
+                            />
+                        ))}
                     </div>
                 )}
             </main>
             <AnimatePresence>
                 {activeErtak && <RecordingModal ertak={activeErtak} onClose={() => setActiveErtak(null)} />}
+                {directQuizErtak && (
+                    <QuizModal
+                        ertak={{ ...directQuizErtak, forceQuizDirect: true }}
+                        onClose={() => setDirectQuizErtak(null)}
+                        readingStats={{ wpm: 0, readPercent: 0, elapsed: 0 }}
+                    />
+                )}
+                {directTestErtak && (
+                    <QuizModal
+                        ertak={{ ...directTestErtak, forceTestDirect: true }}
+                        onClose={() => setDirectTestErtak(null)}
+                        readingStats={{ wpm: 0, readPercent: 0, elapsed: 0 }}
+                    />
+                )}
             </AnimatePresence>
         </div>
     );
