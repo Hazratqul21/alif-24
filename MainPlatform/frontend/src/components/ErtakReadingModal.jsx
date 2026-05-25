@@ -284,17 +284,6 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
         const newIndex = qIndex + 1;
         setIsAnswering(false);
         if (newIndex >= questions.length) {
-            setQIndex(questions.length); // triggers allDone
-        } else {
-            setQIndex(newIndex);
-            setPhase('tts');
-        }
-    };
-
-    const nextQuestion = () => {
-        const newIndex = qIndex + 1;
-        setIsAnswering(false);
-        if (newIndex >= questions.length) {
             onDone({ quiz_average: avgScore, scores });
         } else {
             setQIndex(newIndex);
