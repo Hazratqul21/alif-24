@@ -36,6 +36,7 @@ const TeacherDashboard = () => {
   // Real data states
   const [classrooms, setClassrooms] = useState([]);
   const [uniqueStudentCount, setUniqueStudentCount] = useState(0);
+  const [myStudents, setMyStudents] = useState([]);
   const [lessons, setLessons] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -181,6 +182,13 @@ const TeacherDashboard = () => {
     } catch (e) { console.error('Ertaklar fetch error:', e); }
   }, []);
 
+  const fetchMyStudents = useCallback(async () => {
+    try {
+      const res = await teacherService.getTeacherStudents();
+      setMyStudents(res.data || []);
+    } catch (e) { console.error('Teacher students fetch error:', e); }
+  }, []);
+
   const fetchUnread = useCallback(async () => {
     try {
       const res = await notificationService.getUnreadCount();
@@ -194,9 +202,10 @@ const TeacherDashboard = () => {
     fetchLessons();
     fetchErtaklar();
     fetchUnread();
+    fetchMyStudents();
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
-  }, [fetchClassrooms, fetchAssignments, fetchLessons, fetchErtaklar, fetchUnread]);
+  }, [fetchClassrooms, fetchAssignments, fetchLessons, fetchErtaklar, fetchUnread, fetchMyStudents]);
 
   useEffect(() => {
     if (activeTab === 'school' && !mySchool) {
@@ -291,6 +300,19 @@ const TeacherDashboard = () => {
       showNotif('success', "O'quvchi qo'shildi!");
       setSearchResults([]);
       setSearchQuery('');
+      fetchClassroomDetail(selectedClassroom);
+    } catch (e) { showNotif('error', e.message || 'Xatolik'); }
+  };
+
+  const handleInviteStudentDirect = async (studentUserId) => {
+    if (!selectedClassroom) return;
+    try {
+      await teacherService.inviteStudent(selectedClassroom, {
+        identifier: studentUserId,
+        invitation_type: 'user_id',
+        message: "Sizni ushbu yangi sinfga taklif qilaman."
+      });
+      showNotif('success', 'Taklif yuborildi!');
       fetchClassroomDetail(selectedClassroom);
     } catch (e) { showNotif('error', e.message || 'Xatolik'); }
   };
@@ -878,6 +900,34 @@ const TeacherDashboard = () => {
               ))}
             </div>
           )}
+
+          {/* Mening boshqa sinfdagi o'quvchilarim ro'yxati */}
+          {(() => {
+            const currentStudentIds = new Set(students.map(s => s.user_id));
+            const otherStudents = myStudents.filter(s => !currentStudentIds.has(s.user_id));
+            if (otherStudents.length === 0) return null;
+            return (
+              <div className="mt-6 border-t border-white/10 pt-4">
+                <h5 className="text-white/60 text-xs font-bold mb-3 uppercase tracking-wider">Mening boshqa o'quvchilarim (Sinfga taklif qilish)</h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                  {otherStudents.map(s => (
+                    <div key={s.user_id} className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all">
+                      <div>
+                        <div className="text-sm font-medium text-white">{s.first_name} {s.last_name}</div>
+                        <div className="text-[10px] text-white/40">{s.phone || s.email}</div>
+                      </div>
+                      <button
+                        onClick={() => handleInviteStudentDirect(s.user_id)}
+                        className="text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 px-3 py-1.5 rounded-xl border border-emerald-500/30 cursor-pointer font-medium transition-colors"
+                      >
+                        Taklif qilish
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     );

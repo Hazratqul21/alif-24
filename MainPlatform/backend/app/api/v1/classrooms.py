@@ -381,6 +381,43 @@ async def search_students(
     ]}
 
 
+@router.get("/teachers/my-students")
+async def get_teacher_students(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """O'qituvchining barcha sinflaridagi barcha unikal o'quvchilari ro'yxatini qaytaradi"""
+    teacher = await get_teacher_profile(current_user, db)
+    
+    # O'qituvchining barcha sinflari IDsini olish
+    class_res = await db.execute(
+        select(Classroom.id).where(Classroom.teacher_id == teacher.id)
+    )
+    class_ids = [r[0] for r in class_res.all()]
+    
+    if not class_ids:
+        return {"success": True, "data": []}
+        
+    # Barcha unikal o'quvchilarni olish
+    stmt = (
+        select(User)
+        .join(ClassroomStudent, ClassroomStudent.student_user_id == User.id)
+        .where(
+            ClassroomStudent.classroom_id.in_(class_ids),
+            ClassroomStudent.status == ClassroomStudentStatus.active,
+        )
+        .distinct()
+    )
+    res = await db.execute(stmt)
+    students = res.scalars().all()
+    
+    return {"success": True, "data": [
+        {"user_id": u.id, "first_name": u.first_name, "last_name": u.last_name,
+         "email": u.email, "phone": u.phone}
+        for u in students
+    ]}
+
+
 @router.post("/teachers/classrooms/{classroom_id}/invite")
 async def invite_student(
     classroom_id: str, data: InviteStudentRequest,

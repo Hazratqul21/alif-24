@@ -11,6 +11,14 @@ class TeacherService {
     }
 
     /**
+     * Get all unique students of the teacher from other classes
+     * @returns {Promise<Array>} List of students
+     */
+    async getTeacherStudents() {
+        return apiService.get('/teachers/my-students');
+    }
+
+    /**
      * Add student to a classroom
      * @param {string} classroomId - Classroom ID
      * @param {string} studentId - Student User ID
