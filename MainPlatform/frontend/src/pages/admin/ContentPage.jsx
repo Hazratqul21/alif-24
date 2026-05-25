@@ -14,16 +14,23 @@ export default function ContentPage() {
     const [rawJsonText, setRawJsonText] = useState('{}');
 
     const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
-    const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
+    const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi', questions_limit: 3, test_limit: '' });
     const [ertakQuestions, setErtakQuestions] = useState([]); // [{question:'',answer:''}]
     const [ertakTest, setErtakTest] = useState([]); // [{question:'',options:['','','',''],correct:0}]
+    
+    // Bulk text import states
+    const [bulkQuestionsText, setBulkQuestionsText] = useState('');
+    const [bulkTestsText, setBulkTestsText] = useState('');
+    const [editBulkQuestionsText, setEditBulkQuestionsText] = useState('');
+    const [editBulkTestsText, setEditBulkTestsText] = useState('');
+
     const [uploadFile, setUploadFile] = useState(null);
     const [uploadImage, setUploadImage] = useState(null);
     const [editLesson, setEditLesson] = useState(null); // lesson object to edit
     const [editForm, setEditForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
 
     const [editErtak, setEditErtak] = useState(null); // ertak object to edit
-    const [editErtakForm, setEditErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
+    const [editErtakForm, setEditErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi', questions_limit: 3, test_limit: '' });
     const [editErtakQuestions, setEditErtakQuestions] = useState([]);
     const [editErtakTest, setEditErtakTest] = useState([]);
 
@@ -94,6 +101,8 @@ export default function ContentPage() {
 
             const payload = {
                 ...ertakForm,
+                questions_limit: parseInt(ertakForm.questions_limit) || 3,
+                test_limit: ertakForm.test_limit ? parseInt(ertakForm.test_limit) : null,
                 questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim()),
                 test: ertakTest.filter(t => t.question.trim() && t.options.every(o => o.trim()))
             };
@@ -112,7 +121,7 @@ export default function ContentPage() {
 
             await adminService.createErtak(payload);
             setCreateModal(null);
-            setErtakForm({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
+            setErtakForm({ title: '', content: '', language: 'uz', age_group: 'Barchasi', questions_limit: 3, test_limit: '' });
             setErtakQuestions([]);
             setErtakTest([]);
             setUploadFile(null);
@@ -130,6 +139,107 @@ export default function ContentPage() {
     const updateQuestion = (i, field, val) => setErtakQuestions(prev =>
         prev.map((q, idx) => idx === i ? { ...q, [field]: val } : q)
     );
+
+    const handleBulkQuestionsImport = (isEdit = false) => {
+        const text = isEdit ? editBulkQuestionsText : bulkQuestionsText;
+        if (!text || !text.trim()) return;
+
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        const parsed = [];
+        let currentQuestion = null;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const match = line.match(/^(?:javob|otvet|answer)\s*:\s*(.*)/i);
+            if (match) {
+                const answer = match[1].trim();
+                if (currentQuestion) {
+                    parsed.push({ question: currentQuestion, answer: answer });
+                    currentQuestion = null;
+                }
+            } else {
+                const cleanLine = line.replace(/^\d+\s*[\.\)]\s*/, '').trim();
+                currentQuestion = cleanLine;
+            }
+        }
+
+        if (parsed.length > 0) {
+            if (isEdit) {
+                setEditErtakQuestions(prev => [...prev, ...parsed]);
+                setEditBulkQuestionsText('');
+            } else {
+                setErtakQuestions(prev => [...prev, ...parsed]);
+                setBulkQuestionsText('');
+            }
+            alert(`${parsed.length} ta savol-javob muvaffaqiyatli import qilindi!`);
+        } else {
+            alert("Matn formatini tekshiring. Savol va uning tagida 'Javob: ...' bo'lishi kerak.");
+        }
+    };
+
+    const handleBulkTestsImport = (isEdit = false) => {
+        const text = isEdit ? editBulkTestsText : bulkTestsText;
+        if (!text || !text.trim()) return;
+
+        const parts = text.split(/(?:^|\n)\s*\d+\s*[\.\)]\s*\n*/i);
+        const parsed = [];
+
+        for (const part of parts) {
+            if (!part.trim()) continue;
+            
+            const lines = part.split('\n').map(l => l.trim()).filter(Boolean);
+            if (lines.length < 2) continue;
+            
+            let question = "";
+            const options = [];
+            let correct = 0;
+            let foundQuestion = false;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const optMatch = line.match(/^([a-d])\s*[\)\.]\s*(.*)/i);
+                const correctMatch = line.match(/^(?:to['`‘vog]ri\s+)?javob\s*:\s*([a-d])/i);
+                
+                if (optMatch) {
+                    options.push(optMatch[2].trim());
+                } else if (correctMatch) {
+                    const letter = correctMatch[1].toUpperCase();
+                    correct = letter.charCodeAt(0) - 65; // 'A' -> 0, 'B' -> 1...
+                } else {
+                    if (!foundQuestion) {
+                        question = line;
+                        foundQuestion = true;
+                    } else {
+                        question += " " + line;
+                    }
+                }
+            }
+            
+            if (question && options.length > 0) {
+                while (options.length < 4) {
+                    options.push('');
+                }
+                parsed.push({
+                    question: question.trim(),
+                    options: options.slice(0, 4),
+                    correct: correct
+                });
+            }
+        }
+
+        if (parsed.length > 0) {
+            if (isEdit) {
+                setEditErtakTest(prev => [...prev, ...parsed]);
+                setEditBulkTestsText('');
+            } else {
+                setErtakTest(prev => [...prev, ...parsed]);
+                setBulkTestsText('');
+            }
+            alert(`${parsed.length} ta test muvaffaqiyatli import qilindi!`);
+        } else {
+            alert("Matn formatini tekshiring. Har bir test savoli, variantlari (A, B, C, D) va to'g'ri javobi ko'rsatilgan bo'lishi kerak.");
+        }
+    };
 
     const handleEditLesson = (lesson) => {
         setEditLesson(lesson);
@@ -196,6 +306,8 @@ export default function ContentPage() {
             content: ertak.content || ertak.story_text || ertak.body || ertak.description || '',
             language: ertak.language || 'uz',
             age_group: ertak.age_group || 'Barchasi',
+            questions_limit: ertak.questions_limit !== undefined && ertak.questions_limit !== null ? ertak.questions_limit : 3,
+            test_limit: ertak.test_limit !== undefined && ertak.test_limit !== null ? ertak.test_limit : '',
         });
         setEditErtakQuestions(ertak.questions || []);
         setEditErtakTest(ertak.test || []);
@@ -208,6 +320,8 @@ export default function ContentPage() {
             setError('');
             const payload = {
                 ...editErtakForm,
+                questions_limit: parseInt(editErtakForm.questions_limit) || 3,
+                test_limit: editErtakForm.test_limit ? parseInt(editErtakForm.test_limit) : null,
                 questions: editErtakQuestions.filter(q => q.question?.trim() && q.answer?.trim()),
                 test: editErtakTest.filter(t => t.question?.trim() && t.options?.every(o => o.trim()))
             };
@@ -479,10 +593,31 @@ export default function ContentPage() {
                             <Select label="Til" value={ertakForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setErtakForm({ ...ertakForm, language: v })} />
                             <Select label="Yosh guruhi" value={ertakForm.age_group} options={['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+']} onChange={(v) => setErtakForm({ ...ertakForm, age_group: v })} />
                         </div>
+                        <div className="grid grid-cols-2 gap-3 bg-gray-800/40 p-3 rounded-xl border border-gray-800">
+                            <div>
+                                <Input 
+                                    label="Savollar soni cheklovi (Min: 3)" 
+                                    type="number" 
+                                    value={ertakForm.questions_limit} 
+                                    onChange={(v) => setErtakForm({ ...ertakForm, questions_limit: parseInt(v) || 3 })} 
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">Quiz payti tasodifiy tanlab olinadigan savollar soni.</p>
+                            </div>
+                            <div>
+                                <Input 
+                                    label="Testlar soni cheklovi (Ixtiyoriy)" 
+                                    type="number" 
+                                    value={ertakForm.test_limit} 
+                                    placeholder="Barchasi"
+                                    onChange={(v) => setErtakForm({ ...ertakForm, test_limit: v })} 
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">Tasodifiy tanlab olinadigan testlar soni.</p>
+                            </div>
+                        </div>
 
                         {/* ── Savollar bo'limi ── */}
-                        <div className="border border-dashed border-gray-600 rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-3">
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
                                 <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
                                 <button
                                     type="button"
@@ -490,6 +625,27 @@ export default function ContentPage() {
                                     className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
                                 >
                                     <Plus className="w-3.5 h-3.5" /> Savol qo'shish
+                                </button>
+                            </div>
+
+                            {/* Savollarni matndan import qilish */}
+                            <div className="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+                                <label className="text-gray-300 text-xs font-medium block mb-1.5">
+                                    Matndan import qilish (Format: Savol? tagidan Javob: ...)
+                                </label>
+                                <textarea
+                                    value={bulkQuestionsText}
+                                    onChange={(e) => setBulkQuestionsText(e.target.value)}
+                                    rows={3}
+                                    placeholder={`Bolalar qayerga kelishdi?\nJavob: Bog'ga kelishdi.\nJasur nimani ko'rdi?\nJavob: Idishni ko'rdi.`}
+                                    className="w-full px-2.5 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 resize-none font-mono placeholder-gray-600"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleBulkQuestionsImport(false)}
+                                    className="w-full mt-2 py-1.5 bg-emerald-700/60 text-emerald-200 hover:bg-emerald-700 text-xs font-medium rounded-lg transition-colors border border-emerald-600/40"
+                                >
+                                    Savollarni import qilish
                                 </button>
                             </div>
 
@@ -526,8 +682,8 @@ export default function ContentPage() {
                         </div>
 
                         {/* ── Test bo'limi ── */}
-                        <div className="border border-dashed border-gray-600 rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-3">
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
                                 <p className="text-white text-sm font-semibold">📝 Ko'p tanlovli test (Multiple Choice)</p>
                                 <button
                                     type="button"
@@ -535,6 +691,27 @@ export default function ContentPage() {
                                     className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
                                 >
                                     <Plus className="w-3.5 h-3.5" /> Test qo'shish
+                                </button>
+                            </div>
+
+                            {/* Testlarni matndan import qilish */}
+                            <div className="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+                                <label className="text-gray-300 text-xs font-medium block mb-1.5">
+                                    Matndan import qilish (Format: 1. Savol?\nA) ... B) ... To'g'ri javob: B)
+                                </label>
+                                <textarea
+                                    value={bulkTestsText}
+                                    onChange={(e) => setBulkTestsText(e.target.value)}
+                                    rows={3}
+                                    placeholder={`1. Savol?\nA) Variant A\nB) Variant B\nTo'g'ri javob: B`}
+                                    className="w-full px-2.5 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500 resize-none font-mono placeholder-gray-600"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleBulkTestsImport(false)}
+                                    className="w-full mt-2 py-1.5 bg-blue-700/60 text-blue-200 hover:bg-blue-700 text-xs font-medium rounded-lg transition-colors border border-blue-600/40"
+                                >
+                                    Testlarni import qilish
                                 </button>
                             </div>
 
@@ -626,16 +803,58 @@ export default function ContentPage() {
                             <Select label="Til" value={editErtakForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setEditErtakForm({ ...editErtakForm, language: v })} />
                             <Select label="Yosh guruhi" value={editErtakForm.age_group} options={['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+']} onChange={(v) => setEditErtakForm({ ...editErtakForm, age_group: v })} />
                         </div>
+                        <div className="grid grid-cols-2 gap-3 bg-gray-800/40 p-3 rounded-xl border border-gray-800">
+                            <div>
+                                <Input 
+                                    label="Savollar soni cheklovi (Min: 3)" 
+                                    type="number" 
+                                    value={editErtakForm.questions_limit} 
+                                    onChange={(v) => setEditErtakForm({ ...editErtakForm, questions_limit: parseInt(v) || 3 })} 
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">Quiz payti tasodifiy tanlab olinadigan savollar soni.</p>
+                            </div>
+                            <div>
+                                <Input 
+                                    label="Testlar soni cheklovi (Ixtiyoriy)" 
+                                    type="number" 
+                                    value={editErtakForm.test_limit} 
+                                    placeholder="Barchasi"
+                                    onChange={(v) => setEditErtakForm({ ...editErtakForm, test_limit: v })} 
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">Tasodifiy tanlab olinadigan testlar soni.</p>
+                            </div>
+                        </div>
 
                         {/* ── Savollar bo'limi ── */}
-                        <div className="border border-dashed border-gray-600 rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-3">
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
                                 <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
                                 <button
                                     onClick={() => setEditErtakQuestions([...editErtakQuestions, { question: '', answer: '' }])}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
                                 >
                                     <Plus className="w-3.5 h-3.5" /> Savol qo'shish
+                                </button>
+                            </div>
+
+                            {/* Savollarni matndan import qilish (Edit Mode) */}
+                            <div className="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+                                <label className="text-gray-300 text-xs font-medium block mb-1.5">
+                                    Matndan import qilish (Format: Savol? tagidan Javob: ...)
+                                </label>
+                                <textarea
+                                    value={editBulkQuestionsText}
+                                    onChange={(e) => setEditBulkQuestionsText(e.target.value)}
+                                    rows={3}
+                                    placeholder={`Bolalar qayerga kelishdi?\nJavob: Bog'ga kelishdi.\nJasur nimani ko'rdi?\nJavob: Idishni ko'rdi.`}
+                                    className="w-full px-2.5 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 resize-none font-mono placeholder-gray-600"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleBulkQuestionsImport(true)}
+                                    className="w-full mt-2 py-1.5 bg-emerald-700/60 text-emerald-200 hover:bg-emerald-700 text-xs font-medium rounded-lg transition-colors border border-emerald-600/40"
+                                >
+                                    Savollarni import qilish
                                 </button>
                             </div>
 
@@ -680,8 +899,8 @@ export default function ContentPage() {
                         </div>
 
                         {/* ── Test bo'limi ── */}
-                        <div className="border border-dashed border-gray-600 rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-3">
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
                                 <p className="text-white text-sm font-semibold">📝 Ko'p tanlovli test (Multiple Choice)</p>
                                 <button
                                     type="button"
@@ -689,6 +908,27 @@ export default function ContentPage() {
                                     className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
                                 >
                                     <Plus className="w-3.5 h-3.5" /> Test qo'shish
+                                </button>
+                            </div>
+
+                            {/* Testlarni matndan import qilish (Edit Mode) */}
+                            <div className="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+                                <label className="text-gray-300 text-xs font-medium block mb-1.5">
+                                    Matndan import qilish (Format: 1. Savol?\nA) ... B) ... To'g'ri javob: B)
+                                </label>
+                                <textarea
+                                    value={editBulkTestsText}
+                                    onChange={(e) => setEditBulkTestsText(e.target.value)}
+                                    rows={3}
+                                    placeholder={`1. Savol?\nA) Variant A\nB) Variant B\nTo'g'ri javob: B`}
+                                    className="w-full px-2.5 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500 resize-none font-mono placeholder-gray-600"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleBulkTestsImport(true)}
+                                    className="w-full mt-2 py-1.5 bg-blue-700/60 text-blue-200 hover:bg-blue-700 text-xs font-medium rounded-lg transition-colors border border-blue-600/40"
+                                >
+                                    Testlarni import qilish
                                 </button>
                             </div>
 

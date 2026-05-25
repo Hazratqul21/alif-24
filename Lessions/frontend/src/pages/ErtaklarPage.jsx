@@ -5,7 +5,7 @@ if (typeof window !== 'undefined') {
     if (!window.global) { window.global = window; }
 }
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookMarked, Mic, Play, Square, X, BookOpen, ChevronRight, Volume2, RotateCcw, ChevronDown, CheckCircle2, Trophy } from 'lucide-react';
@@ -20,13 +20,26 @@ if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
 
 // ─── Quiz Modal ────────────────────────────────────────────────────────────────
 // ─── Phase 3: Multiple Choice Phase ──────────────────────────────────────────
-function MultipleChoicePhase({ test, onDone }) {
+function MultipleChoicePhase({ test, testLimit, onDone }) {
+    const shuffledTest = useMemo(() => {
+        if (!test || test.length === 0) return [];
+        let list = [...test];
+        for (let i = list.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [list[i], list[j]] = [list[j], list[i]];
+        }
+        if (testLimit !== undefined && testLimit !== null && testLimit > 0) {
+            return list.slice(0, testLimit);
+        }
+        return list;
+    }, [test, testLimit]);
+
     const [qIndex, setQIndex] = useState(0);
     const [selectedOption, setSelectedOption] = useState(null);
     const [correctCount, setCorrectCount] = useState(0);
 
-    const currentQ = test[qIndex];
-    const isLast = qIndex === test.length - 1;
+    const currentQ = shuffledTest[qIndex];
+    const isLast = qIndex === shuffledTest.length - 1;
 
     const handleOptionSelect = (idx) => {
         setSelectedOption(idx);
@@ -36,13 +49,13 @@ function MultipleChoicePhase({ test, onDone }) {
         if (selectedOption === null) return;
         
         let newCorrect = correctCount;
-        if (selectedOption === currentQ.correct) {
+        if (selectedOption === currentQ?.correct) {
             newCorrect += 1;
             setCorrectCount(newCorrect);
         }
 
         if (isLast) {
-            const finalScore = Math.round((newCorrect / test.length) * 100);
+            const finalScore = Math.round((newCorrect / shuffledTest.length) * 100);
             onDone(finalScore);
         } else {
             setSelectedOption(null);
@@ -54,11 +67,11 @@ function MultipleChoicePhase({ test, onDone }) {
         <div className="flex flex-col gap-5">
             {/* Progress */}
             <div className="flex items-center justify-between">
-                <p className="text-white/50 text-xs">Test {qIndex + 1} / {test.length}</p>
+                <p className="text-white/50 text-xs">Test {qIndex + 1} / {shuffledTest.length}</p>
                 <p className="text-white/40 text-xs">To'g'ri: {correctCount}</p>
             </div>
             <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all" style={{ width: `${(qIndex / test.length) * 100}%` }} />
+                <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all" style={{ width: `${(qIndex / shuffledTest.length) * 100}%` }} />
             </div>
 
             {/* Question */}
@@ -101,7 +114,16 @@ function MultipleChoicePhase({ test, onDone }) {
 
 // ─── Quiz Modal ────────────────────────────────────────────────────────────────
 function QuizModal({ ertak, onClose, readingStats = {} }) {
-    const questions = ertak.questions || [];
+    const questions = useMemo(() => {
+        if (!ertak.questions || ertak.questions.length === 0) return [];
+        let list = [...ertak.questions];
+        for (let i = list.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [list[i], list[j]] = [list[j], list[i]];
+        }
+        const limit = ertak.questions_limit !== undefined && ertak.questions_limit !== null ? ertak.questions_limit : 3;
+        return list.slice(0, Math.max(3, limit));
+    }, [ertak]);
     const hasQuestions = questions.length > 0;
     const hasTest = ertak.test && ertak.test.length > 0;
     
@@ -443,6 +465,7 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
                 {!submitting && step === 'test' && (
                     <MultipleChoicePhase
                         test={ertak.test || []}
+                        testLimit={ertak.test_limit}
                         onDone={(score) => {
                             setTestScore(score);
                             setStep('result');

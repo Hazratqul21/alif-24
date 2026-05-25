@@ -22,6 +22,9 @@ class Story(Base):
     questions = Column(JSON, nullable=True, default=lambda: [])
     # Test: [{"question": "...", "options": ["A","B","C","D"], "correct": 0}]
     test = Column(JSON, nullable=True, default=lambda: [])
+    # Savollar va testlar cheklovlari (random shaklda berilishi uchun)
+    questions_limit = Column(Integer, default=3, nullable=True)
+    test_limit = Column(Integer, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

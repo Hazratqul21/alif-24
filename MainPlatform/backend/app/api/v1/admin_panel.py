@@ -154,6 +154,8 @@ class StoryCreateRequest(BaseModel):
     image_url: Optional[str] = None
     questions: Optional[List[Dict[str, str]]] = None  # [{"question": "...", "answer": "..."}]
     test: Optional[List[Dict[str, Any]]] = None
+    questions_limit: Optional[int] = 3
+    test_limit: Optional[int] = None
 
 class StoryUpdateRequest(BaseModel):
     title: Optional[str] = None
@@ -164,6 +166,8 @@ class StoryUpdateRequest(BaseModel):
     image_url: Optional[str] = None
     questions: Optional[List[Dict[str, str]]] = None
     test: Optional[List[Dict[str, Any]]] = None
+    questions_limit: Optional[int] = None
+    test_limit: Optional[int] = None
 
 class StatsResponse(BaseModel):
     total_users: int
@@ -421,6 +425,8 @@ async def create_direct_story(
         image_url=data.image_url,
         questions=data.questions or [],
         test=data.test or [],
+        questions_limit=data.questions_limit,
+        test_limit=data.test_limit,
     )
     
     db.add(story)
@@ -471,6 +477,12 @@ async def update_direct_story(
 
     if data.test is not None:
         story.test = data.test
+
+    if data.questions_limit is not None:
+        story.questions_limit = data.questions_limit
+
+    if data.test_limit is not None:
+        story.test_limit = data.test_limit
     
     await db.commit()
     
