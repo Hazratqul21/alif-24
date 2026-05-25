@@ -59,6 +59,7 @@ class ErtakCreate(BaseModel):
     audio_url: Optional[str] = None
     image_url: Optional[str] = None
     questions: List[QuizQuestion] = []  # Admin tomonidan qo'shilgan savollar
+    test: Optional[List[dict]] = []
 
 
 class EvaluateQuizRequest(BaseModel):
@@ -94,6 +95,7 @@ def _ertak_to_dict(ertak: Story) -> dict:
         "image_url": getattr(ertak, 'image_url', None),
         "view_count": getattr(ertak, 'view_count', 0),
         "questions": getattr(ertak, 'questions', []) or [],
+        "test": getattr(ertak, 'test', []) or [],
         "created_at": ertak.created_at.isoformat() if getattr(ertak, 'created_at', None) else None,
     }
 
@@ -324,6 +326,7 @@ async def create_ertak(
         has_audio=data.has_audio,
         audio_url=data.audio_url,
         questions=[q.dict() for q in data.questions] if data.questions else [],
+        test=data.test or [],
     )
     db.add(ertak)
     await db.commit()

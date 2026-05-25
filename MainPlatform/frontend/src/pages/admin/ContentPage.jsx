@@ -16,6 +16,7 @@ export default function ContentPage() {
     const [lessonForm, setLessonForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
     const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
     const [ertakQuestions, setErtakQuestions] = useState([]); // [{question:'',answer:''}]
+    const [ertakTest, setErtakTest] = useState([]); // [{question:'',options:['','','',''],correct:0}]
     const [uploadFile, setUploadFile] = useState(null);
     const [uploadImage, setUploadImage] = useState(null);
     const [editLesson, setEditLesson] = useState(null); // lesson object to edit
@@ -24,6 +25,7 @@ export default function ContentPage() {
     const [editErtak, setEditErtak] = useState(null); // ertak object to edit
     const [editErtakForm, setEditErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
     const [editErtakQuestions, setEditErtakQuestions] = useState([]);
+    const [editErtakTest, setEditErtakTest] = useState([]);
 
     useEffect(() => { loadContent(); }, []);
 
@@ -92,7 +94,8 @@ export default function ContentPage() {
 
             const payload = {
                 ...ertakForm,
-                questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim())
+                questions: ertakQuestions.filter(q => q.question.trim() && q.answer.trim()),
+                test: ertakTest.filter(t => t.question.trim() && t.options.every(o => o.trim()))
             };
             if (uploadFile) {
                 const upRes = await adminService.uploadFile(uploadFile);
@@ -111,6 +114,7 @@ export default function ContentPage() {
             setCreateModal(null);
             setErtakForm({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
             setErtakQuestions([]);
+            setErtakTest([]);
             setUploadFile(null);
             setUploadImage(null);
             loadContent();
@@ -194,6 +198,7 @@ export default function ContentPage() {
             age_group: ertak.age_group || 'Barchasi',
         });
         setEditErtakQuestions(ertak.questions || []);
+        setEditErtakTest(ertak.test || []);
     };
 
     const handleUpdateErtak = async () => {
@@ -203,7 +208,8 @@ export default function ContentPage() {
             setError('');
             const payload = {
                 ...editErtakForm,
-                questions: editErtakQuestions.filter(q => q.question?.trim() && q.answer?.trim())
+                questions: editErtakQuestions.filter(q => q.question?.trim() && q.answer?.trim()),
+                test: editErtakTest.filter(t => t.question?.trim() && t.options?.every(o => o.trim()))
             };
             if (uploadFile) {
                 const upRes = await adminService.uploadFile(uploadFile);
@@ -216,6 +222,7 @@ export default function ContentPage() {
             await adminService.updateErtak(editErtak.id, payload);
             setEditErtak(null);
             setEditErtakQuestions([]);
+            setEditErtakTest([]);
             setUploadFile(null);
             setUploadImage(null);
             loadContent();
@@ -478,6 +485,7 @@ export default function ContentPage() {
                             <div className="flex items-center justify-between mb-3">
                                 <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
                                 <button
+                                    type="button"
                                     onClick={addQuestion}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
                                 >
@@ -493,7 +501,7 @@ export default function ContentPage() {
                                         <div key={i} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-gray-400 text-xs font-medium">{i + 1}-savol</span>
-                                                <button onClick={() => removeQuestion(i)} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                <button type="button" onClick={() => removeQuestion(i)} className="text-gray-600 hover:text-red-400 transition-colors">
                                                     <X className="w-3.5 h-3.5" />
                                                 </button>
                                             </div>
@@ -511,6 +519,71 @@ export default function ContentPage() {
                                                 placeholder="To'g'ri javob..."
                                                 className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
                                             />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ── Test bo'limi ── */}
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-white text-sm font-semibold">📝 Ko'p tanlovli test (Multiple Choice)</p>
+                                <button
+                                    type="button"
+                                    onClick={() => setErtakTest(prev => [...prev, { question: '', options: ['', '', '', ''], correct: 0 }])}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Test qo'shish
+                                </button>
+                            </div>
+
+                            {ertakTest.length === 0 ? (
+                                <p className="text-gray-500 text-xs text-center py-2">Hali test qo'shilmagan. "Test qo'shish" tugmasini bosing.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {ertakTest.map((t, idx) => (
+                                        <div key={idx} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative border border-gray-700">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-400 text-xs font-medium">{idx + 1}-test savoli</span>
+                                                <button type="button" onClick={() => setErtakTest(prev => prev.filter((_, i) => i !== idx))} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={t.question}
+                                                onChange={e => setErtakTest(prev => prev.map((q, i) => i === idx ? { ...q, question: e.target.value } : q))}
+                                                placeholder="Savol matni..."
+                                                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                                            />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {t.options.map((opt, optIdx) => (
+                                                    <input
+                                                        key={optIdx}
+                                                        type="text"
+                                                        value={opt}
+                                                        onChange={e => setErtakTest(prev => prev.map((q, i) => i === idx ? {
+                                                            ...q,
+                                                            options: q.options.map((o, oi) => oi === optIdx ? e.target.value : o)
+                                                        } : q))}
+                                                        placeholder={`${String.fromCharCode(65 + optIdx)} varianti...`}
+                                                        className="w-full px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div>
+                                                <label className="text-gray-400 text-[10px] block mb-1">To'g'ri javob varianti:</label>
+                                                <select
+                                                    value={t.correct}
+                                                    onChange={e => setErtakTest(prev => prev.map((q, i) => i === idx ? { ...q, correct: parseInt(e.target.value) } : q))}
+                                                    className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
+                                                >
+                                                    {t.options.map((_, optIdx) => (
+                                                        <option key={optIdx} value={optIdx}>{String.fromCharCode(65 + optIdx)} varianti</option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -600,6 +673,71 @@ export default function ContentPage() {
                                                 placeholder="To'g'ri javob..."
                                                 className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
                                             />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ── Test bo'limi ── */}
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-white text-sm font-semibold">📝 Ko'p tanlovli test (Multiple Choice)</p>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditErtakTest(prev => [...prev, { question: '', options: ['', '', '', ''], correct: 0 }])}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Test qo'shish
+                                </button>
+                            </div>
+
+                            {editErtakTest.length === 0 ? (
+                                <p className="text-gray-500 text-xs text-center py-2">Hali test qo'shilmagan. "Test qo'shish" tugmasini bosing.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {editErtakTest.map((t, idx) => (
+                                        <div key={idx} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative border border-gray-700">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-400 text-xs font-medium">{idx + 1}-test savoli</span>
+                                                <button type="button" onClick={() => setEditErtakTest(prev => prev.filter((_, i) => i !== idx))} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={t.question}
+                                                onChange={e => setEditErtakTest(prev => prev.map((q, i) => i === idx ? { ...q, question: e.target.value } : q))}
+                                                placeholder="Savol matni..."
+                                                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                                            />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {t.options?.map((opt, optIdx) => (
+                                                    <input
+                                                        key={optIdx}
+                                                        type="text"
+                                                        value={opt}
+                                                        onChange={e => setEditErtakTest(prev => prev.map((q, i) => i === idx ? {
+                                                            ...q,
+                                                            options: q.options.map((o, oi) => oi === optIdx ? e.target.value : o)
+                                                        } : q))}
+                                                        placeholder={`${String.fromCharCode(65 + optIdx)} varianti...`}
+                                                        className="w-full px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div>
+                                                <label className="text-gray-400 text-[10px] block mb-1">To'g'ri javob varianti:</label>
+                                                <select
+                                                    value={t.correct}
+                                                    onChange={e => setEditErtakTest(prev => prev.map((q, i) => i === idx ? { ...q, correct: parseInt(e.target.value) } : q))}
+                                                    className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
+                                                >
+                                                    {t.options?.map((_, optIdx) => (
+                                                        <option key={optIdx} value={optIdx}>{String.fromCharCode(65 + optIdx)} varianti</option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

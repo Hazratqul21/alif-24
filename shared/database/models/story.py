@@ -20,6 +20,8 @@ class Story(Base):
     view_count = Column(Integer, default=0)
     # Savollar: [{"question": "...", "answer": "..."}]
     questions = Column(JSON, nullable=True, default=lambda: [])
+    # Test: [{"question": "...", "options": ["A","B","C","D"], "correct": 0}]
+    test = Column(JSON, nullable=True, default=lambda: [])
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -38,6 +40,7 @@ class StoryReadingRecord(Base):
     # Natija ma'lumotlari (ixtiyoriy)
     wpm = Column(Integer, nullable=True)
     quiz_score = Column(Integer, nullable=True)
+    test_score = Column(Integer, nullable=True)
     
     completed_at = Column(DateTime(timezone=True), server_default=func.now())
 

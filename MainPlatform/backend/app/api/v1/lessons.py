@@ -1,5 +1,6 @@
 import logging
 from typing import Optional, List, Any, Dict
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func, or_
@@ -40,6 +41,7 @@ class StoryCreate(BaseModel):
     audio_url: Optional[str] = None
     image_url: Optional[str] = None
     questions: Optional[List[Dict[str, str]]] = None
+    test: Optional[List[Dict[str, Any]]] = None
 
 class StoryUpdate(BaseModel):
     title: Optional[str] = None
@@ -49,6 +51,7 @@ class StoryUpdate(BaseModel):
     audio_url: Optional[str] = None
     image_url: Optional[str] = None
     questions: Optional[List[Dict[str, str]]] = None
+    test: Optional[List[Dict[str, Any]]] = None
 
 async def get_teacher_profile_local(user: User, db: AsyncSession) -> TeacherProfile:
     if user.role != UserRole.teacher:
@@ -74,6 +77,7 @@ def story_dict(s: Story):
         "image_url": s.image_url,
         "view_count": s.view_count,
         "questions": s.questions or [],
+        "test": s.test or [],
         "created_at": s.created_at.isoformat() if s.created_at else None,
         "updated_at": s.updated_at.isoformat() if s.updated_at else None,
     }
@@ -365,7 +369,8 @@ async def create_teacher_story(
         age_group=data.age_group,
         audio_url=data.audio_url,
         image_url=data.image_url,
-        questions=data.questions or []
+        questions=data.questions or [],
+        test=data.test or []
     )
     if data.audio_url:
         story.has_audio = True
@@ -501,6 +506,7 @@ async def get_my_library(
         s_dict['reading_record'] = {
             "wpm": record.wpm,
             "quiz_score": record.quiz_score,
+            "test_score": record.test_score,
             "completed_at": record.completed_at.isoformat() if record.completed_at else None
         }
         data.append(s_dict)
@@ -533,11 +539,13 @@ async def record_story_completion(
     
     wpm = data.get("wpm")
     quiz_score = data.get("quiz_score")
+    test_score = data.get("test_score")
     
     if record:
         # Mavjud bo'lsa yangilaymiz
         if wpm is not None: record.wpm = int(wpm)
         if quiz_score is not None: record.quiz_score = int(quiz_score)
+        if test_score is not None: record.test_score = int(test_score)
         record.completed_at = datetime.now(timezone.utc)
     else:
         # Yangi yaratamiz
@@ -545,7 +553,8 @@ async def record_story_completion(
             student_user_id=current_user.id,
             story_id=story_id,
             wpm=int(wpm) if wpm is not None else 0,
-            quiz_score=int(quiz_score) if quiz_score is not None else 0
+            quiz_score=int(quiz_score) if quiz_score is not None else 0,
+            test_score=int(test_score) if test_score is not None else 0
         )
         db.add(record)
         

@@ -636,6 +636,7 @@ class ErtakSubmission(BaseModel):
     reading_time_seconds: int = 0
     quiz_scores: List[dict] = []
     quiz_average: float = 0
+    test_score: Optional[int] = 0
 
 @router.post("/students/assignments/{assignment_id}/submit-ertak")
 async def submit_ertak_assignment(
@@ -681,13 +682,14 @@ async def submit_ertak_assignment(
         "reading_time_seconds": data.reading_time_seconds,
         "answers": data.quiz_scores,
         "quiz_score": data.quiz_average,
+        "test_score": data.test_score,
     }
     submission.content = json.dumps(summary)
     submission.score = data.quiz_average
     submission.status = SubmissionStatus.graded
     submission.submitted_at = datetime.now(timezone.utc)
     submission.graded_at = datetime.now(timezone.utc)
-    submission.feedback = f"Ertak o'qildi. WPM: {data.wpm}, Quiz: {data.quiz_average}%"
+    submission.feedback = f"Ertak o'qildi. WPM: {data.wpm}, Quiz: {data.quiz_average}%, Test: {data.test_score}%"
 
     # 2. StoryReadingRecord yaratish yoki yangilash (Kutubxonaga tushishi uchun)
     existing_record_res = await db.execute(
@@ -698,16 +700,17 @@ async def submit_ertak_assignment(
     )
     record = existing_record_res.scalars().first()
     if record:
-        # Mavjud bo'lsa yangilaymiz (agar yangi ball yuqoriroq bo'lsa yoki har doim - bu mantiq sizga bog'liq)
         record.wpm = data.wpm
         record.quiz_score = int(data.quiz_average)
+        record.test_score = int(data.test_score) if data.test_score is not None else 0
         record.updated_at = datetime.now(timezone.utc)
     else:
         record = StoryReadingRecord(
             student_user_id=current_user.id,
             story_id=story_id,
             wpm=data.wpm,
-            quiz_score=int(data.quiz_average)
+            quiz_score=int(data.quiz_average),
+            test_score=int(data.test_score) if data.test_score is not None else 0
         )
         db.add(record)
 
@@ -939,6 +942,7 @@ class ErtakSubmission(BaseModel):
     reading_time_seconds: int = 0
     quiz_scores: Optional[List[dict]] = []   # [{score, recognized, correct, passed}]
     quiz_average: int = 0                    # 0-100
+    test_score: Optional[int] = 0
 
 
 @router.post("/students/assignments/{assignment_id}/submit-ertak")
@@ -978,7 +982,16 @@ async def submit_ertak_assignment(
     # Score hisoblash: o'qish (10 ball fixed) + quiz (max_score ga proporsional)
     max_score = assignment.max_score or 100
     reading_points = 10  # har doim 10 ball (o'qish uchun)
-    quiz_points = round((data.quiz_average / 100) * (max_score - reading_points)) if data.quiz_average else 0
+
+    # Calculate comprehensive quiz average (including MC test)
+    quiz_avg_val = data.quiz_average
+    if data.test_score is not None:
+        if quiz_avg_val > 0:
+            quiz_avg_val = (quiz_avg_val + data.test_score) / 2
+        else:
+            quiz_avg_val = data.test_score
+
+    quiz_points = round((quiz_avg_val / 100) * (max_score - reading_points)) if quiz_avg_val else 0
     total_score = min(reading_points + quiz_points, max_score)
 
     import json
@@ -987,6 +1000,7 @@ async def submit_ertak_assignment(
         "read_percent": data.read_percent,
         "reading_time_seconds": data.reading_time_seconds,
         "quiz_average": data.quiz_average,
+        "test_score": data.test_score,
         "quiz_scores": data.quiz_scores or [],
         "reading_points": reading_points,
         "quiz_points": quiz_points,
@@ -1000,13 +1014,14 @@ async def submit_ertak_assignment(
     submission.graded_at = datetime.now(timezone.utc)
     submission.feedback = (
         f"Ertak o'qish: {data.wpm} so'z/daq, {data.read_percent}% o'qildi. "
-        f"Savol-javob: {data.quiz_average}/100. "
+        f"Savol-javob: {data.quiz_average}/100, Test: {data.test_score}/100. "
         f"Umumiy ball: {total_score}/{max_score}"
     )
     submission.meta_data = {
         "wpm": data.wpm,
         "read_percent": data.read_percent,
         "quiz_average": data.quiz_average,
+        "test_score": data.test_score,
         "total_score": total_score,
     }
 
@@ -1067,12 +1082,19 @@ async def submit_ertak_assignment(
                     StoryReadingRecord.story_id == assignment.reference_id
                 )
             )
-            if not exist_rec.scalars().first():
+            record = exist_rec.scalars().first()
+            if record:
+                record.wpm = data.wpm
+                record.quiz_score = int(data.quiz_average)
+                record.test_score = int(data.test_score) if data.test_score is not None else 0
+                record.updated_at = datetime.now(timezone.utc)
+            else:
                 db.add(StoryReadingRecord(
                     student_user_id=current_user.id,
                     story_id=assignment.reference_id,
                     wpm=data.wpm,
-                    quiz_score=data.quiz_average
+                    quiz_score=data.quiz_average,
+                    test_score=data.test_score if data.test_score is not None else 0
                 ))
     except Exception as e:
         logger.warning(f"Failed to create StoryReadingRecord in assignment: {e}")

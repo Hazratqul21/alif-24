@@ -1127,6 +1127,11 @@ const StudentDashboard = () => {
                                                             <Trophy size={10} className="text-amber-400" /> {record.quiz_score}
                                                         </div>
                                                     )}
+                                                    {record.test_score > 0 && (
+                                                        <div className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm font-bold flex items-center gap-1">
+                                                            <CheckCircle size={10} className="text-indigo-400" /> {record.test_score}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

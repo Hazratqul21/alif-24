@@ -153,6 +153,7 @@ class StoryCreateRequest(BaseModel):
     audio_url: Optional[str] = None
     image_url: Optional[str] = None
     questions: Optional[List[Dict[str, str]]] = None  # [{"question": "...", "answer": "..."}]
+    test: Optional[List[Dict[str, Any]]] = None
 
 class StoryUpdateRequest(BaseModel):
     title: Optional[str] = None
@@ -162,6 +163,7 @@ class StoryUpdateRequest(BaseModel):
     audio_url: Optional[str] = None
     image_url: Optional[str] = None
     questions: Optional[List[Dict[str, str]]] = None
+    test: Optional[List[Dict[str, Any]]] = None
 
 class StatsResponse(BaseModel):
     total_users: int
@@ -386,10 +388,13 @@ async def list_direct_stories(
             {
                 "id": s.id,
                 "title": s.title,
+                "content": s.content,
                 "language": s.language,
                 "age_group": s.age_group,
                 "audio_url": s.audio_url,
                 "image_url": s.image_url,
+                "questions": s.questions or [],
+                "test": s.test or [],
                 "created_at": s.created_at.isoformat() if s.created_at else None,
             }
             for s in stories
@@ -415,6 +420,7 @@ async def create_direct_story(
         audio_url=data.audio_url,
         image_url=data.image_url,
         questions=data.questions or [],
+        test=data.test or [],
     )
     
     db.add(story)
@@ -462,6 +468,9 @@ async def update_direct_story(
 
     if data.questions is not None:
         story.questions = data.questions
+
+    if data.test is not None:
+        story.test = data.test
     
     await db.commit()
     
