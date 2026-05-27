@@ -50,6 +50,10 @@ class QuizQuestion(BaseModel):
     answer: str = Field(..., min_length=1)  # To'g'ri javob
 
 
+class QuestionsUpdate(BaseModel):
+    questions: List[QuizQuestion]
+
+
 class ErtakCreate(BaseModel):
     """Ertak (Fairy tale / Story) for reading"""
     title: str = Field(..., min_length=3, max_length=200)
@@ -574,9 +578,6 @@ async def complete_book_reading(
 
 
 # ============= Ertak Savollar (Quiz Questions) =============
-
-class QuestionsUpdate(BaseModel):
-    questions: List[QuizQuestion]
 
 
 @router.put("/ertaklar/{ertak_id}/questions")
