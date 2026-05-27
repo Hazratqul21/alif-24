@@ -12,7 +12,7 @@ RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @workspace/mahalla-kutubxona run build
 
 FROM nginx:alpine
-COPY --from=builder /app/artifacts/mahalla-kutubxona/dist /usr/share/nginx/html
+COPY --from=builder /app/artifacts/mahalla-kutubxona/dist/public /usr/share/nginx/html
 
 RUN echo 'server { \
     listen 80; \
