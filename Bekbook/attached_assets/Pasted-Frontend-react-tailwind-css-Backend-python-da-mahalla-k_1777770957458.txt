@@ -1,0 +1,300 @@
+Frontend react+tailwind css, Backend python da mahalla kutubxonasi platformasi yasash kerak unda men ro'yxatdan o'tib kiraman (profilimda men turgan joy ham kiritish funksiyasini qo'shish kerak) va o'zimda mavjud kitobni sotuvga, bepul berishga, yoki vaqtincha berishga e'lon berishim mumkin (OLX platformasiga o'xshash), keyingi funksiya kutubxona yoki kitob magazin ochish imkonini qo'shish kerak, ya'ni meni profilimda alohida tugma bo'lsin unda kutubxona qo'shish tugmasi bo'lsin u tugmani bossa kutubxona yoki kitob magazini uchun kerak bo'ladigan ma'lumotlar to'ldirilishi kerak. e'lonlar turgan sahifada xarita degan tugma qushish kerak uni bossa xaritaga o'tishi kerak ya'ni o'zim turgan joyga yaqin joylarda sotuvga (bepul va vaqtincha berishga) quyilgan kitoblarni va kutubxona (kitob do'kon)larni tezroq topish uchun bepul Xarita qo'shish kerak va unda e'lon beruvchi joylashgan joyni ko'rsatishi lozim oddiy userlarga bu majburiy bo'lmasligi kerak, kutubxona (kitob dukonlarga) joylashgan joyini ko'rsatish majburiy bo'lishi kerakG‘oya yaxshi — bu aslida OLX + mini-ecosystem (userlar + kutubxonalar + xarita) bo‘ladi. Lekin bitta muammo bor: buni “shunchaki yozib chiqish” emas, to‘g‘ri arxitektura bilan boshlamasang, keyin o‘zing chalkashib ketasan. Shuning uchun men senga **real ishlab chiqiladigan, kengayadigan loyiha rejasini** beraman.
+
+---
+
+# 🔥 1. Asosiy konsept (Product mindset)
+
+Platforma 3 ta asosiy rolga ega:
+
+1. **Oddiy user**
+
+   * kitob joylaydi (sotish / bepul / vaqtincha)
+   * boshqa e’lonlarni ko‘radi
+   * xaritada yaqinlarini topadi
+
+2. **Kutubxona / Do‘kon egasi**
+
+   * o‘z “store” profilini yaratadi
+   * kitoblar katalogini joylaydi
+   * lokatsiya majburiy
+
+3. **Admin (keyin qo‘shiladi)**
+
+   * spam nazorat
+   * userlarni bloklash
+   * e’lonlarni tekshirish
+
+---
+
+# 🧠 2. Texnologik stack (senga mos optimal variant)
+
+### Frontend
+
+* React (Vite yoki Next.js)
+* Tailwind CSS
+* Zustand yoki Redux (state)
+* React Query (API uchun)
+* Leaflet.js (bepul xarita uchun 🔥)
+
+### Backend
+
+* Python → FastAPI (eng yaxshi tanlov)
+* PostgreSQL
+* SQLAlchemy ORM
+* JWT Auth
+
+### Qo‘shimcha
+
+* Cloudinary (rasmlar uchun)
+* Docker (deploy uchun)
+* Nginx (production)
+
+---
+
+# 🧱 3. Database dizayn (eng muhim qism)
+
+### USERS
+
+* id
+* name
+* phone/email
+* password
+* location (lat, lng)
+* role (user / seller)
+
+---
+
+### BOOKS (e’lonlar)
+
+* id
+* title
+* description
+* type (sell / free / rent)
+* price (optional)
+* image
+* user_id
+* location (lat, lng)
+* created_at
+
+---
+
+### STORES (kutubxona/do‘kon)
+
+* id
+* name
+* description
+* address
+* lat
+* lng
+* owner_id
+
+---
+
+### STORE_BOOKS
+
+* id
+* store_id
+* title
+* price
+* stock
+* image
+
+---
+
+# 🧩 4. Asosiy funksiyalar (to‘liq breakdown)
+
+## 🔐 Auth tizimi
+
+* Register / Login
+* JWT token
+* Profile edit
+
+👉 Qo‘shimcha:
+
+* telefon orqali login (keyinchalik)
+
+---
+
+## 👤 Profil
+
+* ism
+* rasm
+* joylashuv (map orqali tanlash)
+* mening e’lonlarim
+* mening kutubxonam
+
+👉 UX:
+
+* “Joylashuvni tanlash” tugmasi → map ochiladi
+
+---
+
+## 📚 E’lon berish (core feature)
+
+Form:
+
+* kitob nomi
+* rasm
+* tavsif
+* turini tanlash:
+
+  * sotiladi
+  * bepul
+  * vaqtincha
+* narx (faqat sotuvda)
+* location (optional user uchun)
+
+👉 Juda muhim:
+
+* 1 user ko‘p e’lon berishi mumkin
+
+---
+
+## 🏪 Kutubxona qo‘shish
+
+Profil ichida:
+👉 “Kutubxona qo‘shish” tugmasi
+
+Form:
+
+* nomi
+* tavsif
+* manzil (majburiy)
+* xaritada tanlash (majburiy)
+
+👉 Qo‘shimcha:
+
+* ochilgan vaqti
+* telefon
+
+---
+
+## 🗺️ Xarita funksiyasi (killer feature)
+
+### Texnologiya:
+
+* Leaflet.js (bepul 🔥)
+
+### Funksiya:
+
+* user joylashuvi olinadi
+* yaqin e’lonlar ko‘rsatiladi
+* store lar ko‘rsatiladi
+
+### Markerlar:
+
+* 📘 kitob e’lon
+* 🏪 kutubxona
+
+👉 Filter:
+
+* faqat bepul
+* faqat sotuv
+* radius (5km, 10km)
+
+---
+
+## 🔎 Qidiruv va filter
+
+* kitob nomi
+* kategoriya (keyin qo‘sh)
+* narx
+* masofa
+
+---
+
+## 💬 Chat (keyinchalik qo‘sh)
+
+* user → user yozadi
+* WebSocket (FastAPI + Redis)
+
+---
+
+## ⭐ Rating system
+
+* store lar uchun
+* userlar baho beradi
+
+---
+
+## 🚨 Moderatsiya
+
+* report button
+* admin panel
+
+---
+
+# ⚙️ 5. Backend API dizayn
+
+### Auth
+
+* POST /register
+* POST /login
+
+### User
+
+* GET /me
+* PUT /me
+
+### Books
+
+* POST /books
+* GET /books
+* GET /books/{id}
+
+### Stores
+
+* POST /stores
+* GET /stores
+
+### Map
+
+* GET /nearby?lat=...&lng=...
+
+---
+
+# 🎨 6. Frontend sahifalar
+
+1. Home (e’lonlar list)
+2. Book detail
+3. Add book
+4. Profile
+5. Add store
+6. Store page
+7. Map page
+
+---
+
+# 🚀 7. Development bosqichlari (MUHIM)
+
+### 1-bosqich (MVP)
+
+* Auth
+* E’lon qo‘shish
+* E’lonlar listi
+
+### 2-bosqich
+
+* Location
+* Map
+* Nearby search
+
+### 3-bosqich
+
+* Store qo‘shish
+* Store sahifa
+
+### 4-bosqich
+
+* Chat
+* Rating
+
+---
+
+# 💡 8. Kuchli qo‘shimcha g‘oyalar
+
+* 📖 “Kitob almashish” (swap)
+* 📦 yetkazib berish (delivery)
+* 🎯 AI tavsiya (qaysi kitob yoqishi mumkin)
+* 🔔 notification
+* 📊 trending books

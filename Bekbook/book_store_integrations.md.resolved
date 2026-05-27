@@ -1,0 +1,165 @@
+# Avtomatik Kitob Integratsiyasi va Sinxronizatsiya Tizimi
+
+Ushbu hujjatda tashqi kitob do'konlari (Asaxiy, Hilolnashr, Book.uz, Qamar va boshqalar) o'z veb-saytlaridagi kitoblarni, narxlarini, rasmlarini va qolgan ma'lumotlarini bizning platformamizga (Mahalla-Web) avtomatik sinxronizatsiya qilishi uchun texnik yechimlar va tizim arxitekturasi batafsil bayon etilgan.
+
+---
+
+## 1. Integratsiya Usullari (Integration Methods)
+
+Do'konlar o'z saytlarini ulashlari va kitoblarni avtomatik yuklashlari uchun 4 xil asosiy usuldan foydalanish mumkin. Ushbu usullar do'konning texnik imkoniyatlaridan kelib chiqib tanlanadi.
+
+### Usul A: XML / YML / JSON Feed orqali sinxronizatsiya (Tavsiya etiladi)
+Aksariyat elektron tijorat saytlarida (ayniqsa, Yandex Market, Google Merchant yoki Facebook Catalog uchun) tayyor mahsulotlar ro'yxati (Feed) bo'ladi.
+* **Qanday ishlaydi:** Do'kon egasi o'z saytidagi Feed manzilini (masalan: `https://asaxiy.uz/feeds/books.xml`) platformamizga kiritadi.
+* **Afzalliklari:**
+  * Juda tez va standartlashtirilgan.
+  * Tizimga yuklama kam tushadi.
+  * Narxlar va qoldiqlar (stock) har kuni avtomatik yangilanib turadi.
+* **Ishlash tartibi:**
+```mermaid
+sequenceDiagram
+    participant Merchant as Do'kon Egasi
+    participant Server as Bizning Server
+    participant Feed as Do'kon XML/JSON Feedi
+    participant DB as Ma'lumotlar Bazasi
+
+    Merchant->>Server: XML/JSON Feed havolasini kiritadi (e.g., asaxiy.uz/feed.xml)
+    loop Har tun yoki Har X soatda (Cron Job)
+        Server->>Feed: HTTP GET so'rov yuboradi
+        Feed-->>Server: XML/JSON ma'lumotlarni qaytaradi
+        Server->>Server: Ma'lumotlarni parser qiladi va formatlaydi
+        Server->>DB: Yangi kitoblarni qo'shadi, borlarini yangilaydi (price, stock)
+    end
+```
+
+### Usul B: Tayyor CMS Integratsiyalari (WooCommerce, Shopify, OpenCart va boshqalar)
+O'zbekistondagi ko'plab kitob do'konlari WooCommerce (WordPress) yoki OpenCart platformalarida ishlaydi.
+* **Qanday ishlaydi:** Do'kon egasi o'z saytining API kalitlarini (Read-only Consumer Key & Secret) kiritadi. Platformamiz ushbu API orqali do'kon mahsulotlarini pull qiladi (yuklab oladi).
+* **Afzalliklari:** Narxlar va qoldiqlar real-vaqtda yoki har bir necha soatda toza sinxronizatsiya qilinadi.
+
+### Usul C: Web Scraping / Parsing (API yoki Feed bo'lmaganda fallback usul)
+Agar do'konda Feed yoki API bo'lmasa, lekin ular kitoblarini qo'lda kiritishni xohlamasa.
+* **Qanday ishlaydi:** Biz har bir do'kon uchun alohida "scraper" (Puppeteer, Playwright yoki Cheerio kutubxonalari yordamida) yozamiz. Ushbu skript do'kon saytiga kirib, kitob sahifalaridan ma'lumotlarni yig'ib oladi.
+* **Kamchiliklari:**
+  * Agar Asaxiy yoki boshqa sayt dizaynini o'zgartirsa, scraper buziladi va kodni yangilash kerak bo'ladi.
+  * Cloudflare yoki boshqa anti-bot tizimlari skriptni bloklab qo'yishi mumkin.
+
+### Usul D: Excel / CSV orqali ommaviy yuklash (Bulk Upload)
+Do'kon egasi o'z saytidan (yoki 1C dasturidan) mahsulotlar ro'yxatini Excel formatida yuklab oladi va bizning platformamizga import qiladi.
+* **Afzalliklari:** 100% ishonchli va dasturchi aralashuvisiz ishlaydi.
+
+---
+
+## 2. Filiallar bilan Ishlash (Asaxiy Darxon, Chorsu, Novza va h.k.)
+
+Bitta brendning bir nechta filiali bo'lsa (masalan, Asaxiy Novza, Asaxiy Darxon) inventarni to'g'ri taqsimlash kerak. Buning uchun quyidagi yondashuvlardan foydalanamiz:
+
+1. **Aloqador Filiallar Tizimi:**
+   * Platformada bitta asosiy do'kon profili (Parent Store - "Asaxiy Book") va uning filiallari (Sub-stores/Branches) bo'ladi.
+   * `storesTable` jadvalida har bir filial alohida `storeId`ga ega bo'ladi.
+2. **Inventarni bog'lash:**
+   * **Bitta umumiy feed orqali:** Agar XML feedda filiallar bo'yicha qoldiqlar ajratilgan bo'lsa (masalan: `<stock_novza>10</stock_novza>`, `<stock_darxon>5</stock_novza>`), biz ularni tegishli filial bazasiga yozamiz.
+   * **Alohida ulanish orqali:** Har bir filial (Chorsu, Novza) o'ziga tegishli API/Feed havolasini ulaydi. Biz ma'lumotlarni o'sha filialning `storeId`si bilan bazaga yozamiz.
+
+---
+
+## 3. Texnik Amalga Oshirish (Implementation Details)
+
+### 3.1 Ma'lumotlar Bazasi Modeli
+Sinxronizatsiya sozlamalarini saqlash uchun bazada yangi `store_integrations` jadvalini yaratishimiz kerak.
+
+```typescript
+// @workspace/db ichida yangi jadval strukturasi
+export const storeIntegrationsTable = pgTable("store_integrations", {
+  id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
+  type: text("type").notNull(), // 'xml_feed', 'woocommerce', 'shopify', 'scraper'
+  feedUrl: text("feed_url"),
+  apiKey: text("api_key"),
+  apiSecret: text("api_secret"),
+  syncIntervalHours: integer("sync_interval_hours").default(24),
+  lastSyncAt: timestamp("last_sync_at"),
+  status: text("status").default("active"), // 'active', 'paused', 'error'
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+```
+
+### 3.2 Sinxronizatsiya Servisi (Background Sync Service)
+Orqa fonda (background) ishlaydigan va vaqti-vaqti bilan barcha integratsiyalarni yangilab turadigan servis:
+
+```typescript
+import axios from "axios";
+import { XMLParser } from "fast-xml-parser";
+import { db, storeBooksTable, storeIntegrationsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+
+export async function syncStoreBooks(integrationId: number) {
+  const [integration] = await db
+    .select()
+    .from(storeIntegrationsTable)
+    .where(eq(storeIntegrationsTable.id, integrationId))
+    .limit(1);
+
+  if (!integration || integration.status !== "active") return;
+
+  try {
+    if (integration.type === "xml_feed" && integration.feedUrl) {
+      // 1. XML XML Feedni yuklab olish
+      const response = await axios.get(integration.feedUrl);
+      const parser = new XMLParser();
+      const jsonObj = parser.parse(response.data);
+
+      // 2. Kitoblarni olish va map qilish (standart formatga o'tkazish)
+      const externalBooks = jsonObj.yml_catalog?.shop?.offers?.offer || [];
+      
+      for (const item of externalBooks) {
+        const bookData = {
+          storeId: integration.storeId,
+          title: item.name,
+          author: item.author || "Noma'lum",
+          description: item.description || "",
+          price: parseFloat(item.price) || 0,
+          stock: parseInt(item.quantity) || 0,
+          isbn: item.isbn || null,
+          image: item.picture || null,
+          // Boshqa kerakli atributlar...
+        };
+
+        // 3. Bazaga Upsert qilish (Borini yangilash, yo'g'ini qo'shish)
+        await db
+          .insert(storeBooksTable)
+          .values(bookData)
+          .onConflictDoUpdate({
+            target: [storeBooksTable.storeId, storeBooksTable.isbn], // ISBN bo'yicha moslik
+            set: {
+              price: bookData.price,
+              stock: bookData.stock,
+              description: bookData.description,
+              image: bookData.image,
+            }
+          });
+      }
+
+      // Integratsiya holatini yangilash
+      await db
+        .update(storeIntegrationsTable)
+        .set({ lastSyncAt: new Date(), errorMessage: null })
+        .where(eq(storeIntegrationsTable.id, integrationId));
+    }
+  } catch (error: any) {
+    await db
+      .update(storeIntegrationsTable)
+      .set({ errorMessage: error.message, status: "error" })
+      .where(eq(storeIntegrationsTable.id, integrationId));
+  }
+}
+```
+
+---
+
+## 4. Keyingi Qadamlar va Xulosa
+
+1. **XML/YML formatini kelishish:** Platformangiz uchun bitta standart Feed formatini belgilab olasiz. Yangi ulanmoqchi bo'lgan do'konlarga (Asaxiy, Hilolnashr va boshqalar) shu formatdagi faylni taqdim etishini so'raysiz.
+2. **Kichik tajriba (MVP) o'tkazish:** Birinchi bosqichda bitta do'konning (masalan, Asaxiy) XML feed havolasini olib, uni test rejimida platformangizga import qilib ko'rish kerak.
+3. **Qurilma (Cron / Queue):** Serverda har 12 yoki 24 soatda ishlaydigan `cron job`ni sozlash kerak.

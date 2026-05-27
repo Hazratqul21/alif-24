@@ -1,0 +1,409 @@
+# “Mahalla Kutubxonasi” — O‘zbekiston uchun yagona raqamli kitob ekotizimi
+
+## Loyiha haqida
+
+“Mahalla Kutubxonasi” — bu odamlar, maktablar, kutubxonalar, ota-onalar, kitob do‘konlari va nashriyotlarni bitta raqamli platformada birlashtiruvchi zamonaviy kitob ekotizimi.
+
+Platformaning asosiy maqsadi:
+
+* kitoblarni odamlar orasida erkin aylantirish,
+* kutubxonalarni raqamlashtirish,
+* o‘quvchilarning kitobga qiziqishini oshirish,
+* ota-onalarga farzandining rivojlanishini kuzatish imkonini berish,
+* maktab va nashriyotlarni yagona tizimga ulashdir.
+
+Bu loyiha oddiy marketplace emas.
+
+Bu:
+
+> “Mahalliy va ta’limiy kitob infratuzilmasini raqamlashtiruvchi platforma.”
+
+---
+
+# Platforma nima muammoni yechadi?
+
+## 📚 1. Uyda foydalanilmayotgan kitoblar muammosi
+
+Ko‘pchilik insonlarda:
+
+* o‘qib bo‘lingan,
+* foydalatilmayotgan,
+* chang bosib yotgan kitoblar mavjud.
+
+Ammo:
+
+* uni kimga berishni bilmaydi,
+* sotishga yoki ulashishga qulay tizim yo‘q.
+
+Platforma bu kitoblarni boshqa o‘quvchilarga yetkazadi.
+
+Foydalanuvchilar:
+
+* kitob sotishi,
+* bepul berishi,
+* vaqtincha foydalanishga berishi,
+* almashishi mumkin bo‘ladi.
+
+---
+
+## 📍 2. Kerakli kitobni topish qiyinligi
+
+Ko‘pchilik:
+
+* kerakli kitob qayerda borligini bilmaydi,
+* yaqinidagi kutubxonani topolmaydi,
+* qaysi do‘konda mavjudligini bilmaydi.
+
+Platforma xarita orqali:
+
+* eng yaqin kitoblarni,
+* kutubxonalarni,
+* kitob do‘konlarini
+
+ko‘rsatadi.
+
+Masalan:
+
+> “Sizdan 500 metr uzoqlikda ingliz tili kitobi mavjud.”
+
+---
+
+## 🏫 3. Maktab kutubxonalarining raqamlashtirilmaganligi
+
+Hozirgi kunda ko‘plab maktab kutubxonalari:
+
+* qog‘oz daftar,
+* Excel,
+* eski tizimlarda ishlaydi.
+
+Ota-onalar esa:
+
+* maktab kutubxonasida qanday kitoblar borligini bilmaydi,
+* farzandiga nima tavsiya qilishni tushunmaydi.
+
+Platforma maktab kutubxonalarini raqamlashtiradi.
+
+Natijada:
+
+* ota-onalar katalogni ko‘radi,
+* o‘quvchilar online qidiradi,
+* kitob rezerv qiladi,
+* kutubxona boshqaruvi avtomatlashtiriladi.
+
+---
+
+## 👨‍👩‍👧 4. Ota-onalar nazoratining yo‘qligi
+
+Ko‘pchilik ota-onalar:
+
+* farzandi nima o‘qiyotganini,
+* qancha o‘qiyotganini,
+* qanday rivojlanayotganini bilmaydi.
+
+Platforma ota-onalar uchun maxsus panel yaratadi.
+
+Ular:
+
+* o‘qilgan kitoblar,
+* reading progress,
+* tavsiya etilgan kitoblar,
+* test natijalari
+
+ni kuzatishi mumkin bo‘ladi.
+
+---
+
+## 📖 5. O‘quvchilarning kitobga qiziqishi pasaygani
+
+Platformada:
+
+* challenge,
+* badge,
+* reyting,
+* reading streak,
+* top readers,
+* gamification
+
+orqali kitob o‘qish qiziqarli jarayonga aylantiriladi.
+
+---
+
+## 🖨 6. Nashriyotlar uchun yangi imkoniyat yo‘qligi
+
+Hozir nashriyotlar asosan:
+
+* kitob sotish bilan cheklanadi.
+
+Platforma esa:
+nashriyotlarga maktab va kutubxonalar bilan online ishlash imkonini beradi.
+
+---
+
+# Platformadagi asosiy rollar
+
+# 👤 1. Oddiy foydalanuvchi
+
+Foydalanuvchi:
+
+* profil yaratadi,
+* kitob e’lon beradi,
+* sotadi,
+* bepul ulashadi,
+* ijaraga beradi,
+* boshqa userlar bilan yozishadi.
+
+---
+
+# 👨‍🎓 2. O‘quvchi
+
+O‘quvchi:
+
+* kitob qidiradi,
+* o‘qigan kitoblarini saqlaydi,
+* challenge bajaradi,
+* test ishlaydi,
+* badge oladi,
+* AI tavsiyalar oladi.
+
+---
+
+# 👨‍👩‍👧 3. Ota-ona
+
+Ota-ona:
+
+* farzandining reading progressini ko‘radi,
+* maktab kutubxonasi katalogini kuzatadi,
+* kitob tavsiyalari oladi,
+* yaqin kitoblar haqida notification oladi.
+
+---
+
+# 🏛 4. Kutubxona
+
+Kutubxonalar:
+
+* online katalog yaratadi,
+* kitoblarni boshqaradi,
+* rental tizimini yuritadi,
+* rezervlarni qabul qiladi,
+* statistikalarni ko‘radi.
+
+---
+
+# 🏬 5. Kitob do‘koni
+
+Do‘konlar:
+
+* online vitrina ochadi,
+* kitob sotadi,
+* reklama beradi,
+* aksiyalar joylaydi.
+
+---
+
+# 🏫 6. Maktab
+
+Maktab:
+
+* kutubxonasini raqamlashtiradi,
+* o‘quvchilarning o‘qish faolligini kuzatadi,
+* ota-onalar bilan integratsiyalashadi.
+
+---
+
+# 🖨 7. Nashriyot
+
+Nashriyot:
+
+* kitob katalogini joylaydi,
+* maktablarga obuna asosida kitob beradi,
+* kutubxonalar bilan online hamkorlik qiladi.
+
+---
+
+# Platformaning asosiy funksiyalari
+
+# 📚 Kitob marketplace
+
+Foydalanuvchilar:
+
+* kitob sotadi,
+* bepul beradi,
+* vaqtincha foydalanishga beradi,
+* almashadi.
+
+---
+
+# 📍 Xarita tizimi
+
+Platformaning eng muhim funksiyasi.
+
+Foydalanuvchi:
+“Xaritada ko‘rish” tugmasini bosib:
+
+* yaqin kitoblar,
+* kutubxonalar,
+* do‘konlarni
+
+xaritada ko‘radi.
+
+OpenStreetMap asosida bepul ishlaydi.
+
+---
+
+# ⏳ Kitob ijarasi tizimi
+
+Kitob:
+
+* 7 kun,
+* 14 kun,
+* 1 oy
+
+muddatga berilishi mumkin.
+
+Tizim:
+
+* reminder,
+* qaytarish nazorati,
+* jarima,
+* garov summasi
+
+bilan ishlaydi.
+
+---
+
+# 💬 Ichki chat tizimi
+
+Userlar:
+platforma ichida yozishadi va savdolashadi.
+
+---
+
+# ⭐ Reyting va sharhlar
+
+Har bir foydalanuvchi:
+
+* reyting,
+* review,
+* ishonch darajasi
+
+oladi.
+
+---
+
+# 🎮 Gamification tizimi
+
+Platformada:
+
+* reading streak,
+* challenge,
+* badge,
+* top readers
+
+bo‘ladi.
+
+Bu o‘quvchilarni platformada ushlab turadi.
+
+---
+
+# 👨‍👩‍👧 Ota-onalar paneli
+
+Ota-onalar:
+
+* farzandi o‘qigan kitoblar,
+* progress,
+* test natijalari,
+* reading analytics
+
+ni ko‘radi.
+
+---
+
+# 🏫 Maktab kutubxonalari
+
+Maktablar:
+
+* online katalog,
+* QR code,
+* rezerv tizimi,
+* statistikalar,
+* ota-ona integratsiyasi
+
+ga ega bo‘ladi.
+
+---
+
+# 🖨 Nashriyot obuna modeli
+
+Nashriyotlar:
+
+* kitoblarni maktablarga,
+* kutubxonalarga
+
+obuna asosida beradi.
+
+Masalan:
+maktab oyiga to‘lov qilib:
+
+* yangi kitoblar,
+* test to‘plamlari,
+* bolalar adabiyotlari
+
+oladi.
+
+---
+
+# 🤖 AI funksiyalar
+
+Kelajakda:
+
+* AI kitob tavsiyasi,
+* AI summary,
+* AI savol-javob,
+* AI moderation,
+* AI reading assistant
+
+qo‘shiladi.
+
+---
+
+# 🌍 Community va book club
+
+Foydalanuvchilar:
+
+* guruhlar,
+* mahalla readers club,
+* tadbirlar,
+* online/offline muhokamalar
+
+tashkil qiladi.
+
+---
+
+# 📊 Kutubxonalar uchun CRM
+
+Kutubxonalar:
+
+* inventar,
+* rental,
+* foydalanuvchilar,
+* statistikalar,
+* daromad
+
+ni boshqaradi.
+
+---
+
+# Platformaning eng kuchli jihati
+
+## “Mahallangdagi kitoblar”
+
+Platforma:
+
+* eng yaqin kitoblarni,
+* bepul kitoblarni,
+* yaqin kutubxonalarni
+
+topib beradi.
+
+Bu O‘zbekistonda mavjud katta muammoni hal qiladi.

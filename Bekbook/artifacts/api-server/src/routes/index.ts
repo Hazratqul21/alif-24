@@ -1,0 +1,40 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health.js";
+import authRouter from "./auth.js";
+import usersRouter from "./users.js";
+import booksRouter from "./books.js";
+import storesRouter from "./stores.js";
+import transactionsRouter from "./transactions.js";
+import mapRouter from "./map.js";
+import uploadRouter from "./upload.js";
+import reservationsRouter from "./reservations.js";
+import analyticsRouter from "./analytics.js";
+import invoicesRouter from "./invoices.js";
+import booksCatalogRouter from "./books-catalog.js";
+import adminRouter from "./admin.js";
+import paymentsRouter from "./payments.js";
+import messagesRouter from "./messages.js";
+import notificationsRouter from "./notifications.js";
+import subscriptionsRouter from "./subscriptions.js";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use("/auth", authRouter);
+router.use("/users", usersRouter);
+router.use("/books", booksRouter);
+router.use("/stores", storesRouter);
+router.use("/transactions", transactionsRouter);
+router.use("/reservations", reservationsRouter);
+router.use("/analytics", analyticsRouter);
+router.use("/map", mapRouter);
+router.use("/upload", uploadRouter);
+router.use("/invoices", invoicesRouter);
+router.use("/books-catalog", booksCatalogRouter);
+router.use("/admin", adminRouter);
+router.use("/payments", paymentsRouter);
+router.use("/messages", messagesRouter);
+router.use("/notifications", notificationsRouter);
+router.use("/subscriptions", subscriptionsRouter);
+
+export default router;

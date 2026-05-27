@@ -1,0 +1,108 @@
+Kutubxonani to‘liq raqamlashtirish uchun quyidagi funksiyalar va modullarni qo‘shishni tavsiya qilaman. Sizda mavjud bo‘lgan kitob ma’lumotlari asosida tizimni kengaytirish mumkin:
+
+---
+
+## 1. Avtomatlashtirilgan kitob berish / qaytarish
+- **Kitob berish** – o‘quvchi ID raqami orqali kitobni biriktirish.
+- **Qaytarish** – kitobni qaytarib olish va jarima hisoblash (muddati o‘tgan bo‘lsa).
+- **Elektron shaklda berish** – platformada “Hozir berildi” yoki “Elektron berildi” holati.
+- **Kitob band qilish (rezervatsiya)** – agar kitob boshqada bo‘lsa, navbatga qo‘yish.
+- **Kitobni uzaytirish** – o‘quvchi online o‘zi muddatini uzaytira olishi (admin tasdiqlashi bilan).
+
+---
+
+## 2. Kitoblar harakati va nakladnoy tizimi
+- **Yangi kitob qabul qilish** – nakladnoy raqami, sana, yetkazib beruvchi, ISBN, soni, qabul qiluvchi.
+- **Eski kitob saralash va hisobdan chiqarish** – hisobdan chiqarish dalolatnomasi raqami, sanasi, sababi (jismoniy eskirish, yo‘qolgan, kontent jihatdan eskirgan va h.z.).
+- **Kitob inventarizatsiyasi** – har bir kitobga noyob inventar raqam berish (barcode yoki QR-code).
+- **Kitob holati** – “Aktiv”, “Hisobdan chiqqan”, “Ta’mirda”, “Yo‘qolgan” kabi statuslar.
+
+---
+
+## 3. O‘quvchi (obunachi) boshqaruvi
+- **Ro‘yxatdan o‘tkazish** – ID raqam, ism-sharif, tug‘ilgan sana, kontakt (telefon, email), manzil, o‘quv yurti yoki ish joyi.
+- **ID karta berish** – virtual yoki plastik ID (shtrix-kod yoki QR-code bilan).
+- **O‘quvchi profili** – joriy qo‘lidagi kitoblar, umumiy o‘qigan kitoblar, jarimalar, qora ro‘yxat holati.
+- **Yosh bo‘yicha cheklovlar** – ayrim kitoblarni yoshga qarab berish.
+- **Talaba/o‘qituvchi guruhlari** – turli toifadagi o‘quvchilar uchun alohida limitlar (son, muddat), masalan oddiy o‘quvchi 3 ta 15 kun, o‘qituvchi 10 ta 30 kun.
+
+---
+
+## 4. Kitob joylashuvi va polka boshqaruvi
+- **Joylashuv indeksi** – bino, qavat, xona, shkaf, polka raqami.
+- **Vizual sxema** – interaktiv xarita orqali polkani ko‘rish (ixtiyoriy, lekin foydali).
+- **Kitob qidirishda joylashuvni ko‘rsatish** – qaysi polkada va mavjud nusxalar soni.
+- **Noto‘g‘ri joylashgan kitoblar haqida ogohlantirish** – inventarizatsiyada yoki qaytarishda xatolik aniqlash.
+
+---
+
+## 5. Elektron xabarnoma va bildirishnomalar
+- **Qaytarish muddati haqida eslatma** – SMS, email yoki push-bildirishnoma (muddati tugashiga 1-2 kun qolganda va o‘tganda).
+- **Jarima haqida xabar** – summa va to‘lash usuli.
+- **Rezerv qilingan kitob tayyorligi haqida xabar**.
+- **Yangi kelgan kitoblar haqida avtomatik xabar** – o‘quvchi qiziqish sohasiga qarab.
+
+---
+
+## 6. Qidiruv va filtrlash tizimi
+- **Kengaytirilgan qidiruv** – kalit so‘z, avtor, ISBN, UDK/BBK indeksi, nashriyot, nashr yili, til, janr, kalit teglar.
+- **QR / shtrix-kod skanerlash** – kitob ID-si yoki o‘quvchi ID’sini tez topish.
+- **Toifalar va janrlar bo‘yicha filtrlash**.
+
+---
+
+## 7. Hisobot va analitika
+- **Eng ko‘p o‘qilgan kitoblar** (oylik, yillik).
+- **Eng faol o‘quvchilar**.
+- **Qarzdor o‘quvchilar ro‘yxati**.
+- **Kitob aylanmasi statistikasi** – kirim/chiqim (hisobdan chiqqan, yo‘qolgan).
+- **Yetkazib beruvchilar bo‘yicha tahlil**.
+- **Inventarizatsiya hisobotlari**.
+- Excel/PDF ga eksport qilish funksiyasi.
+
+---
+
+## 8. Elektron kitoblar (raqamli kontent)
+- **Elektron kitob yuklash va o‘qish imkoniyati** (PDF, EPUB) – ochiq manbali yoki mualliflik huquqi bilan chegaralangan.
+- **Raqamli nusxani cheklangan muddatga berish** – avtomatik qaytarish (DRM yoki link amal qilish muddati).
+- **Elektron kitoblar soni cheklanmagan holda berilishi**, lekin bir vaqtda foydalanuvchi cheklovlari bo‘lishi mumkin.
+
+---
+
+## 9. To‘lov va jarima tizimi
+- **Onlayn jarima to‘lash** – integratsiya (Payme, Click va h.k.).
+- **Pullik xizmatlar** – kitob nusxalash, sotish, elektron foydalanish.
+- **Abonement to‘lovi** (agar kutubxona a’zolik badali olsa).
+
+---
+
+## 10. Foydalanuvchi rollari va xavfsizlik
+- **Admin panel** – to‘liq boshqaruv.
+- **Kutubxonachi** – kitob berish/qaytarish, yangi kitob kiritish.
+- **O‘quvchi** – shaxsiy kabinet, kitob izlash, rezerv, tarix.
+- **Moderator** – hisobotlar va nakladnoylar bo‘yicha cheklangan huquqlar.
+- **Audit log (harakatlar jurnali)** – har bir amalni kim va qachon bajargani yozib boriladi.
+
+---
+
+## 11. API va integratsiyalar
+- **Universitet yoki tashkilot axborot tizimi bilan integratsiya** – o‘quvchi ma’lumotlarini avtomatik olish (LDAP, REST API).
+- **Milliy yoki xalqaro katalog xizmatlari bilan bog‘lanish** – WorldCat, OpenLibrary, yoki milliy ISBN markazi orqali avtomatik ma’lumot to‘ldirish.
+
+---
+
+## 12. Mobil ilova yoki PWA
+- **O‘quvchi uchun** – kitob izlash, o‘z kitoblarim, muddat, jarima.
+- **Kutubxonachi uchun** – shtrix-kod skaner bilan tez amallar.
+
+---
+
+## Sizning platformangizga mos texnik takliflar:
+- Har bir kitobga **inventar raqam** qo‘shing va uni nakladnoy bilan bog‘lang.
+- “Nakladnoy” modulini alohida yarating: kirim nakladnoyi, hisobdan chiqarish dalolatnomasi, ko‘chirish vedomosti.
+- Kitob nusxalari va ularning holatini boshqarish uchun `book_items` yoki `copies` jadvali kerak, chunki bitta kitobning bir nechta nusxasi bo‘ladi.
+- O‘quvchi va kitob o‘rtasidagi barcha amallar alohida `transactions` jadvalida saqlansin (berish, qaytarish, uzaytirish, jarima).
+
+---
+
+Agar siz qaysi modulni birinchi navbatda qo‘shishni xohlayotganingizni aytsangiz, uning ma’lumotlar bazasi tuzilishi va interfeysi bo‘yicha batafsil yordam bera olaman.

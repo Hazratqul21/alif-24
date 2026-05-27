@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Mahalla Kutubxona"
+version = "1.0.0"
+id = "artifacts/mahalla-kutubxona"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22713
+
+[services.development]
+run = "pnpm --filter @workspace/mahalla-kutubxona run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mahalla-kutubxona", "run", "build" ]
+publicDir = "artifacts/mahalla-kutubxona/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22713"
+BASE_PATH = "/"

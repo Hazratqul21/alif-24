@@ -1,0 +1,2541 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Mahalla Kutubxona API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: users
+    description: User management
+  - name: books
+    description: Book listings
+  - name: stores
+    description: Libraries and book stores
+  - name: transactions
+    description: Book lending transactions
+  - name: reservations
+    description: Book reservations
+  - name: analytics
+    description: Lending analytics
+  - name: map
+    description: Map and nearby search
+  - name: invoices
+    description: Nakladnoy (incoming/writeoff) management
+  - name: books-catalog
+    description: Global books catalog
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterBody"
+      responses:
+        "201":
+          description: Registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/search:
+    get:
+      operationId: searchUsers
+      tags: [users]
+      summary: Search users by readerId or name
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query (readerId or name)
+      responses:
+        "200":
+          description: Matching users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSearchResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/me:
+    put:
+      operationId: updateMe
+      tags: [users]
+      summary: Update current user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{userId}:
+    get:
+      operationId: getUserById
+      tags: [users]
+      summary: Get a user by ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books:
+    get:
+      operationId: listBooks
+      tags: [books]
+      summary: List books with optional filters
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [sell, free, rent]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: genre
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, oldest, popular, price_asc, price_desc]
+        - name: lat
+          in: query
+          schema:
+            type: number
+        - name: lng
+          in: query
+          schema:
+            type: number
+        - name: radius
+          in: query
+          schema:
+            type: number
+            description: Radius in km
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of books
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BooksListResponse"
+
+    post:
+      operationId: createBook
+      tags: [books]
+      summary: Create a book listing
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookBody"
+      responses:
+        "201":
+          description: Created book
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/stats:
+    get:
+      operationId: getBooksStats
+      tags: [books]
+      summary: Get book listing statistics
+      responses:
+        "200":
+          description: Book stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BooksStats"
+
+  /books/{bookId}:
+    get:
+      operationId: getBook
+      tags: [books]
+      summary: Get a book by ID
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Book details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      operationId: updateBook
+      tags: [books]
+      summary: Update a book listing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBookBody"
+      responses:
+        "200":
+          description: Updated book
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteBook
+      tags: [books]
+      summary: Delete a book listing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/me/books:
+    get:
+      operationId: getMyBooks
+      tags: [books]
+      summary: Get current user's book listings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: My books
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BooksListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/me/favorites:
+    get:
+      operationId: getMyFavorites
+      tags: [books]
+      summary: Get current user's saved/favorite books
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Favorite books
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BooksListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/favorite:
+    post:
+      operationId: favoriteBook
+      tags: [books]
+      summary: Add book to favorites
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Favorited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: unfavoriteBook
+      tags: [books]
+      summary: Remove book from favorites
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unfavorited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/is-favorited:
+    get:
+      operationId: isBookFavorited
+      tags: [books]
+      summary: Check if book is favorited by current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Favorite status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/reviews:
+    get:
+      operationId: listBookReviews
+      tags: [books]
+      summary: Get reviews for a book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reviews
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewsListResponse"
+    post:
+      operationId: createBookReview
+      tags: [books]
+      summary: Create a review for a book
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewBody"
+      responses:
+        "201":
+          description: Created review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /books/{bookId}/status:
+    patch:
+      operationId: updateBookStatus
+      tags: [books]
+      summary: Update book availability status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBookStatusBody"
+      responses:
+        "200":
+          description: Updated book
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stores:
+    get:
+      operationId: listStores
+      tags: [stores]
+      summary: List all stores/libraries
+      parameters:
+        - name: lat
+          in: query
+          schema:
+            type: number
+        - name: lng
+          in: query
+          schema:
+            type: number
+        - name: radius
+          in: query
+          schema:
+            type: number
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of stores
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoresListResponse"
+
+    post:
+      operationId: createStore
+      tags: [stores]
+      summary: Create a store/library
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStoreBody"
+      responses:
+        "201":
+          description: Created store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stores/{storeId}:
+    get:
+      operationId: getStore
+      tags: [stores]
+      summary: Get a store by ID
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Store details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      operationId: updateStore
+      tags: [stores]
+      summary: Update a store
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStoreBody"
+      responses:
+        "200":
+          description: Updated store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stores/{storeId}/books:
+    get:
+      operationId: listStoreBooks
+      tags: [stores]
+      summary: List books in a store
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Store books
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreBooksListResponse"
+
+    post:
+      operationId: addStoreBook
+      tags: [stores]
+      summary: Add a book to a store catalog
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddStoreBookBody"
+      responses:
+        "201":
+          description: Added store book
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreBook"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stores/{storeId}/books/{storeBookId}:
+    get:
+      operationId: getStoreBook
+      tags: [stores]
+      summary: Get a single store catalog book
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: storeBookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Store book details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreBook"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      operationId: updateStoreBook
+      tags: [stores]
+      summary: Update a store catalog book
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: storeBookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddStoreBookBody"
+      responses:
+        "200":
+          description: Updated store book
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreBook"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteStoreBook
+      tags: [stores]
+      summary: Remove a book from a store catalog
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: storeBookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stores/{storeId}/readers:
+    get:
+      operationId: getStoreReaders
+      tags: [stores]
+      summary: Get all readers (borrowers) of a store
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Store readers list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreReadersResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{userId}/category:
+    patch:
+      operationId: updateUserCategory
+      tags: [users]
+      summary: Update user category and blacklist status (store owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserCategoryBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/me/store:
+    get:
+      operationId: getMyStore
+      tags: [stores]
+      summary: Get current user's store
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: My store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "404":
+          description: No store found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /transactions:
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      summary: Create a lending transaction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransactionBody"
+      responses:
+        "201":
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: getMyTransactions
+      tags: [transactions]
+      summary: Get my lending transactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, returned, overdue]
+      responses:
+        "200":
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionsListResponse"
+
+  /transactions/borrowed:
+    get:
+      operationId: getMyBorrowedTransactions
+      tags: [transactions]
+      summary: Get transactions where I am the borrower
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Borrowed transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionsListResponse"
+
+  /transactions/{transactionId}/confirm-receipt:
+    patch:
+      operationId: confirmTransactionReceipt
+      tags: [transactions]
+      summary: Borrower confirms they received the book
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Receipt confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /transactions/{transactionId}/extend:
+    patch:
+      operationId: extendTransaction
+      tags: [transactions]
+      summary: Extend the due date of an active transaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newDueDate:
+                  type: string
+                  format: date-time
+              required: [newDueDate]
+      responses:
+        "200":
+          description: Extended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /transactions/{transactionId}/return:
+    patch:
+      operationId: returnTransaction
+      tags: [transactions]
+      summary: Mark a book as returned
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Transaction updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /transactions/{transactionId}:
+    delete:
+      operationId: deleteTransaction
+      tags: [transactions]
+      summary: Delete a transaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /reservations:
+    post:
+      operationId: createReservation
+      tags: [reservations]
+      summary: Reserve a book
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReservationBody"
+      responses:
+        "201":
+          description: Reserved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "409":
+          description: Already reserved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: getMyReservations
+      tags: [reservations]
+      summary: Get my reservations
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of reservations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservationsListResponse"
+
+  /invoices:
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create a new nakladnoy (kirim or chiqim)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvoiceBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /invoices/store/{storeId}:
+    get:
+      operationId: getStoreInvoices
+      tags: [invoices]
+      summary: Get all nakladnoylar for a store
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [kirim, chiqim]
+      responses:
+        "200":
+          description: Invoices list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoicesListResponse"
+
+  /invoices/{invoiceId}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get a single invoice with items
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteInvoice
+      tags: [invoices]
+      summary: Delete an invoice
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /reservations/{id}:
+    delete:
+      operationId: cancelReservation
+      tags: [reservations]
+      summary: Cancel a reservation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Cancelled
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reservations/book/{bookId}:
+    get:
+      operationId: getBookReservationCount
+      tags: [reservations]
+      summary: Get reservation count for a book
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reservation count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                required: [count]
+
+  /analytics/overview:
+    get:
+      operationId: getAnalyticsOverview
+      tags: [analytics]
+      summary: Get lending analytics overview
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Analytics overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsOverview"
+
+  /map/nearby:
+    get:
+      operationId: getNearby
+      tags: [map]
+      summary: Get nearby books and stores
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: radius
+          in: query
+          schema:
+            type: number
+            default: 10
+            description: Radius in km
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [sell, free, rent]
+      responses:
+        "200":
+          description: Nearby items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NearbyResponse"
+
+  /books-catalog:
+    get:
+      operationId: getBooksCatalog
+      tags: [books-catalog]
+      summary: Get global books catalog
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Books catalog list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BooksCatalogResponse"
+    post:
+      operationId: addBookToCatalog
+      tags: [books-catalog]
+      summary: Add a book to global catalog (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BooksCatalogBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BooksCatalogItem"
+
+  /stores/{storeId}/books/from-catalog:
+    post:
+      operationId: addBooksFromCatalog
+      tags: [books-catalog]
+      summary: Bulk add books from global catalog to store
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddFromCatalogBody"
+      responses:
+        "201":
+          description: Books added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  added:
+                    type: integer
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    RegisterBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        phone:
+          type: string
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+      required:
+        - name
+        - email
+        - password
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        readerId:
+          type: string
+          nullable: true
+          description: 8-digit unique reader ID
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        avatar:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [user, seller, admin]
+        category:
+          type: string
+          enum: [regular, student, teacher]
+          description: Reader category
+        isBlacklisted:
+          type: string
+          description: Whether user is blacklisted
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - role
+        - createdAt
+
+    UserSearchResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        readerId:
+          type: string
+          nullable: true
+        name:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        avatar:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+
+    UserSearchResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSearchResult"
+      required:
+        - users
+
+    UpdateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        avatar:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        address:
+          type: string
+        category:
+          type: string
+          enum: [regular, student, teacher]
+
+    UpdateUserCategoryBody:
+      type: object
+      properties:
+        userId:
+          type: integer
+        category:
+          type: string
+          enum: [regular, student, teacher]
+        isBlacklisted:
+          type: boolean
+      required:
+        - userId
+
+    StoreReadersResponse:
+      type: object
+      properties:
+        readers:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: integer
+              name:
+                type: string
+              readerId:
+                type: string
+                nullable: true
+              phone:
+                type: string
+                nullable: true
+              avatar:
+                type: string
+                nullable: true
+              category:
+                type: string
+              isBlacklisted:
+                type: string
+              lastBorrowedAt:
+                type: string
+                nullable: true
+              activeLoanCount:
+                type: integer
+            required:
+              - userId
+              - name
+              - category
+              - isBlacklisted
+              - activeLoanCount
+        total:
+          type: integer
+      required:
+        - readers
+        - total
+
+    Book:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        author:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [sell, free, rent]
+        status:
+          type: string
+          enum: [available, reserved, rented]
+        rentDuration:
+          type: integer
+          nullable: true
+          description: Rental duration in days (7, 14, or 30)
+        price:
+          type: number
+          nullable: true
+        image:
+          type: string
+          nullable: true
+        image2:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        genre:
+          type: string
+          nullable: true
+        userId:
+          type: integer
+        user:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        avgRating:
+          type: number
+          nullable: true
+        reviewCount:
+          type: integer
+          nullable: true
+        isFavorited:
+          type: boolean
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - type
+        - status
+        - userId
+        - createdAt
+
+    BooksListResponse:
+      type: object
+      properties:
+        books:
+          type: array
+          items:
+            $ref: "#/components/schemas/Book"
+        total:
+          type: integer
+      required:
+        - books
+        - total
+
+    BooksStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        sellCount:
+          type: integer
+        freeCount:
+          type: integer
+        rentCount:
+          type: integer
+        recentBooks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Book"
+      required:
+        - total
+        - sellCount
+        - freeCount
+        - rentCount
+        - recentBooks
+
+    CreateBookBody:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [sell, free, rent]
+        rentDuration:
+          type: integer
+          description: Rental duration in days (7, 14, or 30)
+        price:
+          type: number
+        image:
+          type: string
+        image2:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        address:
+          type: string
+        genre:
+          type: string
+      required:
+        - title
+        - type
+
+    UpdateBookBody:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [sell, free, rent]
+        price:
+          type: number
+        image:
+          type: string
+        image2:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        address:
+          type: string
+        genre:
+          type: string
+
+    Store:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        address:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        phone:
+          type: string
+          nullable: true
+        openHours:
+          type: string
+          nullable: true
+        avatar:
+          type: string
+          nullable: true
+        ownerId:
+          type: integer
+        owner:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        rating:
+          type: number
+          nullable: true
+        bookCount:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - address
+        - lat
+        - lng
+        - ownerId
+        - createdAt
+
+    StoresListResponse:
+      type: object
+      properties:
+        stores:
+          type: array
+          items:
+            $ref: "#/components/schemas/Store"
+        total:
+          type: integer
+      required:
+        - stores
+        - total
+
+    CreateStoreBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        phone:
+          type: string
+        openHours:
+          type: string
+        avatar:
+          type: string
+      required:
+        - name
+        - address
+        - lat
+        - lng
+
+    UpdateStoreBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        phone:
+          type: string
+        openHours:
+          type: string
+        avatar:
+          type: string
+
+    StoreBook:
+      type: object
+      properties:
+        id:
+          type: integer
+        storeId:
+          type: integer
+        title:
+          type: string
+        author:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [sell, free, rent]
+        status:
+          type: string
+          enum: [available, reserved, rented]
+        rentDuration:
+          type: integer
+          nullable: true
+        price:
+          type: number
+          nullable: true
+        stock:
+          type: integer
+          nullable: true
+        image:
+          type: string
+          nullable: true
+        image2:
+          type: string
+          nullable: true
+        inventoryNumber:
+          type: string
+          nullable: true
+        isbn:
+          type: string
+          nullable: true
+        condition:
+          type: string
+          enum: [active, damaged, lost, written_off]
+          nullable: true
+        location:
+          type: string
+          nullable: true
+          description: Physical location (floor, room, shelf)
+        previousPrice:
+          type: number
+          nullable: true
+          description: Previous price before last update
+      required:
+        - id
+        - storeId
+        - title
+        - type
+        - status
+
+    StoreBooksListResponse:
+      type: object
+      properties:
+        books:
+          type: array
+          items:
+            $ref: "#/components/schemas/StoreBook"
+        total:
+          type: integer
+      required:
+        - books
+        - total
+
+    AddStoreBookBody:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [sell, free, rent]
+        rentDuration:
+          type: integer
+          description: Rental duration in days (7, 14, or 30)
+        price:
+          type: number
+        stock:
+          type: integer
+        image:
+          type: string
+        image2:
+          type: string
+        inventoryNumber:
+          type: string
+        isbn:
+          type: string
+        condition:
+          type: string
+          enum: [active, damaged, lost, written_off]
+        location:
+          type: string
+          description: Physical location (floor, room, shelf)
+      required:
+        - title
+
+    UpdateBookStatusBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [available, reserved, rented]
+      required:
+        - status
+
+    FavoriteStatus:
+      type: object
+      properties:
+        isFavorited:
+          type: boolean
+      required:
+        - isFavorited
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        bookId:
+          type: integer
+        rating:
+          type: integer
+        comment:
+          type: string
+          nullable: true
+        user:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - bookId
+        - rating
+        - createdAt
+
+    ReviewsListResponse:
+      type: object
+      properties:
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/Review"
+        total:
+          type: integer
+        avgRating:
+          type: number
+          nullable: true
+      required:
+        - reviews
+        - total
+
+    CreateReviewBody:
+      type: object
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+      required:
+        - rating
+
+    NearbyResponse:
+      type: object
+      properties:
+        books:
+          type: array
+          items:
+            $ref: "#/components/schemas/Book"
+        stores:
+          type: array
+          items:
+            $ref: "#/components/schemas/Store"
+      required:
+        - books
+        - stores
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        lenderId:
+          type: integer
+        bookId:
+          type: integer
+          nullable: true
+        storeBookId:
+          type: integer
+          nullable: true
+        borrowerUserId:
+          type: integer
+          nullable: true
+        borrowerName:
+          type: string
+        borrowerPhone:
+          type: string
+          nullable: true
+        issuedAt:
+          type: string
+          format: date-time
+        dueDate:
+          type: string
+          format: date-time
+        returnedAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [active, returned, overdue]
+        finePerDay:
+          type: number
+        fineAmount:
+          type: number
+        notes:
+          type: string
+          nullable: true
+        bookTitle:
+          type: string
+          nullable: true
+        borrowerConfirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+        returnConfirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+        borrowerUser:
+          $ref: "#/components/schemas/UserSearchResult"
+          nullable: true
+      required:
+        - id
+        - lenderId
+        - borrowerName
+        - issuedAt
+        - dueDate
+        - status
+        - finePerDay
+        - fineAmount
+
+    TransactionsListResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+        total:
+          type: integer
+      required:
+        - transactions
+        - total
+
+    Reservation:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        bookId:
+          type: integer
+          nullable: true
+        storeBookId:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [waiting, ready, expired, cancelled]
+        notifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        bookTitle:
+          type: string
+          nullable: true
+      required: [id, userId, status, createdAt]
+
+    ReservationsListResponse:
+      type: object
+      properties:
+        reservations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reservation"
+        total:
+          type: integer
+      required: [reservations, total]
+
+    CreateReservationBody:
+      type: object
+      properties:
+        bookId:
+          type: integer
+        storeBookId:
+          type: integer
+
+    AnalyticsDebtor:
+      type: object
+      properties:
+        borrowerName:
+          type: string
+        borrowerPhone:
+          type: string
+          nullable: true
+        bookId:
+          type: integer
+          nullable: true
+        storeBookId:
+          type: integer
+          nullable: true
+        dueDate:
+          type: string
+          format: date-time
+        overdueDays:
+          type: integer
+        expectedFine:
+          type: number
+      required: [borrowerName, dueDate, overdueDays, expectedFine]
+
+    AnalyticsTopBook:
+      type: object
+      properties:
+        title:
+          type: string
+        count:
+          type: integer
+        bookId:
+          type: integer
+          nullable: true
+        storeBookId:
+          type: integer
+          nullable: true
+      required: [title, count]
+
+    AnalyticsMonthly:
+      type: object
+      properties:
+        month:
+          type: string
+        count:
+          type: integer
+      required: [month, count]
+
+    AnalyticsOverview:
+      type: object
+      properties:
+        total:
+          type: integer
+        active:
+          type: integer
+        overdue:
+          type: integer
+        returned:
+          type: integer
+        totalFineCollected:
+          type: number
+        totalFineExpected:
+          type: number
+        debtors:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsDebtor"
+        topBooks:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsTopBook"
+        monthlyActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsMonthly"
+        reservationCount:
+          type: integer
+      required: [total, active, overdue, returned, totalFineCollected, totalFineExpected, debtors, topBooks, monthlyActivity, reservationCount]
+
+    InvoiceItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        invoiceId:
+          type: integer
+        storeBookId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        author:
+          type: string
+          nullable: true
+        isbn:
+          type: string
+          nullable: true
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+        reason:
+          type: string
+          nullable: true
+        inventoryNumbers:
+          type: string
+          nullable: true
+      required: [id, invoiceId, title, quantity, unitPrice]
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+        storeId:
+          type: integer
+        type:
+          type: string
+          enum: [kirim, chiqim]
+        number:
+          type: string
+        date:
+          type: string
+        supplier:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdBy:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceItem"
+      required: [id, storeId, type, number, date, createdAt]
+
+    InvoicesListResponse:
+      type: object
+      properties:
+        invoices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+      required: [invoices]
+
+    CreateInvoiceBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [kirim, chiqim]
+        number:
+          type: string
+        date:
+          type: string
+        supplier:
+          type: string
+        notes:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              storeBookId:
+                type: integer
+              title:
+                type: string
+              author:
+                type: string
+              isbn:
+                type: string
+              quantity:
+                type: integer
+              unitPrice:
+                type: number
+              reason:
+                type: string
+              inventoryNumbers:
+                type: string
+            required: [title, quantity]
+      required: [type, number, date, items]
+
+    BooksCatalogItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        author:
+          type: string
+        genre:
+          type: string
+        description:
+          type: string
+        isbn:
+          type: string
+        createdAt:
+          type: string
+      required: [id, title]
+
+    BooksCatalogBody:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        genre:
+          type: string
+        description:
+          type: string
+        isbn:
+          type: string
+      required: [title]
+
+    BooksCatalogResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BooksCatalogItem"
+        total:
+          type: integer
+      required: [items, total]
+
+    AddFromCatalogBody:
+      type: object
+      properties:
+        catalogIds:
+          type: array
+          items:
+            type: integer
+        type:
+          type: string
+          enum: [sell, free, rent]
+        price:
+          type: number
+        stock:
+          type: integer
+      required: [catalogIds]
+
+    CreateTransactionBody:
+      type: object
+      properties:
+        bookId:
+          type: integer
+        storeBookId:
+          type: integer
+        borrowerUserId:
+          type: integer
+          description: Registered user ID of the borrower
+        borrowerName:
+          type: string
+        borrowerPhone:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+        finePerDay:
+          type: number
+          description: Fine per overdue day in so'm
+        notes:
+          type: string
+      required:
+        - borrowerName
+        - dueDate
