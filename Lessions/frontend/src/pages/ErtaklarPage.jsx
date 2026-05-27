@@ -939,7 +939,7 @@ function ErtakCard({ ertak, index, onRead, onQuiz, onTest }) {
     );
 }
 
-const AGE_GROUPS = ['5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+'];
+
 const PAGE_CONFIG = {
     uz: { title: '✨ Ertaklar', headerTitle: 'Ertaklar', back: 'Ortga', empty: 'Yo\'q', retry: 'Qayta', langFlags: { uz: '🇺🇿 O\'zb', ru: '🇷🇺 Rus', en: '🇬🇧 Eng' } },
     ru: { title: '✨ Сказки', headerTitle: 'Сказки', back: 'Назад', empty: 'Нет', retry: 'Повтор', langFlags: { uz: '🇺🇿 Узб', ru: '🇷🇺 Рус', en: '🇬🇧 Анг' } },
@@ -996,7 +996,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
         }
     }, [ertaklar]);
 
-    const filtered = selectedAgeGroup === 'all' ? ertaklar : ertaklar.filter(e => e.age_group === selectedAgeGroup);
+   
 
     return (
         <div className="min-h-screen bg-[#1a1a2e] text-white">
@@ -1020,9 +1020,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                             {showAgeDropdown && (
                                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="absolute mt-2 w-48 bg-[#16213e] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
                                     <button onClick={() => { setSelectedAgeGroup('all'); setShowAgeDropdown(false); }} className="w-full text-left px-4 py-3 hover:bg-white/5">Barchasi</button>
-                                    {AGE_GROUPS.map(g => (
-                                        <button key={g} onClick={() => { setSelectedAgeGroup(g); setShowAgeDropdown(false); }} className="w-full text-left px-4 py-3 hover:bg-white/5">{g}</button>
-                                    ))}
+                                   
                                 </motion.div>
                             )}
                         </AnimatePresence>

@@ -224,7 +224,7 @@ export default function HomePage() {
               ========================================== */}
           <section className="mb-12 animate-[fadeInUp_0.5s_ease-out_both]">
             <RowHeader 
-              title={language === 'ru' ? 'Популярные сказки' : language === 'en' ? 'Popular Stories' : 'Ommabop ertaklar'} 
+              title={language === 'ru' ? 'Популярные сказки' : language === 'en' ? 'Popular Stories' : 'Ertak va hikoyalar'} 
               link={language === 'ru' ? 'Все' : language === 'en' ? 'See all' : 'Barchasi'}
               onLinkClick={() => redirectToPlatform('https://lessions.alif24.uz', '/ertaklar')}
             />
