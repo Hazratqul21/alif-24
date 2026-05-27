@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 RUN npm install -g pnpm
 WORKDIR /app
 
@@ -7,22 +7,12 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json tsconfig.base
 COPY lib ./lib
 COPY artifacts/api-server ./artifacts/api-server
 
-# Install dependencies and build
+# Install ALL dependencies (including drizzle-kit for schema push)
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @workspace/api-server run build
 
-FROM node:20-alpine
-RUN npm install -g pnpm
-WORKDIR /app
-
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json tsconfig.base.json ./
-COPY lib ./lib
-COPY --from=builder /app/artifacts/api-server/dist ./artifacts/api-server/dist
-COPY --from=builder /app/artifacts/api-server/package.json ./artifacts/api-server/package.json
-
-# Install production dependencies only
-RUN pnpm install --prod --no-frozen-lockfile
-
 EXPOSE 8007
 ENV PORT=8007
-CMD ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
+
+# On startup: push Drizzle schema to DB (creates/syncs tables), then start server
+CMD sh -c "echo '[bekbook] Syncing database schema...' && cd /app/lib/db && pnpm push-force && echo '[bekbook] Schema sync complete!' && cd /app && exec node --enable-source-maps artifacts/api-server/dist/index.mjs"
