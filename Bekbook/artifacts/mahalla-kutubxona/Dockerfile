@@ -8,7 +8,7 @@ COPY lib ./lib
 COPY artifacts/mahalla-kutubxona ./artifacts/mahalla-kutubxona
 
 # Install dependencies and build
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @workspace/mahalla-kutubxona run build
 
 FROM nginx:alpine

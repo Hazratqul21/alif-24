@@ -8,7 +8,7 @@ COPY lib ./lib
 COPY artifacts/api-server ./artifacts/api-server
 
 # Install dependencies and build
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @workspace/api-server run build
 
 FROM node:20-alpine
@@ -21,7 +21,7 @@ COPY --from=builder /app/artifacts/api-server/dist ./artifacts/api-server/dist
 COPY --from=builder /app/artifacts/api-server/package.json ./artifacts/api-server/package.json
 
 # Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --no-frozen-lockfile
 
 EXPOSE 8007
 ENV PORT=8007
