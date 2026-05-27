@@ -55,19 +55,20 @@ const HomePage = () => {
   const t = { ...baseT, ...(dynamicDict[language] || {}) };
 
   const defaultGames = useMemo(() => ([
-    { id: 1, title: t.game_read,        shortTitle: "O'QI",              rating: 46, type: 'lessons' },
-    { id: 2, title: t.game_homework,    shortTitle: 'UYGA VAZIFA',       rating: 46, type: 'lessons' },
-    { id: 3, title: t.game_uz_alphabet, shortTitle: "SO'ZLOVCHI ALIFBE", rating: 46, type: 'lessons' },
-    { id: 4, title: t.game_en_alphabet, shortTitle: 'INGLIZ ALIFBESI',   rating: 46, type: 'lessons' },
-    { id: 5, title: t.game_ru_alphabet, shortTitle: 'RUS ALIFBESI',      rating: 46, type: 'lessons' },
-    { id: 6, title: t.game_memory_game, shortTitle: "O'YINLAR",          rating: 46, type: 'games'   },
-    {
-      id: 7,
+    { id: 1, title: t.game_read,        shortTitle: "ERTAK VA HIKOYALAR",              rating: 46, type: 'lessons' },
+     {
+      id: 2,
       title: language === 'ru' ? 'Книжный мир' : language === 'en' ? 'World of Books' : 'Kitoblar olami',
       shortTitle: language === 'ru' ? 'КНИГИ' : language === 'en' ? 'BOOKS' : 'KITOBLAR',
       rating: 50,
       type: 'lessons'
     },
+    { id: 3, title: t.game_homework,    shortTitle: 'MATEMATIKA',       rating: 46, type: 'lessons' },
+    { id: 4, title: t.game_uz_alphabet, shortTitle: "SO'ZLOVCHI ALIFBE", rating: 46, type: 'lessons' },
+    { id: 5, title: t.game_en_alphabet, shortTitle: 'INGLIZ ALIFBESI',   rating: 46, type: 'lessons' },
+    { id: 6, title: t.game_ru_alphabet, shortTitle: 'RUS ALIFBESI',      rating: 46, type: 'lessons' },
+    { id: 7, title: t.game_memory_game, shortTitle: "O'YINLAR",          rating: 46, type: 'games'   },
+   
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [language, dynamicDict]);
 
@@ -165,7 +166,7 @@ const HomePage = () => {
         <main className="max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-[120px] pt-6 sm:pt-10 pb-40">
 
           {/* Filter pills — Figma 85:86 */}
-          <div className="flex items-center justify-center gap-3 flex-wrap mb-8 sm:mb-12">
+          {/*<div className="flex items-center justify-center gap-3 flex-wrap mb-8 sm:mb-12">
             <button
               onClick={() => setMainFilter('all')}
               className="w-[56px] h-[56px] flex items-center justify-center rounded-full bg-cosmic-surface text-white hover:bg-cosmic-surface/80 transition-all active:scale-95 shrink-0"
@@ -194,7 +195,7 @@ const HomePage = () => {
                 </button>
               );
             })}
-          </div>
+          </div>*/}
 
           {/* ── Cards grid ─────────────────────────────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-10 xl:gap-[50px]">
