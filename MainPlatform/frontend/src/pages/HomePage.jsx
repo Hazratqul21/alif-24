@@ -34,12 +34,12 @@ import apiService from '../services/apiService';
 
 const CARD_ART = {
   1: '/designs/cosmic/card-oqi.jpg',
-  2: '/designs/cosmic/card-homework.jpg',
-  3: '/designs/cosmic/card-speak-abc.jpg',
-  4: '/designs/cosmic/card-english.jpg',
-  5: '/designs/cosmic/card-russian.jpg',
-  6: '/designs/cosmic/card-games.jpg',
-  7: '/designs/cosmic/card-oqi.jpg',
+  3: '/designs/cosmic/card-homework.jpg',
+  4: '/designs/cosmic/card-speak-abc.jpg',
+  5: '/designs/cosmic/card-english.jpg',
+  6: '/designs/cosmic/card-russian.jpg',
+  7: '/designs/cosmic/card-games.jpg',
+  2: '/designs/cosmic/card-oqi.jpg',
 };
 
 const HomePage = () => {
