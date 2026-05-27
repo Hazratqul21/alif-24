@@ -449,7 +449,7 @@ export default function HomePage() {
                 {/* Floating cap and diploma */}
                 <div className="relative w-36 h-28 sm:w-44 sm:h-36 shrink-0 mt-4 md:mt-0 z-10 flex items-center justify-center animate-pulse">
                   <img 
-                    src="/designs/cosmic/graduation-cap.png" 
+                    src="/designs/cosmic/graduation-cap1.png" 
                     alt="Academic graduation cap & diploma" 
                     className="w-full h-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:scale-105"
                   />
