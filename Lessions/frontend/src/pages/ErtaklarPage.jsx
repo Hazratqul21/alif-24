@@ -1012,7 +1012,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                             <Link key={l} to={l === 'uz' ? '/ertaklar' : `/ertaklar/${l}`} className={`px-4 py-2 rounded-xl text-sm font-bold ${lang === l ? 'bg-indigo-600' : 'text-white/60'}`}>{cfg.langFlags[l].split(' ')[1]}</Link>
                         ))}
                     </div>
-                    <div className="relative">
+                    {/*-- <div className="relative">
                         <button onClick={() => setShowAgeDropdown(!showAgeDropdown)} className="px-5 py-2 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold flex items-center gap-2">
                             {selectedAgeGroup === 'all' ? 'Barcha yoshlar' : selectedAgeGroup} <ChevronDown />
                         </button>
@@ -1026,7 +1026,7 @@ export default function ErtaklarPage({ lang = 'uz' }) {
                                 </motion.div>
                             )}
                         </AnimatePresence>
-                    </div>
+                    </div> */}
                 </div>
                 {loading ? <div className="py-20 animate-spin">⌛</div> : (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-left">

@@ -1089,8 +1089,8 @@ export default function KitoblarPage({ lang = 'uz' }) {
                         ))}
                     </div>
 
-                    {/* Age Selector Dropdown */}
-                    <div className="relative">
+                    {/*-- Age Selector Dropdown */}
+                    {/* <div className="relative">
                         <button 
                             onClick={() => setShowAgeDropdown(!showAgeDropdown)} 
                             className="px-5 py-2 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold flex items-center gap-2 hover:bg-white/10 transition-colors"
@@ -1123,7 +1123,7 @@ export default function KitoblarPage({ lang = 'uz' }) {
                                 </motion.div>
                             )}
                         </AnimatePresence>
-                    </div>
+                    </div> */}
                 </div>
 
                 {/* Library Books Grid */}
