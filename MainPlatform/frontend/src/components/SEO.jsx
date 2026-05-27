@@ -18,7 +18,7 @@ import { useEffect } from 'react';
  */
 const DEFAULT_SITE = 'Alif24';
 const DEFAULT_DESCRIPTION =
-  "Alif24 — 5-11 yoshdagi bolalar uchun adaptiv ta'lim platformasi. Darslar, o'yinlar, olimpiadalar, AI testlar va harflar dunyosi bir joyda.";
+  "Alif24 — bolalar uchun adaptiv ta'lim platformasi. Darslar, o'yinlar, olimpiadalar, AI testlar va harflar dunyosi bir joyda.";
 const DEFAULT_IMAGE = 'https://alif24.uz/Logo.png';
 const DEFAULT_ORIGIN = 'https://alif24.uz';
 

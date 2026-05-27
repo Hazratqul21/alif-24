@@ -626,7 +626,7 @@ export default function HomePage() {
         <Footer />
       </div>
 
-      <CosmicRobot />
+      {/*<CosmicRobot />*/}
 
       <SmartAuthPrompt
         trigger={authTrigger}
