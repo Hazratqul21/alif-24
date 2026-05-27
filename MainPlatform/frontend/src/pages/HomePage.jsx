@@ -39,6 +39,7 @@ const CARD_ART = {
   4: '/designs/cosmic/card-english.jpg',
   5: '/designs/cosmic/card-russian.jpg',
   6: '/designs/cosmic/card-games.jpg',
+  7: '/designs/cosmic/card-oqi.jpg',
 };
 
 const HomePage = () => {
@@ -60,6 +61,13 @@ const HomePage = () => {
     { id: 4, title: t.game_en_alphabet, shortTitle: 'INGLIZ ALIFBESI',   rating: 46, type: 'lessons' },
     { id: 5, title: t.game_ru_alphabet, shortTitle: 'RUS ALIFBESI',      rating: 46, type: 'lessons' },
     { id: 6, title: t.game_memory_game, shortTitle: "O'YINLAR",          rating: 46, type: 'games'   },
+    {
+      id: 7,
+      title: language === 'ru' ? 'Книжный мир' : language === 'en' ? 'World of Books' : 'Kitoblar olami',
+      shortTitle: language === 'ru' ? 'КНИГИ' : language === 'en' ? 'BOOKS' : 'KITOBLAR',
+      rating: 50,
+      type: 'lessons'
+    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [language, dynamicDict]);
 
@@ -101,6 +109,7 @@ const HomePage = () => {
     if (gid === '4') return redirectToPlatform('https://harf.alif24.uz', '/eharf');
     if (gid === '5') return redirectToPlatform('https://harf.alif24.uz', '/rharf');
     if (gid === '6') return redirectToPlatform('https://games.alif24.uz');
+    if (gid === '7') return redirectToPlatform('https://lessions.alif24.uz', '/kitoblar');
     redirectToPlatform(game.type === 'lessons' ? 'https://lessions.alif24.uz' : 'https://games.alif24.uz');
   };
 

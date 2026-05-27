@@ -176,7 +176,65 @@ async def get_me(
     if not user or user.status != AccountStatus.active:
         return None
 
-    return user.to_dict()
+    # Fetch active subscription
+    from shared.database.models import UserSubscription, SubscriptionStatus
+    from datetime import datetime, timezone
+    
+    sub_info = {
+        "status": "none",
+        "plan_slug": "free",
+        "plan_name": "Bepul",
+        "features": {
+            "ertaklar": True,
+            "darslar": False,
+            "oyinlar": False,
+            "olimpiada": False,
+            "ai_test": False,
+            "kutubxona": False,
+            "live_quiz": False,
+        },
+        "expires_at": None,
+        "is_free": True,
+        "is_premium": False
+    }
+    
+    try:
+        sub_res = await db.execute(
+            select(UserSubscription)
+            .where(
+                UserSubscription.user_id == user.id,
+                UserSubscription.status == SubscriptionStatus.active.value,
+                UserSubscription.expires_at > datetime.now(timezone.utc),
+            )
+            .order_by(UserSubscription.expires_at.desc())
+            .limit(1)
+        )
+        active_sub = sub_res.scalars().first()
+        if active_sub:
+            from sqlalchemy.orm import selectinload
+            sub_res_config = await db.execute(
+                select(UserSubscription)
+                .options(selectinload(UserSubscription.plan_config))
+                .where(UserSubscription.id == active_sub.id)
+            )
+            active_sub_with_config = sub_res_config.scalars().first()
+            if active_sub_with_config and active_sub_with_config.plan_config:
+                plan = active_sub_with_config.plan_config
+                sub_info = {
+                    "status": "active",
+                    "plan_slug": plan.slug,
+                    "plan_name": plan.name,
+                    "features": plan.features or {},
+                    "expires_at": active_sub_with_config.expires_at.isoformat() if active_sub_with_config.expires_at else None,
+                    "is_free": plan.slug in ["free", "bepul"],
+                    "is_premium": plan.slug not in ["free", "bepul"]
+                }
+    except Exception as e:
+        logger.warning(f"Failed to get subscription info in Lessions backend: {e}")
+
+    user_data = user.to_dict()
+    user_data["subscription"] = sub_info
+    return user_data
 
 
 # Global exception handler

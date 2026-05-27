@@ -11,6 +11,9 @@ const LessonDetail = lazy(() => import('./pages/LessonDetail'));
 const ErtaklarUzPage = lazy(() => import('./pages/ErtaklarUzPage'));
 const ErtaklarRuPage = lazy(() => import('./pages/ErtaklarRuPage'));
 const ErtaklarEnPage = lazy(() => import('./pages/ErtaklarEnPage'));
+const KitoblarUzPage = lazy(() => import('./pages/KitoblarUzPage'));
+const KitoblarRuPage = lazy(() => import('./pages/KitoblarRuPage'));
+const KitoblarEnPage = lazy(() => import('./pages/KitoblarEnPage'));
 
 /**
  * Lessions Platform App Component
@@ -35,6 +38,12 @@ const App = () => {
             <Route path="/ertaklar/uz" element={<ErtaklarUzPage />} />
             <Route path="/ertaklar/ru" element={<ErtaklarRuPage />} />
             <Route path="/ertaklar/en" element={<ErtaklarEnPage />} />
+
+            {/* Kitoblar (Books) */}
+            <Route path="/kitoblar" element={<KitoblarUzPage />} />
+            <Route path="/kitoblar/uz" element={<KitoblarUzPage />} />
+            <Route path="/kitoblar/ru" element={<KitoblarRuPage />} />
+            <Route path="/kitoblar/en" element={<KitoblarEnPage />} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -99,6 +99,10 @@ const adminService = {
     createErtak: (data) => adminApi.post('/direct/stories', data),
     updateErtak: (id, data) => adminApi.put(`/direct/stories/${id}`, data),
     deleteErtak: (id) => adminApi.delete(`/direct/stories/${id}`),
+    getBooks: (params) => adminApi.get('/direct/books', { params }),
+    createBook: (data) => adminApi.post('/direct/books', data),
+    updateBook: (id, data) => adminApi.put(`/direct/books/${id}`, data),
+    deleteBook: (id) => adminApi.delete(`/direct/books/${id}`),
 
     // Telegram (users via admin API)
     getTelegramUsers: (params) => adminApi.get('/telegram/users', { params }),

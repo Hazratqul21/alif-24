@@ -7,7 +7,7 @@ from sqlalchemy import select, desc, func, or_
 from pydantic import BaseModel, Field
 
 from shared.database import get_db
-from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, Lesson, Story, StoryReadingRecord
+from shared.database.models import User, UserRole, TeacherProfile, StudentProfile, Lesson, Story, StoryReadingRecord, Book, BookReadingRecord
 from shared.database.models.classroom import Classroom, ClassroomStudent, ClassroomStudentStatus
 from app.middleware.auth import get_current_user
 from shared.subscription import require_feature, SubscriptionInfo
@@ -614,5 +614,132 @@ async def story_tts(
     except Exception as e:
         logger.error(f"TTS error for story {story_id}: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"TTS xatoligi: {str(e)}")
+
+
+# ============================================================================
+# PUBLIC: Books (Kitoblar) — for students
+# ============================================================================
+
+def book_dict(b: Book):
+    return b.to_dict()
+
+@router.get("/books")
+async def list_public_books(
+    language: Optional[str] = None,
+    age_group: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List global books for students"""
+    stmt = select(Book)
+    if current_user.role == UserRole.student:
+        stmt = stmt.where(Book.teacher_id == None)
+        
+    if language:
+        stmt = stmt.where(Book.language == language)
+    if age_group:
+        stmt = stmt.where(Book.age_group == age_group)
+
+    total = await db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    result = await db.execute(stmt.order_by(desc(Book.created_at)).offset(offset).limit(limit))
+    books = result.scalars().all()
+
+    return {
+        "success": True,
+        "data": [b.to_dict() for b in books],
+        "total": total,
+    }
+
+
+@router.get("/books/my-library")
+async def get_my_book_library(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """O'quvchi o'qib bo'lgan kitoblar ro'yxati (Kutubxona)"""
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
+
+    stmt = (
+        select(Book, BookReadingRecord)
+        .join(BookReadingRecord, BookReadingRecord.book_id == Book.id)
+        .where(BookReadingRecord.student_user_id == current_user.id)
+        .order_by(desc(BookReadingRecord.completed_at))
+    )
+    res = await db.execute(stmt)
+    results = res.all()
+    
+    data = []
+    for book, record in results:
+        b_dict = book.to_dict()
+        b_dict['reading_record'] = {
+            "quiz_score": record.quiz_score,
+            "test_score": record.test_score,
+            "completed_at": record.completed_at.isoformat() if record.completed_at else None
+        }
+        data.append(b_dict)
+        
+    return {"success": True, "data": data}
+
+
+@router.post("/books/{book_id}/complete")
+async def record_book_completion(
+    book_id: str,
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Kitobni o'qib bo'linganligini yozib qo'yish (Kutubxonada ko'rinishi uchun).
+    """
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Faqat o'quvchilar uchun")
+    
+    existing_res = await db.execute(
+        select(BookReadingRecord).where(
+            BookReadingRecord.student_user_id == current_user.id,
+            BookReadingRecord.book_id == book_id
+        )
+    )
+    record = existing_res.scalars().first()
+    
+    quiz_score = data.get("quiz_score")
+    test_score = data.get("test_score")
+    
+    if record:
+        if quiz_score is not None: record.quiz_score = int(quiz_score)
+        if test_score is not None: record.test_score = int(test_score)
+        record.completed_at = datetime.now(timezone.utc)
+    else:
+        record = BookReadingRecord(
+            student_user_id=current_user.id,
+            book_id=book_id,
+            quiz_score=int(quiz_score) if quiz_score is not None else 0,
+            test_score=int(test_score) if test_score is not None else 0
+        )
+        db.add(record)
+        
+    await db.commit()
+    return {"success": True, "message": "Natija saqlandi"}
+
+
+@router.get("/books/{book_id}")
+async def get_public_book(
+    book_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a single book by ID for students"""
+    res = await db.execute(select(Book).where(Book.id == book_id))
+    book = res.scalars().first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+    
+    return {
+        "success": True,
+        "data": book.to_dict()
+    }
 
 

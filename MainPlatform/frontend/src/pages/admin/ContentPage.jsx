@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Plus, Trash2, X, Book, Globe, Pencil, Video, Paperclip } from 'lucide-react';
+import { BookOpen, Plus, Trash2, X, Book, Globe, Pencil, Video, Paperclip, CheckSquare } from 'lucide-react';
 import adminService from '../../services/adminService';
 
 export default function ContentPage() {
     const [tab, setTab] = useState('lessons');
     const [lessons, setLessons] = useState([]);
     const [ertaklar, setErtaklar] = useState([]);
+    const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [createModal, setCreateModal] = useState(null); // 'lesson' | 'ertak'
+    const [createModal, setCreateModal] = useState(null); // 'lesson' | 'ertak' | 'book'
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [platformContent, setPlatformContent] = useState({});
@@ -18,6 +19,11 @@ export default function ContentPage() {
     const [ertakQuestions, setErtakQuestions] = useState([]); // [{question:'',answer:''}]
     const [ertakTest, setErtakTest] = useState([]); // [{question:'',options:['','','',''],correct:0}]
     
+    // Book forms
+    const [bookForm, setBookForm] = useState({ title: '', description: '', language: 'uz', age_group: 'Barchasi', is_premium: false, questions_limit: 3, test_limit: '' });
+    const [bookQuestions, setBookQuestions] = useState([]);
+    const [bookTest, setBookTest] = useState([]);
+
     // Bulk text import states
     const [bulkQuestionsText, setBulkQuestionsText] = useState('');
     const [bulkTestsText, setBulkTestsText] = useState('');
@@ -26,6 +32,7 @@ export default function ContentPage() {
 
     const [uploadFile, setUploadFile] = useState(null);
     const [uploadImage, setUploadImage] = useState(null);
+    
     const [editLesson, setEditLesson] = useState(null); // lesson object to edit
     const [editForm, setEditForm] = useState({ title: '', subject: '', content: '', grade_level: '', language: 'uz', video_url: '' });
 
@@ -34,15 +41,22 @@ export default function ContentPage() {
     const [editErtakQuestions, setEditErtakQuestions] = useState([]);
     const [editErtakTest, setEditErtakTest] = useState([]);
 
+    // Edit Book states
+    const [editBook, setEditBook] = useState(null);
+    const [editBookForm, setEditBookForm] = useState({ title: '', description: '', language: 'uz', age_group: 'Barchasi', is_premium: false, questions_limit: 3, test_limit: '' });
+    const [editBookQuestions, setEditBookQuestions] = useState([]);
+    const [editBookTest, setEditBookTest] = useState([]);
+
     useEffect(() => { loadContent(); }, []);
 
     const loadContent = async () => {
         try {
             setLoading(true);
-            const [lessRes, ertRes, pcRes] = await Promise.allSettled([
+            const [lessRes, ertRes, pcRes, bookRes] = await Promise.allSettled([
                 adminService.getLessons(),
                 adminService.getErtaklar(),
-                adminService.getPublicContent()
+                adminService.getPublicContent(),
+                adminService.getBooks()
             ]);
             if (lessRes.status === 'fulfilled') {
                 const ld = lessRes.value.data?.lessons || lessRes.value.data;
@@ -51,6 +65,10 @@ export default function ContentPage() {
             if (ertRes.status === 'fulfilled') {
                 const ed = ertRes.value.data?.ertaklar || ertRes.value.data?.stories || ertRes.value.data;
                 setErtaklar(Array.isArray(ed) ? ed : []);
+            }
+            if (bookRes.status === 'fulfilled') {
+                const bd = bookRes.value.data?.books || bookRes.value.data;
+                setBooks(Array.isArray(bd) ? bd : []);
             }
             if (pcRes.status === 'fulfilled') {
                 const data = pcRes.value.data?.data || {};
@@ -134,13 +152,79 @@ export default function ContentPage() {
         }
     };
 
-    const addQuestion = () => setErtakQuestions(prev => [...prev, { question: '', answer: '' }]);
-    const removeQuestion = (i) => setErtakQuestions(prev => prev.filter((_, idx) => idx !== i));
-    const updateQuestion = (i, field, val) => setErtakQuestions(prev =>
-        prev.map((q, idx) => idx === i ? { ...q, [field]: val } : q)
-    );
+    const handleCreateBook = async () => {
+        try {
+            setSaving(true);
+            setError('');
 
-    const handleBulkQuestionsImport = (isEdit = false) => {
+            if (!uploadFile) {
+                setError('PDF fayl yuklash majburiy!');
+                setSaving(false);
+                return;
+            }
+
+            const payload = {
+                ...bookForm,
+                questions_limit: parseInt(bookForm.questions_limit) || 3,
+                test_limit: bookForm.test_limit ? parseInt(bookForm.test_limit) : null,
+                questions: bookQuestions.filter(q => q.question.trim() && q.answer.trim()),
+                test: bookTest.filter(t => t.question.trim() && t.options.every(o => o.trim()))
+            };
+
+            const upRes = await adminService.uploadFile(uploadFile);
+            if (upRes.data?.url) {
+                payload.pdf_url = upRes.data.url;
+            } else {
+                throw new Error("PDF yuklashda xatolik yuz berdi");
+            }
+
+            if (uploadImage) {
+                const imgRes = await adminService.uploadFile(uploadImage);
+                if (imgRes.data?.url) {
+                    payload.image_url = imgRes.data.url;
+                }
+            }
+
+            await adminService.createBook(payload);
+            setCreateModal(null);
+            setBookForm({ title: '', description: '', language: 'uz', age_group: 'Barchasi', is_premium: false, questions_limit: 3, test_limit: '' });
+            setBookQuestions([]);
+            setBookTest([]);
+            setUploadFile(null);
+            setUploadImage(null);
+            loadContent();
+        } catch (err) {
+            setError(err.response?.data?.detail || err.message || 'Xatolik');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const addQuestion = (isBook = false) => {
+        if (isBook) {
+            setBookQuestions(prev => [...prev, { question: '', answer: '' }]);
+        } else {
+            setErtakQuestions(prev => [...prev, { question: '', answer: '' }]);
+        }
+    };
+
+    const removeQuestion = (i, isBook = false) => {
+        if (isBook) {
+            setBookQuestions(prev => prev.filter((_, idx) => idx !== i));
+        } else {
+            setErtakQuestions(prev => prev.filter((_, idx) => idx !== i));
+        }
+    };
+
+    const updateQuestion = (i, field, val, isBook = false) => {
+        if (isBook) {
+            setBookQuestions(prev => prev.map((q, idx) => idx === i ? { ...q, [field]: val } : q));
+        } else {
+            setErtakQuestions(prev => prev.map((q, idx) => idx === i ? { ...q, [field]: val } : q));
+        }
+    };
+
+    const handleBulkQuestionsImport = (isEdit = false, isBook = false) => {
         const text = isEdit ? editBulkQuestionsText : bulkQuestionsText;
         if (!text || !text.trim()) return;
 
@@ -165,10 +249,18 @@ export default function ContentPage() {
 
         if (parsed.length > 0) {
             if (isEdit) {
-                setEditErtakQuestions(prev => [...prev, ...parsed]);
+                if (isBook) {
+                    setEditBookQuestions(prev => [...prev, ...parsed]);
+                } else {
+                    setEditErtakQuestions(prev => [...prev, ...parsed]);
+                }
                 setEditBulkQuestionsText('');
             } else {
-                setErtakQuestions(prev => [...prev, ...parsed]);
+                if (isBook) {
+                    setBookQuestions(prev => [...prev, ...parsed]);
+                } else {
+                    setErtakQuestions(prev => [...prev, ...parsed]);
+                }
                 setBulkQuestionsText('');
             }
             alert(`${parsed.length} ta savol-javob muvaffaqiyatli import qilindi!`);
@@ -177,7 +269,7 @@ export default function ContentPage() {
         }
     };
 
-    const handleBulkTestsImport = (isEdit = false) => {
+    const handleBulkTestsImport = (isEdit = false, isBook = false) => {
         const text = isEdit ? editBulkTestsText : bulkTestsText;
         if (!text || !text.trim()) return;
 
@@ -229,10 +321,18 @@ export default function ContentPage() {
 
         if (parsed.length > 0) {
             if (isEdit) {
-                setEditErtakTest(prev => [...prev, ...parsed]);
+                if (isBook) {
+                    setEditBookTest(prev => [...prev, ...parsed]);
+                } else {
+                    setEditErtakTest(prev => [...prev, ...parsed]);
+                }
                 setEditBulkTestsText('');
             } else {
-                setErtakTest(prev => [...prev, ...parsed]);
+                if (isBook) {
+                    setBookTest(prev => [...prev, ...parsed]);
+                } else {
+                    setErtakTest(prev => [...prev, ...parsed]);
+                }
                 setBulkTestsText('');
             }
             alert(`${parsed.length} ta test muvaffaqiyatli import qilindi!`);
@@ -299,6 +399,16 @@ export default function ContentPage() {
         }
     };
 
+    const handleDeleteBook = async (id) => {
+        if (!confirm("Kitobni o'chirmoqchimisiz?")) return;
+        try {
+            await adminService.deleteBook(id);
+            loadContent();
+        } catch (err) {
+            alert(err.response?.data?.detail || 'Xatolik');
+        }
+    };
+
     const handleEditErtak = (ertak) => {
         setEditErtak(ertak);
         setEditErtakForm({
@@ -311,6 +421,21 @@ export default function ContentPage() {
         });
         setEditErtakQuestions(ertak.questions || []);
         setEditErtakTest(ertak.test || []);
+    };
+
+    const handleEditBook = (book) => {
+        setEditBook(book);
+        setEditBookForm({
+            title: book.title || '',
+            description: book.description || '',
+            language: book.language || 'uz',
+            age_group: book.age_group || 'Barchasi',
+            is_premium: !!book.is_premium,
+            questions_limit: book.questions_limit !== undefined && book.questions_limit !== null ? book.questions_limit : 3,
+            test_limit: book.test_limit !== undefined && book.test_limit !== null ? book.test_limit : '',
+        });
+        setEditBookQuestions(book.questions || []);
+        setEditBookTest(book.test || []);
     };
 
     const handleUpdateErtak = async () => {
@@ -347,6 +472,40 @@ export default function ContentPage() {
         }
     };
 
+    const handleUpdateBook = async () => {
+        if (!editBook) return;
+        try {
+            setSaving(true);
+            setError('');
+            const payload = {
+                ...editBookForm,
+                questions_limit: parseInt(editBookForm.questions_limit) || 3,
+                test_limit: editBookForm.test_limit ? parseInt(editBookForm.test_limit) : null,
+                questions: editBookQuestions.filter(q => q.question?.trim() && q.answer?.trim()),
+                test: editBookTest.filter(t => t.question?.trim() && t.options?.every(o => o.trim()))
+            };
+            if (uploadFile) {
+                const upRes = await adminService.uploadFile(uploadFile);
+                if (upRes.data?.url) payload.pdf_url = upRes.data.url;
+            }
+            if (uploadImage) {
+                const imgRes = await adminService.uploadFile(uploadImage);
+                if (imgRes.data?.url) payload.image_url = imgRes.data.url;
+            }
+            await adminService.updateBook(editBook.id, payload);
+            setEditBook(null);
+            setEditBookQuestions([]);
+            setEditBookTest([]);
+            setUploadFile(null);
+            setUploadImage(null);
+            loadContent();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Xatolik');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (loading) {
         return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" /></div>;
     }
@@ -356,13 +515,14 @@ export default function ContentPage() {
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-white">Kontentlar</h1>
-                    <p className="text-gray-500 text-sm">Darslar va ertaklar boshqaruvi</p>
+                    <p className="text-gray-500 text-sm">Darslar, ertaklar va kitoblar boshqaruvi</p>
                 </div>
                 <button
-                    onClick={() => setCreateModal(tab === 'lessons' ? 'lesson' : 'ertak')}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+                    onClick={() => setCreateModal(tab === 'lessons' ? 'lesson' : tab === 'ertaklar' ? 'ertak' : 'book')}
+                    disabled={tab === 'platform'}
+                    className={`flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors ${tab === 'platform' ? 'opacity-0 pointer-events-none' : ''}`}
                 >
-                    <Plus className="w-4 h-4" /> Yangi {tab === 'lessons' ? 'dars' : 'ertak'}
+                    <Plus className="w-4 h-4" /> Yangi {tab === 'lessons' ? 'dars' : tab === 'ertaklar' ? 'ertak' : 'kitob'}
                 </button>
             </div>
 
@@ -371,6 +531,7 @@ export default function ContentPage() {
                 {[
                     { key: 'lessons', label: 'Darslar', icon: BookOpen, count: lessons.length },
                     { key: 'ertaklar', label: 'Ertaklar', icon: Book, count: ertaklar.length },
+                    { key: 'books', label: 'Kitoblar', icon: BookOpen, count: books.length },
                     { key: 'platform', label: 'Sayt Kontenti', icon: Globe, count: Object.keys(platformContent).length },
                 ].map(t => (
                     <button
@@ -443,6 +604,38 @@ export default function ContentPage() {
                             <div className="flex items-center gap-1 shrink-0">
                                 <button onClick={() => handleEditErtak(e)} className="p-2 text-gray-500 hover:text-blue-400"><Pencil className="w-4 h-4" /></button>
                                 <button onClick={() => handleDeleteErtak(e.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Books List */}
+            {tab === 'books' && (
+                <div className="space-y-3">
+                    {books.length === 0 ? (
+                        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center text-gray-500">Kitoblar yo'q</div>
+                    ) : books.map(b => (
+                        <div key={b.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 hover:border-gray-700 transition-colors flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center shrink-0">
+                                    <BookOpen className="w-5 h-5 text-emerald-400" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="text-white font-medium truncate">{b.title}</h3>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                        <span>{b.language?.toUpperCase()}</span>
+                                        <span>• {b.age_group} yosh</span>
+                                        <span className={b.is_premium ? "text-amber-400 font-bold" : "text-green-400 font-bold"}>
+                                            • {b.is_premium ? "Premium (Pullik)" : "Bepul"}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1 line-clamp-1 italic">{b.description || 'Izohsiz'}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                                <button onClick={() => handleEditBook(b)} className="p-2 text-gray-500 hover:text-blue-400"><Pencil className="w-4 h-4" /></button>
+                                <button onClick={() => handleDeleteBook(b.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                             </div>
                         </div>
                     ))}
@@ -601,7 +794,7 @@ export default function ContentPage() {
                                     value={ertakForm.questions_limit} 
                                     onChange={(v) => setErtakForm({ ...ertakForm, questions_limit: parseInt(v) || 3 })} 
                                 />
-                                <p className="text-[10px] text-gray-500 mt-1">Quiz payti tasodifiy tanlab olinadigan savollar soni.</p>
+                                <p className="text-[10px] text-gray-500 mt-1">Quiz payti tasodifiy tanlab olimadigan savollar soni.</p>
                             </div>
                             <div>
                                 <Input 
@@ -621,7 +814,7 @@ export default function ContentPage() {
                                 <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
                                 <button
                                     type="button"
-                                    onClick={addQuestion}
+                                    onClick={() => addQuestion(false)}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
                                 >
                                     <Plus className="w-3.5 h-3.5" /> Savol qo'shish
@@ -642,7 +835,7 @@ export default function ContentPage() {
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => handleBulkQuestionsImport(false)}
+                                    onClick={() => handleBulkQuestionsImport(false, false)}
                                     className="w-full mt-2 py-1.5 bg-emerald-700/60 text-emerald-200 hover:bg-emerald-700 text-xs font-medium rounded-lg transition-colors border border-emerald-600/40"
                                 >
                                     Savollarni import qilish
@@ -657,21 +850,21 @@ export default function ContentPage() {
                                         <div key={i} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-gray-400 text-xs font-medium">{i + 1}-savol</span>
-                                                <button type="button" onClick={() => removeQuestion(i)} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                <button type="button" onClick={() => removeQuestion(i, false)} className="text-gray-600 hover:text-red-400 transition-colors">
                                                     <X className="w-3.5 h-3.5" />
                                                 </button>
                                             </div>
                                             <input
                                                 type="text"
                                                 value={q.question}
-                                                onChange={e => updateQuestion(i, 'question', e.target.value)}
+                                                onChange={e => updateQuestion(i, 'question', e.target.value, false)}
                                                 placeholder="Savol matni..."
                                                 className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
                                             />
                                             <input
                                                 type="text"
                                                 value={q.answer}
-                                                onChange={e => updateQuestion(i, 'answer', e.target.value)}
+                                                onChange={e => updateQuestion(i, 'answer', e.target.value, false)}
                                                 placeholder="To'g'ri javob..."
                                                 className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
                                             />
@@ -708,7 +901,7 @@ export default function ContentPage() {
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => handleBulkTestsImport(false)}
+                                    onClick={() => handleBulkTestsImport(false, false)}
                                     className="w-full mt-2 py-1.5 bg-blue-700/60 text-blue-200 hover:bg-blue-700 text-xs font-medium rounded-lg transition-colors border border-blue-600/40"
                                 >
                                     Testlarni import qilish
@@ -767,13 +960,15 @@ export default function ContentPage() {
                             )}
                         </div>
 
-                        <div>
-                            <label className="text-gray-400 text-xs mb-1 block">Audio / Fayl yuklash (Ixtiyoriy)</label>
-                            <input type="file" accept="audio/*" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
-                        </div>
-                        <div>
-                            <label className="text-gray-400 text-xs mb-1 block">Muqova rasmi (Cover Image - Ixtiyoriy)</label>
-                            <input type="file" accept="image/*" onChange={(e) => setUploadImage(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Audio fayl (Ixtiyoriy)</label>
+                                <input type="file" accept="audio/*" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Muqova rasmi (Ixtiyoriy)</label>
+                                <input type="file" accept="image/*" onChange={(e) => setUploadImage(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white" />
+                            </div>
                         </div>
                     </div>
                     {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
@@ -785,6 +980,234 @@ export default function ContentPage() {
                     </div>
                 </Modal>
             )}
+
+            {/* Create Book Modal */}
+            {createModal === 'book' && (
+                <Modal title="Yangi kitob yaratish" onClose={() => setCreateModal(null)}>
+                    <div className="space-y-3">
+                        <Input label="Kitob nomi *" value={bookForm.title} onChange={(v) => setBookForm({ ...bookForm, title: v })} />
+                        <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Kitob haqida izoh (Description) *</label>
+                            <textarea
+                                value={bookForm.description}
+                                onChange={(e) => setBookForm({ ...bookForm, description: e.target.value })}
+                                rows={4}
+                                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 resize-none"
+                                placeholder="Kitob haqida qisqacha izoh yozing..."
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Select label="Til" value={bookForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setBookForm({ ...bookForm, language: v })} />
+                            <Select label="Yosh guruhi" value={bookForm.age_group} options={['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+']} onChange={(v) => setBookForm({ ...bookForm, age_group: v })} />
+                        </div>
+                        
+                        {/* Premium Checkbox */}
+                        <div className="flex items-center gap-2 py-2 bg-gray-800/30 px-3 rounded-xl border border-gray-850">
+                            <input
+                                type="checkbox"
+                                id="is_premium_book"
+                                checked={bookForm.is_premium}
+                                onChange={(e) => setBookForm({ ...bookForm, is_premium: e.target.checked })}
+                                className="w-4 h-4 text-emerald-600 border-gray-700 bg-gray-800 rounded focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <label htmlFor="is_premium_book" className="text-gray-300 text-xs font-semibold cursor-pointer select-none">
+                                Premium (Pullik - Oylik obunachilar uchun)
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 bg-gray-800/40 p-3 rounded-xl border border-gray-800">
+                            <div>
+                                <Input 
+                                    label="Savollar soni cheklovi (Min: 3)" 
+                                    type="number" 
+                                    value={bookForm.questions_limit} 
+                                    onChange={(v) => setBookForm({ ...bookForm, questions_limit: parseInt(v) || 3 })} 
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">Quiz payti tasodifiy tanlab olinadigan savollar soni.</p>
+                            </div>
+                            <div>
+                                <Input 
+                                    label="Testlar soni cheklovi (Ixtiyoriy)" 
+                                    type="number" 
+                                    value={bookForm.test_limit} 
+                                    placeholder="Barchasi"
+                                    onChange={(v) => setBookForm({ ...bookForm, test_limit: v })} 
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">Tasodifiy tanlab olinadigan testlar soni.</p>
+                            </div>
+                        </div>
+
+                        {/* ── Savollar bo'limi ── */}
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
+                                <button
+                                    type="button"
+                                    onClick={() => addQuestion(true)}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Savol qo'shish
+                                </button>
+                            </div>
+
+                            <div className="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+                                <label className="text-gray-300 text-xs font-medium block mb-1.5">
+                                    Matndan import qilish (Format: Savol? tagidan Javob: ...)
+                                </label>
+                                <textarea
+                                    value={bulkQuestionsText}
+                                    onChange={(e) => setBulkQuestionsText(e.target.value)}
+                                    rows={3}
+                                    placeholder={`Kitob kim haqida?\nJavob: Alisher Navoiy haqida.\nNavoiy nechanchi yilda tug'ilgan?\nJavob: 1441-yilda.`}
+                                    className="w-full px-2.5 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 resize-none font-mono placeholder-gray-600"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleBulkQuestionsImport(false, true)}
+                                    className="w-full mt-2 py-1.5 bg-emerald-700/60 text-emerald-200 hover:bg-emerald-700 text-xs font-medium rounded-lg transition-colors border border-emerald-600/40"
+                                >
+                                    Savollarni import qilish
+                                </button>
+                            </div>
+
+                            {bookQuestions.length === 0 ? (
+                                <p className="text-gray-500 text-xs text-center py-2">Hali savol qo'shilmagan.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {bookQuestions.map((q, i) => (
+                                        <div key={i} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-400 text-xs font-medium">{i + 1}-savol</span>
+                                                <button type="button" onClick={() => removeQuestion(i, true)} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={q.question}
+                                                onChange={e => updateQuestion(i, 'question', e.target.value, true)}
+                                                placeholder="Savol matni..."
+                                                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={q.answer}
+                                                onChange={e => updateQuestion(i, 'answer', e.target.value, true)}
+                                                placeholder="To'g'ri javob..."
+                                                className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ── Test bo'limi ── */}
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-white text-sm font-semibold">📝 Testlar</p>
+                                <button
+                                    type="button"
+                                    onClick={() => setBookTest(prev => [...prev, { question: '', options: ['', '', '', ''], correct: 0 }])}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Test qo'shish
+                                </button>
+                            </div>
+
+                            <div className="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+                                <label className="text-gray-300 text-xs font-medium block mb-1.5">
+                                    Matndan import qilish
+                                </label>
+                                <textarea
+                                    value={bulkTestsText}
+                                    onChange={(e) => setBulkTestsText(e.target.value)}
+                                    rows={3}
+                                    placeholder={`1. Savol?\nA) Variant A\nB) Variant B\nTo'g'ri javob: B`}
+                                    className="w-full px-2.5 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500 resize-none font-mono placeholder-gray-600"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleBulkTestsImport(false, true)}
+                                    className="w-full mt-2 py-1.5 bg-blue-700/60 text-blue-200 hover:bg-blue-700 text-xs font-medium rounded-lg transition-colors border border-blue-600/40"
+                                >
+                                    Testlarni import qilish
+                                </button>
+                            </div>
+
+                            {bookTest.length === 0 ? (
+                                <p className="text-gray-500 text-xs text-center py-2">Hali test qo'shilmagan.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {bookTest.map((t, idx) => (
+                                        <div key={idx} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative border border-gray-700">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-400 text-xs font-medium">{idx + 1}-test</span>
+                                                <button type="button" onClick={() => setBookTest(prev => prev.filter((_, i) => i !== idx))} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={t.question}
+                                                onChange={e => setBookTest(prev => prev.map((q, i) => i === idx ? { ...q, question: e.target.value } : q))}
+                                                placeholder="Savol..."
+                                                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
+                                            />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {t.options.map((opt, optIdx) => (
+                                                    <input
+                                                        key={optIdx}
+                                                        type="text"
+                                                        value={opt}
+                                                        onChange={e => setBookTest(prev => prev.map((q, i) => i === idx ? {
+                                                            ...q,
+                                                            options: q.options.map((o, oi) => oi === optIdx ? e.target.value : o)
+                                                        } : q))}
+                                                        placeholder={`${String.fromCharCode(65 + optIdx)} varianti...`}
+                                                        className="w-full px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div>
+                                                <select
+                                                    value={t.correct}
+                                                    onChange={e => setBookTest(prev => prev.map((q, i) => i === idx ? { ...q, correct: parseInt(e.target.value) } : q))}
+                                                    className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
+                                                >
+                                                    {t.options.map((_, optIdx) => (
+                                                        <option key={optIdx} value={optIdx}>{String.fromCharCode(65 + optIdx)} varianti</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Kitob PDF fayli *</label>
+                                <input type="file" accept=".pdf" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Muqova rasmi (Ixtiyoriy)</label>
+                                <input type="file" accept="image/*" onChange={(e) => setUploadImage(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white" />
+                            </div>
+                        </div>
+                    </div>
+                    {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button onClick={() => { setCreateModal(null); setUploadImage(null); setUploadFile(null); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                        <button onClick={handleCreateBook} disabled={saving || !bookForm.title || !bookForm.description} className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2">
+                            {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                            {saving ? 'Yaratilmoqda...' : 'Kitobni yaratish'}
+                        </button>
+                    </div>
+                </Modal>
+            )}
+
             {/* Edit Ertak Modal */}
             {editErtak && (
                 <Modal title={`Ertakni tahrirlash: ${editErtak.title}`} onClose={() => { setEditErtak(null); setUploadImage(null); setUploadFile(null); setEditErtakQuestions([]); }}>
@@ -837,21 +1260,20 @@ export default function ContentPage() {
                                 </button>
                             </div>
 
-                            {/* Savollarni matndan import qilish (Edit Mode) */}
                             <div className="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
                                 <label className="text-gray-300 text-xs font-medium block mb-1.5">
-                                    Matndan import qilish (Format: Savol? tagidan Javob: ...)
+                                    Matndan import qilish
                                 </label>
                                 <textarea
                                     value={editBulkQuestionsText}
                                     onChange={(e) => setEditBulkQuestionsText(e.target.value)}
                                     rows={3}
-                                    placeholder={`Bolalar qayerga kelishdi?\nJavob: Bog'ga kelishdi.\nJasur nimani ko'rdi?\nJavob: Idishni ko'rdi.`}
+                                    placeholder={`Bolalar qayerga kelishdi?\nJavob: Bog'ga kelishdi.`}
                                     className="w-full px-2.5 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 resize-none font-mono placeholder-gray-600"
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => handleBulkQuestionsImport(true)}
+                                    onClick={() => handleBulkQuestionsImport(true, false)}
                                     className="w-full mt-2 py-1.5 bg-emerald-700/60 text-emerald-200 hover:bg-emerald-700 text-xs font-medium rounded-lg transition-colors border border-emerald-600/40"
                                 >
                                     Savollarni import qilish
@@ -859,7 +1281,7 @@ export default function ContentPage() {
                             </div>
 
                             {editErtakQuestions.length === 0 ? (
-                                <p className="text-gray-500 text-xs text-center py-2">Hali savol qo'shilmagan. "Savol qo'shish" tugmasini bosing.</p>
+                                <p className="text-gray-500 text-xs text-center py-2">Hali savol qo'shilmagan.</p>
                             ) : (
                                 <div className="space-y-3">
                                     {editErtakQuestions.map((q, i) => (
@@ -911,10 +1333,9 @@ export default function ContentPage() {
                                 </button>
                             </div>
 
-                            {/* Testlarni matndan import qilish (Edit Mode) */}
                             <div className="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
                                 <label className="text-gray-300 text-xs font-medium block mb-1.5">
-                                    Matndan import qilish (Format: 1. Savol?\nA) ... B) ... To'g'ri javob: B)
+                                    Matndan import qilish
                                 </label>
                                 <textarea
                                     value={editBulkTestsText}
@@ -925,7 +1346,7 @@ export default function ContentPage() {
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => handleBulkTestsImport(true)}
+                                    onClick={() => handleBulkTestsImport(true, false)}
                                     className="w-full mt-2 py-1.5 bg-blue-700/60 text-blue-200 hover:bg-blue-700 text-xs font-medium rounded-lg transition-colors border border-blue-600/40"
                                 >
                                     Testlarni import qilish
@@ -933,13 +1354,13 @@ export default function ContentPage() {
                             </div>
 
                             {editErtakTest.length === 0 ? (
-                                <p className="text-gray-500 text-xs text-center py-2">Hali test qo'shilmagan. "Test qo'shish" tugmasini bosing.</p>
+                                <p className="text-gray-500 text-xs text-center py-2">Hali test qo'shilmagan.</p>
                             ) : (
                                 <div className="space-y-4">
                                     {editErtakTest.map((t, idx) => (
                                         <div key={idx} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative border border-gray-700">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-gray-400 text-xs font-medium">{idx + 1}-test savoli</span>
+                                                <span className="text-gray-400 text-xs font-medium">{idx + 1}-test</span>
                                                 <button type="button" onClick={() => setEditErtakTest(prev => prev.filter((_, i) => i !== idx))} className="text-gray-600 hover:text-red-400 transition-colors">
                                                     <X className="w-3.5 h-3.5" />
                                                 </button>
@@ -949,7 +1370,7 @@ export default function ContentPage() {
                                                 value={t.question}
                                                 onChange={e => setEditErtakTest(prev => prev.map((q, i) => i === idx ? { ...q, question: e.target.value } : q))}
                                                 placeholder="Savol matni..."
-                                                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                                                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
                                             />
                                             <div className="grid grid-cols-2 gap-2">
                                                 {t.options?.map((opt, optIdx) => (
@@ -962,12 +1383,11 @@ export default function ContentPage() {
                                                             options: q.options.map((o, oi) => oi === optIdx ? e.target.value : o)
                                                         } : q))}
                                                         placeholder={`${String.fromCharCode(65 + optIdx)} varianti...`}
-                                                        className="w-full px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                                                        className="w-full px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
                                                     />
                                                 ))}
                                             </div>
                                             <div>
-                                                <label className="text-gray-400 text-[10px] block mb-1">To'g'ri javob varianti:</label>
                                                 <select
                                                     value={t.correct}
                                                     onChange={e => setEditErtakTest(prev => prev.map((q, i) => i === idx ? { ...q, correct: parseInt(e.target.value) } : q))}
@@ -1001,6 +1421,234 @@ export default function ContentPage() {
                     <div className="flex justify-end gap-3 mt-6">
                         <button onClick={() => { setEditErtak(null); setUploadImage(null); setUploadFile(null); setEditErtakQuestions([]); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
                         <button onClick={handleUpdateErtak} disabled={saving || !editErtakForm.title || !editErtakForm.content} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                            {saving ? 'Saqlanmoqda...' : 'O\'zgartirishni saqlash'}
+                        </button>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Edit Book Modal */}
+            {editBook && (
+                <Modal title={`Kitobni tahrirlash: ${editBook.title}`} onClose={() => { setEditBook(null); setUploadImage(null); setUploadFile(null); setEditBookQuestions([]); }}>
+                    <div className="space-y-3">
+                        <Input label="Kitob nomi *" value={editBookForm.title} onChange={(v) => setEditBookForm({ ...editBookForm, title: v })} />
+                        <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Kitob haqida izoh (Description) *</label>
+                            <textarea
+                                value={editBookForm.description}
+                                onChange={(e) => setEditBookForm({ ...editBookForm, description: e.target.value })}
+                                rows={4}
+                                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 resize-none"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Select label="Til" value={editBookForm.language} options={['uz', 'ru', 'en']} onChange={(v) => setEditBookForm({ ...editBookForm, language: v })} />
+                            <Select label="Yosh guruhi" value={editBookForm.age_group} options={['Barchasi', '5-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-17', '17+']} onChange={(v) => setEditBookForm({ ...editBookForm, age_group: v })} />
+                        </div>
+                        
+                        {/* Premium Checkbox */}
+                        <div className="flex items-center gap-2 py-2 bg-gray-800/30 px-3 rounded-xl border border-gray-850">
+                            <input
+                                type="checkbox"
+                                id="edit_is_premium_book"
+                                checked={editBookForm.is_premium}
+                                onChange={(e) => setEditBookForm({ ...editBookForm, is_premium: e.target.checked })}
+                                className="w-4 h-4 text-emerald-600 border-gray-700 bg-gray-800 rounded focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <label htmlFor="edit_is_premium_book" className="text-gray-300 text-xs font-semibold cursor-pointer select-none">
+                                Premium (Pullik - Oylik obunachilar uchun)
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 bg-gray-800/40 p-3 rounded-xl border border-gray-800">
+                            <div>
+                                <Input 
+                                    label="Savollar soni cheklovi (Min: 3)" 
+                                    type="number" 
+                                    value={editBookForm.questions_limit} 
+                                    onChange={(v) => setEditBookForm({ ...editBookForm, questions_limit: parseInt(v) || 3 })} 
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">Quiz payti tasodifiy tanlab olinadigan savollar soni.</p>
+                            </div>
+                            <div>
+                                <Input 
+                                    label="Testlar soni cheklovi (Ixtiyoriy)" 
+                                    type="number" 
+                                    value={editBookForm.test_limit} 
+                                    placeholder="Barchasi"
+                                    onChange={(v) => setEditBookForm({ ...editBookForm, test_limit: v })} 
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">Tasodifiy tanlab olinadigan testlar soni.</p>
+                            </div>
+                        </div>
+
+                        {/* ── Savollar bo'limi ── */}
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-white text-sm font-semibold">❓ Savollar (Quiz)</p>
+                                <button
+                                    type="button"
+                                    onClick={() => addQuestion(true)}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Savol qo'shish
+                                </button>
+                            </div>
+
+                            <div className="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+                                <label className="text-gray-300 text-xs font-medium block mb-1.5">
+                                    Matndan import qilish
+                                </label>
+                                <textarea
+                                    value={editBulkQuestionsText}
+                                    onChange={(e) => setEditBulkQuestionsText(e.target.value)}
+                                    rows={3}
+                                    placeholder={`Kitob kim haqida?\nJavob: Alisher Navoiy haqida.`}
+                                    className="w-full px-2.5 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 resize-none font-mono placeholder-gray-600"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleBulkQuestionsImport(true, true)}
+                                    className="w-full mt-2 py-1.5 bg-emerald-700/60 text-emerald-200 hover:bg-emerald-700 text-xs font-medium rounded-lg transition-colors border border-emerald-600/40"
+                                >
+                                    Savollarni import qilish
+                                </button>
+                            </div>
+
+                            {editBookQuestions.length === 0 ? (
+                                <p className="text-gray-500 text-xs text-center py-2">Hali savol qo'shilmagan.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {editBookQuestions.map((q, i) => (
+                                        <div key={i} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-400 text-xs font-medium">{i + 1}-savol</span>
+                                                <button type="button" onClick={() => removeQuestion(i, true)} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={q.question}
+                                                onChange={e => updateQuestion(i, 'question', e.target.value, true)}
+                                                placeholder="Savol matni..."
+                                                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={q.answer}
+                                                onChange={e => updateQuestion(i, 'answer', e.target.value, true)}
+                                                placeholder="To'g'ri javob..."
+                                                className="w-full px-3 py-1.5 bg-emerald-900/30 border border-emerald-700/40 rounded-lg text-emerald-300 text-xs focus:outline-none focus:border-emerald-500 placeholder-gray-500"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ── Test bo'limi ── */}
+                        <div className="border border-dashed border-gray-600 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-white text-sm font-semibold">📝 Testlar</p>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditBookTest(prev => [...prev, { question: '', options: ['', '', '', ''], correct: 0 }])}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Test qo'shish
+                                </button>
+                            </div>
+
+                            <div className="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+                                <label className="text-gray-300 text-xs font-medium block mb-1.5">
+                                    Matndan import qilish
+                                </label>
+                                <textarea
+                                    value={editBulkTestsText}
+                                    onChange={(e) => setEditBulkTestsText(e.target.value)}
+                                    rows={3}
+                                    placeholder={`1. Savol?\nA) Variant A\nB) Variant B\nTo'g'ri javob: B`}
+                                    className="w-full px-2.5 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500 resize-none font-mono placeholder-gray-600"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleBulkTestsImport(true, true)}
+                                    className="w-full mt-2 py-1.5 bg-blue-700/60 text-blue-200 hover:bg-blue-700 text-xs font-medium rounded-lg transition-colors border border-blue-600/40"
+                                >
+                                    Testlarni import qilish
+                                </button>
+                            </div>
+
+                            {editBookTest.length === 0 ? (
+                                <p className="text-gray-500 text-xs text-center py-2">Hali test qo'shilmagan.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {editBookTest.map((t, idx) => (
+                                        <div key={idx} className="bg-gray-800/60 rounded-xl p-3 space-y-2 relative border border-gray-700">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-400 text-xs font-medium">{idx + 1}-test</span>
+                                                <button type="button" onClick={() => setEditBookTest(prev => prev.filter((_, i) => i !== idx))} className="text-gray-600 hover:text-red-400 transition-colors">
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={t.question}
+                                                onChange={e => setEditBookTest(prev => prev.map((q, i) => i === idx ? { ...q, question: e.target.value } : q))}
+                                                placeholder="Savol..."
+                                                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
+                                            />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {t.options?.map((opt, optIdx) => (
+                                                    <input
+                                                        key={optIdx}
+                                                        type="text"
+                                                        value={opt}
+                                                        onChange={e => setEditBookTest(prev => prev.map((q, i) => i === idx ? {
+                                                            ...q,
+                                                            options: q.options.map((o, oi) => oi === optIdx ? e.target.value : o)
+                                                        } : q))}
+                                                        placeholder={`${String.fromCharCode(65 + optIdx)} varianti...`}
+                                                        className="w-full px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div>
+                                                <select
+                                                    value={t.correct}
+                                                    onChange={e => setEditBookTest(prev => prev.map((q, i) => i === idx ? { ...q, correct: parseInt(e.target.value) } : q))}
+                                                    className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
+                                                >
+                                                    {t.options?.map((_, optIdx) => (
+                                                        <option key={optIdx} value={optIdx}>{String.fromCharCode(65 + optIdx)} varianti</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Yangi Kitob PDF (Ixtiyoriy)</label>
+                                <input type="file" accept=".pdf" onChange={(e) => setUploadFile(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white" />
+                                {editBook.pdf_url && <p className="text-[10px] text-emerald-400 mt-1 truncate">Mavjud: {editBook.pdf_url.split('/').pop()}</p>}
+                            </div>
+                            <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Yangi Muqova (Ixtiyoriy)</label>
+                                <input type="file" accept="image/*" onChange={(e) => setUploadImage(e.target.files[0] || null)} className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white" />
+                                {editBook.image_url && <p className="text-[10px] text-blue-400 mt-1 truncate">Mavjud: {editBook.image_url.split('/').pop()}</p>}
+                            </div>
+                        </div>
+                    </div>
+                    {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button onClick={() => { setEditBook(null); setUploadImage(null); setUploadFile(null); setEditBookQuestions([]); }} className="px-4 py-2 text-gray-400 text-sm">Bekor</button>
+                        <button onClick={handleUpdateBook} disabled={saving || !editBookForm.title || !editBookForm.description} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
+                            {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
                             {saving ? 'Saqlanmoqda...' : 'O\'zgartirishni saqlash'}
                         </button>
                     </div>

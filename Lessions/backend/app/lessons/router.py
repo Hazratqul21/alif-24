@@ -11,6 +11,7 @@ import logging
 
 from shared.database import get_db
 from shared.database.models.story import Story
+from shared.database.models.book import Book, BookReadingRecord
 from app.lessons.models import Lesson, LessonProgress as LessonProgressModel, LessonStatus
 
 logger = logging.getLogger("lessions")
@@ -71,6 +72,19 @@ class EvaluateQuizRequest(BaseModel):
     language: Optional[str] = "uz-UZ"
     correct_answer: Optional[str] = None
 
+class BookCreate(BaseModel):
+    title: str = Field(..., min_length=3, max_length=200)
+    description: Optional[str] = None
+    pdf_url: str = Field(...)
+    image_url: Optional[str] = None
+    is_premium: bool = False
+    language: str = Field(default="uz")
+    age_group: str = Field(default="6-8")
+    questions: List[QuizQuestion] = []
+    test: Optional[List[dict]] = []
+    questions_limit: Optional[int] = 3
+    test_limit: Optional[int] = None
+
 def _lesson_to_dict(lesson: Lesson) -> dict:
     return {
         "id": lesson.id,
@@ -102,6 +116,9 @@ def _ertak_to_dict(ertak: Story) -> dict:
         "test_limit": getattr(ertak, 'test_limit', None),
         "created_at": ertak.created_at.isoformat() if getattr(ertak, 'created_at', None) else None,
     }
+
+def _book_to_dict(book: Book) -> dict:
+    return book.to_dict()
 
 
 # ============= Lessons CRUD =============
@@ -397,6 +414,163 @@ async def delete_ertak(
     await db.delete(ertak)
     await db.commit()
     return {"success": True, "message": "Ertak o'chirildi"}
+
+
+# ============= Kitoblar (Books) =============
+
+@router.post("/kitoblar")
+async def create_book(
+    data: BookCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new book"""
+    book = Book(
+        title=data.title,
+        description=data.description,
+        pdf_url=data.pdf_url,
+        image_url=data.image_url,
+        is_premium=data.is_premium,
+        language=data.language,
+        age_group=data.age_group,
+        questions=[q.dict() for q in data.questions] if data.questions else [],
+        test=data.test or [],
+        questions_limit=data.questions_limit,
+        test_limit=data.test_limit,
+    )
+    db.add(book)
+    await db.commit()
+    await db.refresh(book)
+
+    logger.info(f"Book created: {data.title} (ID: {book.id})")
+    return {"success": True, "data": _book_to_dict(book)}
+
+
+@router.get("/kitoblar")
+async def list_books(
+    language: Optional[str] = None,
+    age_group: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """List all books — teacher_id IS NULL or admin books"""
+    stmt = select(Book).where(Book.teacher_id == None)  # noqa: E711
+
+    if language:
+        stmt = stmt.where(Book.language == language)
+    if age_group:
+        stmt = stmt.where(Book.age_group == age_group)
+
+    result = await db.execute(stmt)
+    results = result.scalars().all()
+    return {
+        "success": True,
+        "data": {
+            "books": [_book_to_dict(b) for b in results],
+            "total": len(results)
+        }
+    }
+
+
+@router.get("/kitoblar/{book_id}")
+async def get_book(
+    book_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get book details"""
+    res = await db.execute(select(Book).where(Book.id == book_id))
+    book = res.scalars().first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+
+    book.view_count += 1
+    await db.commit()
+    return {"success": True, "data": _book_to_dict(book)}
+
+
+@router.delete("/kitoblar/{book_id}")
+async def delete_book(
+    book_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a book"""
+    res = await db.execute(select(Book).where(Book.id == book_id))
+    book = res.scalars().first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+
+    await db.delete(book)
+    await db.commit()
+    return {"success": True, "message": "Kitob o'chirildi"}
+
+
+@router.put("/kitoblar/{book_id}/questions")
+async def update_book_questions(
+    book_id: str,
+    data: QuestionsUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin: kitobga savollar qo'shish yoki yangilash"""
+    res = await db.execute(select(Book).where(Book.id == book_id))
+    book = res.scalars().first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+
+    book.questions = [q.dict() for q in data.questions]
+    await db.commit()
+    await db.refresh(book)
+    return {"success": True, "data": _book_to_dict(book)}
+
+
+from fastapi import Request
+from shared.auth import verify_token
+from datetime import datetime, timezone
+
+@router.post("/kitoblar/{book_id}/complete")
+@router.post("/books/{book_id}/complete")
+async def complete_book_reading(
+    book_id: str,
+    data: dict,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Save book reading record (called by student frontend)"""
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    
+    payload = verify_token(token) if token else None
+    student_user_id = payload.get("sub") if payload else None
+    
+    if not student_user_id:
+        raise HTTPException(status_code=401, detail="Tizimga kirmagansiz")
+    
+    existing_res = await db.execute(
+        select(BookReadingRecord).where(
+            BookReadingRecord.student_user_id == student_user_id,
+            BookReadingRecord.book_id == book_id
+        )
+    )
+    record = existing_res.scalars().first()
+    
+    quiz_score = data.get("quiz_score")
+    test_score = data.get("test_score")
+    
+    if record:
+        if quiz_score is not None: record.quiz_score = int(quiz_score)
+        if test_score is not None: record.test_score = int(test_score)
+        record.completed_at = datetime.now(timezone.utc)
+    else:
+        record = BookReadingRecord(
+            student_user_id=student_user_id,
+            book_id=book_id,
+            quiz_score=int(quiz_score) if quiz_score is not None else 0,
+            test_score=int(test_score) if test_score is not None else 0
+        )
+        db.add(record)
+        
+    await db.commit()
+    return {"success": True, "message": "Natija saqlandi"}
 
 
 # ============= Ertak Savollar (Quiz Questions) =============

@@ -169,6 +169,32 @@ class StoryUpdateRequest(BaseModel):
     questions_limit: Optional[int] = None
     test_limit: Optional[int] = None
 
+class BookCreateRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+    pdf_url: str
+    image_url: Optional[str] = None
+    is_premium: bool = False
+    language: str = "uz"
+    age_group: Optional[str] = None
+    questions: Optional[List[Dict[str, str]]] = None
+    test: Optional[List[Dict[str, Any]]] = None
+    questions_limit: Optional[int] = 3
+    test_limit: Optional[int] = None
+
+class BookUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    pdf_url: Optional[str] = None
+    image_url: Optional[str] = None
+    is_premium: Optional[bool] = None
+    language: Optional[str] = None
+    age_group: Optional[str] = None
+    questions: Optional[List[Dict[str, str]]] = None
+    test: Optional[List[Dict[str, Any]]] = None
+    questions_limit: Optional[int] = None
+    test_limit: Optional[int] = None
+
 class StatsResponse(BaseModel):
     total_users: int
     total_students: int
@@ -184,6 +210,7 @@ class StatsResponse(BaseModel):
 
 from shared.database.models.lesson import Lesson, LessonStatus
 from shared.database.models.story import Story
+from shared.database.models.book import Book
 
 @router.get("/direct/lessons")
 async def list_direct_lessons(
@@ -509,6 +536,138 @@ async def delete_direct_story(
     await db.commit()
     
     return {"message": "Ertak o'chirildi", "story_id": story_id}
+
+
+@router.get("/direct/books")
+async def list_direct_books(
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+    language: Optional[str] = None,
+    age_group: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """List books directly from database"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    stmt = select(Book).order_by(Book.created_at.desc())
+    count_stmt = select(func.count(Book.id))
+    
+    if language:
+        stmt = stmt.where(Book.language == language)
+        count_stmt = count_stmt.where(Book.language == language)
+    
+    if age_group:
+        stmt = stmt.where(Book.age_group == age_group)
+        count_stmt = count_stmt.where(Book.age_group == age_group)
+    
+    total = (await db.execute(count_stmt)).scalar() or 0
+    result = await db.execute(stmt.offset(offset).limit(limit))
+    books = result.scalars().all()
+    
+    return {
+        "total": total,
+        "books": [b.to_dict() for b in books]
+    }
+
+
+@router.post("/direct/books")
+async def create_direct_book(
+    data: BookCreateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create book directly"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    book = Book(
+        title=data.title,
+        description=data.description,
+        pdf_url=data.pdf_url,
+        image_url=data.image_url,
+        is_premium=data.is_premium,
+        language=data.language,
+        age_group=data.age_group or "6-8",
+        questions=data.questions or [],
+        test=data.test or [],
+        questions_limit=data.questions_limit,
+        test_limit=data.test_limit,
+    )
+    db.add(book)
+    await db.commit()
+    await db.refresh(book)
+    
+    return {"message": "Kitob yaratildi", "book": book.to_dict()}
+
+
+@router.get("/direct/books/{book_id}")
+async def get_direct_book(
+    book_id: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get specific book directly"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(Book).where(Book.id == book_id))
+    book = result.scalars().first()
+    
+    if not book:
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+    
+    return {"success": True, "data": book.to_dict()}
+
+
+@router.put("/direct/books/{book_id}")
+async def update_direct_book(
+    book_id: str,
+    data: BookUpdateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update book directly"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(Book).where(Book.id == book_id))
+    book = result.scalars().first()
+    
+    if not book:
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+    
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(book, key, value)
+        
+    await db.commit()
+    await db.refresh(book)
+    
+    return {"message": "Kitob yangilandi", "book_id": book_id, "book": book.to_dict()}
+
+
+@router.delete("/direct/books/{book_id}")
+async def delete_direct_book(
+    book_id: str,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete book directly"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    result = await db.execute(select(Book).where(Book.id == book_id))
+    book = result.scalars().first()
+    
+    if not book:
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+    
+    await db.delete(book)
+    await db.commit()
+    
+    return {"message": "Kitob o'chirildi", "book_id": book_id}
 
 
 

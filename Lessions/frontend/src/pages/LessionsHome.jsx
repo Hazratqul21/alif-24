@@ -88,6 +88,13 @@ export default function LessionsHome() {
                             <BookMarked className="w-4 h-4" />
                             Ertaklar
                         </Link>
+                        <Link
+                            to="/kitoblar"
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-orange-500/30 rounded-xl text-amber-200 hover:from-amber-500/30 hover:to-orange-500/30 transition-all text-sm shadow-[0_0_12px_rgba(245,158,11,0.1)]"
+                        >
+                            <BookOpen className="w-4 h-4 text-amber-400" />
+                            Kitoblar
+                        </Link>
                         <a href="https://alif24.uz/student-dashboard" className="text-sm text-white/60 hover:text-white transition-colors">
                             ← Bosh sahifa
                         </a>
