@@ -240,6 +240,7 @@ const Navbar = () => {
     { key: 'home',        icon: Home,             label: 'Bosh sahifa',        action: () => navigate('/dashboard') },
     { key: 'games',       icon: Gamepad2,         label: "O'yinlar",           action: () => window.location.href = 'https://games.alif24.uz' },
     { key: 'olympiad',    icon: Medal,            label: 'Olimpiada',          action: () => window.location.href = 'https://olimp.alif24.uz' },
+    { key: 'books',       icon: BookOpen,         label: "Kitob do'koni",      action: () => window.location.href = 'https://bekbook.alif24.uz' },
     { key: 'leaderboard', icon: Trophy,           label: 'Reyting',            action: () => navigate('/leaderboard') },
     ...(isAuthenticated ? [
       { key: 'dashboard', icon: LayoutDashboard,  label: 'Mening sahifam',     action: goToDashboard },
@@ -269,6 +270,7 @@ const Navbar = () => {
     { label: 'Bosh sahifa', path: '/dashboard' },
     { label: "O'yinlar",    external: 'https://games.alif24.uz' },
     { label: 'Olimpiada',   external: 'https://olimp.alif24.uz' },
+    { label: "Kitob do'koni", external: 'https://bekbook.alif24.uz' },
     { label: 'Reyting',     path: '/leaderboard' },
   ];
 

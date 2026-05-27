@@ -236,6 +236,37 @@ services:
     networks:
       - alif24-network
 
+  bekbook-backend:
+    build:
+      context: ./Bekbook
+      dockerfile: artifacts/api-server/Dockerfile
+    container_name: bekbook-backend
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-alif24_secure_password}@postgres:5432/${POSTGRES_DB:-alif24}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=8007
+    ports:
+      - "127.0.0.1:8007:8007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - alif24-network
+
+  bekbook-frontend:
+    build:
+      context: ./Bekbook
+      dockerfile: artifacts/mahalla-kutubxona/Dockerfile
+    container_name: bekbook-frontend
+    restart: always
+    ports:
+      - "5180:80"
+    networks:
+      - alif24-network
+
   # Nginx Gateway
   nginx:
     image: nginx:alpine
@@ -261,6 +292,8 @@ services:
       - olimp-backend
       - lessions-frontend
       - lessions-backend
+      - bekbook-frontend
+      - bekbook-backend
       - pgadmin
     networks:
       - alif24-network

@@ -2,7 +2,7 @@
 User Model - Asosiy foydalanuvchi modeli
 Barcha platformalar uchun umumiy
 """
-from sqlalchemy import Column, String, Boolean, DateTime, Date, Text, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, String, Boolean, DateTime, Date, Text, ForeignKey, Float, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -118,6 +118,15 @@ class User(Base):
     # Sozlamalar
     language = Column(String(5), default="uz")
     timezone = Column(String(50), default="Asia/Tashkent")
+    
+    # Bekbook platform specific fields (nullable for backwards compatibility)
+    reader_id = Column(String(8), unique=True, nullable=True, index=True)
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
+    address = Column(Text, nullable=True)
+    category = Column(String(50), nullable=False, default="regular")
+    is_blacklisted = Column(Boolean, nullable=False, default=False)
+
     
     # Vaqt tamg'alari
     last_login_at = Column(DateTime(timezone=True), nullable=True)
