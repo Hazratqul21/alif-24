@@ -13,6 +13,23 @@ if (API_URL.startsWith('http://') && window.location.protocol === 'https:') {
     API_URL = API_URL.replace('http://', 'https://');
 }
 
+const resolveImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  
+  let cleaned = url;
+  if (cleaned.startsWith('/')) cleaned = cleaned.slice(1);
+  if (!cleaned.startsWith('api/')) {
+    if (cleaned.startsWith('uploads/')) {
+      cleaned = 'api/' + cleaned;
+    }
+  }
+  
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const base = isLocal ? 'http://localhost:8000' : 'https://alif24.uz';
+  return `${base}/${cleaned}`;
+};
+
 // ─── PAGE TRANSLATION CONFIG ───────────────────────────────────────────────────
 const PAGE_CONFIG = {
     uz: { 
@@ -869,7 +886,7 @@ function BookCard({ book, index, onRead, onQuiz, onTest, lang }) {
             <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-indigo-650 to-violet-750">
                 {book.image_url && !imgError ? (
                     <img
-                        src={book.image_url}
+                        src={resolveImageUrl(book.image_url)}
                         alt={book.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         onError={() => setImgError(true)}
@@ -994,6 +1011,31 @@ export default function KitoblarPage({ lang = 'uz' }) {
         };
         loadBooks();
     }, [lang]);
+
+    useEffect(() => {
+        if (books.length === 0) return;
+        const params = new URLSearchParams(window.location.search);
+        const readId = params.get('read');
+        const quizId = params.get('quiz');
+        const testId = params.get('test');
+
+        if (readId) {
+            const found = books.find(b => b.id === readId);
+            if (found) checkAndExecute(found, () => setActiveBook(found));
+        } else if (quizId) {
+            const found = books.find(b => b.id === quizId);
+            if (found) checkAndExecute(found, () => setDirectQuizBook(found));
+        } else if (testId) {
+            const found = books.find(b => b.id === testId);
+            if (found) checkAndExecute(found, () => setDirectTestBook(found));
+        }
+
+        // Clean query parameters from URL
+        if (readId || quizId || testId) {
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+        }
+    }, [books]);
 
     const isUserPremium = user?.subscription?.is_premium === true;
 
