@@ -1,17 +1,32 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: mahalla-postgres
+  bekbook-backend:
+    build:
+      context: .
+      dockerfile: artifacts/api-server/Dockerfile
+    container_name: bekbook-backend
+    restart: always
     environment:
-      POSTGRES_USER: mahalla
-      POSTGRES_PASSWORD: mahalla123
-      POSTGRES_DB: mahalla_db
+      - DATABASE_URL=postgresql://postgres:alif24_secure_password@alif24-postgres:5432/alif24
+      - JWT_SECRET=alif24_jwt_secret_key
+      - PORT=8007
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - "127.0.0.1:8007:8007"
+    networks:
+      - alif24-network
 
-volumes:
-  postgres_data:
+  bekbook-frontend:
+    build:
+      context: .
+      dockerfile: artifacts/mahalla-kutubxona/Dockerfile
+    container_name: bekbook-frontend
+    restart: always
+    ports:
+      - "5180:80"
+    networks:
+      - alif24-network
+
+networks:
+  alif24-network:
+    external: true
