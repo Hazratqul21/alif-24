@@ -49,6 +49,18 @@ const resolveImageUrl = (url) => {
   return `${base}/${cleaned}`;
 };
 
+const resolveGameImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  
+  let cleaned = url;
+  if (cleaned.startsWith('/')) cleaned = cleaned.slice(1);
+  
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const base = isLocal ? 'http://localhost:5177' : 'https://games.alif24.uz';
+  return `${base}/${cleaned}`;
+};
+
 const RowHeader = ({ title, link, onLinkClick }) => (
   <div className="flex items-center justify-between mb-5 select-none px-1">
     <h2 className="text-lg sm:text-xl font-extrabold tracking-wider text-white flex items-center gap-2 drop-shadow-[0_0_12px_rgba(255,255,255,0.12)]">
@@ -137,11 +149,11 @@ export default function HomePage() {
   // Popular Brain Games (matching Ertak cards style as requested)
   const popularGames = useMemo(() => {
     return [
-      { id: 'g1', title: 'Matematika Monstr', tag: 'MATEMATIKA', info: 'Miyani charxlovchi aqliy arifmetika', image: CARD_ART[2], rating: 94, path: '/math-monster' },
-      { id: 'g2', title: 'Xotira Mashqi', tag: 'XOTIRA', info: 'Kosmik ob\'ektlar yordamida xotirani charxlash', image: CARD_ART[6], rating: 91, path: '/memory' },
-      { id: 'g3', title: 'Matematik Gugurt', tag: 'MANTIQ', info: 'Gugurt donalari bilan geometrik jumboqlar', image: CARD_ART[4], rating: 88, path: '/math-stich' },
-      { id: 'g4', title: 'Yashirin So\'z (Crypto)', tag: 'SAVODXONLIK', info: 'Harflar orasidan berkitilgan so\'zni topish', image: CARD_ART[1], rating: 93, path: '/crypto' },
-      { id: 'g5', title: 'Kosmik Bo\'g\'in Pazl', tag: 'SO\'Z BOYLIGI', info: 'Bo\'g\'inlarni biriktirib yangi so\'zlar yasash', image: CARD_ART[3], rating: 95, path: '/bugiin' }
+      { id: 'g1', title: 'Matematika Monstr', tag: 'MATEMATIKA', info: 'Miyani charxlovchi aqliy arifmetika', image: '/math.jpg', rating: 94, path: '/math-monster' },
+      { id: 'g2', title: 'Xotira Mashqi', tag: 'XOTIRA', info: 'Kosmik ob\'ektlar yordamida xotirani charxlash', image: '/xotr.jpg', rating: 91, path: '/memory' },
+      { id: 'g3', title: 'Matematik Gugurt', tag: 'MANTIQ', info: 'Gugurt donalari bilan geometrik jumboqlar', image: '/spichki.jpg', rating: 88, path: '/math-stich' },
+      { id: 'g4', title: 'Yashirin So\'z (Crypto)', tag: 'SAVODXONLIK', info: 'Harflar orasidan berkitilgan so\'zni topish', image: '/crypto.jpg', rating: 93, path: '/crypto' },
+      { id: 'g5', title: 'Kosmik Bo\'g\'in Pazl', tag: 'SO\'Z BOYLIGI', info: 'Bo\'g\'inlarni biriktirib yangi so\'zlar yasash', image: '/bugiin.jpg', rating: 95, path: '/bugiin' }
     ];
   }, []);
 
@@ -488,7 +500,7 @@ export default function HomePage() {
                 >
                   <div className="w-full aspect-[4/3] rounded-[24px] overflow-hidden bg-gradient-to-br from-indigo-900 to-purple-900 relative">
                     <img 
-                      src={game.image} 
+                      src={resolveGameImageUrl(game.image)} 
                       alt={game.title} 
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-103"
                     />
