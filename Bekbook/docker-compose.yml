@@ -29,4 +29,5 @@ services:
 
 networks:
   alif24-network:
+    name: alif-24_alif24-network
     external: true
