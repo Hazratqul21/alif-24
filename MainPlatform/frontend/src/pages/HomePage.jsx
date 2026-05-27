@@ -105,12 +105,12 @@ const HomePage = () => {
     }
     const gid = String(game.id);
     if (gid === '1') return redirectToPlatform('https://lessions.alif24.uz', '/ertaklar');
-    if (gid === '2') return navigate('/mathkids');
-    if (gid === '3') return redirectToPlatform('https://harf.alif24.uz');
-    if (gid === '4') return redirectToPlatform('https://harf.alif24.uz', '/eharf');
-    if (gid === '5') return redirectToPlatform('https://harf.alif24.uz', '/rharf');
-    if (gid === '6') return redirectToPlatform('https://games.alif24.uz');
-    if (gid === '7') return redirectToPlatform('https://lessions.alif24.uz', '/kitoblar');
+    if (gid === '3') return navigate('/mathkids');
+    if (gid === '4') return redirectToPlatform('https://harf.alif24.uz');
+    if (gid === '5') return redirectToPlatform('https://harf.alif24.uz', '/eharf');
+    if (gid === '6') return redirectToPlatform('https://harf.alif24.uz', '/rharf');
+    if (gid === '7') return redirectToPlatform('https://games.alif24.uz');
+    if (gid === '2') return redirectToPlatform('https://lessions.alif24.uz', '/kitoblar');
     redirectToPlatform(game.type === 'lessons' ? 'https://lessions.alif24.uz' : 'https://games.alif24.uz');
   };
 
