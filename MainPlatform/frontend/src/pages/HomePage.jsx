@@ -55,19 +55,18 @@ const HomePage = () => {
   const t = { ...baseT, ...(dynamicDict[language] || {}) };
 
   const defaultGames = useMemo(() => ([
-    { id: 1, title: t.game_read,        shortTitle: "ERTAK VA HIKOYALAR",              rating: 46, type: 'lessons' },
+    { id: 1, title: t.game_read,        shortTitle: "ERTAK VA HIKOYALAR"  },
      {
       id: 2,
       title: language === 'ru' ? 'Книжный мир' : language === 'en' ? 'World of Books' : 'Kitoblar olami',
-      shortTitle: language === 'ru' ? 'КНИГИ' : language === 'en' ? 'BOOKS' : 'KITOBLAR',
-      rating: 50,
-      type: 'lessons'
+      shortTitle: language === 'ru' ? 'КНИГИ' : language === 'en' ? 'BOOKS' : 'KITOBLAR'
+      
     },
-    { id: 3, title: t.game_homework,    shortTitle: 'MATEMATIKA',       rating: 46, type: 'lessons' },
-    { id: 4, title: t.game_uz_alphabet, shortTitle: "SO'ZLOVCHI ALIFBE", rating: 46, type: 'lessons' },
-    { id: 5, title: t.game_en_alphabet, shortTitle: 'INGLIZ ALIFBESI',   rating: 46, type: 'lessons' },
-    { id: 6, title: t.game_ru_alphabet, shortTitle: 'RUS ALIFBESI',      rating: 46, type: 'lessons' },
-    { id: 7, title: t.game_memory_game, shortTitle: "O'YINLAR",          rating: 46, type: 'games'   },
+    { id: 3, title: t.game_homework,    shortTitle: 'MATEMATIKA' },
+    { id: 4, title: t.game_uz_alphabet, shortTitle: "SO'ZLOVCHI ALIFBE" },
+    { id: 5, title: t.game_en_alphabet, shortTitle: 'INGLIZ ALIFBESI' },
+    { id: 6, title: t.game_ru_alphabet, shortTitle: 'RUS ALIFBESI' },
+    { id: 7, title: t.game_memory_game, shortTitle: "O'YINLAR" },
    
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [language, dynamicDict]);
