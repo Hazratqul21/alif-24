@@ -23,7 +23,7 @@ services:
     container_name: bekbook-frontend
     restart: always
     ports:
-      - "5180:80"
+      - "5181:80"
     networks:
       - alif24-network
 
