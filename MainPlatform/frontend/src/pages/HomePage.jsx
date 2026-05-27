@@ -86,12 +86,12 @@ export default function HomePage() {
       setLoadingContent(true);
       try {
         const [storiesRes, booksRes] = await Promise.all([
-          apiService.get('/ertaklar').catch(() => ({ data: { ertaklar: [] } })),
-          apiService.get('/kitoblar').catch(() => ({ data: { books: [] } }))
+          apiService.get('/stories').catch(() => ({ data: [] })),
+          apiService.get('/books').catch(() => ({ data: [] }))
         ]);
         
-        const stList = storiesRes?.data?.ertaklar || storiesRes?.ertaklar || [];
-        const bkList = booksRes?.data?.books || booksRes?.books || [];
+        const stList = storiesRes?.data || storiesRes || [];
+        const bkList = booksRes?.data || booksRes || [];
         
         setStoriesList(stList);
         setBooksList(bkList);
@@ -223,10 +223,11 @@ export default function HomePage() {
                 const qCount = (story.questions || []).length;
                 const testCount = (story.test || []).length;
                 const displayImg = story.image_url ? resolveImageUrl(story.image_url) : null;
+                const langPath = story.language && story.language !== 'uz' ? `/${story.language}` : '';
                 return (
                   <div 
                     key={story.id || i}
-                    onClick={() => redirectToPlatform('https://lessions.alif24.uz', `/ertaklar?read=${story.id}`)}
+                    onClick={() => redirectToPlatform('https://lessions.alif24.uz', `/ertaklar${langPath}?read=${story.id}`)}
                     className="snap-start shrink-0 w-[250px] sm:w-[280px] bg-cosmic-card border-4 border-cosmic-surface hover:border-cosmic-glow/60 rounded-[35px] p-4 flex flex-col gap-4 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-cosmic-glow group cursor-pointer"
                   >
                     <div className="w-full aspect-[4/3] rounded-[24px] overflow-hidden bg-gradient-to-br from-indigo-900 to-purple-900 relative">
@@ -262,7 +263,7 @@ export default function HomePage() {
                       
                       <div className="flex flex-col gap-2 mt-2 w-full">
                         <button 
-                          onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/ertaklar?read=${story.id}`); }}
+                          onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/ertaklar${langPath}?read=${story.id}`); }}
                           className="w-full py-2 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-1 shadow-md shadow-purple-500/10"
                         >
                           O'qish 📖
@@ -270,7 +271,7 @@ export default function HomePage() {
                         
                         {qCount > 0 && (
                           <button 
-                            onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/ertaklar?quiz=${story.id}`); }}
+                            onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/ertaklar${langPath}?quiz=${story.id}`); }}
                             className="w-full py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-black text-[10px] uppercase tracking-widest rounded-xl border border-emerald-500/20 hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-1"
                           >
                             Savollar 🧠
@@ -279,7 +280,7 @@ export default function HomePage() {
 
                         {testCount > 0 && (
                           <button 
-                            onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/ertaklar?test=${story.id}`); }}
+                            onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/ertaklar${langPath}?test=${story.id}`); }}
                             className="w-full py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 font-black text-[10px] uppercase tracking-widest rounded-xl border border-blue-500/20 hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-1"
                           >
                             Testlar 📝
@@ -308,10 +309,11 @@ export default function HomePage() {
                 const qCount = (book.questions || []).length;
                 const testCount = (book.test || []).length;
                 const displayImg = book.image_url ? resolveImageUrl(book.image_url) : null;
+                const langPath = book.language && book.language !== 'uz' ? `/${book.language}` : '';
                 return (
                   <div 
                     key={book.id || i}
-                    onClick={() => redirectToPlatform('https://lessions.alif24.uz', `/kitoblar?read=${book.id}`)}
+                    onClick={() => redirectToPlatform('https://lessions.alif24.uz', `/kitoblar${langPath}?read=${book.id}`)}
                     className="snap-start shrink-0 w-[220px] sm:w-[250px] bg-cosmic-card border-4 border-cosmic-surface hover:border-cosmic-glow/60 rounded-[35px] p-4 flex flex-col gap-3.5 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-cosmic-glow group cursor-pointer"
                   >
                     {/* Render cover image dynamically if present */}
@@ -370,7 +372,7 @@ export default function HomePage() {
 
                       <div className="flex flex-col gap-1.5 mt-2 w-full">
                         <button 
-                          onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/kitoblar?read=${book.id}`); }}
+                          onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/kitoblar${langPath}?read=${book.id}`); }}
                           className="w-full py-2 bg-gradient-to-r from-violet-650 to-purple-650 text-white font-black text-[9px] uppercase tracking-widest rounded-xl hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-1 shadow-md shadow-indigo-500/10"
                         >
                           O'qish 📖
@@ -378,7 +380,7 @@ export default function HomePage() {
                         
                         {qCount > 0 && (
                           <button 
-                            onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/kitoblar?quiz=${book.id}`); }}
+                            onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/kitoblar${langPath}?quiz=${book.id}`); }}
                             className="w-full py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-black text-[9px] uppercase tracking-widest rounded-xl border border-emerald-500/20 hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-1"
                           >
                             Savollar 🧠
@@ -387,7 +389,7 @@ export default function HomePage() {
 
                         {testCount > 0 && (
                           <button 
-                            onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/kitoblar?test=${book.id}`); }}
+                            onClick={(e) => { e.stopPropagation(); redirectToPlatform('https://lessions.alif24.uz', `/kitoblar${langPath}?test=${book.id}`); }}
                             className="w-full py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 font-black text-[9px] uppercase tracking-widest rounded-xl border border-blue-500/20 hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-1"
                           >
                             Testlar 📝

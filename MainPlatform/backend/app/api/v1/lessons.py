@@ -452,15 +452,10 @@ async def list_public_stories(
     age_group: Optional[str] = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List global stories for students (Library/Browse)"""
-    stmt = select(Story)
-    
-    # Faqat global/admin ertaklar (o'qituvchilar o'z sinfiga berganlari vazifada chiqadi)
-    if current_user.role == UserRole.student:
-        stmt = stmt.where(Story.teacher_id == None)
+    stmt = select(Story).where(Story.teacher_id == None)
         
     if language:
         stmt = stmt.where(Story.language == language)
@@ -629,13 +624,10 @@ async def list_public_books(
     age_group: Optional[str] = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List global books for students"""
-    stmt = select(Book)
-    if current_user.role == UserRole.student:
-        stmt = stmt.where(Book.teacher_id == None)
+    stmt = select(Book).where(Book.teacher_id == None)
         
     if language:
         stmt = stmt.where(Book.language == language)
