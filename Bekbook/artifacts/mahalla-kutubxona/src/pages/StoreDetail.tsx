@@ -678,6 +678,7 @@ export default function StoreDetail() {
   const [catalogAddedMsg, setCatalogAddedMsg] = useState("");
   const [editingBook, setEditingBook] = useState<(StoreBook & { previousPrice?: number | null }) | null>(null);
   const [showEditStore, setShowEditStore] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(20);
   const { mutateAsync: deleteStore, isPending: isDeletingStore } = useDeleteStore();
 
   async function handleDeleteStore() {
@@ -724,6 +725,7 @@ export default function StoreDetail() {
       const q = catalogSearch.toLowerCase();
       return b.title.toLowerCase().includes(q) || (b.author ?? "").toLowerCase().includes(q) || ((b as any).isbn ?? "").includes(q);
     });
+  const visibleBooks = filteredBooks.slice(0, visibleCount);
 
   const sellCount = allBooks.filter(b => (b.type ?? "sell") === "sell").length;
   const freeCount = allBooks.filter(b => (b.type ?? "sell") === "free").length;
@@ -952,12 +954,12 @@ export default function StoreDetail() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input
                 value={catalogSearch}
-                onChange={e => setCatalogSearch(e.target.value)}
+                onChange={e => { setCatalogSearch(e.target.value); setVisibleCount(20); }}
                 placeholder="Kitob nomi, muallif yoki ISBN bo'yicha qidirish..."
                 className="w-full pl-9 pr-9 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               {catalogSearch && (
-                <button onClick={() => setCatalogSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <button onClick={() => { setCatalogSearch(""); setVisibleCount(20); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                   <X className="w-4 h-4" />
                 </button>
               )}
@@ -972,7 +974,7 @@ export default function StoreDetail() {
                 ...(freeCount > 0 ? [{ key: "free", label: `Bepul (${freeCount})` }] : []),
                 ...(rentCount > 0 ? [{ key: "rent", label: `Vaqtincha (${rentCount})` }] : []),
               ] as { key: string; label: string }[]).map(tab => (
-                <button key={tab.key} onClick={() => setActiveType(tab.key as any)}
+                <button key={tab.key} onClick={() => { setActiveType(tab.key as any); setVisibleCount(20); }}
                   className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all", activeType === tab.key
                     ? "bg-card shadow-sm text-foreground"
                     : "text-muted-foreground hover:text-foreground")}>
@@ -983,10 +985,22 @@ export default function StoreDetail() {
           )}
 
           {filteredBooks.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {filteredBooks.map(book => (
-                <StoreBookCard key={book.id} book={book} onClick={() => setSelectedBook(book)} />
-              ))}
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {visibleBooks.map(book => (
+                  <StoreBookCard key={book.id} book={book} onClick={() => setSelectedBook(book)} />
+                ))}
+              </div>
+              {filteredBooks.length > visibleCount && (
+                <div className="flex justify-center mt-6">
+                  <button
+                    onClick={() => setVisibleCount(prev => prev + 20)}
+                    className="px-6 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 transition-all font-semibold text-sm shadow-sm flex items-center gap-1.5 active:scale-95 duration-100"
+                  >
+                    <Plus className="w-4 h-4" /> Yana yuklash
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-12">
