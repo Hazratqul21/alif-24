@@ -10,13 +10,20 @@ import * as cheerio from "cheerio";
 
 const router = Router();
 
-function safeUser(u: typeof usersTable.$inferSelect) {
+function safeUser(u: typeof usersTable.$inferSelect | undefined | null) {
+  if (!u) return null;
   const { passwordHash: _, ...safe } = u;
-  return { ...safe, createdAt: safe.createdAt.toISOString() };
+  return { ...safe, createdAt: safe.createdAt?.toISOString() ?? new Date().toISOString() };
 }
 
 function safeStore(store: typeof storesTable.$inferSelect, owner?: typeof usersTable.$inferSelect | null, bookCount = 0) {
-  return { ...store, createdAt: store.createdAt.toISOString(), owner: owner ? safeUser(owner) : null, rating: null, bookCount };
+  return { 
+    ...store, 
+    createdAt: store.createdAt?.toISOString() ?? new Date().toISOString(), 
+    owner: owner ? safeUser(owner) : null, 
+    rating: null, 
+    bookCount 
+  };
 }
 
 router.get("/", async (req, res) => {
