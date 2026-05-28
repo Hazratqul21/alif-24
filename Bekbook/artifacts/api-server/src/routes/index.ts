@@ -16,6 +16,8 @@ import paymentsRouter from "./payments.js";
 import messagesRouter from "./messages.js";
 import notificationsRouter from "./notifications.js";
 import subscriptionsRouter from "./subscriptions.js";
+import settingsRouter from "./settings.js";
+import ownerRouter from "./owner.js";
 
 const router: IRouter = Router();
 
@@ -36,5 +38,8 @@ router.use("/payments", paymentsRouter);
 router.use("/messages", messagesRouter);
 router.use("/notifications", notificationsRouter);
 router.use("/subscriptions", subscriptionsRouter);
+router.use("/owner", settingsRouter);
+router.use("/owner", ownerRouter);
 
 export default router;
+

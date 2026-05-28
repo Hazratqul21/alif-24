@@ -18,6 +18,7 @@ import Profile from "@/pages/Profile";
 import Analytics from "@/pages/Analytics";
 import Invoices from "@/pages/Invoices";
 import Admin from "@/pages/Admin";
+import Ozodbek from "@/pages/Ozodbek";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import CartPage from "@/pages/CartPage";
 import MessagesPage from "@/pages/MessagesPage";
@@ -69,6 +70,7 @@ function Router() {
         <Route path="/profile" component={Profile} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/admin" component={Admin} />
+        <Route path="/ozodbek" component={Ozodbek} />
         <Route path="/payment/success" component={PaymentSuccess} />
         <Route path="/cart" component={CartPage} />
         <Route path="/messages/:userId" component={MessagesPage} />
