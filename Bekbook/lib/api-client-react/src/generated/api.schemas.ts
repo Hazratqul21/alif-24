@@ -236,6 +236,13 @@ export interface UpdateBookBody {
   genre?: string;
 }
 
+export type StoreType = (typeof StoreType)[keyof typeof StoreType];
+
+export const StoreType = {
+  library: "library",
+  bookstore: "bookstore",
+} as const;
+
 export interface Store {
   id: number;
   name: string;
@@ -247,6 +254,8 @@ export interface Store {
   openHours?: string | null;
   avatar?: string | null;
   ownerId: number;
+  type?: StoreType;
+  subscriptionPrice?: number;
   owner?: User | null;
   rating?: number | null;
   bookCount?: number | null;
@@ -258,6 +267,14 @@ export interface StoresListResponse {
   total: number;
 }
 
+export type CreateStoreBodyType =
+  (typeof CreateStoreBodyType)[keyof typeof CreateStoreBodyType];
+
+export const CreateStoreBodyType = {
+  library: "library",
+  bookstore: "bookstore",
+} as const;
+
 export interface CreateStoreBody {
   name: string;
   description?: string;
@@ -267,7 +284,17 @@ export interface CreateStoreBody {
   phone?: string;
   openHours?: string;
   avatar?: string;
+  type?: CreateStoreBodyType;
+  subscriptionPrice?: number;
 }
+
+export type UpdateStoreBodyType =
+  (typeof UpdateStoreBodyType)[keyof typeof UpdateStoreBodyType];
+
+export const UpdateStoreBodyType = {
+  library: "library",
+  bookstore: "bookstore",
+} as const;
 
 export interface UpdateStoreBody {
   name?: string;
@@ -278,6 +305,8 @@ export interface UpdateStoreBody {
   phone?: string;
   openHours?: string;
   avatar?: string;
+  type?: UpdateStoreBodyType;
+  subscriptionPrice?: number;
 }
 
 export type StoreBookType = (typeof StoreBookType)[keyof typeof StoreBookType];

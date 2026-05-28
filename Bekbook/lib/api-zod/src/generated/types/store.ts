@@ -5,6 +5,7 @@
  * Mahalla Kutubxona API
  * OpenAPI spec version: 0.1.0
  */
+import type { StoreType } from "./storeType";
 import type { User } from "./user";
 
 export interface Store {
@@ -18,6 +19,8 @@ export interface Store {
   openHours?: string | null;
   avatar?: string | null;
   ownerId: number;
+  type?: StoreType;
+  subscriptionPrice?: number;
   owner?: User | null;
   rating?: number | null;
   bookCount?: number | null;

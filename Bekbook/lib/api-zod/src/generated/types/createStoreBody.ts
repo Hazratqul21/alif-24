@@ -5,6 +5,7 @@
  * Mahalla Kutubxona API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateStoreBodyType } from "./createStoreBodyType";
 
 export interface CreateStoreBody {
   name: string;
@@ -15,4 +16,6 @@ export interface CreateStoreBody {
   phone?: string;
   openHours?: string;
   avatar?: string;
+  type?: CreateStoreBodyType;
+  subscriptionPrice?: number;
 }

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, real, varchar, timestamp, bigint } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, real, varchar, timestamp, bigint, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -14,6 +14,8 @@ export const storesTable = pgTable("stores", {
   openHours: text("open_hours"),
   avatar: text("avatar"),
   ownerId: varchar("owner_id", { length: 8 }).notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("library"), // "library" | "bookstore"
+  subscriptionPrice: integer("subscription_price").notNull().default(0), // Custom monthly subscription price
   pendingBalance: bigint("pending_balance", { mode: "number" }).notNull().default(0),
   withdrawableBalance: bigint("withdrawable_balance", { mode: "number" }).notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -1904,6 +1904,11 @@ components:
           nullable: true
         ownerId:
           type: integer
+        type:
+          type: string
+          enum: [library, bookstore]
+        subscriptionPrice:
+          type: integer
         owner:
           $ref: "#/components/schemas/User"
           nullable: true
@@ -1957,6 +1962,11 @@ components:
           type: string
         avatar:
           type: string
+        type:
+          type: string
+          enum: [library, bookstore]
+        subscriptionPrice:
+          type: integer
       required:
         - name
         - address
@@ -1982,6 +1992,11 @@ components:
           type: string
         avatar:
           type: string
+        type:
+          type: string
+          enum: [library, bookstore]
+        subscriptionPrice:
+          type: integer
 
     StoreBook:
       type: object

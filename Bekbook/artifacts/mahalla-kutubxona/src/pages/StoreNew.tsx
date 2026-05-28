@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { ArrowLeft, Loader2, MapPin, Info, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Info, CheckCircle2, BookOpen, Store } from "lucide-react";
 import { useCreateStore, getListStoresQueryKey, getGetMyStoreQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -15,6 +15,8 @@ export default function StoreNew() {
   const [form, setForm] = useState({
     name: "", description: "", address: "", phone: "", openHours: "", avatar: "",
     lat: "", lng: "",
+    type: "library",
+    subscriptionPrice: "29900",
   });
   const [error, setError] = useState("");
   const [gettingLocation, setGettingLocation] = useState(false);
@@ -53,6 +55,8 @@ export default function StoreNew() {
           address: form.address, phone: form.phone || undefined,
           openHours: form.openHours || undefined, avatar: form.avatar || undefined,
           lat: parseFloat(form.lat), lng: parseFloat(form.lng),
+          type: form.type as any,
+          subscriptionPrice: form.type === "library" ? parseInt(form.subscriptionPrice) || 0 : 0,
         }
       });
       queryClient.invalidateQueries({ queryKey: getListStoresQueryKey() });
@@ -186,12 +190,71 @@ export default function StoreNew() {
           </form>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Store Type Selection */}
             <div>
-              <label className="block text-sm font-medium mb-1.5">Kutubxona nomi *</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Turini tanlang *</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, type: "library" }))}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all cursor-pointer text-center",
+                    form.type === "library"
+                      ? "border-amber-500 bg-amber-500/5 text-amber-700 font-bold"
+                      : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200"
+                  )}
+                >
+                  <BookOpen className="w-6 h-6 text-amber-500" />
+                  <div className="text-xs uppercase font-black tracking-wider">Kutubxona</div>
+                  <p className="text-[10px] text-slate-400 font-normal leading-normal px-2">Kitoblarni ijaraga berish (oylik obuna bilan)</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, type: "bookstore" }))}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all cursor-pointer text-center",
+                    form.type === "bookstore"
+                      ? "border-amber-500 bg-amber-500/5 text-amber-700 font-bold"
+                      : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200"
+                  )}
+                >
+                  <Store className="w-6 h-6 text-amber-500" />
+                  <div className="text-xs uppercase font-black tracking-wider">Kitob do'koni</div>
+                  <p className="text-[10px] text-slate-400 font-normal leading-normal px-2">Kitoblarni sotish (bepul a'zo bo'lish)</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Dynamic Name Input */}
+            <div>
+              <label className="block text-sm font-medium mb-1.5">
+                {form.type === "library" ? "Kutubxona nomi *" : "Kitob do'koni nomi *"}
+              </label>
               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="Masalan: Nodir kutubxonasi" />
+                placeholder={form.type === "library" ? "Masalan: Nodir kutubxonasi" : "Masalan: Bekbook Do'koni"} />
             </div>
+
+            {/* Custom Subscription Price (Only for Library) */}
+            {form.type === "library" && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <label className="block text-sm font-medium mb-1.5">Oylik obuna narxi (so'm) *</label>
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={form.subscriptionPrice}
+                  onChange={e => setForm(f => ({ ...f, subscriptionPrice: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 font-bold text-slate-800"
+                  placeholder="29900"
+                />
+                <p className="text-[10px] text-slate-400 font-medium mt-1">
+                  Xaridorlar ushbu kutubxonaga a'zo bo'lish uchun oylik belgilangan ushbu narxni to'laydilar.
+                </p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-1.5">Tavsif</label>
               <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}

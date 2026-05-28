@@ -42,18 +42,56 @@ router.get("/store/:storeId", requireAuth, async (req, res) => {
 router.post("/create", requireAuth, async (req, res) => {
   const userId = req.user!.userId;
   const { storeId, plan } = req.body as { storeId: number; plan: string };
-  const planInfo = PLANS[plan];
-  if (!planInfo || !storeId) { res.status(400).json({ error: "Noto'g'ri so'rov" }); return; }
+  if (!storeId || !plan) { res.status(400).json({ error: "Noto'g'ri so'rov" }); return; }
+
+  const [store] = await db.select().from(storesTable).where(eq(storesTable.id, storeId)).limit(1);
+  if (!store) { res.status(404).json({ error: "Kutubxona/do'kon topilmadi" }); return; }
+
+  if (store.type === "bookstore") {
+    // Bookstores are completely free to subscribe/join!
+    const now = new Date();
+    const expires = new Date(now);
+    expires.setDate(expires.getDate() + 365); // Free active membership for 1 year
+    const [sub] = await db.insert(subscriptionsTable).values({
+      userId,
+      storeId,
+      type: "reader",
+      plan: "monthly",
+      price: 0,
+      status: "active",
+      startedAt: now,
+      expiresAt: expires,
+    }).returning();
+    res.json({ subscription: sub, checkoutUrl: null });
+    return;
+  }
+
+  // Libraries charge their own custom subscription price
+  const monthlyPrice = store.subscriptionPrice || 29900;
+  let activePrice = monthlyPrice;
+  let days = 30;
+
+  if (plan === "biannual") {
+    activePrice = Math.round(monthlyPrice * 5); // 6 months for the price of 5 months
+    days = 180;
+  } else if (plan === "annual") {
+    activePrice = Math.round(monthlyPrice * 9); // 12 months for the price of 9 months
+    days = 365;
+  }
 
   const [sub] = await db.insert(subscriptionsTable).values({
-    userId, storeId, plan, price: planInfo.price, status: "pending",
+    userId,
+    storeId,
+    plan,
+    price: activePrice,
+    status: "pending",
   }).returning();
 
   const merchantId = process.env.PAYME_MERCHANT_ID ?? "test_merchant";
   const testMode = process.env.PAYME_TEST_MODE !== "false";
   const baseUrl = testMode ? "https://test.paycom.uz" : "https://checkout.paycom.uz";
   const returnUrl = `${process.env.FRONTEND_URL ?? ""}/payment/success?type=subscription`;
-  const params = `m=${merchantId};ac.subscription_id=${sub.id};a=${planInfo.price * 100};l=uz;c=${encodeURIComponent(returnUrl)}`;
+  const params = `m=${merchantId};ac.subscription_id=${sub.id};a=${activePrice * 100};l=uz;c=${encodeURIComponent(returnUrl)}`;
   const checkoutUrl = `${baseUrl}/${Buffer.from(params).toString("base64")}`;
 
   res.json({ subscription: sub, checkoutUrl });

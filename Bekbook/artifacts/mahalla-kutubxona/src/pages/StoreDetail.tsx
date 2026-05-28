@@ -3,7 +3,7 @@ import { ArrowLeft, MapPin, Phone, Clock, Store, BookOpen, Plus, Trash2, Loader2
 import { useGetStore, useListStoreBooks, useDeleteStoreBook, getListStoreBooksQueryKey, useCreateTransaction, getGetMyTransactionsQueryKey, useGetMyTransactions, useReturnTransaction, useDeleteTransaction, useSearchUsers, useExtendTransaction, useUpdateStore, useDeleteStore, getGetStoreQueryKey } from "@workspace/api-client-react";
 import type { StoreBook, UserSearchResult } from "@workspace/api-client-react";
 import { exportCsv } from "@/lib/exportCsv";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { formatPrice, cn, formatDateShort } from "@/lib/utils";
 import { useState, lazy, Suspense, useRef } from "react";
@@ -384,6 +384,8 @@ function EditStoreModal({ store, onClose, onSaved }: {
   const [phone, setPhone] = useState(store.phone ?? "");
   const [openHours, setOpenHours] = useState(store.openHours ?? "");
   const [avatar, setAvatar] = useState<string | null>(store.avatar ?? null);
+  const [type, setType] = useState(store.type ?? "library");
+  const [subscriptionPrice, setSubscriptionPrice] = useState(String(store.subscriptionPrice ?? "29900"));
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -415,6 +417,8 @@ function EditStoreModal({ store, onClose, onSaved }: {
         avatar: avatar ?? undefined,
         lat: store.lat ?? 41.311081,
         lng: store.lng ?? 69.240562,
+        type: type,
+        subscriptionPrice: type === "library" ? parseInt(subscriptionPrice) || 0 : 0,
       };
       const updated = await updateStore({ storeId: store.id, data } as any);
       onSaved(updated);
@@ -485,14 +489,67 @@ function EditStoreModal({ store, onClose, onSaved }: {
               <span className="text-xs text-muted-foreground">Kutubxona logotipi</span>
             </div>
 
+            {/* Store Type Selection */}
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Turi *</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setType("library")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer text-xs font-bold",
+                    type === "library"
+                      ? "border-amber-500 bg-amber-500/5 text-amber-700 font-bold"
+                      : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300"
+                  )}
+                >
+                  <BookOpen className="w-4 h-4 text-amber-500" />
+                  Kutubxona
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setType("bookstore")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer text-xs font-bold",
+                    type === "bookstore"
+                      ? "border-amber-500 bg-amber-500/5 text-amber-700 font-bold"
+                      : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300"
+                  )}
+                >
+                  <Store className="w-4 h-4 text-amber-500" />
+                  Kitob do'koni
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Subscription Price (Only for Library) */}
+            {type === "library" && (
+              <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Oylik obuna narxi (so'm) *</label>
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={subscriptionPrice}
+                  onChange={e => setSubscriptionPrice(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-bold text-slate-800"
+                  placeholder="29900"
+                />
+              </div>
+            )}
+
             {/* Name */}
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 font-sans">Kutubxona nomi *</label>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 font-sans">
+                {type === "library" ? "Kutubxona nomi *" : "Kitob do'koni nomi *"}
+              </label>
               <input
                 value={name}
                 onChange={e => setName(e.target.value)}
                 className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                placeholder="Kutubxona nomi"
+                placeholder={type === "library" ? "Kutubxona nomi" : "Kitob do'koni nomi"}
                 required
               />
             </div>
@@ -680,6 +737,47 @@ export default function StoreDetail() {
   const [showEditStore, setShowEditStore] = useState(false);
   const [visibleCount, setVisibleCount] = useState(20);
   const { mutateAsync: deleteStore, isPending: isDeletingStore } = useDeleteStore();
+
+  // Active subscription check
+  const { data: mySubData, refetch: refetchSub } = useQuery({
+    queryKey: ["mySub", storeId],
+    enabled: !!user && !!storeId,
+    queryFn: async () => {
+      const res = await fetch(`/api/subscriptions/store/${storeId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json() as Promise<{ active: boolean; subscriptions: any[] }>;
+    },
+  });
+
+  const [joining, setJoining] = useState(false);
+
+  async function handleJoinBookstore() {
+    if (!user) { navigate("/login"); return; }
+    setJoining(true);
+    try {
+      const res = await fetch("/api/subscriptions/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ storeId, plan: "monthly" })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Xatolik yuz berdi");
+      }
+      await refetchSub();
+      toast.success("Muvaffaqiyatli a'zo bo'lindi!", {
+        description: `"${store?.name}" do'koniga a'zo bo'ldingiz. Yangi kitoblar qo'shilganda xabarnoma olasiz.`
+      });
+    } catch (err: any) {
+      toast.error(err.message || "A'zo bo'lishda xatolik yuz berdi");
+    } finally {
+      setJoining(false);
+    }
+  }
 
   async function handleDeleteStore() {
     if (!window.confirm("Rostdan ham ushbu kutubxonani butunlay o'chirmoqchimisiz? Barcha kitoblar va ma'lumotlar tiklanmaydigan qilib o'chiriladi.")) {

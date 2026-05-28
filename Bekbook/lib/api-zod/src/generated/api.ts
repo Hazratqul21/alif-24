@@ -744,6 +744,8 @@ export const ListStoresResponse = zod.object({
       openHours: zod.string().nullish(),
       avatar: zod.string().nullish(),
       ownerId: zod.number(),
+      type: zod.enum(["library", "bookstore"]).optional(),
+      subscriptionPrice: zod.number().optional(),
       owner: zod
         .object({
           id: zod.number(),
@@ -787,6 +789,8 @@ export const CreateStoreBody = zod.object({
   phone: zod.string().optional(),
   openHours: zod.string().optional(),
   avatar: zod.string().optional(),
+  type: zod.enum(["library", "bookstore"]).optional(),
+  subscriptionPrice: zod.number().optional(),
 });
 
 /**
@@ -807,6 +811,8 @@ export const GetStoreResponse = zod.object({
   openHours: zod.string().nullish(),
   avatar: zod.string().nullish(),
   ownerId: zod.number(),
+  type: zod.enum(["library", "bookstore"]).optional(),
+  subscriptionPrice: zod.number().optional(),
   owner: zod
     .object({
       id: zod.number(),
@@ -851,6 +857,8 @@ export const UpdateStoreBody = zod.object({
   phone: zod.string().optional(),
   openHours: zod.string().optional(),
   avatar: zod.string().optional(),
+  type: zod.enum(["library", "bookstore"]).optional(),
+  subscriptionPrice: zod.number().optional(),
 });
 
 export const UpdateStoreResponse = zod.object({
@@ -864,6 +872,8 @@ export const UpdateStoreResponse = zod.object({
   openHours: zod.string().nullish(),
   avatar: zod.string().nullish(),
   ownerId: zod.number(),
+  type: zod.enum(["library", "bookstore"]).optional(),
+  subscriptionPrice: zod.number().optional(),
   owner: zod
     .object({
       id: zod.number(),
@@ -1144,6 +1154,8 @@ export const GetMyStoreResponse = zod.object({
   openHours: zod.string().nullish(),
   avatar: zod.string().nullish(),
   ownerId: zod.number(),
+  type: zod.enum(["library", "bookstore"]).optional(),
+  subscriptionPrice: zod.number().optional(),
   owner: zod
     .object({
       id: zod.number(),
@@ -1652,6 +1664,8 @@ export const GetNearbyResponse = zod.object({
       openHours: zod.string().nullish(),
       avatar: zod.string().nullish(),
       ownerId: zod.number(),
+      type: zod.enum(["library", "bookstore"]).optional(),
+      subscriptionPrice: zod.number().optional(),
       owner: zod
         .object({
           id: zod.number(),

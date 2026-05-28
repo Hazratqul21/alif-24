@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { db, storesTable, usersTable, storeBooksTable, booksTable } from "@workspace/db";
+import { db, storesTable, usersTable, storeBooksTable, booksTable, subscriptionsTable } from "@workspace/db";
 import { eq, inArray, desc, and, or, count } from "drizzle-orm";
 import { booksCatalogTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth.js";
+import { sendNotification } from "./notifications.js";
 import { transactionsTable } from "@workspace/db";
 import { CreateStoreBody, UpdateStoreBody, AddStoreBookBody } from "@workspace/api-zod";
 import * as cheerio from "cheerio";
@@ -109,6 +110,8 @@ router.post("/import-external", requireAuth, async (req, res) => {
     lat: storeLat,
     lng: storeLng,
     ownerId: userId,
+    type: "library",
+    subscriptionPrice: 29900,
   }).returning();
 
   // 2. Scrape books dynamically using generalized heuristic, json-ld, nextjs-data, or microdata
@@ -875,6 +878,28 @@ router.post("/:storeId/books", requireAuth, async (req, res) => {
   const parsed = AddStoreBookBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Validation error" }); return; }
   const [book] = await db.insert(storeBooksTable).values({ ...parsed.data, storeId }).returning();
+
+  // Find all active subscribers of this store and notify them
+  try {
+    const activeSubs = await db.select().from(subscriptionsTable).where(and(
+      eq(subscriptionsTable.storeId, storeId),
+      eq(subscriptionsTable.status, "active")
+    ));
+    for (const sub of activeSubs) {
+      if (sub.userId) {
+        await sendNotification(
+          sub.userId,
+          "new_book",
+          "Yangi kitob qo'shildi",
+          `"${store.name}" do'koniga yangi "${book.title}" kitobi qo'shildi!`,
+          `/stores/${storeId}`
+        );
+      }
+    }
+  } catch (err) {
+    console.error("[stores-router] Failed to send new book notifications:", err);
+  }
+
   res.status(201).json(book);
 });
 
