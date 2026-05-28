@@ -96,7 +96,7 @@ export default function Navbar() {
             <BookOpen className="w-5 h-5 fill-white" />
           </div>
           <span className="hidden sm:inline bg-gradient-to-r from-amber-600 to-amber-500 bg-clip-text text-transparent uppercase font-black">
-            Mahalla Kutubxonasi
+            Kutubxona
           </span>
         </Link>
 

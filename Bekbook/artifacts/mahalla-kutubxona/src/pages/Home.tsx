@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, BookOpen, TrendingUp, Gift, Clock, Plus, AlertTriangle, ArrowLeftRight, ChevronLeft, ChevronRight, SlidersHorizontal, ArrowUpDown, DollarSign, Filter, RefreshCw } from "lucide-react";
+import { BookOpen, TrendingUp, Gift, Clock, AlertTriangle, ArrowLeftRight, ChevronLeft, ChevronRight, ArrowUpDown, Filter, RefreshCw, X } from "lucide-react";
 import { useListBooks, useGetBooksStats, useGetMyTransactions } from "@workspace/api-client-react";
 import BookCard from "@/components/BookCard";
 import { useAuth } from "@/lib/auth";
@@ -32,7 +32,7 @@ const SLIDES = [
   },
   {
     title: "Top 10 - Biznes va Shaxsiy Rivojlanish",
-    desc: "Eng ko'p sotiladigan va o'qiladigan biznes, psixologiya va motivatsion tarjimalarni kashf eting.",
+    desc: "Eng ko'p sotiladigan va o'qiladigan biznes, psixologiya kitoblarni kashf eting.",
     bg: "from-emerald-600 via-teal-600 to-teal-700",
     buttonText: "Ommaboplar",
     link: "/?sort=popular"
@@ -42,39 +42,38 @@ const SLIDES = [
 export default function Home() {
   const [location, setLocation] = useLocation();
   const { isAuthenticated, token } = useAuth();
-  
-  // Parse filters directly from URL query parameters
-  const searchParams = new URLSearchParams(window.location.search);
-  const search = searchParams.get("search") || "";
-  const type = searchParams.get("type") || "";
-  const genre = searchParams.get("genre") || "";
-  const sort = searchParams.get("sort") || "newest";
-  const minPrice = searchParams.get("minPrice") || "";
-  const maxPrice = searchParams.get("maxPrice") || "";
 
-  // Temporary local state for price inputs in the sidebar
-  const [localMinPrice, setLocalMinPrice] = useState(minPrice);
-  const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice);
+  // ========== reactive url search query parameter ==========
+  const search = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("search") || "";
+  }, [location]);
 
-  // Sync inputs with URL changes (e.g. if filters are reset)
-  useEffect(() => {
-    setLocalMinPrice(minPrice);
-    setLocalMaxPrice(maxPrice);
-  }, [minPrice, maxPrice]);
+  // ========== LOCAL STATE FILTERS (instant, no URL roundtrip) ==========
+  const [type, setType] = useState("");
+  const [genre, setGenre] = useState("");
+  const [sort, setSort] = useState<string>("newest");
+  const [localMinPrice, setLocalMinPrice] = useState("");
+  const [localMaxPrice, setLocalMaxPrice] = useState("");
+  const [appliedMinPrice, setAppliedMinPrice] = useState("");
+  const [appliedMaxPrice, setAppliedMaxPrice] = useState("");
 
-  // Hero Slider index hook
+  // Mobile filter sheet state
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  // Hero Slideshow state
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Stats & Book listings hooks
+  // Stats & Book listings
   const { data: stats } = useGetBooksStats();
-  const { data: booksData, isLoading } = useListBooks({ 
-    search: search || undefined, 
+  const { data: booksData, isLoading } = useListBooks({
+    search: search || undefined,
     type: (type as "sell" | "free" | "rent") || undefined,
     genre: genre || undefined,
     sort: (sort as "newest" | "oldest" | "popular" | "price_asc" | "price_desc") || undefined
   });
 
-  // Overdue and active loans hooks
+  // Overdue and active loans
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: txData } = useGetMyTransactions({}, { query: { enabled: isAuthenticated && !!token } as any });
   const overdueTxs = txData?.transactions?.filter(t => t.status === "overdue") ?? [];
@@ -88,67 +87,164 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  const updateFilters = (updates: Record<string, string | null>) => {
-    const nextParams = new URLSearchParams(window.location.search);
-    Object.entries(updates).forEach(([key, val]) => {
-      if (val === null || val === "") {
-        nextParams.delete(key);
-      } else {
-        nextParams.set(key, val);
-      }
-    });
-    nextParams.delete("offset"); // Reset pagination on filter change
-    const nextSearch = nextParams.toString();
-    setLocation("/" + (nextSearch ? "?" + nextSearch : ""));
-  };
+  // ========== FILTER HANDLERS (instant state updates) ==========
+  const handleGenre = useCallback((g: string) => {
+    setGenre(g);
+    setFilterOpen(false);
+  }, []);
 
-  const handlePriceApply = (e: React.FormEvent) => {
+  const handleType = useCallback((t: string) => {
+    setType(t);
+    setFilterOpen(false);
+  }, []);
+
+  const handlePriceApply = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    updateFilters({
-      minPrice: localMinPrice || null,
-      maxPrice: localMaxPrice || null
-    });
-  };
+    setAppliedMinPrice(localMinPrice);
+    setAppliedMaxPrice(localMaxPrice);
+    setFilterOpen(false);
+  }, [localMinPrice, localMaxPrice]);
 
-  const handleResetFilters = () => {
+  const handleResetFilters = useCallback(() => {
+    setType("");
+    setGenre("");
+    setSort("newest");
     setLocalMinPrice("");
     setLocalMaxPrice("");
+    setAppliedMinPrice("");
+    setAppliedMaxPrice("");
+    setFilterOpen(false);
+    // Clear URL query parameters completely
     setLocation("/");
-  };
+  }, [setLocation]);
 
-  // Perform client-side price filtering (API gives raw list, we can filter prices in-memory)
-  let booksToRender = booksData?.books ?? [];
-  if (minPrice) {
-    booksToRender = booksToRender.filter(b => b.price !== undefined && b.price !== null && b.price >= parseFloat(minPrice));
-  }
-  if (maxPrice) {
-    booksToRender = booksToRender.filter(b => b.price !== undefined && b.price !== null && b.price <= parseFloat(maxPrice));
-  }
+  // Client-side price filtering (avoids network refetches for minor price adjust)
+  const booksToRender = useMemo(() => {
+    let books = booksData?.books ?? [];
+    if (appliedMinPrice) {
+      books = books.filter(b => b.price != null && b.price >= parseFloat(appliedMinPrice));
+    }
+    if (appliedMaxPrice) {
+      books = books.filter(b => b.price != null && b.price <= parseFloat(appliedMaxPrice));
+    }
+    return books;
+  }, [booksData, appliedMinPrice, appliedMaxPrice]);
 
   // popular shelves (mock bestseller filter)
-  const bestsellerBooks = (booksData?.books ?? [])
-    .filter(b => (b as any).avgRating >= 4.5 || (b as any).viewCount > 10)
-    .slice(0, 6);
+  const bestsellerBooks = useMemo(() => {
+    return (booksData?.books ?? [])
+      .filter(b => (b as any).avgRating >= 4.5 || (b as any).viewCount > 10)
+      .slice(0, 6);
+  }, [booksData]);
+
+  const hasActiveFilters = type || genre || appliedMinPrice || appliedMaxPrice || search;
+
+  // ========== FILTER SIDEBAR CONTENT (shared between desktop & mobile) ==========
+  const filterContent = (
+    <div className="space-y-4">
+      {/* Genre category */}
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2.5">Kitob janri</p>
+        <div className="space-y-1">
+          <button
+            onClick={() => handleGenre("")}
+            className={cn("w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-colors",
+              !genre ? "bg-amber-500 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50 active:bg-slate-100"
+            )}
+          >
+            Barcha janrlar
+          </button>
+          {GENRES.map((g) => (
+            <button
+              key={g}
+              onClick={() => handleGenre(g)}
+              className={cn("w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors truncate",
+                genre === g ? "bg-amber-500 text-white shadow-sm font-bold" : "text-slate-600 hover:bg-slate-50 active:bg-slate-100"
+              )}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="h-px bg-slate-100" />
+
+      {/* Type category */}
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2.5">Xizmat turi</p>
+        <div className="space-y-1">
+          {[
+            { value: "", label: "Barchasi" },
+            { value: "sell", label: "Sotiladiganlar" },
+            { value: "rent", label: "Ijara beriladiganlar" },
+            { value: "free", label: "Tekin / Sovg'a" },
+          ].map((t) => (
+            <button
+              key={t.value}
+              onClick={() => handleType(t.value)}
+              className={cn("w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors",
+                type === t.value ? "bg-amber-500/10 text-amber-700 font-bold" : "text-slate-600 hover:bg-slate-50 active:bg-slate-100"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="h-px bg-slate-100" />
+
+      {/* Price category */}
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2.5">Narxi (so'm)</p>
+        <form onSubmit={handlePriceApply} className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              placeholder="Min"
+              value={localMinPrice}
+              onChange={(e) => setLocalMinPrice(e.target.value)}
+              className="w-full p-2 bg-slate-50 border border-slate-100 rounded-xl text-xs text-center font-bold focus:outline-none focus:bg-white focus:border-amber-500"
+            />
+            <input
+              type="number"
+              placeholder="Max"
+              value={localMaxPrice}
+              onChange={(e) => setLocalMaxPrice(e.target.value)}
+              className="w-full p-2 bg-slate-50 border border-slate-100 rounded-xl text-xs text-center font-bold focus:outline-none focus:bg-white focus:border-amber-500"
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-slate-900 hover:bg-slate-800 active:bg-slate-700 text-white py-2.5 rounded-xl text-xs font-bold transition-colors shadow-sm cursor-pointer"
+          >
+            Narxni qo'llash
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+
       {/* Overdue alert banner */}
       {isAuthenticated && overdueTxs.length > 0 && (
         <Link href="/profile">
-          <div className="mb-5 p-3.5 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 cursor-pointer hover:bg-rose-100/70 transition-all group shadow-sm">
-            <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-4.5 h-4.5 text-rose-600" />
+          <div className="mb-4 p-3 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 cursor-pointer hover:bg-rose-100/70 transition-colors group shadow-sm">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-xs font-black text-rose-800 uppercase tracking-wide">
                 {overdueTxs.length} ta kitob muddati o'tgan!
               </p>
-              <p className="text-xs text-rose-600 mt-0.5 font-semibold">
+              <p className="text-[11px] text-rose-600 mt-0.5 font-semibold truncate">
                 {overdueTxs.map(t => t.bookTitle ?? "Kitob").join(", ")} — tezroq qaytarish uchun bosing
               </p>
             </div>
-            <span className="text-xs font-bold text-rose-500 group-hover:underline shrink-0">Boshqarish →</span>
+            <span className="text-xs font-bold text-rose-500 group-hover:underline shrink-0 hidden sm:block">Boshqarish →</span>
           </div>
         </Link>
       )}
@@ -156,57 +252,130 @@ export default function Home() {
       {/* Active lending reminder */}
       {isAuthenticated && overdueTxs.length === 0 && activeTxs.length > 0 && (
         <Link href="/profile">
-          <div className="mb-5 p-3.5 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-3 cursor-pointer hover:bg-amber-100/70 transition-all group shadow-sm">
-            <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-              <ArrowLeftRight className="w-4.5 h-4.5 text-amber-600" />
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-3 cursor-pointer hover:bg-amber-100/70 transition-colors group shadow-sm">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+              <ArrowLeftRight className="w-4 h-4 text-amber-600" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-xs font-black text-amber-800 uppercase tracking-wide">
                 {activeTxs.length} ta kitob hozir sizda bor
               </p>
-              <p className="text-xs text-amber-600 mt-0.5 font-semibold">
-                Faol mutolaa qilayotgan kitoblaringiz: {activeTxs.map(t => t.bookTitle ?? "Kitob").join(", ")}
+              <p className="text-[11px] text-amber-600 mt-0.5 font-semibold truncate">
+                {activeTxs.map(t => t.bookTitle ?? "Kitob").join(", ")}
               </p>
             </div>
-            <span className="text-xs font-bold text-amber-500 group-hover:underline shrink-0">Ko'rish →</span>
+            <span className="text-xs font-bold text-amber-500 group-hover:underline shrink-0 hidden sm:block">Ko'rish →</span>
           </div>
         </Link>
       )}
 
-      {/* Hero Stats */}
+      {/* Hero Stats — responsive 2x2 on mobile, 4-col on desktop */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 mb-6 sm:mb-8">
           {[
-            { icon: BookOpen, label: "Jami kitoblar", value: stats.total, color: "text-amber-600 bg-amber-50 border-amber-100" },
-            { icon: TrendingUp, label: "Sotiladiganlar", value: stats.sellCount, color: "text-amber-600 bg-amber-50 border-amber-100" },
-            { icon: Gift, label: "Bepul kitoblar", value: stats.freeCount, color: "text-emerald-600 bg-emerald-50 border-emerald-100" },
-            { icon: Clock, label: "Ijaradagilar", value: stats.rentCount, color: "text-blue-600 bg-blue-50 border-blue-100" },
+            { icon: BookOpen, label: "Jami", value: stats.total, color: "text-amber-500 bg-amber-50 border-amber-100" },
+            { icon: TrendingUp, label: "Sotiladi", value: stats.sellCount, color: "text-amber-500 bg-amber-50 border-amber-100" },
+            { icon: Gift, label: "Bepul", value: stats.freeCount, color: "text-emerald-500 bg-emerald-50 border-emerald-100" },
+            { icon: Clock, label: "Ijara", value: stats.rentCount, color: "text-blue-500 bg-blue-50 border-blue-100" },
           ].map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className={cn("bg-white border rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow")}>
-              <div className={cn("p-2.5 rounded-xl border shrink-0", color.split(" ")[0] === "text-amber-600" ? "bg-amber-50 text-amber-500 border-amber-100" : color.split(" ")[0] === "text-emerald-600" ? "bg-emerald-50 text-emerald-500 border-emerald-100" : "bg-blue-50 text-blue-500 border-blue-100")}>
-                <Icon className="w-5 h-5" />
+            <div key={label} className="bg-white border rounded-2xl p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 shadow-sm">
+              <div className={cn("p-2 sm:p-2.5 rounded-xl border shrink-0", color)}>
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div>
-                <p className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">{value}</p>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">{label}</p>
+                <p className="text-lg sm:text-xl font-black text-slate-800 leading-none mb-0.5">{value}</p>
+                <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wide">{label}</p>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Modern Two-Pane Layout */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        
-        {/* Left Filter Sidebar (Asaxiy style) */}
-        <aside className="w-full lg:w-64 bg-white border border-slate-100 rounded-2xl p-5 shrink-0 shadow-sm sticky top-20">
+      {/* ========== MOBILE FILTER BAR (visible only on mobile) ========== */}
+      <div className="flex lg:hidden items-center gap-2 mb-4 overflow-x-auto pb-1.5 scrollbar-none">
+        <button
+          onClick={() => setFilterOpen(true)}
+          className={cn(
+            "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-colors border",
+            hasActiveFilters
+              ? "bg-amber-500 text-white border-amber-500"
+              : "bg-white text-slate-600 border-slate-200 active:bg-slate-50"
+          )}
+        >
+          <Filter className="w-3.5 h-3.5" />
+          Filtrlar
+          {hasActiveFilters && (
+            <span className="w-4 h-4 rounded-full bg-white text-amber-600 text-[10px] font-black flex items-center justify-center ml-0.5">
+              {[type, genre, appliedMinPrice, appliedMaxPrice, search].filter(Boolean).length}
+            </span>
+          )}
+        </button>
+
+        {/* Quick genre chips */}
+        <button
+          onClick={() => handleGenre("")}
+          className={cn("px-3 py-2 rounded-xl text-xs font-semibold shrink-0 transition-colors border",
+            !genre ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-white text-slate-500 border-slate-200 active:bg-slate-50"
+          )}
+        >
+          Barchasi
+        </button>
+        {GENRES.map(g => (
+          <button
+            key={g}
+            onClick={() => handleGenre(g)}
+            className={cn("px-3 py-2 rounded-xl text-xs font-semibold shrink-0 transition-colors border whitespace-nowrap",
+              genre === g ? "bg-amber-50 text-amber-700 border-amber-200 font-bold" : "bg-white text-slate-500 border-slate-200 active:bg-slate-50"
+            )}
+          >
+            {g}
+          </button>
+        ))}
+      </div>
+
+      {/* ========== MOBILE FILTER SHEET (bottom sheet overlay) ========== */}
+      {filterOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setFilterOpen(false)} />
+          {/* Sheet */}
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5 pt-3 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <span className="flex items-center gap-2 font-black text-xs text-slate-800 uppercase tracking-wider">
+                <Filter className="w-4 h-4 text-amber-500" />
+                Filtrlar
+              </span>
+              <div className="flex items-center gap-3">
+                {hasActiveFilters && (
+                  <button onClick={handleResetFilters} className="text-[11px] font-bold text-rose-500 flex items-center gap-0.5">
+                    <RefreshCw className="w-3 h-3" />
+                    Tozalash
+                  </button>
+                )}
+                <button onClick={() => setFilterOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                  <X className="w-4 h-4 text-slate-500" />
+                </button>
+              </div>
+            </div>
+            {/* Drag indicator */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-slate-200" />
+            {filterContent}
+          </div>
+        </div>
+      )}
+
+      {/* ========== TWO-PANE LAYOUT ========== */}
+      <div className="flex gap-6 items-start">
+
+        {/* Desktop Filter Sidebar (hidden on mobile) */}
+        <aside className="hidden lg:block w-64 bg-white border border-slate-100 rounded-2xl p-5 shrink-0 shadow-sm sticky top-20">
           <div className="flex items-center justify-between mb-5 border-b border-slate-50 pb-3">
             <span className="flex items-center gap-2 font-black text-xs text-slate-800 uppercase tracking-wider">
               <Filter className="w-4 h-4 text-amber-500" />
               Filtrlar
             </span>
-            {(search || type || genre || minPrice || maxPrice) && (
-              <button 
+            {hasActiveFilters && (
+              <button
                 onClick={handleResetFilters}
                 className="text-[10px] font-bold text-rose-500 hover:text-rose-600 flex items-center gap-0.5 hover:underline cursor-pointer"
               >
@@ -215,122 +384,34 @@ export default function Home() {
               </button>
             )}
           </div>
-
-          {/* Genres Category Tree */}
-          <div className="space-y-4">
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2.5">Kitob janri</p>
-              <div className="space-y-1">
-                <button
-                  onClick={() => updateFilters({ genre: null })}
-                  className={cn("w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-all",
-                    !genre ? "bg-amber-500 text-white shadow-sm shadow-amber-500/10" : "text-slate-600 hover:bg-slate-50"
-                  )}
-                >
-                  Barcha janrlar
-                </button>
-                {GENRES.map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => updateFilters({ genre: g })}
-                    className={cn("w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all truncate",
-                      genre === g ? "bg-amber-500 text-white shadow-sm shadow-amber-500/10 font-bold" : "text-slate-600 hover:bg-slate-50"
-                    )}
-                    title={g}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="h-px bg-slate-100" />
-
-            {/* Service Type Selection */}
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2.5">Xizmat turi</p>
-              <div className="space-y-1">
-                {[
-                  { value: "", label: "Barchasi" },
-                  { value: "sell", label: "Sotiladiganlar" },
-                  { value: "rent", label: "Ijara beriladiganlar" },
-                  { value: "free", label: "Tekin / Sovg'a" },
-                ].map((t) => (
-                  <button
-                    key={t.value}
-                    onClick={() => updateFilters({ type: t.value || null })}
-                    className={cn("w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all",
-                      type === t.value ? "bg-amber-500/10 text-amber-700 font-bold" : "text-slate-600 hover:bg-slate-50"
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="h-px bg-slate-100" />
-
-            {/* Price Filter (Min/Max inputs) */}
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2.5">Narxi (so'm)</p>
-              <form onSubmit={handlePriceApply} className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="relative">
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      value={localMinPrice}
-                      onChange={(e) => setLocalMinPrice(e.target.value)}
-                      className="w-full p-2 bg-slate-50 border border-slate-100 rounded-xl text-xs text-center font-bold focus:outline-none focus:bg-white focus:border-amber-500"
-                    />
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      value={localMaxPrice}
-                      onChange={(e) => setLocalMaxPrice(e.target.value)}
-                      className="w-full p-2 bg-slate-50 border border-slate-100 rounded-xl text-xs text-center font-bold focus:outline-none focus:bg-white focus:border-amber-500"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
-                >
-                  Narxni qo'llash
-                </button>
-              </form>
-            </div>
-          </div>
+          {filterContent}
         </aside>
 
-        {/* Right Main Panel */}
-        <main className="flex-1 w-full space-y-8">
-          
-          {/* Interactive Hero Slideshow Banner (Wow factor!) */}
-          <div className="relative h-64 rounded-3xl overflow-hidden shadow-md group">
+        {/* Main Panel */}
+        <main className="flex-1 min-w-0 space-y-6 sm:space-y-8">
+
+          {/* Hero Slideshow — shorter on mobile */}
+          <div className="relative h-40 sm:h-56 md:h-64 rounded-2xl sm:rounded-3xl overflow-hidden shadow-md group">
             {SLIDES.map((slide, index) => (
               <div
                 key={index}
-                className={cn("absolute inset-0 bg-gradient-to-br transition-all duration-700 ease-in-out p-8 md:p-12 flex flex-col justify-center text-white",
+                className={cn("absolute inset-0 bg-gradient-to-br transition-all duration-700 ease-in-out p-5 sm:p-8 md:p-12 flex flex-col justify-center text-white",
                   slide.bg,
                   index === currentSlide ? "opacity-100 scale-100 z-10" : "opacity-0 scale-95 z-0 pointer-events-none"
                 )}
               >
-                <div className="max-w-md space-y-3">
-                  <span className="text-[10px] font-black bg-white/20 px-2.5 py-1 rounded-md uppercase tracking-wider block w-fit">
+                <div className="max-w-md space-y-2 sm:space-y-3">
+                  <span className="text-[9px] sm:text-[10px] font-black bg-white/20 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md uppercase tracking-wider block w-fit">
                     Platforma yangiligi
                   </span>
-                  <h2 className="text-xl md:text-2xl font-black leading-tight tracking-tight uppercase">
+                  <h2 className="text-sm sm:text-xl md:text-2xl font-black leading-tight tracking-tight uppercase line-clamp-1">
                     {slide.title}
                   </h2>
-                  <p className="text-xs md:text-sm text-white/90 font-medium leading-relaxed">
+                  <p className="text-[11px] sm:text-xs md:text-sm text-white/90 font-medium leading-relaxed line-clamp-2">
                     {slide.desc}
                   </p>
                   <Link href={slide.link}>
-                    <button className="mt-2 bg-white hover:bg-slate-50 text-slate-900 px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer">
+                    <button className="mt-1 sm:mt-2 bg-white hover:bg-slate-50 text-slate-900 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-black transition-colors shadow-md active:scale-95 cursor-pointer">
                       {slide.buttonText}
                     </button>
                   </Link>
@@ -339,42 +420,42 @@ export default function Home() {
             ))}
 
             {/* Slider Dots */}
-            <div className="absolute bottom-5 right-5 z-20 flex gap-1.5">
+            <div className="absolute bottom-3 sm:bottom-5 right-3 sm:right-5 z-20 flex gap-1.5">
               {SLIDES.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentSlide(index)}
                   className={cn("w-2 h-2 rounded-full transition-all duration-300",
-                    index === currentSlide ? "bg-white w-6" : "bg-white/40 hover:bg-white/70"
+                    index === currentSlide ? "bg-white w-5 sm:w-6" : "bg-white/40"
                   )}
                 />
               ))}
             </div>
 
-            {/* Manual Arrows */}
+            {/* Desktop arrows only */}
             <button
               onClick={() => setCurrentSlide((prev) => (prev - 1 + SLIDES.length) % SLIDES.length)}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center z-20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white hidden sm:flex items-center justify-center z-20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={() => setCurrentSlide((prev) => (prev + 1) % SLIDES.length)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center z-20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white hidden sm:flex items-center justify-center z-20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Bestsellers Shelf (Horizontal scroll widget) */}
+          {/* Bestsellers Shelf (Horizontal native snap-scroll shelf) */}
           {bestsellerBooks.length > 0 && !search && !genre && (
-            <section className="space-y-4">
+            <section className="space-y-3 sm:space-y-4">
               <div className="flex items-center gap-2 border-l-4 border-amber-500 pl-3">
-                <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">Hafta Xiti / Tavsiya Etamiz</h2>
+                <h2 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider">Hafta Xiti / Tavsiya Etamiz</h2>
               </div>
-              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-100">
+              <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-3 scrollbar-none snap-x snap-mandatory">
                 {bestsellerBooks.map((book) => (
-                  <div key={book.id} className="w-56 shrink-0">
+                  <div key={book.id} className="w-48 sm:w-56 shrink-0 snap-start">
                     <BookCard book={book} />
                   </div>
                 ))}
@@ -382,68 +463,75 @@ export default function Home() {
             </section>
           )}
 
-          {/* Main Catalog Header / Toolbar */}
+          {/* Catalog Header / Toolbar */}
           <section className="space-y-4">
-            <div className="bg-white border border-slate-50 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div className="bg-white border border-slate-50 p-3 sm:p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shadow-sm">
               <div>
-                <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                  {genre ? `Janr: ${genre}` : search ? `Qidiruv: "${search}"` : "Kitoblar katalogi"}
+                <h2 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2 flex-wrap">
+                  <span>{genre ? `Janr: ${genre}` : "Kitoblar katalogi"}</span>
+                  {search && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-700 text-[10px] font-black rounded-lg uppercase tracking-wide">
+                      Qidiruv: "{search}"
+                      <button
+                        onClick={() => setLocation("/")}
+                        className="w-3.5 h-3.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 flex items-center justify-center transition-colors shrink-0"
+                      >
+                        <X className="w-2 h-2" />
+                      </button>
+                    </span>
+                  )}
                 </h2>
-                <p className="text-[11px] text-slate-400 font-bold mt-0.5">
-                  {isLoading ? "Kitoblar yuklanmoqda..." : `${booksToRender.length} ta natija topildi`}
+                <p className="text-[10px] sm:text-[11px] text-slate-400 font-bold mt-0.5">
+                  {isLoading ? "Yuklanmoqda..." : `${booksToRender.length} ta natija`}
                 </p>
               </div>
 
-              {/* Sorting toolbar Dropdown (Asaxiy style) */}
               <div className="flex items-center gap-2 self-end sm:self-auto">
-                <span className="text-slate-400 text-xs font-semibold flex items-center gap-1">
-                  <ArrowUpDown className="w-3.5 h-3.5 text-amber-500" />
-                  Saralash:
+                <span className="text-slate-400 text-[11px] sm:text-xs font-semibold flex items-center gap-1">
+                  <ArrowUpDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500" />
+                  <span className="hidden sm:inline">Saralash:</span>
                 </span>
                 <select
                   value={sort}
-                  onChange={(e) => updateFilters({ sort: e.target.value })}
-                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-1.5 px-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  onChange={(e) => setSort(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-[11px] sm:text-xs font-bold py-1.5 px-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                 >
-                  <option value="newest">Yangi qo'shilganlar</option>
-                  <option value="popular">Eng ko'p o'qilganlar</option>
-                  <option value="price_asc">Arzonroq birinchi</option>
-                  <option value="price_desc">Qimmatroq birinchi</option>
-                  <option value="oldest">Eskiroq birinchi</option>
+                  <option value="newest">Yangilar</option>
+                  <option value="popular">Ommabop</option>
+                  <option value="price_asc">Arzon → Qimmat</option>
+                  <option value="price_desc">Qimmat → Arzon</option>
+                  <option value="oldest">Eski</option>
                 </select>
               </div>
             </div>
 
-            {/* Main Books Grid */}
+            {/* Books Grid — 2 col mobile, 3 col tablet, 4 col desktop */}
             {isLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="bg-white border border-slate-100 rounded-2xl overflow-hidden animate-pulse flex flex-col h-full">
                     <div className="aspect-[2/3] bg-slate-100" />
-                    <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                      <div className="space-y-2">
-                        <div className="h-4 bg-slate-100 rounded w-3/4" />
-                        <div className="h-3 bg-slate-100 rounded w-1/2" />
-                      </div>
-                      <div className="h-8 bg-slate-100 rounded w-full mt-4" />
+                    <div className="p-3 sm:p-4 space-y-2 flex-1">
+                      <div className="h-3 sm:h-4 bg-slate-100 rounded w-3/4" />
+                      <div className="h-2.5 sm:h-3 bg-slate-100 rounded w-1/2" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : booksToRender.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                 {booksToRender.map((book) => (
                   <BookCard key={book.id} book={book} />
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center bg-white border border-slate-100 rounded-2xl">
-                <BookOpen className="w-16 h-16 text-slate-200 mb-4 stroke-[1.5]" />
-                <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">Kitob topilmadi</h3>
-                <p className="text-slate-400 text-xs mt-1 font-semibold">Ushbu filtrlar bo'yicha hech qanday natija topilmadi.</p>
-                <button 
+              <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-center bg-white border border-slate-100 rounded-2xl">
+                <BookOpen className="w-12 h-12 sm:w-16 sm:h-16 text-slate-200 mb-3 sm:mb-4 stroke-[1.5]" />
+                <h3 className="text-sm sm:text-base font-black text-slate-800 uppercase tracking-wider">Kitob topilmadi</h3>
+                <p className="text-slate-400 text-[11px] sm:text-xs mt-1 font-semibold px-4">Ushbu filtrlar bo'yicha natija topilmadi.</p>
+                <button
                   onClick={handleResetFilters}
-                  className="mt-4 px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-amber-500 hover:bg-amber-50 transition-all cursor-pointer"
+                  className="mt-3 sm:mt-4 px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
                 >
                   Filtrlarni tozalash
                 </button>
