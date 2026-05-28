@@ -3,15 +3,11 @@
 -- Safe to run multiple times (uses IF NOT EXISTS).
 
 -- ===================== ENUMS =====================
-DO $$ BEGIN
-  CREATE TYPE book_type AS ENUM ('sell', 'free', 'rent');
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+DROP TYPE IF EXISTS book_status CASCADE;
+DROP TYPE IF EXISTS book_type CASCADE;
 
-DO $$ BEGIN
-  CREATE TYPE book_status AS ENUM ('available', 'reserved', 'rented');
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+CREATE TYPE book_type AS ENUM ('sell', 'free', 'rent');
+CREATE TYPE book_status AS ENUM ('available', 'reserved', 'rented');
 
 -- ===================== TABLES =====================
 
