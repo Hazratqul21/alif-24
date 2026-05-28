@@ -704,9 +704,19 @@ router.post("/import-external", requireAuth, async (req, res) => {
 
   // Insert all parsed or fallback books
   for (const b of booksToInsert) {
-    await db.insert(booksTable).values(b);
+    // Check if the book already exists globally in the central booksTable by title to prevent duplicates
+    const [existingGlobalBook] = await db
+      .select({ id: booksTable.id })
+      .from(booksTable)
+      .where(eq(booksTable.title, b.title))
+      .limit(1);
+
+    if (!existingGlobalBook) {
+      await db.insert(booksTable).values(b);
+    }
     
     // Also insert into store_books Table (for store library catalog)
+    // We ALWAYS insert into storeBooksTable so that both stores can sell/rent the book at their own price!
     await db.insert(storeBooksTable).values({
       storeId: store.id,
       title: b.title,
