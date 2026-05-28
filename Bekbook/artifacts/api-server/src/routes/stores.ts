@@ -58,23 +58,33 @@ router.post("/", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Validation error", message: parsed.error.message });
     return;
   }
-  const [store] = await db.insert(storesTable).values({
-    name: parsed.data.name,
-    description: parsed.data.description || null,
-    address: parsed.data.address,
-    lat: parsed.data.lat,
-    lng: parsed.data.lng,
-    phone: parsed.data.phone || null,
-    openHours: parsed.data.openHours || null,
-    avatar: parsed.data.avatar || null,
-    type: parsed.data.type || "library",
-    subscriptionPrice: parsed.data.subscriptionPrice || 0,
-    pendingBalance: 0,
-    withdrawableBalance: 0,
-    ownerId: String(req.user!.userId),
-  }).returning();
-  const [owner] = await db.select().from(usersTable).where(eq(usersTable.id, String(req.user!.userId))).limit(1);
-  res.status(201).json(safeStore(store, owner));
+  try {
+    const [store] = await db.insert(storesTable).values({
+      name: parsed.data.name,
+      description: parsed.data.description || null,
+      address: parsed.data.address,
+      lat: parsed.data.lat,
+      lng: parsed.data.lng,
+      phone: parsed.data.phone || null,
+      openHours: parsed.data.openHours || null,
+      avatar: parsed.data.avatar || null,
+      type: parsed.data.type || "library",
+      subscriptionPrice: parsed.data.subscriptionPrice || 0,
+      pendingBalance: 0,
+      withdrawableBalance: 0,
+      ownerId: String(req.user!.userId),
+    }).returning();
+    const [owner] = await db.select().from(usersTable).where(eq(usersTable.id, String(req.user!.userId))).limit(1);
+    res.status(201).json(safeStore(store, owner));
+  } catch (err: any) {
+    console.error("Store creation failed in database:", err);
+    res.status(500).json({ 
+      error: "Database Error", 
+      message: err.message || "Bazada saqlashda xatolik yuz berdi", 
+      detail: err.detail || null,
+      code: err.code || null
+    });
+  }
 });
 
 router.post("/import-external", requireAuth, async (req, res) => {
