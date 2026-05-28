@@ -59,7 +59,18 @@ router.post("/", requireAuth, async (req, res) => {
     return;
   }
   const [store] = await db.insert(storesTable).values({
-    ...parsed.data,
+    name: parsed.data.name,
+    description: parsed.data.description || null,
+    address: parsed.data.address,
+    lat: parsed.data.lat,
+    lng: parsed.data.lng,
+    phone: parsed.data.phone || null,
+    openHours: parsed.data.openHours || null,
+    avatar: parsed.data.avatar || null,
+    type: parsed.data.type || "library",
+    subscriptionPrice: parsed.data.subscriptionPrice || 0,
+    pendingBalance: 0,
+    withdrawableBalance: 0,
     ownerId: String(req.user!.userId),
   }).returning();
   const [owner] = await db.select().from(usersTable).where(eq(usersTable.id, String(req.user!.userId))).limit(1);
@@ -119,6 +130,8 @@ router.post("/import-external", requireAuth, async (req, res) => {
     ownerId: userId,
     type: "library",
     subscriptionPrice: 29900,
+    pendingBalance: 0,
+    withdrawableBalance: 0,
   }).returning();
 
   // 2. Scrape books dynamically using generalized heuristic, json-ld, nextjs-data, or microdata

@@ -93,7 +93,7 @@ router.get("/me/store", requireAuth, async (req, res) => {
   const [owner] = await db.select().from(usersTable).where(eq(usersTable.id, store.ownerId)).limit(1);
   res.json({
     ...store,
-    createdAt: store.createdAt.toISOString(),
+    createdAt: store.createdAt?.toISOString() ?? new Date().toISOString(),
     owner: owner ? safeUser(owner) : null,
     rating: null,
     bookCount: 0,
