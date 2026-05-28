@@ -14,5 +14,5 @@ RUN pnpm --filter @workspace/api-server run build
 EXPOSE 8007
 ENV PORT=8007
 
-# On startup: push Drizzle schema to DB (creates/syncs tables), then start server
-CMD sh -c "echo '[bekbook] Syncing database schema...' && cd /app/lib/db && pnpm push-force && echo '[bekbook] Schema sync complete!' && cd /app && exec node --enable-source-maps artifacts/api-server/dist/index.mjs"
+# On startup: start server directly (migrations are handled via raw SQL scripts)
+CMD sh -c "cd /app && exec node --enable-source-maps artifacts/api-server/dist/index.mjs"
