@@ -44,10 +44,12 @@ export default function Home() {
   const { isAuthenticated, token } = useAuth();
 
   // ========== reactive url search query parameter ==========
-  const search = useMemo(() => {
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get("search") || "";
-  }, [location]);
+    setSearch(params.get("search") || "");
+  }, [location, window.location.search]);
 
   // ========== LOCAL STATE FILTERS (instant, no URL roundtrip) ==========
   const [type, setType] = useState("");
@@ -57,6 +59,14 @@ export default function Home() {
   const [localMaxPrice, setLocalMaxPrice] = useState("");
   const [appliedMinPrice, setAppliedMinPrice] = useState("");
   const [appliedMaxPrice, setAppliedMaxPrice] = useState("");
+
+  // Pagination limit state
+  const [limit, setLimit] = useState(20);
+
+  // Reset pagination limit when any filter changes
+  useEffect(() => {
+    setLimit(20);
+  }, [type, genre, appliedMinPrice, appliedMaxPrice, search]);
 
   // Mobile filter sheet state
   const [filterOpen, setFilterOpen] = useState(false);
@@ -70,7 +80,8 @@ export default function Home() {
     search: search || undefined,
     type: (type as "sell" | "free" | "rent") || undefined,
     genre: genre || undefined,
-    sort: (sort as "newest" | "oldest" | "popular" | "price_asc" | "price_desc") || undefined
+    sort: (sort as "newest" | "oldest" | "popular" | "price_asc" | "price_desc") || undefined,
+    limit
   });
 
   // Overdue and active loans
@@ -519,10 +530,24 @@ export default function Home() {
                 ))}
               </div>
             ) : booksToRender.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                {booksToRender.map((book) => (
-                  <BookCard key={book.id} book={book} />
-                ))}
+              <div className="space-y-6 sm:space-y-8">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {booksToRender.map((book) => (
+                    <BookCard key={book.id} book={book} />
+                  ))}
+                </div>
+                
+                {booksData && booksData.total > booksToRender.length && (
+                  <div className="flex justify-center pt-2 pb-6 animate-in fade-in duration-200">
+                    <button
+                      onClick={() => setLimit(prev => prev + 20)}
+                      className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 hover:text-amber-500 shadow-sm transition-all active:scale-95 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-amber-500" />
+                      Yana yuklash
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-center bg-white border border-slate-100 rounded-2xl">
