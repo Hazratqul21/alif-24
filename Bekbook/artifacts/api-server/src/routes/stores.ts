@@ -704,14 +704,14 @@ router.post("/import-external", requireAuth, async (req, res) => {
 
   // Insert all parsed or fallback books
   for (const b of booksToInsert) {
-    // Check if the book already exists globally in the central booksTable by title to prevent duplicates
-    const [existingGlobalBook] = await db
+    // Check if the book already exists for this user in the central booksTable by title to prevent user-level duplicates
+    const [existingUserBook] = await db
       .select({ id: booksTable.id })
       .from(booksTable)
-      .where(eq(booksTable.title, b.title))
+      .where(and(eq(booksTable.title, b.title), eq(booksTable.userId, userId)))
       .limit(1);
 
-    if (!existingGlobalBook) {
+    if (!existingUserBook) {
       await db.insert(booksTable).values(b);
     }
     
