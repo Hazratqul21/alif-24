@@ -60,13 +60,14 @@ export default function Home() {
   const [appliedMinPrice, setAppliedMinPrice] = useState("");
   const [appliedMaxPrice, setAppliedMaxPrice] = useState("");
 
-  // Pagination limit state
-  const [limit, setLimit] = useState(20);
+  // Pagination page state
+  const [page, setPage] = useState(1);
+  const LIMIT = 40;
 
-  // Reset pagination limit when any filter changes
+  // Reset pagination page when any filter changes
   useEffect(() => {
-    setLimit(20);
-  }, [type, genre, appliedMinPrice, appliedMaxPrice, search]);
+    setPage(1);
+  }, [type, genre, appliedMinPrice, appliedMaxPrice, search, sort]);
 
   // Mobile filter sheet state
   const [filterOpen, setFilterOpen] = useState(false);
@@ -81,7 +82,8 @@ export default function Home() {
     type: (type as "sell" | "free" | "rent") || undefined,
     genre: genre || undefined,
     sort: (sort as "newest" | "oldest" | "popular" | "price_asc" | "price_desc") || undefined,
-    limit
+    limit: LIMIT,
+    offset: (page - 1) * LIMIT
   });
 
   // Overdue and active loans
@@ -147,6 +149,27 @@ export default function Home() {
       .filter(b => (b as any).avgRating >= 4.5 || (b as any).viewCount > 10)
       .slice(0, 6);
   }, [booksData]);
+
+  // Pagination total pages and page range calculation
+  const totalPages = useMemo(() => {
+    return Math.ceil((booksData?.total ?? 0) / LIMIT);
+  }, [booksData]);
+
+  const paginationRange = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    const range: (number | string)[] = [];
+    if (page <= 4) {
+      range.push(1, 2, 3, 4, 5, "...", totalPages);
+    } else if (page >= totalPages - 3) {
+      range.push(1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+    } else {
+      range.push(1, "...", page - 1, page, page + 1, "...", totalPages);
+    }
+    return range;
+  }, [page, totalPages]);
 
   const hasActiveFilters = type || genre || appliedMinPrice || appliedMaxPrice || search;
 
@@ -537,14 +560,57 @@ export default function Home() {
                   ))}
                 </div>
                 
-                {booksData && booksData.total > booksToRender.length && (
-                  <div className="flex justify-center pt-2 pb-6 animate-in fade-in duration-200">
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-1.5 pt-4 pb-8 animate-in fade-in duration-300">
+                    {/* Previous Button */}
                     <button
-                      onClick={() => setLimit(prev => prev + 20)}
-                      className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 hover:text-amber-500 shadow-sm transition-all active:scale-95 cursor-pointer"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-amber-600 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer shadow-sm"
                     >
-                      <RefreshCw className="w-3.5 h-3.5 text-amber-500" />
-                      Yana yuklash
+                      <ChevronLeft className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1 overflow-x-auto max-w-[280px] sm:max-w-md scrollbar-none px-1 py-0.5">
+                      {paginationRange.map((p, idx) => {
+                        if (p === "...") {
+                          return (
+                            <span
+                              key={`ellipsis-${idx}`}
+                              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-xs font-bold text-slate-400 select-none"
+                            >
+                              ...
+                            </span>
+                          );
+                        }
+
+                        const pageNum = Number(p);
+                        const isCurrent = pageNum === page;
+                        return (
+                          <button
+                            key={`page-${pageNum}`}
+                            onClick={() => setPage(pageNum)}
+                            className={cn(
+                              "w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs font-black transition-all duration-150 active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border",
+                              isCurrent
+                                ? "bg-amber-500 border-amber-500 text-white shadow-sm font-black scale-105"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-amber-500 hover:border-amber-200"
+                            )}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-amber-600 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer shadow-sm"
+                    >
+                      <ChevronRight className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                     </button>
                   </div>
                 )}
