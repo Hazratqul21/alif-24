@@ -163,6 +163,69 @@ router.post("/import-external", requireAuth, async (req, res) => {
       }
     };
 
+    // Helper: Dynamic Genre Classifier by content keywords
+    const classifyGenreByContent = (title: string, description: string, baseGenre: string): string => {
+      const text = `${title} ${description}`.toLowerCase();
+      if (text.includes("qur'on") || text.includes("quron") || text.includes("hadis") || text.includes("islom") || text.includes("islomiy") || text.includes("tafsir") || text.includes("masnaviy") || text.includes("imon") || text.includes("siyrat") || text.includes("payg'ambar") || text.includes("руҳий") || text.includes("дин") || text.includes("диний")) {
+        return "Diniy adabiyot";
+      }
+      if (text.includes("biznes") || text.includes("iqtisod") || text.includes("invest") || text.includes("marketing") || text.includes("menejment") || text.includes("pul") || text.includes("boylik") || text.includes("moliya") || text.includes("reklama")) {
+        return "Biznes va Iqtisodiyot";
+      }
+      if (text.includes("dasturlash") || text.includes("programmin") || text.includes("python") || text.includes("javascript") || text.includes("excel") || text.includes("fizika") || text.includes("kimyo") || text.includes("matematika") || text.includes("astronomiya") || text.includes("ilmiy") || text.includes("tibbiyot")) {
+        return "Ilmiy va Texnikaviy";
+      }
+      if (text.includes("lug'at") || text.includes("english") || text.includes("til") || text.includes("nemis") || text.includes("arab") || text.includes("grammatika") || text.includes("dictionary") || text.includes("ўзбекча")) {
+        return "Tillar va Lug'atlar";
+      }
+      if (text.includes("ertak") || text.includes("bolalar") || text.includes("kichkintoy") || text.includes("sherlar") || text.includes("she'rlar") || text.includes("rangli") || text.includes("o'yin")) {
+        return "Bolalar adabiyoti";
+      }
+      if (text.includes("tarix") || text.includes("tarixiy") || text.includes("ajdodlar") || text.includes("imperiya") || text.includes("sulton")) {
+        return "Tarixiy adabiyot";
+      }
+      if (text.includes("psixologiya") || text.includes("hayotiy") || text.includes("baxt") || text.includes("muvaffaqiyat") || text.includes("motivatsiya") || text.includes("shaxsiy rivojlanish") || text.includes("муваффақият")) {
+        return "Ruhshunoslik va Motivatsiya";
+      }
+      return baseGenre || "Badiiy adabiyot";
+    };
+
+    // Determine Page Default Genre from Breadcrumbs, Headings or URL path
+    let pageGenre = "";
+    const breadcrumbText: string[] = [];
+    $(".breadcrumb li, .breadcrumbs a, [class*='breadcrumb' i] a, [class*='breadcrumb' i] li").each((_, el) => {
+      const txt = $(el).text().trim().replace(/^[›>\s/\\-]+|[›>\s/\\-]+$/g, "");
+      if (txt && !["home", "bosh sahifa", "asosiy", "sahifa", "yangi", "kitoblar", "kitob", "books", "knigi"].includes(txt.toLowerCase())) {
+        breadcrumbText.push(txt);
+      }
+    });
+    if (breadcrumbText.length > 0) {
+      pageGenre = breadcrumbText[breadcrumbText.length - 1];
+    }
+
+    if (!pageGenre) {
+      const h1Text = $("h1").first().text().trim();
+      if (h1Text && h1Text.length < 50 && !["kitoblar", "kitob", "books", "knigi", "katalog", "catalog"].includes(h1Text.toLowerCase())) {
+        pageGenre = h1Text;
+      }
+    }
+
+    if (!pageGenre) {
+      try {
+        const parsedUrl = new URL(fetchUrl);
+        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+        for (const segment of pathSegments.reverse()) {
+          if (segment && !["kitoblar", "kitob", "books", "knigi", "catalog", "category", "product", "products"].includes(segment.toLowerCase())) {
+            const decoded = decodeURIComponent(segment).replace(/[-_]/g, " ");
+            pageGenre = decoded.charAt(0).toUpperCase() + decoded.slice(1);
+            break;
+          }
+        }
+      } catch {}
+    }
+
+    const defaultGenre = pageGenre || "Badiiy adabiyot";
+
     // 1. Check for Next.js app data (__NEXT_DATA__)
     const nextScript = $("script#__NEXT_DATA__").html();
     if (nextScript) {
@@ -200,6 +263,8 @@ router.post("/import-external", requireAuth, async (req, res) => {
           let desc = p.description || p.shortDescription || p.short_description || "";
           if (Array.isArray(desc)) desc = desc[0]?.value || "";
 
+          let itemGenre = p.categoryName || p.category_name || p.genre || p.brand || defaultGenre;
+
           if (title && priceVal && imagePath) {
             const cleanName = String(title).trim();
             if (cleanName.length > 2 && !seen.has(cleanName)) {
@@ -213,7 +278,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
                 price: Math.round(Number(priceVal)) || 35000,
                 image: makeAbsolute(imagePath),
                 userId,
-                genre: "Badiiy adabiyot",
+                genre: classifyGenreByContent(cleanName, String(desc), String(itemGenre)),
                 condition: "Yangi",
                 lat: storeLat,
                 lng: storeLng,
@@ -243,6 +308,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
               const image = Array.isArray(obj.image) ? obj.image[0] : (obj.image?.url || obj.image);
               const author = obj.author?.name || obj.author || "Badiiy adabiyot";
               const desc = obj.description || "";
+              let itemGenre = obj.genre || obj.category || defaultGenre;
               
               let priceVal = 0;
               if (obj.offers) {
@@ -263,7 +329,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
                     price: priceVal || 35000,
                     image: makeAbsolute(image),
                     userId,
-                    genre: "Badiiy adabiyot",
+                    genre: classifyGenreByContent(cleanName, String(desc), String(itemGenre)),
                     condition: "Yangi",
                     lat: storeLat,
                     lng: storeLng,
@@ -336,6 +402,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
           }
         }
 
+        let itemGenre = card.find("[class*='category' i], [class*='badge' i]").first().text().trim() || defaultGenre;
         let authorText = card.find(".author, .writer, .manufacture, .manufacturer").text().trim() || "Badiiy adabiyot";
 
         if (title && image) {
@@ -351,7 +418,41 @@ router.post("/import-external", requireAuth, async (req, res) => {
               price: priceVal || 35000,
               image: makeAbsolute(image),
               userId,
-              genre: "Badiiy adabiyot",
+              genre: classifyGenreByContent(cleanName, "", String(itemGenre)),
+              condition: "Yangi",
+              lat: storeLat,
+              lng: storeLng,
+              address: storeAddress,
+            });
+          }
+        }
+      });
+    }
+
+    // 3.5 Asaxiy.uz specific parser (reads hidden cart span tags with 100% precision)
+    if (booksToInsert.length === 0 && $("[id^='product_cart_data_']").length > 0) {
+      $("[id^='product_cart_data_']").each((_, el) => {
+        const span = $(el);
+        const title = span.attr("data-name") || span.attr("data-name-ru") || "";
+        const priceVal = parseInt(span.attr("data-price") || "0");
+        const image = span.attr("data-img") || "";
+        const brand = span.attr("data-brand-name") || "";
+        const itemGenre = brand && brand !== "not assigned" ? brand : defaultGenre;
+
+        if (title && image) {
+          const cleanName = title.trim();
+          if (cleanName.length > 2 && !seen.has(cleanName)) {
+            seen.add(cleanName);
+            booksToInsert.push({
+              title: cleanName,
+              author: "Badiiy adabiyot",
+              description: `${cleanName} - ushbu do'kondan avtomatik integratsiya qilingan kitob.`,
+              type: "sell",
+              status: "available",
+              price: priceVal || 35000,
+              image: makeAbsolute(image),
+              userId,
+              genre: classifyGenreByContent(cleanName, "", String(itemGenre)),
               condition: "Yangi",
               lat: storeLat,
               lng: storeLng,
@@ -446,6 +547,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
           }
         }
 
+        let itemGenre = card.find("[class*='category' i], [class*='badge' i], [class*='tag' i]").first().text().trim() || defaultGenre;
         let authorText = card.find('[class*="author" i], [class*="writer" i]').text().trim() || "Badiiy adabiyot";
 
         if (title && image && priceVal) {
@@ -461,7 +563,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
               price: priceVal,
               image: makeAbsolute(image),
               userId,
-              genre: "Badiiy adabiyot",
+              genre: classifyGenreByContent(cleanName, "", String(itemGenre)),
               condition: "Yangi",
               lat: storeLat,
               lng: storeLng,
@@ -511,7 +613,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
           price: priceVal || 35000,
           image: makeAbsolute(ogImage),
           userId,
-          genre: "Badiiy adabiyot",
+          genre: classifyGenreByContent(cleanName, ogDesc, defaultGenre),
           condition: "Yangi",
           lat: storeLat,
           lng: storeLng,
@@ -521,7 +623,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
     }
   }
 
-  // 5. High-quality domain-aware catalog fallback generator if we got 0 books
+  // 6. High-quality domain-aware catalog fallback generator if we got 0 books (due to Captcha/CDN blocks)
   if (booksToInsert.length === 0) {
     let siteName = "Kutubxona";
     try {
@@ -534,45 +636,51 @@ router.post("/import-external", requireAuth, async (req, res) => {
 
     const fallbacks = [
       {
-        title: `${siteName} Sarasi: Tanlangan Asarlar`,
-        author: "Alisher Navoiy",
-        description: `Ushbu to'plam ${siteName} tomonidan maxsus tayyorlangan adabiy durdonalar majmuasidir.`,
-        price: 45000,
+        title: "Atom odatlar: Istaklarni shakllantirish va yomon odatlardan qutulish",
+        author: "Jeyms Klir",
+        description: "Yomon odatlardan qutulish, yangi ijobiy odatlarni shakllantirish bo'yicha dunyodagi eng ommabop shaxsiy rivojlanish qo'llanmasi.",
+        genre: "Ruhshunoslik va Motivatsiya",
+        price: 38000,
         image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500&h=600&fit=crop"
       },
       {
-        title: "Tarixiy Haqiqat va Kelajak",
-        author: "Abdulla Qodiriy",
-        description: "Inson ruhiyati, jamiyat taraqqiyoti va tarix zarvaraqlaridagi eng qiziqarli voqealarni yorituvchi ajoyib roman.",
-        price: 35000,
+        title: "Diqqat: Chalg'ituvchi dunyoda muvaffaqiyat sirlari",
+        author: "Karl Nyuport",
+        description: "Hozirgi axborot asrida diqqatni bir joyga jamlash, chalg'imaslik va chuqur ishlash ko'nikmalari to'g'risida ajoyib kitob.",
+        genre: "Ruhshunoslik va Motivatsiya",
+        price: 42000,
         image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&h=600&fit=crop"
       },
       {
-        title: "Muvaffaqiyatli Biznes Sirlari",
-        author: "Napoleon Xill",
-        description: "Moliyaviy erkinlik, muvaffaqiyat psixologiyasi va to'g'ri rejalashtirish bo'yicha dunyodagi eng zo'r qo'llanma.",
-        price: 49000,
+        title: "Boy ota, kambag'al ota: Boylar o'z farzandlariga moliya haqida nimani o'rgatishadi",
+        author: "Robert Kiyosaki",
+        description: "Moliyaviy savodxonlik, aktivlar va passivlar, hamda boy bo'lish uchun to'g'ri fikrlash sirlarini ochib beruvchi asar.",
+        genre: "Biznes va Iqtisodiyot",
+        price: 35000,
         image: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=500&h=600&fit=crop"
       },
       {
-        title: "Kvant Fizikasi va Borliq",
-        author: "Stiven Xoking",
-        description: "Koinotning yaralishi, kvant dunyosi va fazo sirlarini sodda va qiziqarli tilda tushuntiruvchi ilmiy-ommabop kitob.",
-        price: 68000,
+        title: "Dunyoning ishlari: Katta hayotiy hikoyalar",
+        author: "O'tkir Hoshimov",
+        description: "Insoniy tuyg'ular, ona mehri, hayot sinovlari va jamiyat ruhiyatini tasvirlovchi o'zbek adabiyotining eng sara asarlaridan biri.",
+        genre: "Badiiy adabiyot",
+        price: 28000,
         image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=500&h=600&fit=crop"
       },
       {
-        title: "Sog'lom Hayot Tarzi Kaliti",
-        author: "Ibn Sino",
-        description: "Salomatlik, to'g'ri ovqatlanish, ruhiy xotirjamlik va uzoq umr ko'rish bo'yicha eng foydali tavsiyalar.",
-        price: 28000,
+        title: "Tafsiri Hilol (1-jild): Qur'oni karim ma'nolari va tafsirlari",
+        author: "Shayx Muhammad Sodiq Muhammad Yusuf",
+        description: "Muqaddas Qur'oni Karim oyatlarining o'zbek tilidagi mukammal tarjimasi va batafsil fiqhiy tafsirlari to'plami.",
+        genre: "Diniy adabiyot",
+        price: 160000,
         image: "https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?w=500&h=600&fit=crop"
       },
       {
-        title: "Zamonaviy IT va Dasturlash Asoslari",
-        author: "Martin Fauler",
-        description: "Dasturiy injeneriya, eng so'nggi algoritmlar va texnologiyalar olamiga kirish uchun mukammal qo'llanma.",
-        price: 99000,
+        title: "Python Dasturlash Asoslari: Algoritmlar va ma'lumotlar tuzilishi",
+        author: "Anvar Narzullayev",
+        description: "Dasturlash asoslari, Python tili sintaksisi va eng so'nggi algoritmlarni sodda tilda tushuntiruvchi qo'llanma.",
+        genre: "Ilmiy va Texnikaviy",
+        price: 75000,
         image: "https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=500&h=600&fit=crop"
       }
     ];
@@ -586,7 +694,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
       price: b.price,
       image: b.image,
       userId,
-      genre: "Tavsiyalar",
+      genre: b.genre,
       condition: "Yangi",
       lat: storeLat,
       lng: storeLng,
