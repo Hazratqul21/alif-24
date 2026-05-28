@@ -130,19 +130,23 @@ router.post("/import-external", requireAuth, async (req, res) => {
 
   const fetchUrl = url.startsWith("http") ? url : `https://${url}`;
   let html = "";
+  const prevTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   try {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
     const fetchResponse = await fetch(fetchUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
       },
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(30000)
     });
     if (fetchResponse.ok) {
       html = await fetchResponse.text();
     }
   } catch (err) {
     console.error("[general-scraper] Fetch failed:", err);
+  } finally {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevTls;
   }
 
   if (html) {
@@ -287,10 +291,100 @@ router.post("/import-external", requireAuth, async (req, res) => {
       });
     }
 
-    // 3. Heuristic Product Card Elements inside DOM
+    // 3. OpenCart / Journal 3 Theme specific parser
+    if (booksToInsert.length === 0 && $(".product-thumb").length > 0) {
+      $(".product-thumb").each((_, el) => {
+        const card = $(el);
+        
+        let nameEl = card.find(".name a, .caption h4 a, h4 a, .name, h4");
+        let title = nameEl.length > 0 ? $(nameEl[0]).text().trim() : "";
+
+        let imgEl = card.find("img");
+        let image = "";
+        if (imgEl.length > 0) {
+          const firstImg = $(imgEl[0]);
+          const srcAttr = firstImg.attr("src") || "";
+          const dataSrc = firstImg.attr("data-src") || 
+                          firstImg.attr("data-lazy-src") || 
+                          firstImg.attr("data-original") || 
+                          firstImg.attr("srcset") || 
+                          "";
+          
+          const isPlaceholder = srcAttr.includes("data:image") || 
+                                srcAttr.includes("placeholder") || 
+                                srcAttr.includes("blank") || 
+                                srcAttr.endsWith(".gif") || 
+                                srcAttr.includes("pixel");
+                                
+          if (isPlaceholder && dataSrc) {
+            image = dataSrc;
+          } else {
+            image = srcAttr || dataSrc;
+          }
+
+          if (image && image.includes(" ")) {
+            image = image.split(" ")[0];
+          }
+        }
+
+        let priceText = card.find(".price-new, .price-normal, .price, .price-new + span").text().trim();
+        let priceVal = 0;
+        if (priceText) {
+          const numbers = priceText.replace(/\s/g, "").match(/\d+/);
+          if (numbers) {
+            priceVal = parseInt(numbers[0]);
+          }
+        }
+
+        let authorText = card.find(".author, .writer, .manufacture, .manufacturer").text().trim() || "Badiiy adabiyot";
+
+        if (title && image) {
+          const cleanName = title.trim();
+          if (cleanName.length > 2 && !seen.has(cleanName)) {
+            seen.add(cleanName);
+            booksToInsert.push({
+              title: cleanName,
+              author: authorText,
+              description: `${cleanName} - ushbu do'kondan avtomatik integratsiya qilingan kitob.`,
+              type: "sell",
+              status: "available",
+              price: priceVal || 35000,
+              image: makeAbsolute(image),
+              userId,
+              genre: "Badiiy adabiyot",
+              condition: "Yangi",
+              lat: storeLat,
+              lng: storeLng,
+              address: storeAddress,
+            });
+          }
+        }
+      });
+    }
+
+    // 4. Optimized Heuristic Product Card Elements inside DOM
     if (booksToInsert.length === 0) {
       const cards = $('[class*="product" i], [class*="book" i], [class*="item" i], [class*="card" i], article, li');
-      cards.each((_, cardEl) => {
+      
+      const cardList: any[] = [];
+      cards.each((_, el) => {
+        cardList.push(el);
+      });
+
+      const leafCards = cardList.filter(el => {
+        const $el = $(el);
+        let hasChildCard = false;
+        const children = $el.find('*').toArray();
+        for (const child of children) {
+          if (cardList.includes(child as any)) {
+            hasChildCard = true;
+            break;
+          }
+        }
+        return !hasChildCard;
+      });
+
+      leafCards.forEach((cardEl) => {
         const card = $(cardEl);
         
         let titleEl = card.find('h1, h2, h3, h4, h5, h6, [class*="title" i], [class*="name" i]');
@@ -310,7 +404,26 @@ router.post("/import-external", requireAuth, async (req, res) => {
         let image = "";
         if (imgEl.length > 0) {
           const firstImg = $(imgEl[0]);
-          image = firstImg.attr('src') || firstImg.attr('data-src') || firstImg.attr('srcset') || "";
+          const srcAttr = firstImg.attr('src') || "";
+          const dataSrc = firstImg.attr('data-src') || 
+                          firstImg.attr('data-lazy') || 
+                          firstImg.attr('data-lazy-src') || 
+                          firstImg.attr('data-original') || 
+                          firstImg.attr('srcset') || 
+                          "";
+          
+          const isPlaceholder = srcAttr.includes("data:image") || 
+                                srcAttr.includes("placeholder") || 
+                                srcAttr.includes("blank") || 
+                                srcAttr.endsWith(".gif") || 
+                                srcAttr.includes("pixel");
+                                
+          if (isPlaceholder && dataSrc) {
+            image = dataSrc;
+          } else {
+            image = srcAttr || dataSrc;
+          }
+
           if (image && image.includes(" ")) {
             image = image.split(" ")[0];
           }
@@ -359,7 +472,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
       });
     }
 
-    // 4. OpenGraph Metadata (Single Item Import Page)
+    // 5. OpenGraph Metadata (Single Item Import Page)
     if (booksToInsert.length === 0) {
       const ogTitle = $('meta[property="og:title"]').attr("content") || $("title").text();
       const ogImage = $('meta[property="og:image"]').attr("content") || $('meta[name="twitter:image"]').attr("content");
