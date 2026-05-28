@@ -1,5 +1,5 @@
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, MapPin, Phone, Clock, Store, BookOpen, Plus, Trash2, Loader2, X, ChevronLeft, ChevronRight, CheckCircle2, Lock, HandshakeIcon, Calendar, ArrowLeftRight, AlertTriangle, RotateCcw, Search, UserCheck, User, FileText, Download, CalendarClock, QrCode, Pencil, TrendingUp, TrendingDown, Crown, Upload } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, Clock, Store, BookOpen, Plus, Trash2, Loader2, X, ChevronLeft, ChevronRight, CheckCircle2, Lock, HandshakeIcon, Calendar, ArrowLeftRight, AlertTriangle, RotateCcw, Search, UserCheck, User, FileText, Download, CalendarClock, QrCode, Pencil, TrendingUp, TrendingDown, Crown, Upload, Bell } from "lucide-react";
 import { useGetStore, useListStoreBooks, useDeleteStoreBook, getListStoreBooksQueryKey, useCreateTransaction, getGetMyTransactionsQueryKey, useGetMyTransactions, useReturnTransaction, useDeleteTransaction, useSearchUsers, useExtendTransaction, useUpdateStore, useDeleteStore, getGetStoreQueryKey } from "@workspace/api-client-react";
 import type { StoreBook, UserSearchResult } from "@workspace/api-client-react";
 import { exportCsv } from "@/lib/exportCsv";
@@ -7,6 +7,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { formatPrice, cn, formatDateShort } from "@/lib/utils";
 import { useState, lazy, Suspense, useRef } from "react";
+import { toast } from "sonner";
 const QrCodeDisplay = lazy(() => import("@/components/QrCode"));
 
 async function uploadImage(file: File): Promise<string> {
@@ -926,12 +927,17 @@ export default function StoreDetail() {
               {store.avatar ? (
                 <img src={store.avatar} alt={store.name} className="w-16 h-16 rounded-2xl object-cover" />
               ) : (
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
-                  <Store className="w-8 h-8 text-amber-600" />
+                <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center", (store as any).type === "bookstore" ? "bg-gradient-to-br from-amber-100 to-yellow-100" : "bg-gradient-to-br from-blue-100 to-indigo-100")}>
+                  {(store as any).type === "bookstore" ? <Store className="w-8 h-8 text-amber-600" /> : <BookOpen className="w-8 h-8 text-blue-600" />}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-foreground">{store.name}</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl font-bold text-foreground">{store.name}</h1>
+                  <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", (store as any).type === "bookstore" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-200")}>
+                    {(store as any).type === "bookstore" ? "Kitob do'koni" : "Kutubxona"}
+                  </span>
+                </div>
                 {store.description && <p className="text-muted-foreground text-sm mt-1">{store.description}</p>}
                 {/* Quick stats */}
                 {allBooks.length > 0 && (
@@ -941,13 +947,30 @@ export default function StoreDetail() {
                     {rentCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">{rentCount} vaqtincha</span>}
                   </div>
                 )}
+                {/* Join / Subscribe button — differs by store type */}
                 {!isOwner && (
                   <div className="mt-3">
-                    <Link href={`/stores/${storeId}/subscribe`}>
-                      <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm">
-                        <Crown className="w-3.5 h-3.5" /> Obuna bo'lish
+                    {mySubData?.active ? (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 border border-teal-200 text-teal-700 rounded-xl text-xs font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> {(store as any).type === "bookstore" ? "A'zo" : "Obunachi"}
+                      </div>
+                    ) : (store as any).type === "bookstore" ? (
+                      <button
+                        onClick={handleJoinBookstore}
+                        disabled={joining}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm disabled:opacity-60"
+                      >
+                        {joining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+                        A'zo bo'lish (bepul)
                       </button>
-                    </Link>
+                    ) : (
+                      <Link href={`/stores/${storeId}/subscribe`}>
+                        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm">
+                          <Crown className="w-3.5 h-3.5" /> Obuna bo'lish
+                          {(store as any).subscriptionPrice > 0 && <span className="opacity-80">· {formatPrice((store as any).subscriptionPrice)}/oy</span>}
+                        </button>
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
