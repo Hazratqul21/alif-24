@@ -189,7 +189,7 @@ router.post("/import-external", requireAuth, async (req, res) => {
                 let imageUrl = imagePath;
                 if (!imageUrl.startsWith("http")) {
                   const slash = imageUrl.startsWith("/") ? "" : "/";
-                  imageUrl = `https://book.uz${slash}${imageUrl}`;
+                  imageUrl = `https://backend.book.uz/user-api${slash}${imageUrl}`;
                 }
 
                 booksToInsert.push({
@@ -224,49 +224,49 @@ router.post("/import-external", requireAuth, async (req, res) => {
           author: "Viktor Gyugo",
           description: "Shohona ishrat - jahon adabiyotining eng sara asarlaridan biri. Unda inson taqdiri, sevgi, iztirob va yuksak tuyg'ular mahorat bilan tasvirlangan.",
           price: 32000,
-          image: "https://book.uz/img/img-file-36d20837305ec82f4eb180b26d3d08dd.jpg"
+          image: "https://backend.book.uz/user-api/img/img-file-36d20837305ec82f4eb180b26d3d08dd.jpg"
         },
         {
           title: "Andisha va g'urur",
           author: "Jeyn Ostin",
           description: "Andisha va g'urur - ingliz adabiyotining klassik namunasi. Asarda Elizabeth Bennet va janob Darsining murakkab va ajoyib munosabatlari hikoya qilinadi.",
           price: 38000,
-          image: "https://book.uz/img/img-file-5a14f0417dee3390eddd4478f513e9ad.JPG"
+          image: "https://backend.book.uz/user-api/img/img-file-5a14f0417dee3390eddd4478f513e9ad.JPG"
         },
         {
           title: "Maktub",
           author: "Paulo Koelyo",
           description: "Maktub - hayotiy falsafa va chuqur hikmatlar to'plami. U har bir o'quvchini o'z hayot yo'li haqida o'ylashga chorlaydi.",
           price: 42000,
-          image: "https://book.uz/img/img-file-6080c55bb05c0ebeac3da4d480f14a6c.jpg"
+          image: "https://backend.book.uz/user-api/img/img-file-6080c55bb05c0ebeac3da4d480f14a6c.jpg"
         },
         {
           title: "Ular o'nta edi",
           author: "Agata Kristi",
           description: "Ular o'nta edi - detektiv janrining qirolichasi Agata Kristining eng mashhur asarlaridan biri. O'nta notanish inson sirli ravishda orolga yig'iladi...",
           price: 25000,
-          image: "https://book.uz/img/img-file-efd8f1e15de942fb81f936b61fb281e5.jpg"
+          image: "https://backend.book.uz/user-api/img/img-file-efd8f1e15de942fb81f936b61fb281e5.jpg"
         },
         {
           title: "Morg ko'chasidagi qotillik",
           author: "Edgar Allan Po",
           description: "Morg ko'chasidagi qotillik - birinchi zamonaviy detektiv hikoya hisoblanadi. Unda Ogust Dyupen aql bovar qilmaydigan jinoyatni fosh etadi.",
           price: 25000,
-          image: "https://book.uz/img/img-file-10531c58fdf27d8e89481536cf68a014.JPG"
+          image: "https://backend.book.uz/user-api/img/img-file-10531c58fdf27d8e89481536cf68a014.JPG"
         },
         {
           title: "Nyurnbergga sayohat",
           author: "Hermann Hesse",
           description: "Nyurnbergga sayohat - buyuk nemis yozuvchisi Hermann Hessening falsafiy asari. Unda ijodkorning ruhiy izlanishlari va sayohat taassurotlari aks etgan.",
           price: 38000,
-          image: "https://book.uz/img/img-file-b01d6f4a898cae1f98d1094c19cf9dc3.jpg"
+          image: "https://backend.book.uz/user-api/img/img-file-b01d6f4a898cae1f98d1094c19cf9dc3.jpg"
         },
         {
           title: "Alkimyogar",
           author: "Paulo Koelyo",
           description: "Alkimyogar - millionlab insonlar qalbidan joy olgan asar. Cho'pon yigitcha Santyagoning o'z orzulari ortidan qilgan ajoyib sayohati va hayot sirlarini o'rganishi.",
           price: 25000,
-          image: "https://book.uz/img/img-file-61224ffc462e7a175956c85b2cfc21a5.jpg"
+          image: "https://backend.book.uz/user-api/img/img-file-61224ffc462e7a175956c85b2cfc21a5.jpg"
         }
       ];
 
