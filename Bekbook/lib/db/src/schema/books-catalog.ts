@@ -7,6 +7,7 @@ export const booksCatalogTable = pgTable("books_catalog", {
   genre: text("genre"),
   description: text("description"),
   isbn: text("isbn"),
+  image: text("image"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

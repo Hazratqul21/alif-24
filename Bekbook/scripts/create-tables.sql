@@ -160,6 +160,7 @@ CREATE TABLE IF NOT EXISTS books_catalog (
   genre TEXT,
   description TEXT,
   isbn TEXT,
+  image TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 

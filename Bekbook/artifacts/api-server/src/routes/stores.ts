@@ -482,6 +482,23 @@ router.post("/import-external", requireAuth, async (req, res) => {
       genre: b.genre,
       condition: "active",
     });
+
+    // Also insert into books_catalog (central catalog) if it doesn't already exist by title
+    const [existingCatalog] = await db
+      .select()
+      .from(booksCatalogTable)
+      .where(eq(booksCatalogTable.title, b.title))
+      .limit(1);
+
+    if (!existingCatalog) {
+      await db.insert(booksCatalogTable).values({
+        title: b.title,
+        author: b.author,
+        genre: b.genre,
+        description: b.description,
+        image: b.image,
+      });
+    }
   }
 
   const [owner] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -577,6 +594,7 @@ router.post("/:storeId/books/from-catalog", requireAuth, async (req, res) => {
     author: b.author ?? undefined,
     description: b.description ?? undefined,
     isbn: b.isbn ?? undefined,
+    image: b.image ?? undefined,
     type: type as string,
     price: Number(price),
     stock: Number(stock),

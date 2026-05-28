@@ -32,6 +32,7 @@ export const usersTable = pgTable("users", {
   // === Profile (shared) ===
   firstName: varchar("first_name", { length: 100 }),
   lastName: varchar("last_name", { length: 100 }),
+  name: varchar("name", { length: 255 }),
   avatar: varchar("avatar", { length: 500 }),
   dateOfBirth: date("date_of_birth"),
   gender: varchar("gender", { length: 6 }),   // 'male' | 'female'
@@ -57,8 +58,8 @@ export const usersTable = pgTable("users", {
 
   // === Timestamps ===
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 

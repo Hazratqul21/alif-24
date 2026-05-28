@@ -55,8 +55,8 @@ router.get("/users", requireAuth, requireAdmin, async (req, res) => {
     ? allUsers.filter(u => {
         const s = search.toLowerCase();
         return (
-          u.name.toLowerCase().includes(s) ||
-          u.email.toLowerCase().includes(s) ||
+          (u.name ?? "").toLowerCase().includes(s) ||
+          (u.email ?? "").toLowerCase().includes(s) ||
           (u.readerId?.includes(s) ?? false) ||
           (u.phone?.includes(s) ?? false)
         );

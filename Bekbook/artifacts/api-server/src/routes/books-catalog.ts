@@ -29,10 +29,10 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", requireAuth, async (req, res) => {
-  const { title, author, genre, description, isbn } = req.body;
+  const { title, author, genre, description, isbn, image } = req.body;
   if (!title) { res.status(400).json({ error: "title required" }); return; }
 
-  const [item] = await db.insert(booksCatalogTable).values({ title, author, genre, description, isbn }).returning();
+  const [item] = await db.insert(booksCatalogTable).values({ title, author, genre, description, isbn, image }).returning();
   res.status(201).json({ ...item, createdAt: item.createdAt.toISOString() });
 });
 
@@ -59,6 +59,7 @@ router.post("/stores/:storeId/from-catalog", requireAuth, async (req, res) => {
     author: b.author ?? undefined,
     description: b.description ?? undefined,
     isbn: b.isbn ?? undefined,
+    image: b.image ?? undefined,
     type,
     price: Number(price),
     stock: Number(stock),

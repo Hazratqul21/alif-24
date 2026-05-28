@@ -26,7 +26,7 @@ router.post("/register", async (req, res) => {
     id, name, email, passwordHash, phone: phone ?? null,
     lat: lat ?? null, lng: lng ?? null, readerId: id,
   }).returning();
-  const token = signToken({ userId: user.id, email: user.email, role: user.role });
+  const token = signToken({ userId: user.id, email: user.email ?? "", role: user.role });
   const { passwordHash: _, ...safeUser } = user;
   res.status(201).json({ token, user: { ...safeUser, createdAt: safeUser.createdAt.toISOString() } });
 });
@@ -43,12 +43,12 @@ router.post("/login", async (req, res) => {
     res.status(401).json({ error: "Unauthorized", message: "Invalid credentials" });
     return;
   }
-  const valid = await bcrypt.compare(password, user.passwordHash);
+  const valid = await bcrypt.compare(password, user.passwordHash ?? "");
   if (!valid) {
     res.status(401).json({ error: "Unauthorized", message: "Invalid credentials" });
     return;
   }
-  const token = signToken({ userId: user.id, email: user.email, role: user.role });
+  const token = signToken({ userId: user.id, email: user.email ?? "", role: user.role });
   const { passwordHash: _, ...safeUser } = user;
   res.status(200).json({ token, user: { ...safeUser, createdAt: safeUser.createdAt.toISOString() } });
 });
@@ -59,7 +59,7 @@ router.get("/me", requireAuth, async (req, res) => {
     res.status(404).json({ error: "Not Found", message: "User not found" });
     return;
   }
-  const token = signToken({ userId: user.id, email: user.email, role: user.role });
+  const token = signToken({ userId: user.id, email: user.email ?? "", role: user.role });
   const { passwordHash: _, ...safeUser } = user;
   res.json({ token, ...safeUser, createdAt: safeUser.createdAt.toISOString() });
 });
@@ -80,7 +80,7 @@ router.post("/sso-verify", async (req, res) => {
       return;
     }
     
-    const localToken = signToken({ userId: user.id, email: user.email, role: user.role });
+    const localToken = signToken({ userId: user.id, email: user.email ?? "", role: user.role });
     const { passwordHash: _, ...safeUser } = user;
     res.status(200).json({ token: localToken, user: { ...safeUser, createdAt: safeUser.createdAt.toISOString() } });
   } catch (err) {

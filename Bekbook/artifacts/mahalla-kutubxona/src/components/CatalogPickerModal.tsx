@@ -146,6 +146,7 @@ export default function CatalogPickerModal({ storeId, onClose, onSuccess }: Cata
             <div className="divide-y divide-stone-100">
               {items.map(book => {
                 const isSelected = selected.has(book.id);
+                const imageUrl = (book as any).image;
                 return (
                   <label
                     key={book.id}
@@ -159,6 +160,20 @@ export default function CatalogPickerModal({ storeId, onClose, onSuccess }: Cata
                       onChange={() => toggleSelect(book.id)}
                       className="w-4 h-4 accent-amber-500 flex-shrink-0 cursor-pointer"
                     />
+
+                    {/* Cover image thumbnail */}
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={book.title}
+                        className="w-10 h-14 object-cover rounded shadow-sm flex-shrink-0 bg-stone-100"
+                      />
+                    ) : (
+                      <div className="w-10 h-14 bg-stone-50 rounded flex items-center justify-center flex-shrink-0 border border-stone-200">
+                        <BookOpen size={16} className="text-stone-400" />
+                      </div>
+                    )}
+
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-medium truncate ${isSelected ? "text-amber-900" : "text-stone-800"}`}>
                         {book.title}
@@ -189,9 +204,11 @@ export default function CatalogPickerModal({ storeId, onClose, onSuccess }: Cata
                 ))}
               </select>
             </div>
-            {bookType === "sell" && (
+            {bookType !== "free" && (
               <div className="w-32">
-                <label className="block text-xs font-medium text-stone-600 mb-1">Narxi (so'm)</label>
+                <label className="block text-xs font-medium text-stone-600 mb-1">
+                  {bookType === "rent" ? "Ijara narxi" : "Narxi"} (so'm)
+                </label>
                 <input
                   type="number"
                   value={price}
