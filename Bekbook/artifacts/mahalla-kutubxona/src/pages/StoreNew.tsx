@@ -4,10 +4,12 @@ import { ArrowLeft, Loader2, MapPin, Info, CheckCircle2 } from "lucide-react";
 import { useCreateStore, getListStoresQueryKey, getGetMyStoreQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function StoreNew() {
   const [, navigate] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   const queryClient = useQueryClient();
   const { mutateAsync: createStore, isPending } = useCreateStore();
   const [form, setForm] = useState({
@@ -16,6 +18,11 @@ export default function StoreNew() {
   });
   const [error, setError] = useState("");
   const [gettingLocation, setGettingLocation] = useState(false);
+
+  // Auto-integration state
+  const [activeTab, setActiveTab] = useState<"manual" | "auto">("manual");
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
 
   if (!isAuthenticated) {
     return (
@@ -56,6 +63,40 @@ export default function StoreNew() {
     }
   }
 
+  async function handleAutoImport(e: React.FormEvent) {
+    e.preventDefault();
+    if (!importUrl) return;
+    setImporting(true);
+    setError("");
+    try {
+      const response = await fetch("/api/stores/import-external", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ url: importUrl })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Integratsiya vaqtida xatolik yuz berdi");
+      }
+      
+      queryClient.invalidateQueries({ queryKey: getListStoresQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetMyStoreQueryKey() });
+      
+      toast.success("Kutubxona muvaffaqiyatli integratsiya qilindi!", {
+        description: `${data.importedCount} ta kitob avtomat ravishda asosiy sahifaga import qilindi.`,
+      });
+      
+      navigate("/");
+    } catch (err: any) {
+      setError(err.message || "Xatolik yuz berdi");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
       <button onClick={() => navigate("/stores")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
@@ -80,59 +121,124 @@ export default function StoreNew() {
 
       <div className="bg-card border border-card-border rounded-2xl p-6 shadow-sm">
         {error && <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive">{error}</div>}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Kutubxona nomi *</label>
-            <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="Masalan: Nodir kutubxonasi" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Tavsif</label>
-            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              rows={3} className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-              placeholder="Kutubxona haqida..." />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Manzil *</label>
-            <div className="flex gap-2">
-              <input required value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                className="flex-1 px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="Ko'cha, bino raqami..." />
-              <button type="button" onClick={getMyLocation} disabled={gettingLocation}
-                className="flex items-center gap-1.5 px-3 py-2.5 border border-border rounded-xl text-sm text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-50">
-                {gettingLocation ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
-                {form.lat ? "OK" : "GPS"}
-              </button>
-            </div>
-            {form.lat && <p className="text-xs text-teal-600 mt-1">Joylashuv aniqlandi: {parseFloat(form.lat).toFixed(4)}, {parseFloat(form.lng).toFixed(4)}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Telefon</label>
-              <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="+998 90 000 00 00" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Ish vaqti</label>
-              <input value={form.openHours} onChange={e => setForm(f => ({ ...f, openHours: e.target.value }))}
-                className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="09:00 - 18:00" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Logo URL (ixtiyoriy)</label>
-            <input value={form.avatar} onChange={e => setForm(f => ({ ...f, avatar: e.target.value }))}
-              className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="https://..." />
-          </div>
-          <button type="submit" disabled={isPending}
-            className="w-full bg-primary text-primary-foreground py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2">
-            {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-            Davom etish → To'lov
+        
+        {/* Tabs */}
+        <div className="flex border-b border-slate-100 mb-6">
+          <button
+            type="button"
+            onClick={() => setActiveTab("manual")}
+            className={cn(
+              "flex-1 pb-3 text-sm font-bold text-center border-b-2 transition-colors cursor-pointer",
+              activeTab === "manual"
+                ? "border-amber-500 text-amber-600"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            )}
+          >
+            Qo'lda kiritish
           </button>
-        </form>
+          <button
+            type="button"
+            onClick={() => setActiveTab("auto")}
+            className={cn(
+              "flex-1 pb-3 text-sm font-bold text-center border-b-2 transition-colors cursor-pointer",
+              activeTab === "auto"
+                ? "border-amber-500 text-amber-600"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            )}
+          >
+            Avtomatik integratsiya (Sayt URL) ⚡
+          </button>
+        </div>
+
+        {activeTab === "auto" ? (
+          <form onSubmit={handleAutoImport} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Kutubxona / Do'kon sayt havolasi (URL)</label>
+              <input
+                required
+                type="url"
+                value={importUrl}
+                onChange={e => setImportUrl(e.target.value)}
+                className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                placeholder="Masalan: https://knigamir.uz"
+              />
+              <p className="text-xs text-slate-400 mt-2 font-medium">
+                Tizim hamkor saytni (masalan, <strong>knigamir.uz</strong>) avtomatik aniqlab, barcha kitoblarni platformaga to'liq integratsiya qilib beradi.
+              </p>
+            </div>
+            
+            <button
+              type="submit"
+              disabled={importing}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer shadow-md"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                  Avtomatik sinxronizatsiya qilinmoqda...
+                </>
+              ) : (
+                <>
+                  ⚡ Integratsiya qilish va import
+                </>
+              )}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Kutubxona nomi *</label>
+              <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="Masalan: Nodir kutubxonasi" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Tavsif</label>
+              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                rows={3} className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                placeholder="Kutubxona haqida..." />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Manzil *</label>
+              <div className="flex gap-2">
+                <input required value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  className="flex-1 px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="Ko'cha, bino raqami..." />
+                <button type="button" onClick={getMyLocation} disabled={gettingLocation}
+                  className="flex items-center gap-1.5 px-3 py-2.5 border border-border rounded-xl text-sm text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-50">
+                  {gettingLocation ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                  {form.lat ? "OK" : "GPS"}
+                </button>
+              </div>
+              {form.lat && <p className="text-xs text-teal-600 mt-1">Joylashuv aniqlandi: {parseFloat(form.lat).toFixed(4)}, {parseFloat(form.lng).toFixed(4)}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Telefon</label>
+                <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="+998 90 000 00 00" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Ish vaqti</label>
+                <input value={form.openHours} onChange={e => setForm(f => ({ ...f, openHours: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="09:00 - 18:00" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Logo URL (ixtiyoriy)</label>
+              <input value={form.avatar} onChange={e => setForm(f => ({ ...f, avatar: e.target.value }))}
+                className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="https://..." />
+            </div>
+            <button type="submit" disabled={isPending}
+              className="w-full bg-primary text-primary-foreground py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2">
+              {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Davom etish → To'lov
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

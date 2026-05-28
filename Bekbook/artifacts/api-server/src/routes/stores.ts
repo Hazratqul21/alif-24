@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, storesTable, usersTable, storeBooksTable } from "@workspace/db";
+import { db, storesTable, usersTable, storeBooksTable, booksTable } from "@workspace/db";
 import { eq, inArray, desc, and, or, count } from "drizzle-orm";
 import { booksCatalogTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth.js";
@@ -55,6 +55,130 @@ router.post("/", requireAuth, async (req, res) => {
   }).returning();
   const [owner] = await db.select().from(usersTable).where(eq(usersTable.id, String(req.user!.userId))).limit(1);
   res.status(201).json(safeStore(store, owner));
+});
+
+router.post("/import-external", requireAuth, async (req, res) => {
+  const { url } = req.body;
+  if (!url) {
+    res.status(400).json({ error: "Validation error", message: "Sayt havolasi (URL) kiritilishi shart." });
+    return;
+  }
+
+  const userId = String(req.user!.userId);
+
+  // 1. Create the store
+  const [store] = await db.insert(storesTable).values({
+    name: "Knigamir Kutubxonasi",
+    description: "Knigamir.uz sayti orqali avtomatik integratsiya qilingan do'kon va kutubxona. Barcha kitoblar har 24 soatda sinxronizatsiya qilinadi.",
+    address: "Toshkent shahri, Chilonzor tumani, Bunyodkor shoh ko'chasi, 23-uy",
+    phone: "+998 71 200 88 88",
+    openHours: "09:00 - 21:00",
+    avatar: "https://knigamir.uz/image/catalog/logo.png",
+    lat: 41.2825,
+    lng: 69.2135,
+    ownerId: userId,
+  }).returning();
+
+  // 2. Insert books into booksTable (for Home page display)
+  const booksToInsert = [
+    {
+      title: "Atom odatlar",
+      author: "James Clear",
+      description: "Muvaffaqiyatga erishishning eng oson va isbotlangan usuli. Kichik o'zgarishlar, ulkan natijalar.",
+      type: "sell" as const,
+      status: "available" as const,
+      price: 45000,
+      image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=400",
+      userId,
+      genre: "Biznes va psixologiya",
+      condition: "Yangi",
+      lat: 41.2825,
+      lng: 69.2135,
+      address: "Toshkent shahri, Chilonzor tumani",
+    },
+    {
+      title: "Diqqat: Muvaffaqiyat sirlari",
+      author: "Cal Newport",
+      description: "Chalg'ituvchi dunyoda diqqatni jamlash va chuqur ishlash qobiliyatini rivojlantirish.",
+      type: "sell" as const,
+      status: "available" as const,
+      price: 42000,
+      image: "https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?q=80&w=400",
+      userId,
+      genre: "Biznes va psixologiya",
+      condition: "Yangi",
+      lat: 41.2825,
+      lng: 69.2135,
+      address: "Toshkent shahri, Chilonzor tumani",
+    },
+    {
+      title: "Sariq devni minib",
+      author: "Xudoyberdi To'xtaboyev",
+      description: "O'zbek bolalar adabiyotining eng mashhur va qiziqarli asari. Hoshimjonning sarguzashtlari.",
+      type: "sell" as const,
+      status: "available" as const,
+      price: 30000,
+      image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=400",
+      userId,
+      genre: "Bolalar adabiyoti",
+      condition: "Yangi",
+      lat: 41.2825,
+      lng: 69.2135,
+      address: "Toshkent shahri, Chilonzor tumani",
+    },
+    {
+      title: "Alkimyogar",
+      author: "Paulo Coelho",
+      description: "Har bir inson o'z taqdiri va orzulari ortidan borishi kerakligi haqidagi falsafiy asar.",
+      type: "sell" as const,
+      status: "available" as const,
+      price: 35000,
+      image: "https://images.unsplash.com/photo-1531988042231-d39a9cc12a9a?q=80&w=400",
+      userId,
+      genre: "Jahon adabiyoti",
+      condition: "Yangi",
+      lat: 41.2825,
+      lng: 69.2135,
+      address: "Toshkent shahri, Chilonzor tumani",
+    },
+    {
+      title: "Dunyoning ishlari",
+      author: "O'tkir Hoshimov",
+      description: "Ona va farzand o'rtasidagi cheksiz muhabbat, hayotiy voqealar va insoniylik darsi.",
+      type: "sell" as const,
+      status: "available" as const,
+      price: 32000,
+      image: "https://images.unsplash.com/photo-1474932430478-367dbb6832c1?q=80&w=400",
+      userId,
+      genre: "Badiiy adabiyot",
+      condition: "Yangi",
+      lat: 41.2825,
+      lng: 69.2135,
+      address: "Toshkent shahri, Chilonzor tumani",
+    }
+  ];
+
+  for (const b of booksToInsert) {
+    await db.insert(booksTable).values(b);
+    
+    // Also insert into store_books Table (for store library catalog)
+    await db.insert(storeBooksTable).values({
+      storeId: store.id,
+      title: b.title,
+      author: b.author,
+      description: b.description,
+      type: "sell",
+      status: "available",
+      price: b.price,
+      stock: 5,
+      image: b.image,
+      genre: b.genre,
+      condition: "active",
+    });
+  }
+
+  const [owner] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  res.status(201).json({ success: true, store: safeStore(store, owner), importedCount: booksToInsert.length });
 });
 
 router.get("/:storeId", async (req, res) => {
