@@ -528,6 +528,18 @@ router.put("/:storeId", requireAuth, async (req, res) => {
   res.json(safeStore(store, owner));
 });
 
+router.delete("/:storeId", requireAuth, async (req, res) => {
+  const storeId = parseInt(String(req.params.storeId));
+  if (isNaN(storeId)) { res.status(400).json({ error: "Bad Request" }); return; }
+  const [existing] = await db.select().from(storesTable).where(eq(storesTable.id, storeId)).limit(1);
+  if (!existing) { res.status(404).json({ error: "Not Found" }); return; }
+  if (existing.ownerId !== String(req.user!.userId)) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  // Delete the store (cascading deletes will remove store_books automatically)
+  await db.delete(storesTable).where(eq(storesTable.id, storeId));
+  res.json({ success: true, message: "Kutubxona muvaffaqiyatli o'chirildi." });
+});
+
 router.get("/:storeId/books", async (req, res) => {
   const storeId = parseInt(String(req.params.storeId));
   if (isNaN(storeId)) { res.status(400).json({ error: "Bad Request" }); return; }
@@ -616,6 +628,54 @@ router.post("/:storeId/books", requireAuth, async (req, res) => {
   if (!parsed.success) { res.status(400).json({ error: "Validation error" }); return; }
   const [book] = await db.insert(storeBooksTable).values({ ...parsed.data, storeId }).returning();
   res.status(201).json(book);
+});
+
+router.put("/:storeId/books/:storeBookId", requireAuth, async (req, res) => {
+  const storeId = parseInt(String(req.params.storeId));
+  const storeBookId = parseInt(String(req.params.storeBookId));
+  if (isNaN(storeId) || isNaN(storeBookId)) { res.status(400).json({ error: "Bad Request" }); return; }
+
+  const [store] = await db.select().from(storesTable).where(eq(storesTable.id, storeId)).limit(1);
+  if (!store) { res.status(404).json({ error: "Store not found" }); return; }
+  if (store.ownerId !== String(req.user!.userId)) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const [existingBook] = await db.select().from(storeBooksTable).where(and(eq(storeBooksTable.id, storeBookId), eq(storeBooksTable.storeId, storeId))).limit(1);
+  if (!existingBook) { res.status(404).json({ error: "Book not found in this store" }); return; }
+
+  const { title, author, description, price, stock, type, condition, genre, image } = req.body;
+  const updates: Record<string, any> = {};
+  if (title !== undefined) updates.title = title;
+  if (author !== undefined) updates.author = author;
+  if (description !== undefined) updates.description = description;
+  if (price !== undefined) updates.price = Number(price);
+  if (stock !== undefined) updates.stock = Number(stock);
+  if (type !== undefined) updates.type = type;
+  if (condition !== undefined) updates.condition = condition;
+  if (genre !== undefined) updates.genre = genre;
+  if (image !== undefined) updates.image = image;
+
+  const [updatedBook] = await db.update(storeBooksTable)
+    .set(updates)
+    .where(and(eq(storeBooksTable.id, storeBookId), eq(storeBooksTable.storeId, storeId)))
+    .returning();
+
+  res.json({ success: true, book: updatedBook });
+});
+
+router.delete("/:storeId/books/:storeBookId", requireAuth, async (req, res) => {
+  const storeId = parseInt(String(req.params.storeId));
+  const storeBookId = parseInt(String(req.params.storeBookId));
+  if (isNaN(storeId) || isNaN(storeBookId)) { res.status(400).json({ error: "Bad Request" }); return; }
+
+  const [store] = await db.select().from(storesTable).where(eq(storesTable.id, storeId)).limit(1);
+  if (!store) { res.status(404).json({ error: "Store not found" }); return; }
+  if (store.ownerId !== String(req.user!.userId)) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const [existingBook] = await db.select().from(storeBooksTable).where(and(eq(storeBooksTable.id, storeBookId), eq(storeBooksTable.storeId, storeId))).limit(1);
+  if (!existingBook) { res.status(404).json({ error: "Book not found in this store" }); return; }
+
+  await db.delete(storeBooksTable).where(and(eq(storeBooksTable.id, storeBookId), eq(storeBooksTable.storeId, storeId)));
+  res.json({ success: true, message: "Kitob muvaffaqiyatli o'chirildi." });
 });
 
 router.get("/:storeId/books/:storeBookId", async (req, res) => {
