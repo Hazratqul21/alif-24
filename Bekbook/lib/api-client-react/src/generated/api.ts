@@ -34,6 +34,7 @@ import type {
   CreateReviewBody,
   CreateStoreBody,
   CreateTransactionBody,
+  DeleteStore200,
   ErrorResponse,
   ExtendTransactionBody,
   FavoriteStatus,
@@ -2176,6 +2177,90 @@ export const useUpdateStore = <
   TContext
 > => {
   return useMutation(getUpdateStoreMutationOptions(options));
+};
+
+/**
+ * @summary Delete a store
+ */
+export const getDeleteStoreUrl = (storeId: number) => {
+  return `/api/stores/${storeId}`;
+};
+
+export const deleteStore = async (
+  storeId: number,
+  options?: RequestInit,
+): Promise<DeleteStore200> => {
+  return customFetch<DeleteStore200>(getDeleteStoreUrl(storeId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteStoreMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStore>>,
+    TError,
+    { storeId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteStore>>,
+  TError,
+  { storeId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteStore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteStore>>,
+    { storeId: number }
+  > = (props) => {
+    const { storeId } = props ?? {};
+
+    return deleteStore(storeId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteStoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteStore>>
+>;
+
+export type DeleteStoreMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a store
+ */
+export const useDeleteStore = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStore>>,
+    TError,
+    { storeId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteStore>>,
+  TError,
+  { storeId: number },
+  TContext
+> => {
+  return useMutation(getDeleteStoreMutationOptions(options));
 };
 
 /**

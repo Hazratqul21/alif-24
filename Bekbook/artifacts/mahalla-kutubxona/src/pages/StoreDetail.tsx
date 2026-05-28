@@ -1,13 +1,28 @@
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, MapPin, Phone, Clock, Store, BookOpen, Plus, Trash2, Loader2, X, ChevronLeft, ChevronRight, CheckCircle2, Lock, HandshakeIcon, Calendar, ArrowLeftRight, AlertTriangle, RotateCcw, Search, UserCheck, User, FileText, Download, CalendarClock, QrCode, Pencil, TrendingUp, TrendingDown, Crown } from "lucide-react";
-import { useGetStore, useListStoreBooks, useDeleteStoreBook, getListStoreBooksQueryKey, useCreateTransaction, getGetMyTransactionsQueryKey, useGetMyTransactions, useReturnTransaction, useDeleteTransaction, useSearchUsers, useExtendTransaction } from "@workspace/api-client-react";
+import { ArrowLeft, MapPin, Phone, Clock, Store, BookOpen, Plus, Trash2, Loader2, X, ChevronLeft, ChevronRight, CheckCircle2, Lock, HandshakeIcon, Calendar, ArrowLeftRight, AlertTriangle, RotateCcw, Search, UserCheck, User, FileText, Download, CalendarClock, QrCode, Pencil, TrendingUp, TrendingDown, Crown, Upload } from "lucide-react";
+import { useGetStore, useListStoreBooks, useDeleteStoreBook, getListStoreBooksQueryKey, useCreateTransaction, getGetMyTransactionsQueryKey, useGetMyTransactions, useReturnTransaction, useDeleteTransaction, useSearchUsers, useExtendTransaction, useUpdateStore, useDeleteStore, getGetStoreQueryKey } from "@workspace/api-client-react";
 import type { StoreBook, UserSearchResult } from "@workspace/api-client-react";
 import { exportCsv } from "@/lib/exportCsv";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { formatPrice, cn, formatDateShort } from "@/lib/utils";
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useRef } from "react";
 const QrCodeDisplay = lazy(() => import("@/components/QrCode"));
+
+async function uploadImage(file: File): Promise<string> {
+  const token = localStorage.getItem("mahalla_token");
+  const form = new FormData();
+  form.append("images", file);
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    body: form,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error("Rasmni yuklashda xatolik");
+  const data = await res.json();
+  return data.urls[0];
+}
+
 
 const TYPE_BADGE: Record<string, { label: string; color: string }> = {
   sell: { label: "Sotiladi", color: "bg-amber-100 text-amber-700 border-amber-200" },
@@ -355,6 +370,203 @@ function StoreBookDetailModal({ book, isOwner, onClose, onDelete, onLent, onEdit
   );
 }
 
+function EditStoreModal({ store, onClose, onSaved }: {
+  store: any;
+  onClose: () => void;
+  onSaved: (updated: any) => void;
+}) {
+  const queryClient = useQueryClient();
+  const { mutateAsync: updateStore, isPending } = useUpdateStore();
+
+  const [name, setName] = useState(store.name);
+  const [description, setDescription] = useState(store.description ?? "");
+  const [address, setAddress] = useState(store.address ?? "");
+  const [phone, setPhone] = useState(store.phone ?? "");
+  const [openHours, setOpenHours] = useState(store.openHours ?? "");
+  const [avatar, setAvatar] = useState<string | null>(store.avatar ?? null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleImageUpload(file: File) {
+    setUploading(true);
+    try {
+      const url = await uploadImage(file);
+      setAvatar(url);
+    } catch {
+      setError("Rasmni yuklashda xatolik yuz berdi");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) { setError("Kutubxona nomi kiritilishi shart"); return; }
+    if (!address.trim()) { setError("Kutubxona manzili kiritilishi shart"); return; }
+    setError("");
+    try {
+      const data: any = {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        address: address.trim(),
+        phone: phone.trim() || undefined,
+        openHours: openHours.trim() || undefined,
+        avatar: avatar ?? undefined,
+        lat: store.lat ?? 41.311081,
+        lng: store.lng ?? 69.240562,
+      };
+      const updated = await updateStore({ storeId: store.id, data } as any);
+      onSaved(updated);
+    } catch (err: any) {
+      setError(err?.data?.message || err?.message || "Saqlashda xatolik yuz berdi");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Kutubxona ma'lumotlarini tahrirlash"
+        className="bg-card border border-card-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-bold">Kutubxonani tahrirlash</h2>
+          <button onClick={onClose} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          <div className="px-6 py-5 space-y-4">
+            {/* Avatar */}
+            <div className="flex flex-col items-center gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }}
+              />
+              {avatar ? (
+                <div className="relative w-24 h-24 rounded-2xl overflow-hidden border border-border group shadow-sm">
+                  <img src={avatar} alt="Logo" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" onClick={() => fileInputRef.current?.click()}
+                      className="w-7 h-7 bg-white text-foreground rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                    </button>
+                    <button type="button" onClick={() => setAvatar(null)}
+                      className="w-7 h-7 bg-white text-rose-500 rounded-lg flex items-center justify-center hover:bg-rose-50 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-24 h-24 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-1 text-muted-foreground"
+                >
+                  {uploading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5" />
+                      <span className="text-[10px] font-semibold">Rasm yuklash</span>
+                    </>
+                  )}
+                </button>
+              )}
+              <span className="text-xs text-muted-foreground">Kutubxona logotipi</span>
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 font-sans">Kutubxona nomi *</label>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                placeholder="Kutubxona nomi"
+                required
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Tavsif</label>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
+                placeholder="Kutubxona haqida tavsif kiriting..."
+              />
+            </div>
+
+            {/* Address */}
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Manzil *</label>
+              <input
+                value={address}
+                onChange={e => setAddress(e.target.value)}
+                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                placeholder="Kutubxona manzili"
+                required
+              />
+            </div>
+
+            {/* Phone & OpenHours */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Telefon</label>
+                <input
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  placeholder="+998..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Ish vaqti</label>
+                <input
+                  value={openHours}
+                  onChange={e => setOpenHours(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  placeholder="09:00 - 18:00"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="px-3 py-2.5 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive">
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-border bg-muted/30 flex gap-3 mt-4">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-muted transition-colors">
+              Bekor qilish
+            </button>
+            <button type="submit" disabled={isPending || uploading}
+              className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
+              {isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Saqlanmoqda...</> : "Saqlash"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function StoreBookCard({ book, onClick }: { book: StoreBook & { type?: string; status?: string; rentDuration?: number | null; rentedCount?: number; availableCount?: number }; onClick: () => void }) {
   const typeBadge = TYPE_BADGE[(book.type ?? "sell")] ?? TYPE_BADGE.sell;
   const status = (book.status ?? "available") as string;
@@ -465,6 +677,22 @@ export default function StoreDetail() {
   const [showCatalogPicker, setShowCatalogPicker] = useState(false);
   const [catalogAddedMsg, setCatalogAddedMsg] = useState("");
   const [editingBook, setEditingBook] = useState<(StoreBook & { previousPrice?: number | null }) | null>(null);
+  const [showEditStore, setShowEditStore] = useState(false);
+  const { mutateAsync: deleteStore, isPending: isDeletingStore } = useDeleteStore();
+
+  async function handleDeleteStore() {
+    if (!window.confirm("Rostdan ham ushbu kutubxonani butunlay o'chirmoqchimisiz? Barcha kitoblar va ma'lumotlar tiklanmaydigan qilib o'chiriladi.")) {
+      return;
+    }
+    try {
+      await deleteStore({ storeId });
+      queryClient.invalidateQueries({ queryKey: [`/api/stores`] } as any);
+      navigate("/stores");
+    } catch (err: any) {
+      alert(err?.data?.message || err?.message || "O'chirishda xatolik yuz berdi");
+    }
+  }
+
   const QrScannerComp = lazy(() => import("@/components/QrScanner"));
   const CatalogPickerModal = lazy(() => import("@/components/CatalogPickerModal"));
   const EditStoreBookModal = lazy(() => import("@/components/EditStoreBookModal"));
@@ -574,6 +802,18 @@ export default function StoreDetail() {
         </Suspense>
       )}
 
+      {/* Edit Store Modal */}
+      {showEditStore && (
+        <EditStoreModal
+          store={store}
+          onClose={() => setShowEditStore(false)}
+          onSaved={(updated) => {
+            setShowEditStore(false);
+            queryClient.invalidateQueries({ queryKey: getGetStoreQueryKey(storeId) });
+          }}
+        />
+      )}
+
       <button onClick={() => navigate("/stores")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
         <ArrowLeft className="w-4 h-4" /> Orqaga
       </button>
@@ -581,35 +821,56 @@ export default function StoreDetail() {
       {/* Store header */}
       <div className="bg-card border border-card-border rounded-2xl overflow-hidden shadow-sm mb-6">
         <div className="p-6">
-          <div className="flex items-start gap-4">
-            {store.avatar ? (
-              <img src={store.avatar} alt={store.name} className="w-16 h-16 rounded-2xl object-cover" />
-            ) : (
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
-                <Store className="w-8 h-8 text-amber-600" />
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex items-start gap-4">
+              {store.avatar ? (
+                <img src={store.avatar} alt={store.name} className="w-16 h-16 rounded-2xl object-cover" />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+                  <Store className="w-8 h-8 text-amber-600" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-bold text-foreground">{store.name}</h1>
+                {store.description && <p className="text-muted-foreground text-sm mt-1">{store.description}</p>}
+                {/* Quick stats */}
+                {allBooks.length > 0 && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {sellCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{sellCount} sotiladi</span>}
+                    {freeCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">{freeCount} bepul</span>}
+                    {rentCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">{rentCount} vaqtincha</span>}
+                  </div>
+                )}
+                {!isOwner && (
+                  <div className="mt-3">
+                    <Link href={`/stores/${storeId}/subscribe`}>
+                      <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm">
+                        <Crown className="w-3.5 h-3.5" /> Obuna bo'lish
+                      </button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+            {isOwner && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setShowEditStore(true)}
+                  className="flex items-center justify-center w-9 h-9 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 transition-all shadow-sm"
+                  title="Tahrirlash"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleDeleteStore}
+                  disabled={isDeletingStore}
+                  className="flex items-center justify-center w-9 h-9 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-all shadow-sm disabled:opacity-50"
+                  title="O'chirish"
+                >
+                  {isDeletingStore ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                </button>
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-foreground">{store.name}</h1>
-              {store.description && <p className="text-muted-foreground text-sm mt-1">{store.description}</p>}
-              {/* Quick stats */}
-              {allBooks.length > 0 && (
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {sellCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{sellCount} sotiladi</span>}
-                  {freeCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">{freeCount} bepul</span>}
-                  {rentCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">{rentCount} vaqtincha</span>}
-                </div>
-              )}
-              {!isOwner && (
-                <div className="mt-3">
-                  <Link href={`/stores/${storeId}/subscribe`}>
-                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm">
-                      <Crown className="w-3.5 h-3.5" /> Obuna bo'lish
-                    </button>
-                  </Link>
-                </div>
-              )}
-            </div>
           </div>
 
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -893,6 +893,18 @@ export const UpdateStoreResponse = zod.object({
 });
 
 /**
+ * @summary Delete a store
+ */
+export const DeleteStoreParams = zod.object({
+  storeId: zod.coerce.number(),
+});
+
+export const DeleteStoreResponse = zod.object({
+  success: zod.boolean().optional(),
+  message: zod.string().optional(),
+});
+
+/**
  * @summary List books in a store
  */
 export const ListStoreBooksParams = zod.object({

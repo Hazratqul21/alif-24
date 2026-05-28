@@ -34,6 +34,7 @@ export * from "./createReservationBody";
 export * from "./createReviewBody";
 export * from "./createStoreBody";
 export * from "./createTransactionBody";
+export * from "./deleteStore200";
 export * from "./errorResponse";
 export * from "./extendTransactionBody";
 export * from "./favoriteStatus";

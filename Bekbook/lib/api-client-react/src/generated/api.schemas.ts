@@ -687,6 +687,11 @@ export type ListStoresParams = {
   offset?: number;
 };
 
+export type DeleteStore200 = {
+  success?: boolean;
+  message?: string;
+};
+
 export type GetMyTransactionsParams = {
   status?: GetMyTransactionsStatus;
 };
