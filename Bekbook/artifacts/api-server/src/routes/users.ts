@@ -5,9 +5,10 @@ import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
 
-function safeUser(user: typeof usersTable.$inferSelect) {
+function safeUser(user: typeof usersTable.$inferSelect | undefined | null) {
+  if (!user) return null;
   const { passwordHash: _, ...safe } = user;
-  return { ...safe, createdAt: safe.createdAt.toISOString() };
+  return { ...safe, createdAt: safe.createdAt?.toISOString() ?? new Date().toISOString() };
 }
 
 router.get("/search", requireAuth, async (req, res) => {
@@ -93,7 +94,7 @@ router.get("/me/store", requireAuth, async (req, res) => {
   res.json({
     ...store,
     createdAt: store.createdAt.toISOString(),
-    owner: safeUser(owner),
+    owner: owner ? safeUser(owner) : null,
     rating: null,
     bookCount: 0,
   });
