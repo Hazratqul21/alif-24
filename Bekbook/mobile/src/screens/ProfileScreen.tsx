@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { theme } from '../theme/theme';
 import apiService, { Transaction, Book } from '../services/api';
-import { User, LogOut, Award, RefreshCw, CheckCircle, Clock } from 'lucide-react-native';
+import { User, LogOut, Award, RefreshCw, CheckCircle, Clock, Settings, FileText, CreditCard, Shield } from 'lucide-react-native';
 
 export default function ProfileScreen({ navigation, user, onLogout }: { navigation: any; user: any; onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<'lends' | 'favorites'>('lends');
@@ -151,6 +151,26 @@ export default function ProfileScreen({ navigation, user, onLogout }: { navigati
           </View>
         </View>
 
+        {/* Quick Links */}
+        <View style={styles.quickLinksContainer}>
+          <TouchableOpacity style={styles.quickLinkBtn} onPress={() => navigation.navigate('Subscription')}>
+            <CreditCard size={20} color={theme.colors.primary} />
+            <Text style={styles.quickLinkText}>Obunalar</Text>
+          </TouchableOpacity>
+          {user?.role === 'admin' && (
+            <TouchableOpacity style={styles.quickLinkBtn} onPress={() => navigation.navigate('Admin')}>
+              <Shield size={20} color={theme.colors.danger} />
+              <Text style={styles.quickLinkText}>Admin Panel</Text>
+            </TouchableOpacity>
+          )}
+          {(user?.role === 'store_owner' || user?.role === 'admin') && (
+            <TouchableOpacity style={styles.quickLinkBtn} onPress={() => navigation.navigate('Invoices')}>
+              <FileText size={20} color={theme.colors.info} />
+              <Text style={styles.quickLinkText}>Hisob-fakturalar</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Tab row */}
         <View style={styles.tabRow}>
           <TouchableOpacity
@@ -219,7 +239,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    height: 56,
+    height: 70,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -229,11 +249,13 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.borderWarm,
   },
   headerTitle: {
+    paddingTop: 30,
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
   },
   logoutBtn: {
+    paddingTop: 30,
     padding: theme.spacing.xs,
   },
   profileCard: {
@@ -313,6 +335,29 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.bold,
+  },
+  quickLinksContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    gap: 8,
+  },
+  quickLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: theme.roundness.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderWarm,
+    gap: 8,
+  },
+  quickLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
   },
   tabRow: {
     flexDirection: 'row',

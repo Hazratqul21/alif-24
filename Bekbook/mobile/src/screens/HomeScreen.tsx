@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { theme } from '../theme/theme';
 import apiService, { Book } from '../services/api';
-import { Search, Filter, BookOpen, AlertTriangle, ChevronRight } from 'lucide-react-native';
+import { Search, Filter, BookOpen, AlertTriangle, ChevronRight, Bell, ShoppingCart, MessageSquare, Plus } from 'lucide-react-native';
 
 interface HomeScreenProps {
   navigation: any;
@@ -98,8 +98,16 @@ export default function HomeScreen({ navigation, user }: HomeScreenProps) {
           <Text style={styles.welcomeText}>Assalomu alaykum,</Text>
           <Text style={styles.userName}>{user?.name || 'Kitobxon'}</Text>
         </View>
-        <View style={styles.avatarMini}>
-          <BookOpen size={20} color={theme.colors.secondary} />
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => navigation.navigate('Messages')} style={styles.headerIconBtn}>
+            <MessageSquare size={22} color={theme.colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.headerIconBtn}>
+            <Bell size={22} color={theme.colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Cart')} style={styles.headerIconBtn}>
+            <ShoppingCart size={22} color={theme.colors.text} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -212,6 +220,14 @@ export default function HomeScreen({ navigation, user }: HomeScreenProps) {
           />
         )}
       </ScrollView>
+
+      {/* Floating Action Button for adding a book */}
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={() => navigation.navigate('BookNew')}
+      >
+        <Plus size={24} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -220,9 +236,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    paddingTop: 20,
+    
   },
   header: {
+    height: 90,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -235,6 +252,7 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: theme.typography.sizes.xs,
     color: theme.colors.textMuted,
+    paddingTop: 30,
   },
   userName: {
     fontSize: theme.typography.sizes.lg,
@@ -242,10 +260,13 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     
   },
-  avatarMini: {
-    backgroundColor: theme.colors.primaryLight,
-    padding: theme.spacing.sm,
-    borderRadius: theme.roundness.full,
+  headerActions: {
+    paddingTop: 30,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  headerIconBtn: {
+    padding: 4,
   },
   alertBanner: {
     flexDirection: 'row',
@@ -462,5 +483,21 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: theme.colors.textMuted,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 100, // Above tab bar
+    right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
 });

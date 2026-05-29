@@ -15,9 +15,22 @@ import BookDetailScreen from './src/screens/BookDetailScreen';
 import ScanScreen from './src/screens/ScanScreen';
 import MapScreen from './src/screens/MapScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import StoresScreen from './src/screens/StoresScreen';
+import StoreDetailScreen from './src/screens/StoreDetailScreen';
+import StoreNewScreen from './src/screens/StoreNewScreen';
+import StoreCatalogNewScreen from './src/screens/StoreCatalogNewScreen';
+import StoreReadersScreen from './src/screens/StoreReadersScreen';
+import AdminScreen from './src/screens/AdminScreen';
+import InvoicesScreen from './src/screens/InvoicesScreen';
+import StoreOwnerPayScreen from './src/screens/StoreOwnerPayScreen';
+import SubscriptionScreen from './src/screens/SubscriptionScreen';
+import MessagesScreen from './src/screens/MessagesScreen';
+import ChatScreen from './src/screens/ChatScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
+import CartScreen from './src/screens/CartScreen';
+import BookNewScreen from './src/screens/BookNewScreen';
 
-// Icons
-import { Home, MapPin, Scan, User as UserIcon } from 'lucide-react-native';
+import { Home, MapPin, Scan, User as UserIcon, Library } from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -36,7 +49,7 @@ function MainTabNavigator({ user, onLogout }: { user: User; onLogout: () => void
           paddingBottom: 8,
           paddingTop: 8,
           position: 'absolute',
-          bottom: 40,
+          bottom: 30,
           left: 16,
           right: 16,
           borderRadius: 20,
@@ -57,6 +70,14 @@ function MainTabNavigator({ user, onLogout }: { user: User; onLogout: () => void
       >
         {(props) => <HomeScreen {...props} user={user} />}
       </Tab.Screen>
+
+      <Tab.Screen
+        name="Kutubxonalar"
+        component={StoresScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Library size={size} color={color} />,
+        }}
+      />
 
       <Tab.Screen
         name="Xarita"
@@ -138,6 +159,19 @@ export default function App() {
               {(props) => <MainTabNavigator {...props} user={user} onLogout={handleLogout} />}
             </Stack.Screen>
             <Stack.Screen name="BookDetail" component={BookDetailScreen} />
+            <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
+            <Stack.Screen name="StoreNew" component={StoreNewScreen} />
+            <Stack.Screen name="StoreCatalogNew" component={StoreCatalogNewScreen} />
+            <Stack.Screen name="StoreReaders" component={StoreReadersScreen} />
+            <Stack.Screen name="Admin" component={AdminScreen} />
+            <Stack.Screen name="Invoices" component={InvoicesScreen} />
+            <Stack.Screen name="StoreOwnerPay" component={StoreOwnerPayScreen} />
+            <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+            <Stack.Screen name="Messages" component={MessagesScreen} />
+            <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Cart" component={CartScreen} />
+            <Stack.Screen name="BookNew" component={BookNewScreen} />
           </Stack.Navigator>
         ) : (
           <LoginScreen onLoginSuccess={handleLoginSuccess} />

@@ -177,6 +177,142 @@ export const apiService = {
     return response.data;
   },
 
+  async createStoreBook(storeId: number, data: any) {
+    const response = await apiClient.post<any>(`/stores/${storeId}/books`, data);
+    return response.data;
+  },
+
+  async getStoreReaders(storeId: number) {
+    const response = await apiClient.get<any>(`/stores/${storeId}/readers`);
+    return response.data;
+  },
+
+  async getStoreInvoices(storeId: number) {
+    const response = await apiClient.get<any>(`/stores/${storeId}/invoices`);
+    return response.data;
+  },
+
+  async createInvoice(data: any) {
+    const response = await apiClient.post<any>('/invoices', data);
+    return response.data;
+  },
+
+  async getStoreOwnerStatus(storeId: number) {
+    const response = await apiClient.get<any>(`/subscriptions/owner-status/${storeId}`);
+    return response.data;
+  },
+
+  async activateStore(storeId: number) {
+    const response = await apiClient.post<any>('/subscriptions/activate-store', { storeId });
+    return response.data;
+  },
+
+  async getSubscriptionPlans() {
+    const response = await apiClient.get<any>('/subscriptions/plans');
+    return response.data;
+  },
+
+  async getUserStoreSubscription(storeId: number) {
+    const response = await apiClient.get<any>(`/subscriptions/store/${storeId}`);
+    return response.data;
+  },
+
+  async createSubscription(storeId: number, plan: string) {
+    const response = await apiClient.post<any>('/subscriptions/create', { storeId, plan });
+    return response.data;
+  },
+
+  async getConversations() {
+    const response = await apiClient.get<any>('/messages/conversations');
+    return response.data;
+  },
+
+  async getThread(userId: number) {
+    const response = await apiClient.get<any>(`/messages/${userId}`);
+    return response.data;
+  },
+
+  async sendMessage(toId: number, body: string) {
+    const response = await apiClient.post<any>('/messages', { toId, body });
+    return response.data;
+  },
+
+  async getNotifications() {
+    const response = await apiClient.get<any>('/notifications');
+    return response.data;
+  },
+
+  async markAllNotificationsRead() {
+    const response = await apiClient.patch<any>('/notifications/read-all', {});
+    return response.data;
+  },
+
+  async markNotificationRead(id: number) {
+    const response = await apiClient.patch<any>(`/notifications/${id}/read`, {});
+    return response.data;
+  },
+
+  async sendBulkNotification(data: { title: string; body?: string; link?: string }) {
+    const response = await apiClient.post<any>('/notifications/bulk', data);
+    return response.data;
+  },
+
+  async createPayment(data: { bookId: number; deliveryType: string; deliveryAddress?: string }) {
+    const response = await apiClient.post<any>('/payments/create', data);
+    return response.data;
+  },
+
+  async getListingQuota() {
+    const response = await apiClient.get<any>('/books/listing-quota');
+    return response.data;
+  },
+
+  async uploadImage(uri: string, mimeType: string, fileName: string) {
+    const formData = new FormData();
+    formData.append('images', {
+      uri,
+      type: mimeType,
+      name: fileName,
+    } as any);
+
+    const response = await apiClient.post<any>('/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data.urls[0];
+  },
+
+  async initiateBookListingPayment() {
+    const response = await apiClient.post<any>('/payments/book-listing');
+    return response.data;
+  },
+
+  async confirmBookListingPayment(token: string) {
+    const response = await apiClient.post<any>('/payments/book-listing/pay', { token });
+    return response.data;
+  },
+
+  async createBook(data: any) {
+    const response = await apiClient.post<any>('/books', data);
+    return response.data;
+  },
+
+  async updateUserCategory(userId: number, data: { category?: string; isBlacklisted?: boolean }) {
+    const response = await apiClient.patch<any>(`/users/${userId}/category`, data);
+    return response.data;
+  },
+
+  async createStore(data: Partial<Store>) {
+    const response = await apiClient.post<Store>('/stores', data);
+    return response.data;
+  },
+
+  async updateStore(id: number, data: Partial<Store>) {
+    const response = await apiClient.patch<Store>(`/stores/${id}`, data);
+    return response.data;
+  },
+
   // Transactions endpoints
   async getTransactions() {
     const response = await apiClient.get<Transaction[]>('/transactions');

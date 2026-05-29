@@ -151,16 +151,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-paddingTop:20,
+
   },
   header: {
-    height: 56,
+    height: 70,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderWarm,
-    paddingTop: 20,
+    paddingTop: 28,
   },
   headerTitle: {
     fontSize: theme.typography.sizes.md,
