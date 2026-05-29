@@ -6,7 +6,7 @@ const router = Router();
 
 function safeUser(u: typeof usersTable.$inferSelect) {
   const { passwordHash: _, ...safe } = u;
-  return { ...safe, createdAt: safe.createdAt.toISOString() };
+  return { ...safe, createdAt: safe.createdAt?.toISOString() ?? new Date().toISOString() };
 }
 
 router.get("/nearby", async (req, res) => {

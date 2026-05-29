@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Bekbook",
+    "slug": "bekbook-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.alif24.bekbook"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kitob shtrix-kodlarini skanerlash uchun kameraga ruxsat bering."
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}
