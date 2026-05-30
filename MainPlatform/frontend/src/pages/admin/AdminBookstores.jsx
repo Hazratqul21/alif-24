@@ -95,7 +95,7 @@ export default function AdminBookstores() {
                                 <div>
                                     <h3 className="text-lg font-bold text-white">{store.name}</h3>
                                     <span className="inline-block px-2 py-1 bg-blue-500/10 text-blue-400 text-xs rounded-md mt-1 font-medium capitalize">
-                                        {store.type === 'bookstore' ? "Kitob do'koni" : 'Kutubxona'}
+                                        {(store.type === 'bookstore' || store.type === 'book_market') ? "Kitob do'koni" : 'Kutubxona'}
                                     </span>
                                 </div>
                             </div>

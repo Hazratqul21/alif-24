@@ -9,13 +9,14 @@ import apiService from '../services/api';
 export default function StoreNewScreen() {
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(false);
-  const [type, setType] = useState<'library' | 'bookstore'>('library');
+  const [type, setType] = useState<'book_library' | 'book_market'>('book_library');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [openHours, setOpenHours] = useState('');
   const [inn, setInn] = useState('');
+  const [subscriptionPrice, setSubscriptionPrice] = useState('29900');
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [innLoading, setInnLoading] = useState(false);
@@ -37,7 +38,7 @@ export default function StoreNewScreen() {
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !address.trim() || !inn.trim() || !lat || !lng) {
+    if (!name.trim() || !address.trim() || !inn.trim() || lat === null || lng === null) {
       Alert.alert('Xatolik', "Nomi, manzili, INN va xaritadan joyni belgilash majburiy");
       return;
     }
@@ -54,6 +55,7 @@ export default function StoreNewScreen() {
         lat,
         lng,
         type,
+        subscriptionPrice: type === 'book_library' ? parseInt(subscriptionPrice) : 0,
       };
       
       const newStore = await apiService.createStore(data);
@@ -111,20 +113,34 @@ export default function StoreNewScreen() {
         <Text style={styles.sectionLabel}>Turi *</Text>
         <View style={styles.typeSelector}>
           <TouchableOpacity 
-            style={[styles.typeButton, type === 'library' && styles.typeButtonActive]}
-            onPress={() => setType('library')}
+            style={[styles.typeButton, type === 'book_library' && styles.typeButtonActive]}
+            onPress={() => setType('book_library')}
           >
-            <BookOpen size={20} color={type === 'library' ? theme.colors.primary : theme.colors.textMuted} />
-            <Text style={[styles.typeText, type === 'library' && styles.typeTextActive]}>Kutubxona</Text>
+            <BookOpen size={20} color={type === 'book_library' ? theme.colors.primary : theme.colors.textMuted} />
+            <Text style={[styles.typeText, type === 'book_library' && styles.typeTextActive]}>Kutubxona</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.typeButton, type === 'bookstore' && styles.typeButtonActive]}
-            onPress={() => setType('bookstore')}
+            style={[styles.typeButton, type === 'book_market' && styles.typeButtonActive]}
+            onPress={() => setType('book_market')}
           >
-            <StoreIcon size={20} color={type === 'bookstore' ? theme.colors.primary : theme.colors.textMuted} />
-            <Text style={[styles.typeText, type === 'bookstore' && styles.typeTextActive]}>Do'kon</Text>
+            <StoreIcon size={20} color={type === 'book_market' ? theme.colors.primary : theme.colors.textMuted} />
+            <Text style={[styles.typeText, type === 'book_market' && styles.typeTextActive]}>Do'kon</Text>
           </TouchableOpacity>
         </View>
+
+        {type === 'book_library' && (
+          <View>
+            <Text style={styles.sectionLabel}>Oylik obuna narxi (so'm)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="29900"
+              value={subscriptionPrice}
+              onChangeText={setSubscriptionPrice}
+              keyboardType="number-pad"
+              placeholderTextColor={theme.colors.textMuted}
+            />
+          </View>
+        )}
 
         <Text style={styles.sectionLabel}>Nomi *</Text>
         <TextInput
@@ -157,7 +173,7 @@ export default function StoreNewScreen() {
 
         <Text style={styles.sectionLabel}>Joylashuv xaritada *</Text>
         <TouchableOpacity 
-          style={[styles.mapButton, lat && styles.mapButtonActive]} 
+          style={[styles.mapButton, lat !== null && styles.mapButtonActive]} 
           onPress={() => navigation.navigate('MapPicker', {
             initialLat: lat,
             initialLng: lng,
@@ -167,9 +183,9 @@ export default function StoreNewScreen() {
             }
           })}
         >
-          <MapPin size={20} color={lat ? theme.colors.primary : theme.colors.textMuted} />
-          <Text style={[styles.mapButtonText, lat && styles.mapButtonTextActive]}>
-            {lat && lng ? `Belgilangan: ${lat.toFixed(4)}, ${lng.toFixed(4)}` : "Xaritadan joyni belgilash"}
+          <MapPin size={20} color={lat !== null ? theme.colors.primary : theme.colors.textMuted} />
+          <Text style={[styles.mapButtonText, lat !== null && styles.mapButtonTextActive]}>
+            {lat !== null && lng !== null ? `Belgilangan: ${lat.toFixed(4)}, ${lng.toFixed(4)}` : "Xaritadan joyni belgilash"}
           </Text>
         </TouchableOpacity>
 

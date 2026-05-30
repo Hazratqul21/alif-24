@@ -26,7 +26,7 @@ export default function StoreNew() {
   const [form, setForm] = useState({
     name: "", description: "", address: "", phone: "", openHours: "", avatar: "",
     lat: "", lng: "", inn: "",
-    type: "library",
+    type: "book_library",
     subscriptionPrice: "29900",
   });
   const [error, setError] = useState("");
@@ -84,7 +84,7 @@ export default function StoreNew() {
           lat: parseFloat(form.lat), lng: parseFloat(form.lng),
           inn: form.inn,
           type: form.type as any,
-          subscriptionPrice: form.type === "library" ? parseInt(form.subscriptionPrice) || 0 : 0,
+          subscriptionPrice: form.type === "book_library" ? parseInt(form.subscriptionPrice) || 0 : 0,
         }
       });
       queryClient.invalidateQueries({ queryKey: getListStoresQueryKey() });
@@ -224,10 +224,10 @@ export default function StoreNew() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setForm(f => ({ ...f, type: "library" }))}
+                  onClick={() => setForm(f => ({ ...f, type: "book_library" }))}
                   className={cn(
                     "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all cursor-pointer text-center",
-                    form.type === "library"
+                    form.type === "book_library"
                       ? "border-amber-500 bg-amber-500/5 text-amber-700 font-bold"
                       : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200"
                   )}
@@ -239,10 +239,10 @@ export default function StoreNew() {
 
                 <button
                   type="button"
-                  onClick={() => setForm(f => ({ ...f, type: "bookstore" }))}
+                  onClick={() => setForm(f => ({ ...f, type: "book_market" }))}
                   className={cn(
                     "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all cursor-pointer text-center",
-                    form.type === "bookstore"
+                    form.type === "book_market"
                       ? "border-amber-500 bg-amber-500/5 text-amber-700 font-bold"
                       : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200"
                   )}
@@ -257,11 +257,11 @@ export default function StoreNew() {
             {/* Dynamic Name Input */}
             <div>
               <label className="block text-sm font-medium mb-1.5">
-                {form.type === "library" ? "Kutubxona nomi *" : "Kitob do'koni nomi *"}
+                {form.type === "book_library" ? "Kutubxona nomi *" : "Kitob do'koni nomi *"}
               </label>
               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder={form.type === "library" ? "Masalan: Nodir kutubxonasi" : "Masalan: Bekbook Do'koni"} />
+                placeholder={form.type === "book_library" ? "Masalan: Nodir kutubxonasi" : "Masalan: Bekbook Do'koni"} />
             </div>
 
             <div>
@@ -272,7 +272,7 @@ export default function StoreNew() {
             </div>
 
             {/* Custom Subscription Price (Only for Library) */}
-            {form.type === "library" && (
+            {form.type === "book_library" && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
                 <label className="block text-sm font-medium mb-1.5">Oylik obuna narxi (so'm) *</label>
                 <input

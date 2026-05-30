@@ -12,4 +12,6 @@ export type CreateStoreBodyType =
 export const CreateStoreBodyType = {
   library: "library",
   bookstore: "bookstore",
+  book_library: "book_library",
+  book_market: "book_market",
 } as const;
