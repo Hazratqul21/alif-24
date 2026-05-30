@@ -263,14 +263,45 @@ export default function AdminBooksCatalog() {
                                 </div>
                                 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Rasm (URL)</label>
-                                    <input 
-                                        type="url" 
-                                        value={formData.image}
-                                        onChange={e => setFormData({...formData, image: e.target.value})}
-                                        className="w-full px-3 py-2 bg-gray-950 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
-                                        placeholder="https://..."
-                                    />
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Rasm (URL yoki Fayl)</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="url" 
+                                            value={formData.image}
+                                            onChange={e => setFormData({...formData, image: e.target.value})}
+                                            className="flex-1 px-3 py-2 bg-gray-950 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-amber-500/50"
+                                            placeholder="https://..."
+                                        />
+                                        <input
+                                            type="file"
+                                            id="book-image-upload"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+                                                try {
+                                                    const res = await adminService.uploadFile(file);
+                                                    if (res.data?.url) {
+                                                        setFormData({ ...formData, image: res.data.url });
+                                                    }
+                                                } catch (err) {
+                                                    alert("Rasm yuklashda xatolik yuz berdi");
+                                                }
+                                            }}
+                                        />
+                                        <label
+                                            htmlFor="book-image-upload"
+                                            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-medium text-white rounded-lg cursor-pointer transition-colors flex items-center shrink-0"
+                                        >
+                                            Yuklash
+                                        </label>
+                                    </div>
+                                    {formData.image && (
+                                        <div className="mt-3">
+                                            <img src={formData.image} alt="Preview" className="h-24 w-auto object-contain rounded border border-gray-800 bg-gray-950 p-1" />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             

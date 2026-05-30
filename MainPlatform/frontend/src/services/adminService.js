@@ -71,6 +71,18 @@ const adminService = {
     // Dashboard
     getDashboard: () => adminApi.get('/dashboard'),
 
+    // File Uploads
+    uploadFile: (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return axios.post(`${API_URL}/uploads/admin-file`, formData, {
+            headers: {
+                ...getAdminHeaders(),
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+    },
+
     // Users
     getUsers: (params) => adminApi.get('/users', { params }),
     getUser: (id) => adminApi.get(`/users/${id}`),
