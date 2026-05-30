@@ -52,6 +52,7 @@ adminApi.interceptors.response.use(
 );
 
 const adminService = {
+    api: adminApi,
     // Auth
     login: (role, password) => adminApi.post('/login', { role, password }),
     isLoggedIn: () => !!localStorage.getItem('adminRole'),

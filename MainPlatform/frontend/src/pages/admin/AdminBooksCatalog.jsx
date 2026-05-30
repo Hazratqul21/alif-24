@@ -28,7 +28,7 @@ export default function AdminBooksCatalog() {
     const fetchBooks = async () => {
         try {
             setLoading(true);
-            const res = await adminService.api.get('/admin/books-catalog', {
+            const res = await adminService.api.get('/books-catalog', {
                 params: { search, limit, offset: (page - 1) * limit }
             });
             setBooks(res.data.items);
@@ -43,7 +43,7 @@ export default function AdminBooksCatalog() {
     const handleDelete = async (id) => {
         if (!window.confirm("Rostdan ham bu kitobni katalogdan o'chirmoqchimisiz?")) return;
         try {
-            await adminService.api.delete(`/admin/books-catalog/${id}`);
+            await adminService.api.delete(`/books-catalog/${id}`);
             fetchBooks();
         } catch (error) {
             alert('Xatolik yuz berdi');
@@ -75,9 +75,9 @@ export default function AdminBooksCatalog() {
         setSubmitting(true);
         try {
             if (editingBook) {
-                await adminService.api.put(`/admin/books-catalog/${editingBook.id}`, formData);
+                await adminService.api.put(`/books-catalog/${editingBook.id}`, formData);
             } else {
-                await adminService.api.post('/admin/books-catalog', formData);
+                await adminService.api.post('/books-catalog', formData);
             }
             setIsModalOpen(false);
             fetchBooks();
