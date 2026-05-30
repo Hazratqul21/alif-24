@@ -10,6 +10,7 @@ const NAV_ITEMS = [
     { path: '/admin/teachers', label: "O'qituvchilar", icon: GraduationCap, perm: 'teachers' },
     { path: '/admin/database', label: 'Database', icon: Database, perm: 'all' },
     { path: '/admin/content', label: 'Kontentlar', icon: BookOpen, perm: 'content' },
+    { path: '/admin/books-catalog', label: 'Kitoblar Bazasi', icon: BookOpen, perm: 'content' },
     { path: '/admin/bookstores', label: "Kitob do'konlari", icon: Store, perm: 'content' },
     { path: '/admin/telegram', label: 'Telegram', icon: Send, perm: 'telegram' },
     { path: '/admin/email', label: 'Email Xabarnomalar', icon: Mail, perm: 'all' },

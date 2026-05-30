@@ -248,6 +248,142 @@ async def list_direct_lessons(
                 "title": l.title,
                 "subject": l.subject,
                 "grade_level": l.grade_level,
+
+# ============================================================================
+# BOOKS CATALOG MANAGEMENT
+# ============================================================================
+
+class BooksCatalogCreateRequest(BaseModel):
+    title: str
+    author: Optional[str] = None
+    genre: Optional[str] = None
+    description: Optional[str] = None
+    isbn: Optional[str] = None
+    image: Optional[str] = None
+
+class BooksCatalogUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    author: Optional[str] = None
+    genre: Optional[str] = None
+    description: Optional[str] = None
+    isbn: Optional[str] = None
+    image: Optional[str] = None
+
+@router.get("/books-catalog")
+async def get_books_catalog(
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+    search: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """List books catalog"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+    
+    count_sql = "SELECT count(id) FROM books_catalog"
+    data_sql = "SELECT * FROM books_catalog"
+    
+    params = {}
+    if search:
+        where_clause = " WHERE title ILIKE :search OR author ILIKE :search"
+        count_sql += where_clause
+        data_sql += where_clause
+        params["search"] = f"%{search}%"
+        
+    data_sql += " ORDER BY id DESC LIMIT :limit OFFSET :offset"
+    params["limit"] = limit
+    params["offset"] = offset
+    
+    total = (await db.execute(text(count_sql), params)).scalar() or 0
+    result = await db.execute(text(data_sql), params)
+    
+    items = []
+    for row in result.mappings():
+        items.append({
+            "id": row["id"],
+            "title": row["title"],
+            "author": row["author"],
+            "genre": row["genre"],
+            "description": row["description"],
+            "isbn": row["isbn"],
+            "image": row["image"],
+            "created_at": row["created_at"].isoformat() if row.get("created_at") else None
+        })
+        
+    return {"total": total, "items": items}
+
+@router.post("/books-catalog")
+async def create_books_catalog(
+    req: BooksCatalogCreateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create book in catalog"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+        
+    sql = """
+        INSERT INTO books_catalog (title, author, genre, description, isbn, image, created_at)
+        VALUES (:title, :author, :genre, :description, :isbn, :image, NOW())
+        RETURNING *
+    """
+    params = req.model_dump()
+    result = await db.execute(text(sql), params)
+    await db.commit()
+    
+    row = result.mappings().first()
+    return dict(row)
+
+@router.put("/books-catalog/{book_id}")
+async def update_books_catalog(
+    book_id: int,
+    req: BooksCatalogUpdateRequest,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update book in catalog"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+        
+    updates = []
+    params = {"id": book_id}
+    
+    for k, v in req.model_dump(exclude_unset=True).items():
+        updates.append(f"{k} = :{k}")
+        params[k] = v
+        
+    if not updates:
+        return {"success": True}
+        
+    sql = f"UPDATE books_catalog SET {', '.join(updates)} WHERE id = :id RETURNING *"
+    result = await db.execute(text(sql), params)
+    await db.commit()
+    
+    row = result.mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+        
+    return dict(row)
+
+@router.delete("/books-catalog/{book_id}")
+async def delete_books_catalog(
+    book_id: int,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete book from catalog"""
+    if not has_permission(admin, "content") and not has_permission(admin, "all"):
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+        
+    sql = "DELETE FROM books_catalog WHERE id = :id RETURNING id"
+    result = await db.execute(text(sql), {"id": book_id})
+    await db.commit()
+    
+    if not result.scalar():
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+        
+    return {"success": True}
                 "language": l.language,
                 "video_url": l.video_url,
                 "attachments": l.attachments,
