@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Store, Check, X, Search, Loader2 } from 'lucide-react';
 import api from '../../services/api';
-import toast from 'react-hot-toast';
 
 export default function AdminBookstores() {
     const [stores, setStores] = useState([]);
@@ -20,7 +19,7 @@ export default function AdminBookstores() {
             setStores(res.data.stores || []);
         } catch (error) {
             console.error("Failed to fetch pending stores", error);
-            toast.error("Do'konlarni yuklashda xatolik");
+            window.dispatchEvent(new CustomEvent('appAlert', { detail: { message: "Do'konlarni yuklashda xatolik" } }));
         } finally {
             setLoading(false);
         }
@@ -29,10 +28,10 @@ export default function AdminBookstores() {
     const handleApprove = async (id) => {
         try {
             await api.post(`/admin/stores/${id}/approve`);
-            toast.success("Do'kon tasdiqlandi!");
+            window.dispatchEvent(new CustomEvent('appAlert', { detail: { message: "Do'kon tasdiqlandi!" } }));
             setStores(stores.filter(s => s.id !== id));
         } catch (error) {
-            toast.error("Tasdiqlashda xatolik yuz berdi");
+            window.dispatchEvent(new CustomEvent('appAlert', { detail: { message: "Tasdiqlashda xatolik yuz berdi" } }));
         }
     };
 
@@ -40,10 +39,10 @@ export default function AdminBookstores() {
         if (!window.confirm("Rostdan ham bu do'kon arizasini rad etasizmi?")) return;
         try {
             await api.post(`/admin/stores/${id}/reject`);
-            toast.success("Do'kon rad etildi!");
+            window.dispatchEvent(new CustomEvent('appAlert', { detail: { message: "Do'kon rad etildi!" } }));
             setStores(stores.filter(s => s.id !== id));
         } catch (error) {
-            toast.error("Rad etishda xatolik yuz berdi");
+            window.dispatchEvent(new CustomEvent('appAlert', { detail: { message: "Rad etishda xatolik yuz berdi" } }));
         }
     };
 
