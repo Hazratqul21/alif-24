@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Store, Check, X, Search, Loader2 } from 'lucide-react';
-import api from '../../services/api';
+import adminService from '../../services/adminService';
 
 export default function AdminBookstores() {
     const [stores, setStores] = useState([]);
@@ -14,8 +14,7 @@ export default function AdminBookstores() {
     const fetchStores = async () => {
         try {
             setLoading(true);
-            // using the new endpoint in admin_panel.py
-            const res = await api.get('/admin/stores/pending');
+            const res = await adminService.getPendingStores();
             setStores(res.data.stores || []);
         } catch (error) {
             console.error("Failed to fetch pending stores", error);
@@ -27,7 +26,7 @@ export default function AdminBookstores() {
 
     const handleApprove = async (id) => {
         try {
-            await api.post(`/admin/stores/${id}/approve`);
+            await adminService.approveStore(id);
             window.dispatchEvent(new CustomEvent('appAlert', { detail: { message: "Do'kon tasdiqlandi!" } }));
             setStores(stores.filter(s => s.id !== id));
         } catch (error) {
@@ -38,7 +37,7 @@ export default function AdminBookstores() {
     const handleReject = async (id) => {
         if (!window.confirm("Rostdan ham bu do'kon arizasini rad etasizmi?")) return;
         try {
-            await api.post(`/admin/stores/${id}/reject`);
+            await adminService.rejectStore(id);
             window.dispatchEvent(new CustomEvent('appAlert', { detail: { message: "Do'kon rad etildi!" } }));
             setStores(stores.filter(s => s.id !== id));
         } catch (error) {

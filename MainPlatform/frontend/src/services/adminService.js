@@ -104,6 +104,11 @@ const adminService = {
     updateBook: (id, data) => adminApi.put(`/direct/books/${id}`, data),
     deleteBook: (id) => adminApi.delete(`/direct/books/${id}`),
 
+    // Stores / Libraries Moderation
+    getPendingStores: () => adminApi.get('/stores/pending'),
+    approveStore: (id) => adminApi.post(`/stores/${id}/approve`),
+    rejectStore: (id) => adminApi.post(`/stores/${id}/reject`),
+
     // Telegram (users via admin API)
     getTelegramUsers: (params) => adminApi.get('/telegram/users', { params }),
 
