@@ -14,13 +14,15 @@ import {
 } from 'react-native';
 import { theme } from '../theme/theme';
 import apiService, { Book } from '../services/api';
-import { Calendar, User, Phone, DollarSign, BookOpen, ChevronLeft } from 'lucide-react-native';
+import { Calendar, User, Phone, DollarSign, BookOpen, ChevronLeft, ShoppingCart } from 'lucide-react-native';
+import { useCart } from '../store/cartStore';
 
 export default function BookDetailScreen({ route, navigation }: { route: any; navigation: any }) {
   const { bookId } = route.params;
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLendModalVisible, setIsLendModalVisible] = useState(false);
+  const { items, add } = useCart();
 
   // Lend Form State
   const [borrowerName, setBorrowerName] = useState('');
@@ -45,6 +47,23 @@ export default function BookDetailScreen({ route, navigation }: { route: any; na
   useEffect(() => {
     fetchBookDetails();
   }, [bookId]);
+
+  const isInCart = book ? items.some(cartItem => cartItem.bookId === book.id) : false;
+
+  const handleAddToCart = () => {
+    if (!book) return;
+    if (isInCart) {
+      navigation.navigate('Cart');
+    } else {
+      add({
+        bookId: book.id,
+        title: book.title,
+        author: book.author || 'Noma\'lum muallif',
+        price: book.price || 0,
+        image: book.image || (Array.isArray(book.images) ? book.images[0] : book.images) || null
+      });
+    }
+  };
 
   const handleLendSubmit = async () => {
     if (!borrowerName || !borrowerPhone || !dueDate) {
@@ -88,11 +107,7 @@ export default function BookDetailScreen({ route, navigation }: { route: any; na
     );
   }
 
-  const imageUrl = book.images && typeof book.images === 'string'
-    ? book.images.startsWith('http') ? book.images : `https://bekbook.alif24.uz/api/uploads/${book.images}`
-    : Array.isArray(book.images) && book.images.length > 0
-      ? book.images[0].startsWith('http') ? book.images[0] : `https://bekbook.alif24.uz/api/uploads/${book.images[0]}`
-      : 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400';
+  const imageUrl = apiService.getImageUrl(book.image || book.images);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -162,6 +177,20 @@ export default function BookDetailScreen({ route, navigation }: { route: any; na
           <TouchableOpacity style={styles.actionBtn} onPress={() => setIsLendModalVisible(true)}>
             <BookOpen size={20} color={theme.colors.surface} style={{ marginRight: 8 }} />
             <Text style={styles.actionBtnText}>Kitobni ijaraga berish</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {book.status === 'available' && book.type === 'sell' && (
+        <View style={styles.actionFooter}>
+          <TouchableOpacity 
+            style={[styles.actionBtn, isInCart && { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]} 
+            onPress={handleAddToCart}
+          >
+            <ShoppingCart size={20} color={isInCart ? "#94A3B8" : theme.colors.surface} style={{ marginRight: 8 }} />
+            <Text style={[styles.actionBtnText, isInCart && { color: '#64748B' }]}>
+              {isInCart ? 'Savatda (O\'tish)' : 'Savatga qo\'shish'}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -269,15 +298,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.md,
-    height: 56,
+    height: 70,
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderWarm,
   },
   backBtn: {
+    paddingTop: 40,
     padding: theme.spacing.xs,
   },
   navTitle: {
+    paddingTop: 40,
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
@@ -403,6 +434,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.weights.semibold,
   },
   actionFooter: {
+    paddingBottom:40,
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -413,6 +445,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   actionBtn: {
+    
     backgroundColor: theme.colors.primary,
     height: 48,
     borderRadius: theme.roundness.md,

@@ -40,7 +40,7 @@ export default function StoresScreen() {
     >
       <View style={styles.cardHeader}>
         {item.avatar ? (
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+          <Image source={{ uri: apiService.getImageUrl(item.avatar) }} style={styles.avatar} />
         ) : (
           <View style={styles.avatarPlaceholder}>
             <StoreIcon size={24} color={theme.colors.primary} />

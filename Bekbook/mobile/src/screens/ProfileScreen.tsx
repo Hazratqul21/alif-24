@@ -11,23 +11,29 @@ import {
   SafeAreaView
 } from 'react-native';
 import { theme } from '../theme/theme';
-import apiService, { Transaction, Book } from '../services/api';
-import { User, LogOut, Award, RefreshCw, CheckCircle, Clock, Settings, FileText, CreditCard, Shield } from 'lucide-react-native';
+import apiService, { Transaction, Book, User } from '../services/api';
+import { User as UserIcon, LogOut, Award, CheckCircle, FileText, CreditCard, Shield, BarChart2 } from 'lucide-react-native';
 
-export default function ProfileScreen({ navigation, user, onLogout }: { navigation: any; user: any; onLogout: () => void }) {
+interface ProfileScreenProps {
+  user: User | null;
+  onLogout: () => void;
+  navigation: any;
+}
+
+export default function ProfileScreen({ navigation, user, onLogout }: ProfileScreenProps) {
   const [activeTab, setActiveTab] = useState<'lends' | 'favorites'>('lends');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [favorites, setFavorites] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProfileData = async () => {
+    if (!user) return;
     setLoading(true);
     try {
       if (activeTab === 'lends') {
         const data = await apiService.getTransactions();
         setTransactions(data);
       } else {
-        // Fallback mockup or real call depending on endpoint
         const data = await apiService.getFavorites();
         setFavorites(data || []);
       }
@@ -40,7 +46,29 @@ export default function ProfileScreen({ navigation, user, onLogout }: { navigati
 
   useEffect(() => {
     fetchProfileData();
-  }, [activeTab]);
+  }, [activeTab, user]);
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.guestContainer}>
+          <View style={styles.guestIconBox}>
+            <UserIcon size={64} color={theme.colors.primary} />
+          </View>
+          <Text style={styles.guestTitle}>Tizimga Kiring</Text>
+          <Text style={styles.guestText}>
+            Kitob ijaraga olish, sotish yoki kutubxona ochish uchun avval hisobingizga kirishingiz yoki ro'yxatdan o'tishingiz kerak.
+          </Text>
+          <TouchableOpacity style={styles.guestLoginBtn} onPress={() => navigation.navigate('Login')}>
+            <Text style={styles.guestLoginText}>Kirish / Ro'yxatdan O'tish</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const isAdmin = user.role === 'admin';
+  const isStoreOwner = user.role === 'store_owner';
 
   const handleReturn = async (transactionId: number) => {
     Alert.alert(
@@ -117,7 +145,6 @@ export default function ProfileScreen({ navigation, user, onLogout }: { navigati
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header bar */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mening Profilim</Text>
         <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
@@ -126,68 +153,48 @@ export default function ProfileScreen({ navigation, user, onLogout }: { navigati
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* User Card info */}
         <View style={styles.profileCard}>
           <View style={styles.avatarBig}>
-            <User size={48} color={theme.colors.secondary} />
+            <UserIcon size={48} color={theme.colors.secondary} />
           </View>
           <Text style={styles.profileName}>{user?.name || 'Foydalanuvchi'}</Text>
           <Text style={styles.profileEmail}>{user?.email || 'email@example.com'}</Text>
-          <Text style={styles.profilePhone}>{user?.phone || 'Telefon raqam yo\'q'}</Text>
         </View>
 
-        {/* Digital Kitobxon ID (VIP Card presentation) */}
-        <View style={styles.vipCard}>
-          <View style={styles.vipHeader}>
-            <Award size={24} color="#FFF" />
-            <Text style={styles.vipHeaderText}>KUTUBXONACHI ID</Text>
-          </View>
-          <Text style={styles.vipNumber}>
-            {user?.readerId ? user.readerId.replace(/(\d{4})/g, '$1 ').trim() : '8401 2931'}
-          </Text>
-          <View style={styles.vipFooter}>
-            <Text style={styles.vipUser}>{user?.name?.toUpperCase() || 'ELBEK KHABIBULLAYEV'}</Text>
-            <Text style={styles.vipLogo}>Bekbook</Text>
-          </View>
-        </View>
-
-        {/* Quick Links */}
-        <View style={styles.quickLinksContainer}>
-          <TouchableOpacity style={styles.quickLinkBtn} onPress={() => navigation.navigate('Subscription')}>
-            <CreditCard size={20} color={theme.colors.primary} />
-            <Text style={styles.quickLinkText}>Obunalar</Text>
-          </TouchableOpacity>
-          {user?.role === 'admin' && (
-            <TouchableOpacity style={styles.quickLinkBtn} onPress={() => navigation.navigate('Admin')}>
-              <Shield size={20} color={theme.colors.danger} />
-              <Text style={styles.quickLinkText}>Admin Panel</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Menyular</Text>
+          {isAdmin && (
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Admin')}>
+              <Shield size={20} color={theme.colors.primary} />
+              <Text style={styles.menuText}>Admin Panel</Text>
             </TouchableOpacity>
           )}
-          {(user?.role === 'store_owner' || user?.role === 'admin') && (
-            <TouchableOpacity style={styles.quickLinkBtn} onPress={() => navigation.navigate('Invoices')}>
-              <FileText size={20} color={theme.colors.info} />
-              <Text style={styles.quickLinkText}>Hisob-fakturalar</Text>
-            </TouchableOpacity>
+          {isStoreOwner && (
+            <>
+              <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Analytics')}>
+                <BarChart2 size={20} color={theme.colors.info} />
+                <Text style={styles.menuText}>Statistika va Hisobotlar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Invoices')}>
+                <FileText size={20} color={theme.colors.info} />
+                <Text style={styles.menuText}>Hisob-fakturalar</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
-        {/* Tab row */}
         <View style={styles.tabRow}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'lends' && styles.tabActive]}
             onPress={() => setActiveTab('lends')}
           >
-            <Text style={[styles.tabText, activeTab === 'lends' && styles.tabTextActive]}>
-              Kitob tranzaksiyalari
-            </Text>
+            <Text style={[styles.tabText, activeTab === 'lends' && styles.tabTextActive]}>Kitob tranzaksiyalari</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'favorites' && styles.tabActive]}
             onPress={() => setActiveTab('favorites')}
           >
-            <Text style={[styles.tabText, activeTab === 'favorites' && styles.tabTextActive]}>
-              Sevimli kitoblar
-            </Text>
+            <Text style={[styles.tabText, activeTab === 'favorites' && styles.tabTextActive]}>Sevimli kitoblar</Text>
           </TouchableOpacity>
         </View>
 
@@ -215,7 +222,7 @@ export default function ProfileScreen({ navigation, user, onLogout }: { navigati
                 onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}
               >
                 <Text style={styles.favoriteTitle}>{item.title}</Text>
-                <Text style={styles.favoriteAuthor}>{item.author}</Text>
+                <Text style={styles.favoriteAuthor}>{item.author || 'Muallif noma\'lum'}</Text>
               </TouchableOpacity>
             )}
             keyExtractor={(item) => item.id.toString()}
@@ -480,5 +487,46 @@ const styles = StyleSheet.create({
   emptyText: {
     color: theme.colors.textMuted,
     fontSize: theme.typography.sizes.xs,
+  },
+  guestContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing.xl,
+  },
+  guestIconBox: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: theme.colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  guestTitle: {
+    fontSize: theme.typography.sizes.xl,
+    fontWeight: '800',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.md,
+  },
+  guestText: {
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: theme.spacing.xl,
+  },
+  guestLoginBtn: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: theme.roundness.full,
+    width: '100%',
+    alignItems: 'center',
+  },
+  guestLoginText: {
+    color: theme.colors.surface,
+    fontSize: theme.typography.sizes.md,
+    fontWeight: '700',
   },
 });

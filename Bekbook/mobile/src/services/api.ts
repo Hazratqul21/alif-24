@@ -48,8 +48,9 @@ export interface Book {
   lat?: number;
   lng?: number;
   address?: string;
+  image?: string;
   images?: string[] | string;
-  condition: string;
+  condition?: string;
   rentDuration?: number;
   status: 'available' | 'rented' | 'reserved';
   genre?: string;
@@ -396,6 +397,16 @@ export const apiService = {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${day}.${month}.${year}`;
+  },
+
+  getImageUrl(path?: string | string[] | null): string {
+    if (!path) return 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400';
+    let imagePath = Array.isArray(path) ? path[0] : path;
+    if (!imagePath || typeof imagePath !== 'string') return 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400';
+    if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith('/api/')) return `https://bekbook.alif24.uz${imagePath}`;
+    if (imagePath.startsWith('/')) return `https://bekbook.alif24.uz/api${imagePath}`;
+    return `https://bekbook.alif24.uz/api/${imagePath}`;
   }
 };
 export default apiService;

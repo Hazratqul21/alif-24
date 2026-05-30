@@ -73,7 +73,7 @@ export default function StoreDetailScreen() {
     >
       <View style={styles.bookImageContainer}>
         {item.image ? (
-          <Image source={{ uri: item.image }} style={styles.bookImage} />
+          <Image source={{ uri: apiService.getImageUrl(item.image) }} style={styles.bookImage} />
         ) : (
           <View style={styles.bookImagePlaceholder}>
             <BookOpen size={24} color={theme.colors.borderWarm} />
@@ -105,7 +105,7 @@ export default function StoreDetailScreen() {
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
             {store.avatar ? (
-              <Image source={{ uri: store.avatar }} style={styles.avatar} />
+              <Image source={{ uri: apiService.getImageUrl(store.avatar) }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <StoreIcon size={40} color={theme.colors.primary} />

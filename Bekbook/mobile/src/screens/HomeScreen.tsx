@@ -10,33 +10,46 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView
+  SafeAreaView,
+  Linking
 } from 'react-native';
 import { theme } from '../theme/theme';
-import apiService, { Book } from '../services/api';
-import { Search, Filter, BookOpen, AlertTriangle, ChevronRight, Bell, ShoppingCart, MessageSquare, Plus } from 'lucide-react-native';
+import apiService, { Book, User } from '../services/api';
+import { Search, Filter, BookOpen, AlertTriangle, ChevronRight, Bell, ShoppingCart, MessageSquare, Plus, Heart, Star, MapPin } from 'lucide-react-native';
+import { useCart } from '../store/cartStore';
 
 interface HomeScreenProps {
   navigation: any;
-  user: any;
+  user: User | null;
+  tabType: 'store' | 'user';
 }
 
-export default function HomeScreen({ navigation, user }: HomeScreenProps) {
+export default function HomeScreen({ navigation, user, tabType }: HomeScreenProps) {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [activeType, setActiveType] = useState<'all' | 'rent' | 'free' | 'sell'>('all');
   const [stats, setStats] = useState({ total: 0, activeLends: 0, overdue: 0 });
+  const { items, add } = useCart();
 
-  const fetchBooks = async () => {
+  const fetchBooks = async (isRefreshing = false) => {
+    if (!isRefreshing) setLoading(true);
     try {
-      const typeParam = activeType === 'all' ? undefined : activeType;
       const data = await apiService.getBooks({
         search: search || undefined,
-        type: typeParam
+        type: activeType === 'all' ? undefined : activeType
       });
-      setBooks(data);
+      
+      // Filter based on tabType
+      const filteredData = data.filter(book => {
+        const isStoreOwner = book.user?.role === 'store_owner';
+        if (tabType === 'store') return isStoreOwner;
+        if (tabType === 'user') return !isStoreOwner;
+        return true;
+      });
+
+      setBooks(filteredData);
     } catch (error) {
       console.error('Error fetching books:', error);
     } finally {
@@ -53,7 +66,7 @@ export default function HomeScreen({ navigation, user }: HomeScreenProps) {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchBooks();
+    fetchBooks(true);
   };
 
   const handleSearchSubmit = () => {
@@ -62,29 +75,119 @@ export default function HomeScreen({ navigation, user }: HomeScreenProps) {
   };
 
   const renderBookItem = ({ item }: { item: Book }) => {
-    const imageUrl = item.images && typeof item.images === 'string'
-      ? item.images.startsWith('http') ? item.images : `https://bekbook.alif24.uz/api/uploads/${item.images}`
-      : Array.isArray(item.images) && item.images.length > 0
-        ? item.images[0].startsWith('http') ? item.images[0] : `https://bekbook.alif24.uz/api/uploads/${item.images[0]}`
-        : 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400';
+    const imageUrl = apiService.getImageUrl(item.image || item.images);
+    const isSell = item.type === 'sell';
+    const isRent = item.type === 'rent';
+    const isFree = item.type === 'free';
+    
+    // Mock rating for now
+    const rating = 4.5;
+    const reviews = 0;
+    
+    const installmentPrice = Math.round((item.price || 0) / 12).toLocaleString();
+    const isInCart = items.some(cartItem => cartItem.bookId === item.id);
+    
+    const handleAddToCart = () => {
+      if (isInCart) {
+        navigation.navigate('Cart');
+      } else {
+        add({
+          bookId: item.id,
+          title: item.title,
+          author: item.author || 'Noma\'lum muallif',
+          price: item.price,
+          image: item.image || (Array.isArray(item.images) ? item.images[0] : item.images)
+        });
+      }
+    };
 
     return (
       <TouchableOpacity
         style={styles.bookCard}
         onPress={() => navigation.navigate('BookDetail', { bookId: item.id })}
+        activeOpacity={0.9}
       >
-        <Image source={{ uri: imageUrl }} style={styles.bookImage} resizeMode="cover" />
-        <View style={styles.badgeContainer}>
-          <Text style={[styles.typeBadge, styles[`badge_${item.type}` as keyof typeof styles]]}>
-            {item.type === 'rent' ? 'Ijara' : item.type === 'free' ? 'Tekinga' : 'Sotish'}
-          </Text>
+        {/* Cover Section */}
+        <View style={styles.bookCoverContainer}>
+          <Image source={{ uri: imageUrl }} style={styles.bookImage} resizeMode="cover" />
+          
+          {/* Top-left Badge */}
+          <View style={styles.badgeContainer}>
+            <Text style={[
+              styles.typeBadge, 
+              isSell ? styles.badge_sell : isFree ? styles.badge_free : styles.badge_rent
+            ]}>
+              {isSell ? 'SOTILADI' : isFree ? 'BEPUL' : 'IJARA'}
+            </Text>
+          </View>
+          
+          {/* Top-right Favorite Button */}
+          <TouchableOpacity style={styles.favoriteBtn}>
+            <Heart size={16} color={theme.colors.textMuted} />
+          </TouchableOpacity>
         </View>
+
+        {/* Info Section */}
         <View style={styles.bookInfo}>
-          <Text style={styles.bookTitle} numberOfLines={1}>{item.title}</Text>
-          <Text style={styles.bookAuthor} numberOfLines={1}>{item.author}</Text>
+          {/* Genre */}
+          <View style={styles.genreBadge}>
+            <Text style={styles.genreText}>{item.genre?.toUpperCase() || 'BADIIY ADABIYOT'}</Text>
+          </View>
+
+          {/* Title & Author */}
+          <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.bookAuthor} numberOfLines={1}>{item.author || 'Muallif noma\'lum'}</Text>
+
+          {/* Ratings */}
+          <View style={styles.ratingRow}>
+            <View style={styles.stars}>
+              {[1, 2, 3, 4, 5].map(i => (
+                <Star key={i} size={12} color="#FFB800" fill={i <= Math.floor(rating) ? "#FFB800" : "transparent"} />
+              ))}
+            </View>
+            <Text style={styles.ratingText}>{rating}</Text>
+            <Text style={styles.reviewsText}>({reviews})</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Price Section */}
+          <Text style={styles.priceLabel}>Narxi</Text>
           <Text style={styles.bookPrice}>
-            {item.type === 'free' ? 'Bepul' : `${item.price.toLocaleString()} so'm`}
+            {isFree ? 'Bepul' : `${(item.price || 0).toLocaleString()} so'm`}
           </Text>
+
+          {/* Installment Badge */}
+          {isSell && (
+            <View style={styles.installmentBadge}>
+              <Text style={styles.installmentLabel}>MUDDATLI{'\n'}TO'LOV</Text>
+              <Text style={styles.installmentValue}>{installmentPrice}{'\n'}SO'M / OY</Text>
+            </View>
+          )}
+
+          {/* Action Button */}
+          {isSell && (
+            <TouchableOpacity 
+              style={[styles.addToCartBtn, isInCart && styles.addToCartBtnActive]}
+              onPress={handleAddToCart}
+            >
+              <ShoppingCart size={16} color={isInCart ? "#94A3B8" : "#FFF"} style={{ marginRight: 6 }} />
+              <Text style={[styles.addToCartText, isInCart && styles.addToCartTextActive]}>
+                {isInCart ? 'Savatda' : 'Savatga qo\'shish'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Footer (Owner & Location) */}
+          <View style={styles.bookFooter}>
+            <Text style={styles.footerText} numberOfLines={1}>
+              {item.user?.name || 'Kutubxon'}
+            </Text>
+            <MapPin size={10} color={theme.colors.textMuted} style={{ marginHorizontal: 2 }} />
+            <Text style={styles.footerText} numberOfLines={1}>
+              {item.address || 'Toshkent shah'}
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -94,15 +197,36 @@ export default function HomeScreen({ navigation, user }: HomeScreenProps) {
     <SafeAreaView style={styles.container}>
       {/* Header Banner */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.welcomeText}>Assalomu alaykum,</Text>
-          <Text style={styles.userName}>{user?.name || 'Kitobxon'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity onPress={() => Linking.openURL('https://alif24.uz')}>
+            <Image 
+              source={{ uri: 'https://alif24.uz/images/logo.png' }} 
+              style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: theme.colors.surface }} 
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.welcomeText}>Assalomu alaykum,</Text>
+            <Text style={styles.userName}>{user ? (user.name?.split(' ')[0] || 'Foydalanuvchi') : 'Mehmon'}</Text>
+          </View>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={() => navigation.navigate('Messages')} style={styles.headerIconBtn}>
-            <MessageSquare size={22} color={theme.colors.text} />
+          <TouchableOpacity 
+            style={styles.headerIconBtn} 
+            onPress={() => {
+              if (!user) navigation.navigate('Login');
+              else navigation.navigate('Messages');
+            }}
+          >
+            <MessageSquare size={20} color={theme.colors.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.headerIconBtn}>
+          <TouchableOpacity 
+            style={styles.headerIconBtn}
+            onPress={() => {
+              if (!user) navigation.navigate('Login');
+              else navigation.navigate('Notifications');
+            }}
+          >
             <Bell size={22} color={theme.colors.text} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('Cart')} style={styles.headerIconBtn}>
@@ -224,7 +348,10 @@ export default function HomeScreen({ navigation, user }: HomeScreenProps) {
       {/* Floating Action Button for adding a book */}
       <TouchableOpacity 
         style={styles.fab} 
-        onPress={() => navigation.navigate('BookNew')}
+        onPress={() => {
+          if (!user) navigation.navigate('Login');
+          else navigation.navigate('BookNew');
+        }}
       >
         <Plus size={24} color="#fff" />
       </TouchableOpacity>
@@ -414,23 +541,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   bookCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.roundness.md,
-    padding: theme.spacing.xs,
-    width: '47%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    width: '48%',
     marginBottom: theme.spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowRadius: 8,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: theme.colors.borderWarm,
+    borderColor: '#F1F5F9', // light gray border
+    overflow: 'hidden',
+  },
+  bookCoverContainer: {
+    position: 'relative',
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   bookImage: {
-    height: 160,
-    borderRadius: theme.roundness.sm,
-    backgroundColor: theme.colors.background,
+    height: 180,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
   },
   badgeContainer: {
     position: 'absolute',
@@ -438,41 +572,163 @@ const styles = StyleSheet.create({
     left: 12,
   },
   typeBadge: {
-    paddingHorizontal: theme.spacing.xs,
-    paddingVertical: 2,
-    borderRadius: theme.roundness.xs,
-    fontSize: 10,
-    fontWeight: theme.typography.weights.bold,
-    color: theme.colors.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFF',
     overflow: 'hidden',
+    letterSpacing: 0.5,
   },
   badge_rent: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: '#3B82F6', // blue-500
   },
   badge_free: {
-    backgroundColor: theme.colors.success,
+    backgroundColor: '#10B981', // emerald-500
   },
   badge_sell: {
-    backgroundColor: theme.colors.secondary,
+    backgroundColor: '#F59E0B', // amber-500
+  },
+  favoriteBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#FFF',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   bookInfo: {
-    padding: theme.spacing.xs,
+    padding: 12,
+  },
+  genreBadge: {
+    backgroundColor: '#FFFBEB', // amber-50
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  genreText: {
+    color: '#D97706', // amber-600
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   bookTitle: {
-    fontSize: theme.typography.sizes.sm,
-    fontWeight: theme.typography.weights.bold,
-    color: theme.colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 4,
+    minHeight: 36, // Ensure consistent height for 2 lines
   },
   bookAuthor: {
-    fontSize: theme.typography.sizes.xs,
-    color: theme.colors.textMuted,
-    marginTop: 2,
+    fontSize: 11,
+    color: '#94A3B8',
+    marginBottom: 6,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  stars: {
+    flexDirection: 'row',
+    marginRight: 6,
+  },
+  ratingText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+    marginRight: 4,
+  },
+  reviewsText: {
+    fontSize: 10,
+    color: '#94A3B8',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginBottom: 10,
+  },
+  priceLabel: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginBottom: 2,
   },
   bookPrice: {
-    fontSize: theme.typography.sizes.xs,
-    fontWeight: theme.typography.weights.semibold,
-    color: theme.colors.secondary,
-    marginTop: theme.spacing.xs,
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 10,
+  },
+  installmentBadge: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFBEB', // amber-50
+    borderWidth: 1,
+    borderColor: '#FDE68A', // amber-200
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 12,
+  },
+  installmentLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#92400E', // amber-800
+    lineHeight: 12,
+  },
+  installmentValue: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#D97706', // amber-600
+    lineHeight: 12,
+    textAlign: 'right',
+  },
+  addToCartBtn: {
+    backgroundColor: '#F59E0B', // amber-500
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+  addToCartBtnActive: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  addToCartText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  addToCartTextActive: {
+    color: '#64748B',
+  },
+  bookFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  footerText: {
+    fontSize: 9,
+    color: '#94A3B8',
+    flexShrink: 1,
   },
   loader: {
     marginVertical: theme.spacing.xl,

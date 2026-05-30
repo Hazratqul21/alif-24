@@ -4,9 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, ImagePlus, MapPin, X, Clock, CreditCard, CheckCircle } from 'lucide-react-native';
 import { theme } from '../theme/theme';
-import apiService from '../services/api';
+import apiService, { User } from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+
+interface BookNewScreenProps {
+  navigation: any;
+  user?: User | null;
+}
 
 const TYPES = [
   { value: "sell", label: "Sotiladi", desc: "Narxini belgilang" },
@@ -21,8 +26,7 @@ const GENRES = [
 
 const MAX_IMAGES = 2;
 
-export default function BookNewScreen() {
-  const navigation = useNavigation<any>();
+export default function BookNewScreen({ navigation, user }: BookNewScreenProps) {
   
   const [form, setForm] = useState({
     title: "", author: "", description: "", type: "sell",
@@ -178,6 +182,32 @@ export default function BookNewScreen() {
       setPayStep("idle");
     }
   };
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+            <ArrowLeft size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Yangi e'lon</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>Tizimga Kiring</Text>
+          <Text style={{ textAlign: 'center', color: theme.colors.textMuted, marginBottom: 24 }}>
+            Yangi kitob e'lonini joylash uchun avval hisobingizga kirishingiz kerak.
+          </Text>
+          <TouchableOpacity 
+            style={[styles.submitBtn, { width: '100%' }]} 
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.submitBtnText}>Kirish / Ro'yxatdan o'tish</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

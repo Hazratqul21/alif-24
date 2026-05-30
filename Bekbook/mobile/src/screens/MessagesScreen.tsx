@@ -35,7 +35,7 @@ export default function MessagesScreen() {
       <View style={styles.avatarContainer}>
         {item.other_avatar ? (
           <Image 
-            source={{ uri: item.other_avatar.startsWith('http') ? item.other_avatar : `https://bekbook.alif24.uz/api${item.other_avatar}` }} 
+            source={{ uri: apiService.getImageUrl(item.other_avatar) }} 
             style={styles.avatarImage} 
           />
         ) : (

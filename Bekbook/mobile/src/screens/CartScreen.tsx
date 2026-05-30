@@ -4,11 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, ShoppingCart, Trash2, MapPin, Truck, Package } from 'lucide-react-native';
 import { theme } from '../theme/theme';
-import apiService from '../services/api';
+import apiService, { User } from '../services/api';
 import { useCart } from '../store/cartStore';
 
-export default function CartScreen() {
-  const navigation = useNavigation<any>();
+interface CartScreenProps {
+  navigation?: any;
+  user?: User | null;
+}
+
+export default function CartScreen({ navigation: navProp, user }: CartScreenProps) {
+  const navigation = navProp || useNavigation<any>();
   const { items, remove, clear } = useCart();
 
   const [loading, setLoading] = useState<number | null>(null);
@@ -18,6 +23,23 @@ export default function CartScreen() {
   const total = items.reduce((s, i) => s + i.price, 0);
 
   const handleCheckout = async (bookId: number, price: number) => {
+    if (items.length === 0) {
+      Alert.alert('Xatolik', 'Savat bo\'sh');
+      return;
+    }
+    
+    if (!user) {
+      Alert.alert(
+        'Tizimga Kiring',
+        'Xaridni davom ettirish uchun avval tizimga kirishingiz kerak.',
+        [
+          { text: 'Bekor qilish', style: 'cancel' },
+          { text: 'Kirish', onPress: () => navigation.navigate('Login') }
+        ]
+      );
+      return;
+    }
+
     if (deliveryType === 'delivery' && !deliveryAddress.trim()) {
       Alert.alert('Xatolik', 'Manzilni kiriting');
       return;
@@ -118,7 +140,7 @@ export default function CartScreen() {
             <View key={item.bookId} style={styles.itemCard}>
               {item.image ? (
                 <Image 
-                  source={{ uri: item.image.startsWith('http') ? item.image : `https://bekbook.alif24.uz/api${item.image}` }}
+                  source={{ uri: apiService.getImageUrl(item.image) }}
                   style={styles.itemImage}
                 />
               ) : (

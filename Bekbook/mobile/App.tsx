@@ -29,13 +29,14 @@ import ChatScreen from './src/screens/ChatScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import CartScreen from './src/screens/CartScreen';
 import BookNewScreen from './src/screens/BookNewScreen';
+import AnalyticsScreen from './src/screens/AnalyticsScreen';
 
-import { Home, MapPin, Scan, User as UserIcon, Library } from 'lucide-react-native';
+import { Home, MapPin, Scan, User as UserIcon, Library, BookOpen } from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function MainTabNavigator({ user, onLogout }: { user: User; onLogout: () => void }) {
+function MainTabNavigator({ user, onLogout }: { user: User | null; onLogout: () => void }) {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -63,12 +64,21 @@ function MainTabNavigator({ user, onLogout }: { user: User; onLogout: () => void
       }}
     >
       <Tab.Screen
-        name="Bosh Sahifa"
+        name="Asosiy"
         options={{
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       >
-        {(props) => <HomeScreen {...props} user={user} />}
+        {(props) => <HomeScreen {...props} user={user} tabType="store" />}
+      </Tab.Screen>
+
+      <Tab.Screen
+        name="Ikkinchi qo'l"
+        options={{
+          tabBarIcon: ({ color, size }) => <BookOpen size={size} color={color} />,
+        }}
+      >
+        {(props) => <HomeScreen {...props} user={user} tabType="user" />}
       </Tab.Screen>
 
       <Tab.Screen
@@ -84,14 +94,6 @@ function MainTabNavigator({ user, onLogout }: { user: User; onLogout: () => void
         component={MapScreen}
         options={{
           tabBarIcon: ({ color, size }) => <MapPin size={size} color={color} />,
-        }}
-      />
-
-      <Tab.Screen
-        name="Skaner"
-        component={ScanScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Scan size={size} color={color} />,
         }}
       />
 
@@ -153,29 +155,31 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="dark" backgroundColor={theme.colors.surface} />
       <NavigationContainer>
-        {user ? (
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="MainTabs">
-              {(props) => <MainTabNavigator {...props} user={user} onLogout={handleLogout} />}
-            </Stack.Screen>
-            <Stack.Screen name="BookDetail" component={BookDetailScreen} />
-            <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
-            <Stack.Screen name="StoreNew" component={StoreNewScreen} />
-            <Stack.Screen name="StoreCatalogNew" component={StoreCatalogNewScreen} />
-            <Stack.Screen name="StoreReaders" component={StoreReadersScreen} />
-            <Stack.Screen name="Admin" component={AdminScreen} />
-            <Stack.Screen name="Invoices" component={InvoicesScreen} />
-            <Stack.Screen name="StoreOwnerPay" component={StoreOwnerPayScreen} />
-            <Stack.Screen name="Subscription" component={SubscriptionScreen} />
-            <Stack.Screen name="Messages" component={MessagesScreen} />
-            <Stack.Screen name="Chat" component={ChatScreen} />
-            <Stack.Screen name="Notifications" component={NotificationsScreen} />
-            <Stack.Screen name="Cart" component={CartScreen} />
-            <Stack.Screen name="BookNew" component={BookNewScreen} />
-          </Stack.Navigator>
-        ) : (
-          <LoginScreen onLoginSuccess={handleLoginSuccess} />
-        )}
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="MainTabs">
+            {(props) => <MainTabNavigator {...props} user={user} onLogout={handleLogout} />}
+          </Stack.Screen>
+          <Stack.Screen name="Login">
+            {(props) => <LoginScreen {...props} onLoginSuccess={() => { props.navigation.goBack(); handleLoginSuccess(); }} />}
+          </Stack.Screen>
+          <Stack.Screen name="BookDetail" component={BookDetailScreen} />
+          <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
+          <Stack.Screen name="StoreNew" component={StoreNewScreen} />
+          <Stack.Screen name="StoreCatalogNew" component={StoreCatalogNewScreen} />
+          <Stack.Screen name="StoreReaders" component={StoreReadersScreen} />
+          <Stack.Screen name="Admin" component={AdminScreen} />
+          <Stack.Screen name="Invoices" component={InvoicesScreen} />
+          <Stack.Screen name="StoreOwnerPay" component={StoreOwnerPayScreen} />
+          <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+          <Stack.Screen name="Messages" component={MessagesScreen} />
+          <Stack.Screen name="Chat" component={ChatScreen} />
+          <Stack.Screen name="Cart">
+            {(props) => <CartScreen {...props} user={user} />}
+          </Stack.Screen>
+          <Stack.Screen name="BookNew">
+            {(props) => <BookNewScreen {...props} user={user} />}
+          </Stack.Screen>
+        </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
   );
