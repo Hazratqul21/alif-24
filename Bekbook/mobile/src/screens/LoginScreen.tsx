@@ -25,6 +25,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('user'); // 'user', 'store_owner', 'library'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,6 +46,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           email: email.trim().toLowerCase(),
           passwordHash: password,
           phone: phone.trim(),
+          role: role,
         });
       }
       onLoginSuccess();
@@ -105,6 +107,30 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     keyboardType="phone-pad"
                     placeholderTextColor={theme.colors.textMuted}
                   />
+                </View>
+
+                <View style={styles.roleContainer}>
+                  <Text style={styles.roleTitle}>Hisob turini tanlang:</Text>
+                  <View style={styles.roleOptions}>
+                    <TouchableOpacity 
+                      style={[styles.roleOption, role === 'user' && styles.roleOptionActive]}
+                      onPress={() => setRole('user')}
+                    >
+                      <Text style={[styles.roleOptionText, role === 'user' && styles.roleOptionTextActive]}>O'quvchi</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.roleOption, role === 'store_owner' && styles.roleOptionActive]}
+                      onPress={() => setRole('store_owner')}
+                    >
+                      <Text style={[styles.roleOptionText, role === 'store_owner' && styles.roleOptionTextActive]}>Do'kon</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.roleOption, role === 'library' && styles.roleOptionActive]}
+                      onPress={() => setRole('library')}
+                    >
+                      <Text style={[styles.roleOptionText, role === 'library' && styles.roleOptionTextActive]}>Kutubxona</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </>
             )}
@@ -276,5 +302,40 @@ toggleBtn: {
     color: theme.colors.secondary,
     fontSize: theme.typography.sizes.sm,
     fontWeight: theme.typography.weights.semibold,
+  },
+  roleContainer: {
+    marginBottom: theme.spacing.md,
+  },
+  roleTitle: {
+    fontSize: theme.typography.sizes.sm,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+  roleOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  roleOption: {
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.borderWarm,
+    borderRadius: theme.roundness.sm,
+    alignItems: 'center',
+  },
+  roleOptionActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  roleOptionText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    fontWeight: theme.typography.weights.semibold,
+  },
+  roleOptionTextActive: {
+    color: theme.colors.surface,
   },
 });

@@ -152,7 +152,7 @@ export default function BookNewScreen({ navigation, user }: BookNewScreenProps) 
         title: form.title,
         author: form.author || undefined,
         description: form.description || undefined,
-        type: form.type,
+        type: form.type as 'sell' | 'free' | 'rent',
         price: form.type === "sell" && form.price ? parseFloat(form.price) : undefined,
         rentDuration: form.type === "rent" && form.rentDuration ? parseInt(form.rentDuration) : undefined,
         image: uploadedUrls[0] || undefined,

@@ -80,10 +80,10 @@ export default function Navbar() {
   const isStaff = role === "admin" || role === "librarian" || role === "moderator";
 
   const sublinks = [
-    { href: "/", label: "Kitoblar do'koni", icon: BookOpen },
-    { href: "/map", label: "Kitobxonlar xaritasi", icon: Map },
-    { href: "/stores", label: "Kutubxonalar & Do'konlar", icon: Store },
-    { href: "/?sort=popular", label: "Eng ommaboplar", icon: BarChart2 },
+    { href: "/", label: "Asosiy do'konlar", icon: BookOpen },
+    { href: "/?tab=user", label: "Ikkinchi qo'l", icon: BookOpen },
+    { href: "/map", label: "Xarita", icon: Map },
+    { href: "/stores", label: "Kutubxonalar", icon: Store },
   ];
 
   return (
@@ -297,10 +297,10 @@ export default function Navbar() {
                 {label}
               </Link>
             ))}
-            <a href="https://alif24.uz"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all tracking-wide border border-transparent hover:border-indigo-100">
-              <Globe className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Alif24 Ta'lim</span>
+            <a href="https://alif24.uz" target="_blank" rel="noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-amber-600 hover:bg-amber-50/50 transition-all tracking-wide border border-transparent hover:border-amber-100">
+              <img src="https://alif24.uz/images/logo.png" className="h-4 w-auto object-contain rounded-sm" />
+              <span>Alif24.uz</span>
             </a>
           </div>
 
@@ -339,8 +339,8 @@ export default function Navbar() {
               <Icon className="w-4 h-4" />{label}
             </Link>
           ))}
-          <a href="https://alif24.uz" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition-colors">
-            <Globe className="w-4 h-4 text-indigo-500" />Alif24 Ta'lim
+          <a href="https://alif24.uz" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-amber-600 hover:bg-amber-50/50 transition-colors">
+            <img src="https://alif24.uz/images/logo.png" className="h-4 w-auto object-contain rounded-sm" /> Alif24.uz
           </a>
 
           {isAuthenticated ? (

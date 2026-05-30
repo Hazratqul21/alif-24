@@ -30,8 +30,9 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import CartScreen from './src/screens/CartScreen';
 import BookNewScreen from './src/screens/BookNewScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
+import Alif24Screen from './src/screens/Alif24Screen';
 
-import { Home, MapPin, Scan, User as UserIcon, Library, BookOpen } from 'lucide-react-native';
+import { Home, MapPin, Scan, User as UserIcon, Library, BookOpen, Globe } from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -40,7 +41,7 @@ function MainTabNavigator({ user, onLogout }: { user: User | null; onLogout: () 
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: theme.colors.primary,
+        tabBarActiveTintColor: theme.colors.primary, 
         tabBarInactiveTintColor: theme.colors.textMuted,
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
@@ -50,7 +51,7 @@ function MainTabNavigator({ user, onLogout }: { user: User | null; onLogout: () 
           paddingBottom: 8,
           paddingTop: 8,
           position: 'absolute',
-          bottom: 30,
+          bottom: 40,
           left: 16,
           right: 16,
           borderRadius: 20,
@@ -90,10 +91,10 @@ function MainTabNavigator({ user, onLogout }: { user: User | null; onLogout: () 
       />
 
       <Tab.Screen
-        name="Xarita"
-        component={MapScreen}
+        name="Alif24"
+        component={Alif24Screen}
         options={{
-          tabBarIcon: ({ color, size }) => <MapPin size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Globe size={size} color={color} />,
         }}
       />
 

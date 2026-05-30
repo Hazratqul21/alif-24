@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,11 +11,15 @@ import {
   ActivityIndicator,
   RefreshControl,
   SafeAreaView,
-  Linking
+  Linking,
+  Modal,
+  Alert
 } from 'react-native';
+import MapView, { Marker, Callout } from 'react-native-maps';
 import { theme } from '../theme/theme';
-import apiService, { Book, User } from '../services/api';
-import { Search, Filter, BookOpen, AlertTriangle, ChevronRight, Bell, ShoppingCart, MessageSquare, Plus, Heart, Star, MapPin } from 'lucide-react-native';
+import apiService, { Book, User, Store } from '../services/api';
+import { Search, Filter, BookOpen, ArrowUpDown, ChevronRight, Bell, ShoppingCart, MessageSquare, Plus, Heart, Star, MapPin, Store as StoreIcon, Library, LocateFixed } from 'lucide-react-native';
+import * as Location from 'expo-location';
 import { useCart } from '../store/cartStore';
 
 interface HomeScreenProps {
@@ -25,53 +29,86 @@ interface HomeScreenProps {
 }
 
 export default function HomeScreen({ navigation, user, tabType }: HomeScreenProps) {
+  const [viewMode, setViewMode] = useState<'books' | 'stores' | 'map'>('books');
   const [books, setBooks] = useState<Book[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const mapRef = useRef<MapView>(null);
   const [activeType, setActiveType] = useState<'all' | 'rent' | 'free' | 'sell'>('all');
-  const [stats, setStats] = useState({ total: 0, activeLends: 0, overdue: 0 });
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [activeSort, setActiveSort] = useState('newest');
+  const [activeGenre, setActiveGenre] = useState('');
+  const [selectedMapItem, setSelectedMapItem] = useState<{ type: 'store'; data: any } | null>(null);
   const { items, add } = useCart();
 
-  const fetchBooks = async (isRefreshing = false) => {
+  const fetchData = async (isRefreshing = false) => {
     if (!isRefreshing) setLoading(true);
+    
+    let newBooks: Book[] = [];
+    let newStores: Store[] = [];
+    
     try {
       const data = await apiService.getBooks({
         search: search || undefined,
         type: activeType === 'all' ? undefined : activeType
       });
-      
-      // Filter based on tabType
-      const filteredData = data.filter(book => {
+      newBooks = data.filter(book => {
         const isStoreOwner = book.user?.role === 'store_owner';
         if (tabType === 'store') return isStoreOwner;
         if (tabType === 'user') return !isStoreOwner;
         return true;
       });
-
-      setBooks(filteredData);
     } catch (error) {
-      console.error('Error fetching books:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      console.log('Error fetching books:', error);
     }
+
+    try {
+      const stores = await apiService.getStores();
+      newStores = stores;
+    } catch (error) {
+      console.log('Error fetching stores:', error);
+    }
+    
+    setBooks(newBooks);
+    setStores(newStores);
+    setLoading(false);
+    setRefreshing(false);
   };
 
   useEffect(() => {
-    fetchBooks();
-    // Simulate or calculate simple dashboard stats
-    setStats({ total: 120, activeLends: 2, overdue: 1 });
-  }, [activeType]);
+    fetchData();
+  }, [activeType, viewMode]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchBooks(true);
+    fetchData(true);
+  };
+
+  const goToMyLocation = async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Xato', 'Xaritada joylashuvni aniqlash uchun ruxsat kerak.');
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      mapRef.current?.animateToRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 1000);
+    } catch (e) {
+      console.log('Location error:', e);
+    }
   };
 
   const handleSearchSubmit = () => {
     setLoading(true);
-    fetchBooks();
+    fetchData();
   };
 
   const renderBookItem = ({ item }: { item: Book }) => {
@@ -96,7 +133,7 @@ export default function HomeScreen({ navigation, user, tabType }: HomeScreenProp
           title: item.title,
           author: item.author || 'Noma\'lum muallif',
           price: item.price,
-          image: item.image || (Array.isArray(item.images) ? item.images[0] : item.images)
+          image: item.image || (Array.isArray(item.images) ? item.images[0] : item.images) || null
         });
       }
     };
@@ -193,168 +230,287 @@ export default function HomeScreen({ navigation, user, tabType }: HomeScreenProp
     );
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header Banner */}
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity onPress={() => Linking.openURL('https://alif24.uz')}>
-            <Image 
-              source={{ uri: 'https://alif24.uz/images/logo.png' }} 
-              style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: theme.colors.surface }} 
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-          <View>
-            <Text style={styles.welcomeText}>Assalomu alaykum,</Text>
-            <Text style={styles.userName}>{user ? (user.name?.split(' ')[0] || 'Foydalanuvchi') : 'Mehmon'}</Text>
+  const renderStoreItem = ({ item }: { item: Store }) => (
+    <TouchableOpacity 
+      style={styles.storeCard}
+      onPress={() => navigation.navigate('StoreDetail', { storeId: item.id })}
+    >
+      <View style={styles.storeCardHeader}>
+        {item.avatar ? (
+          <Image source={{ uri: apiService.getImageUrl(item.avatar) }} style={styles.storeAvatar} />
+        ) : (
+          <View style={styles.storeAvatarPlaceholder}>
+            <StoreIcon size={24} color={theme.colors.primary} />
+          </View>
+        )}
+        <View style={styles.storeInfoDetails}>
+          <Text style={styles.storeCardName} numberOfLines={1}>{item.name}</Text>
+          <View style={styles.locationContainer}>
+            <MapPin size={12} color={theme.colors.textMuted} />
+            <Text style={styles.locationText} numberOfLines={1}>{item.address}</Text>
           </View>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.headerIconBtn} 
-            onPress={() => {
-              if (!user) navigation.navigate('Login');
-              else navigation.navigate('Messages');
-            }}
-          >
-            <MessageSquare size={20} color={theme.colors.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerIconBtn}
-            onPress={() => {
-              if (!user) navigation.navigate('Login');
-              else navigation.navigate('Notifications');
-            }}
-          >
-            <Bell size={22} color={theme.colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Cart')} style={styles.headerIconBtn}>
-            <ShoppingCart size={22} color={theme.colors.text} />
-          </TouchableOpacity>
+      </View>
+      {item.description ? (
+        <Text style={styles.storeDescription} numberOfLines={2}>{item.description}</Text>
+      ) : null}
+    </TouchableOpacity>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Unified Absolute Header */}
+      <View style={styles.absoluteHeader}>
+        {/* Header Banner */}
+        <View style={styles.headerBannerContent}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity onPress={() => Linking.openURL('https://alif24.uz')}>
+              <Image 
+                source={{ uri: 'https://alif24.uz/images/logo.png' }} 
+                style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: theme.colors.surface }} 
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+            <View>
+              <Text style={styles.welcomeText}>Assalomu alaykum,</Text>
+              <Text style={styles.userName}>{user ? (user.name?.split(' ')[0] || 'Foydalanuvchi') : 'Mehmon'}</Text>
+            </View>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerIconBtn} onPress={() => { if (!user) navigation.navigate('Login'); else navigation.navigate('Messages'); }}>
+              <MessageSquare size={20} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIconBtn} onPress={() => { if (!user) navigation.navigate('Login'); else navigation.navigate('Notifications'); }}>
+              <Bell size={22} color={theme.colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Cart')} style={styles.headerIconBtn}>
+              <ShoppingCart size={22} color={theme.colors.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Search and Tabs */}
+        <View style={styles.searchAndTabsContent}>
+          <View style={styles.navRow1}>
+            <View style={styles.searchContainer}>
+              <Search size={18} color={theme.colors.textMuted} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Qidiruv..."
+                value={search}
+                onChangeText={setSearch}
+                onSubmitEditing={handleSearchSubmit}
+                placeholderTextColor={theme.colors.textMuted}
+              />
+            </View>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => setSortModalVisible(true)}>
+              <ArrowUpDown size={18} color={theme.colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => setFilterModalVisible(true)}>
+              <Filter size={18} color={theme.colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.navRow2}>
+            <TouchableOpacity 
+              style={[styles.navTab, viewMode === 'books' && styles.navTabActive]} 
+              onPress={() => setViewMode('books')}
+            >
+              <Text style={viewMode === 'books' ? styles.navTabTextActive : styles.navTabText}>Ro'yxat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.navTab, viewMode === 'stores' && styles.navTabActive]} 
+              onPress={() => setViewMode('stores')}
+            >
+              <Text style={viewMode === 'stores' ? styles.navTabTextActive : styles.navTabText}>Do'kon</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.navTab, viewMode === 'map' && styles.navTabActive]} 
+              onPress={() => setViewMode('map')}
+            >
+              <Text style={viewMode === 'map' ? styles.navTabTextActive : styles.navTabText}>Xarita</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Overdue alert banner if necessary */}
-        {stats.overdue > 0 && (
-          <View style={styles.alertBanner}>
-            <AlertTriangle size={20} color={theme.colors.danger} />
-            <Text style={styles.alertText}>
-              Diqqat! Qaytarish muddati o'tgan kitobingiz bor.
-            </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Profil')}>
-              <Text style={styles.alertAction}>Ko'rish</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Search Bar */}
-        <View style={styles.searchSection}>
-          <View style={styles.searchContainer}>
-            <Search size={20} color={theme.colors.textMuted} style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Kitoblar, mualliflar yoki janrlar..."
-              value={search}
-              onChangeText={setSearch}
-              onSubmitEditing={handleSearchSubmit}
-              placeholderTextColor={theme.colors.textMuted}
-            />
-          </View>
-          <TouchableOpacity style={styles.filterBtn} onPress={handleSearchSubmit}>
-            <Filter size={20} color={theme.colors.surface} />
+      {viewMode === 'map' ? (
+        <View style={styles.mapContainer}>
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={{
+              latitude: 41.311081,
+              longitude: 69.240562,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            }}
+            showsUserLocation={true}
+          >
+            {stores.map((store) => {
+              const lat = store.lat || 41.311081 + (Math.random() - 0.5) * 0.02;
+              const lng = store.lng || 69.240562 + (Math.random() - 0.5) * 0.02;
+              return (
+                <Marker
+                  key={`store-${store.id}`}
+                  coordinate={{ latitude: lat, longitude: lng }}
+                  pinColor={theme.colors.secondary}
+                  onPress={() => setSelectedMapItem({ type: 'store', data: store })}
+                >
+                  <Callout tooltip>
+                    <View style={styles.calloutCard}>
+                      <Text style={styles.calloutTitle}>{store.name}</Text>
+                      <Text style={styles.calloutSub}>Do'kon</Text>
+                    </View>
+                  </Callout>
+                </Marker>
+              );
+            })}
+          </MapView>
+          
+          <TouchableOpacity style={styles.locateBtn} onPress={goToMyLocation}>
+            <LocateFixed size={24} color={theme.colors.primary} />
           </TouchableOpacity>
-        </View>
-
-        {/* Filter Quick Pills */}
-        <View style={styles.filterRow}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
-            {[
-              { id: 'all', label: 'Barchasi' },
-              { id: 'rent', label: 'Ijaraga' },
-              { id: 'free', label: 'Tekinga' },
-              { id: 'sell', label: 'Sotiladigan' },
-            ].map((pill) => (
+          
+          {selectedMapItem && (
+            <View style={styles.detailCardOverlay}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardBadge}>
+                  <StoreIcon size={16} color={theme.colors.secondary} />
+                  <Text style={[styles.badgeText, { color: theme.colors.secondary }]}>Do'kon</Text>
+                </View>
+                <TouchableOpacity onPress={() => setSelectedMapItem(null)}>
+                  <Text style={styles.closeText}>Yopish</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.cardTitle}>{selectedMapItem.data.name}</Text>
+              <Text style={styles.cardSubText}>{selectedMapItem.data.address}</Text>
               <TouchableOpacity
-                key={pill.id}
-                style={[
-                  styles.pill,
-                  activeType === pill.id && styles.pillActive
-                ]}
-                onPress={() => setActiveType(pill.id as any)}
+                style={styles.viewBtn}
+                onPress={() => navigation.navigate('StoreDetail', { storeId: selectedMapItem.data.id })}
               >
-                <Text style={[
-                  styles.pillText,
-                  activeType === pill.id && styles.pillTextActive
-                ]}>
-                  {pill.label}
-                </Text>
+                <Text style={styles.viewBtnText}>Batafsil ko'rish</Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Stats Grid Dashboard Card */}
-        <View style={styles.statsCard}>
-          <Text style={styles.statsHeader}>Mahallada kitob almashinuvi</Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNum}>{stats.total}</Text>
-              <Text style={styles.statLabel}>Jami kitoblar</Text>
             </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statNum, { color: theme.colors.info }]}>{stats.activeLends}</Text>
-              <Text style={styles.statLabel}>O'qilmoqda</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statNum, { color: theme.colors.danger }]}>{stats.overdue}</Text>
-              <Text style={styles.statLabel}>Muddati o'tgan</Text>
-            </View>
-          </View>
+          )}
         </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerStyle={{ paddingTop: 200, paddingBottom: 100 }}
+        >
 
-        {/* Books List Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>E'lonlar ro'yxati</Text>
-          <TouchableOpacity style={styles.viewAllBtn} onPress={fetchBooks}>
-            <Text style={styles.viewAllText}>Barchasi</Text>
-            <ChevronRight size={16} color={theme.colors.secondary} />
-          </TouchableOpacity>
-        </View>
+          {viewMode === 'books' && (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>E'lonlar ro'yxati</Text>
+              <TouchableOpacity style={styles.viewAllBtn} onPress={() => fetchData()}>
+                <Text style={styles.viewAllText}>Barchasi</Text>
+                <ChevronRight size={16} color={theme.colors.secondary} />
+              </TouchableOpacity>
+            </View>
+          )}
 
-        {loading ? (
-          <ActivityIndicator size="large" color={theme.colors.primary} style={styles.loader} />
-        ) : books.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Kitoblar topilmadi.</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={books}
-            renderItem={renderBookItem}
-            keyExtractor={(item) => item.id.toString()}
-            numColumns={2}
-            scrollEnabled={false}
-            columnWrapperStyle={styles.rowWrapper}
-            contentContainerStyle={styles.listContainer}
-          />
-        )}
-      </ScrollView>
+          {loading ? (
+            <ActivityIndicator size="large" color={theme.colors.primary} style={styles.loader} />
+          ) : viewMode === 'books' ? (
+            books.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Kitoblar topilmadi.</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={books}
+                renderItem={renderBookItem}
+                keyExtractor={(item) => item.id.toString()}
+                numColumns={2}
+                scrollEnabled={false}
+                columnWrapperStyle={styles.rowWrapper}
+                contentContainerStyle={styles.listContainer}
+              />
+            )
+          ) : (
+            stores.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Do'konlar topilmadi.</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={stores
+                  .filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
+                  .sort((a, b) => {
+                    if (user && a.ownerId === user.id) return -1;
+                    if (user && b.ownerId === user.id) return 1;
+                    return 0;
+                  })
+                }
+                renderItem={renderStoreItem}
+                keyExtractor={(item) => item.id.toString()}
+                scrollEnabled={false}
+                contentContainerStyle={styles.listContainer}
+              />
+            )
+          )}
+        </ScrollView>
+      )}
 
       {/* Floating Action Button for adding a book */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => {
-          if (!user) navigation.navigate('Login');
-          else navigation.navigate('BookNew');
-        }}
-      >
-        <Plus size={24} color="#fff" />
-      </TouchableOpacity>
+      {user?.role === 'store_owner' && (
+        <TouchableOpacity 
+          style={styles.fab} 
+          onPress={() => navigation.navigate('BookNew')}
+        >
+          <Plus size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* Sort Modal */}
+      <Modal visible={sortModalVisible} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setSortModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Saralash</Text>
+            {[
+              { id: 'price_asc', label: 'Arzondan qimmatga' },
+              { id: 'price_desc', label: 'Qimmatdan arzonga' },
+              { id: 'newest', label: 'Yangi qo\'shilganlar' },
+              { id: 'top_rated', label: 'Yuqori reytingli' },
+              { id: 'popular', label: 'Ko\'p buyurtma qilingan' },
+            ].map(item => (
+              <TouchableOpacity 
+                key={item.id} 
+                style={styles.modalOption}
+                onPress={() => { setActiveSort(item.id); setSortModalVisible(false); fetchData(); }}
+              >
+                <Text style={[styles.modalOptionText, activeSort === item.id && styles.modalOptionActive]}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Filter Modal */}
+      <Modal visible={filterModalVisible} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setFilterModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Janr bo'yicha</Text>
+            {[
+              { id: '', label: 'Barcha janrlar' },
+              { id: 'badiiy', label: 'Badiiy adabiyot' },
+              { id: 'jahon', label: 'Jahon adabiyoti' },
+              { id: 'diniy', label: 'Diniy adabiyot' },
+              { id: 'biznes', label: 'Biznes va psixologiya' },
+            ].map(item => (
+              <TouchableOpacity 
+                key={item.id} 
+                style={styles.modalOption}
+                onPress={() => { setActiveGenre(item.id); setFilterModalVisible(false); fetchData(); }}
+              >
+                <Text style={[styles.modalOptionText, activeGenre === item.id && styles.modalOptionActive]}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -363,154 +519,106 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    
   },
-  header: {
-    height: 90,
+  absoluteHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 30,
+    backgroundColor: theme.colors.surface,
+    zIndex: 100,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderWarm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  headerBannerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderWarm,
   },
-  welcomeText: {
-    fontSize: theme.typography.sizes.xs,
-    color: theme.colors.textMuted,
-    paddingTop: 30,
+  searchAndTabsContent: {
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
   },
-  userName: {
-    fontSize: theme.typography.sizes.lg,
-    fontWeight: theme.typography.weights.bold,
-    color: theme.colors.text,
-    
-  },
-  headerActions: {
-    paddingTop: 30,
-    flexDirection: 'row',
-    gap: 12,
-  },
-  headerIconBtn: {
-    padding: 4,
-  },
-  alertBanner: {
+  navRow1: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    margin: theme.spacing.md,
-    padding: theme.spacing.md,
-    borderRadius: theme.roundness.md,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-  },
-  alertText: {
-    flex: 1,
-    fontSize: theme.typography.sizes.xs,
-    color: theme.colors.danger,
-    marginLeft: theme.spacing.sm,
-    fontWeight: theme.typography.weights.semibold,
-  },
-  alertAction: {
-    fontSize: theme.typography.sizes.xs,
-    color: theme.colors.info,
-    fontWeight: theme.typography.weights.bold,
-    marginLeft: theme.spacing.sm,
-  },
-  searchSection: {
-    flexDirection: 'row',
-    paddingHorizontal: theme.spacing.md,
-    marginTop: theme.spacing.md,
+    gap: 8,
+    marginBottom: 12,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderWarm,
-    borderRadius: theme.roundness.md,
-    paddingHorizontal: theme.spacing.sm,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 40,
   },
   searchIcon: {
-    marginRight: theme.spacing.xs,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: 44,
+    height: 40,
     color: theme.colors.text,
+    fontSize: 13,
   },
-  filterBtn: {
-    backgroundColor: theme.colors.primary,
-    padding: theme.spacing.sm,
-    borderRadius: theme.roundness.md,
-    marginLeft: theme.spacing.sm,
-    justifyContent: 'center',
+  iconBtn: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
     alignItems: 'center',
-    width: 44,
-    height: 44,
+    justifyContent: 'center',
   },
-  filterRow: {
-    marginVertical: theme.spacing.md,
-  },
-  pillsScroll: {
-    paddingHorizontal: theme.spacing.md,
-  },
-  pill: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderWarm,
-    borderRadius: theme.roundness.full,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    marginRight: theme.spacing.sm,
-  },
-  pillActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  pillText: {
-    color: theme.colors.text,
-    fontSize: theme.typography.sizes.sm,
-    fontWeight: theme.typography.weights.medium,
-  },
-  pillTextActive: {
-    color: theme.colors.surface,
-  },
-  statsCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.roundness.lg,
-    padding: theme.spacing.md,
-    marginHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderWarm,
-  },
-  statsHeader: {
-    fontSize: theme.typography.sizes.sm,
-    fontWeight: theme.typography.weights.semibold,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.md,
-    textAlign: 'center',
-  },
-  statsRow: {
+  navRow2: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 8,
   },
-  statBox: {
+  navTab: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
   },
-  statNum: {
-    fontSize: theme.typography.sizes.xl,
-    fontWeight: theme.typography.weights.bold,
-    color: theme.colors.secondary,
+  navTabActive: {
+    backgroundColor: theme.colors.primary,
   },
-  statLabel: {
-    fontSize: 11,
+  navTabText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: theme.colors.textMuted,
-    marginTop: 2,
+  },
+  navTabTextActive: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  welcomeText: {
+    fontSize: 10,
+    color: theme.colors.textMuted,
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  headerIconBtn: {
+    padding: 4,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -755,5 +863,200 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
+  },
+  storeCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderWarm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  storeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  storeAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: theme.colors.background,
+  },
+  storeAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storeInfoDetails: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  storeCardName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginLeft: 4,
+    flex: 1,
+  },
+  storeDescription: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    marginTop: 12,
+    lineHeight: 18,
+  },
+  mapContainer: {
+    flex: 1,
+    paddingTop: 180,
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+    marginTop: 180,
+  },
+  calloutCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 8,
+    borderWidth: 2,
+    borderColor: theme.colors.secondary,
+    width: 150,
+  },
+  calloutTitle: {
+    fontWeight: 'bold',
+    fontSize: 12,
+    color: theme.colors.text,
+  },
+  calloutSub: {
+    fontSize: 10,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
+  detailCardOverlay: {
+    position: 'absolute',
+    bottom: 100,
+    left: 16,
+    right: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: theme.colors.borderWarm,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  cardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  closeText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    fontWeight: '600',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+  },
+  cardSubText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+    marginBottom: 16,
+  },
+  viewBtn: {
+    height: 40,
+    backgroundColor: theme.colors.secondary,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewBtnText: {
+    color: theme.colors.surface,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    minHeight: 300,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+  modalOption: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  modalOptionText: {
+    fontSize: 15,
+    color: '#475569',
+    fontWeight: '500',
+  },
+  modalOptionActive: {
+    color: '#F59E0B',
+    fontWeight: '700',
+  },
+  locateBtn: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 10,
   },
 });

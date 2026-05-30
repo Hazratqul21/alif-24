@@ -33,7 +33,7 @@ export interface User {
   lat?: number;
   lng?: number;
   address?: string;
-  role: 'user' | 'admin';
+  role?: 'user' | 'admin' | 'store_owner' | 'library';
   readerId?: string;
 }
 
@@ -58,6 +58,7 @@ export interface Book {
   user?: {
     name: string;
     phone: string;
+    role?: string;
   };
 }
 
@@ -107,7 +108,7 @@ export const apiService = {
     return response.data;
   },
 
-  async register(data: { name: string; email: string; passwordHash: string; phone: string }) {
+  async register(data: { name: string; email: string; passwordHash: string; phone: string; role?: string }) {
     const response = await apiClient.post<{ token: string; user: User }>('/auth/register', {
       name: data.name,
       email: data.email,
@@ -294,11 +295,6 @@ export const apiService = {
     return response.data;
   },
 
-  async createBook(data: any) {
-    const response = await apiClient.post<any>('/books', data);
-    return response.data;
-  },
-
   async updateUserCategory(userId: number, data: { category?: string; isBlacklisted?: boolean }) {
     const response = await apiClient.patch<any>(`/users/${userId}/category`, data);
     return response.data;
@@ -349,11 +345,6 @@ export const apiService = {
   // Invoices endpoints
   async getInvoices(storeId: number) {
     const response = await apiClient.get<any[]>(`/invoices/store/${storeId}`);
-    return response.data;
-  },
-
-  async createInvoice(storeId: number, data: any) {
-    const response = await apiClient.post(`/invoices`, { storeId, ...data });
     return response.data;
   },
 

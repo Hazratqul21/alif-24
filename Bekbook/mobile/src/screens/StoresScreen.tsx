@@ -76,7 +76,7 @@ export default function StoresScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Kutubxonalar</Text>
-          <Text style={styles.subtitle}>Yaqinidagi kitob do'konlari</Text>
+          <Text style={styles.subtitle}>Yaqinidagi kutubxonalar va kitob do'konlari</Text>
         </View>
         <TouchableOpacity 
           style={styles.addButton}

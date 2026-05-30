@@ -42,7 +42,7 @@ export default function MapScreen({ navigation }: { navigation: any }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Atrofdagi Kitoblar Xaritasi</Text>
+        <Text style={styles.headerTitle}>Atrofdagi Do'konlar Xaritasi</Text>
       </View>
 
       {loading ? (
@@ -57,26 +57,6 @@ export default function MapScreen({ navigation }: { navigation: any }) {
             initialRegion={DEFAULT_REGION}
             showsUserLocation={true}
           >
-            {/* Book Markers */}
-            {nearbyBooks.map((book) => {
-              const lat = book.lat || DEFAULT_REGION.latitude + (Math.random() - 0.5) * 0.02;
-              const lng = book.lng || DEFAULT_REGION.longitude + (Math.random() - 0.5) * 0.02;
-              return (
-                <Marker
-                  key={`book-${book.id}`}
-                  coordinate={{ latitude: lat, longitude: lng }}
-                  pinColor={theme.colors.primary}
-                  onPress={() => setSelectedItem({ type: 'book', data: book })}
-                >
-                  <Callout tooltip>
-                    <View style={styles.calloutCard}>
-                      <Text style={styles.calloutTitle}>{book.title}</Text>
-                      <Text style={styles.calloutSub}>{book.author}</Text>
-                    </View>
-                  </Callout>
-                </Marker>
-              );
-            })}
 
             {/* Store/Library Markers */}
             {nearbyStores.map((store) => {
@@ -92,7 +72,7 @@ export default function MapScreen({ navigation }: { navigation: any }) {
                   <Callout tooltip>
                     <View style={[styles.calloutCard, { borderColor: theme.colors.secondary }]}>
                       <Text style={styles.calloutTitle}>{store.name}</Text>
-                      <Text style={styles.calloutSub}>Kutubxona / Do'kon</Text>
+                      <Text style={styles.calloutSub}>Do'kon</Text>
                     </View>
                   </Callout>
                 </Marker>
@@ -112,9 +92,9 @@ export default function MapScreen({ navigation }: { navigation: any }) {
                   )}
                   <Text style={[
                     styles.badgeText,
-                    { color: selectedItem.type === 'book' ? theme.colors.primary : theme.colors.secondary }
+                    { color: theme.colors.secondary }
                   ]}>
-                    {selectedItem.type === 'book' ? 'Kitob' : 'Kutubxona'}
+                    Do'kon
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => setSelectedItem(null)}>

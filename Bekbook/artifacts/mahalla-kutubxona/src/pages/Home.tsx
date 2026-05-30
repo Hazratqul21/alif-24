@@ -43,12 +43,13 @@ export default function Home() {
   const [location, setLocation] = useLocation();
   const { isAuthenticated, token } = useAuth();
 
-  // ========== reactive url search query parameter ==========
   const [search, setSearch] = useState("");
+  const [tabMode, setTabMode] = useState<"store" | "user">("store");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSearch(params.get("search") || "");
+    setTabMode(params.get("tab") === "user" ? "user" : "store");
   }, [location, window.location.search]);
 
   // ========== LOCAL STATE FILTERS (instant, no URL roundtrip) ==========
@@ -131,9 +132,18 @@ export default function Home() {
     setLocation("/");
   }, [setLocation]);
 
-  // Client-side price filtering (avoids network refetches for minor price adjust)
+  // Client-side price & tab filtering
   const booksToRender = useMemo(() => {
     let books = booksData?.books ?? [];
+    
+    // Filter by store owner vs normal user
+    books = books.filter(b => {
+      const isStoreOwner = (b as any).user?.role === 'store_owner';
+      if (tabMode === 'store') return isStoreOwner;
+      if (tabMode === 'user') return !isStoreOwner;
+      return true;
+    });
+
     if (appliedMinPrice) {
       books = books.filter(b => b.price != null && b.price >= parseFloat(appliedMinPrice));
     }
@@ -141,7 +151,7 @@ export default function Home() {
       books = books.filter(b => b.price != null && b.price <= parseFloat(appliedMaxPrice));
     }
     return books;
-  }, [booksData, appliedMinPrice, appliedMaxPrice]);
+  }, [booksData, appliedMinPrice, appliedMaxPrice, tabMode]);
 
   // popular shelves (mock bestseller filter)
   const bestsellerBooks = useMemo(() => {
@@ -502,7 +512,10 @@ export default function Home() {
             <div className="bg-white border border-slate-50 p-3 sm:p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shadow-sm">
               <div>
                 <h2 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2 flex-wrap">
-                  <span>{genre ? `Janr: ${genre}` : "Kitoblar katalogi"}</span>
+                  <span>
+                    {tabMode === "user" ? "Ikkinchi qo'l (Foydalanuvchilar)" : "Do'konlar kitoblari"}
+                    {genre ? ` / ${genre}` : ""}
+                  </span>
                   {search && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-700 text-[10px] font-black rounded-lg uppercase tracking-wide">
                       Qidiruv: "{search}"

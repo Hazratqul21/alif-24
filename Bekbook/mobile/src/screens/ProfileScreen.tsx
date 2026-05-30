@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { theme } from '../theme/theme';
 import apiService, { Transaction, Book, User } from '../services/api';
-import { User as UserIcon, LogOut, Award, CheckCircle, FileText, CreditCard, Shield, BarChart2 } from 'lucide-react-native';
+import { User as UserIcon, LogOut, Award, CheckCircle, FileText, CreditCard, Shield, BarChart2, Settings } from 'lucide-react-native';
 
 interface ProfileScreenProps {
   user: User | null;
@@ -25,6 +25,23 @@ export default function ProfileScreen({ navigation, user, onLogout }: ProfileScr
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [favorites, setFavorites] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const fetchUserCategory = async () => {
+    if (!user || (user.role as string) !== 'store_owner') return;
+    try {
+      if (activeTab === 'lends') {
+        const data = await apiService.getTransactions();
+        setTransactions(data);
+      } else {
+        const data = await apiService.getFavorites();
+        setFavorites(data || []);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchProfileData = async () => {
     if (!user) return;
@@ -68,7 +85,7 @@ export default function ProfileScreen({ navigation, user, onLogout }: ProfileScr
   }
 
   const isAdmin = user.role === 'admin';
-  const isStoreOwner = user.role === 'store_owner';
+  const isStoreOwner = (user.role as string) === 'store_owner';
 
   const handleReturn = async (transactionId: number) => {
     Alert.alert(
@@ -159,10 +176,34 @@ export default function ProfileScreen({ navigation, user, onLogout }: ProfileScr
           </View>
           <Text style={styles.profileName}>{user?.name || 'Foydalanuvchi'}</Text>
           <Text style={styles.profileEmail}>{user?.email || 'email@example.com'}</Text>
+
+          <View style={{ paddingHorizontal: 16, width: '100%' }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', marginVertical: 8 }}>Asosiy menyu</Text>
+            
+            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}>
+              <UserIcon size={20} color="#64748B" />
+              <Text style={{ marginLeft: 12, fontSize: 14 }}>Shaxsiy ma'lumotlar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}>
+              <Award size={20} color="#64748B" />
+              <Text style={{ marginLeft: 12, fontSize: 14 }}>Sodiqlik dasturi (Achievments)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}>
+              <CreditCard size={20} color="#64748B" />
+              <Text style={{ marginLeft: 12, fontSize: 14 }}>To'lovlar va Chegirmalar</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}>
+              <Settings size={20} color="#64748B" />
+              <Text style={{ marginLeft: 12, fontSize: 14 }}>Sozlamalar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Menyular</Text>
+          <Text style={styles.sectionTitle}>Admin menyular</Text>
           {isAdmin && (
             <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Admin')}>
               <Shield size={20} color={theme.colors.primary} />
@@ -260,6 +301,29 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text,
+  },
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 16,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderWarm,
+  },
+  menuText: {
+    fontSize: 16,
+    color: theme.colors.text,
+    marginLeft: 12,
+    flex: 1,
   },
   logoutBtn: {
     paddingTop: 30,
