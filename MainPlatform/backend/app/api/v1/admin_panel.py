@@ -2369,3 +2369,47 @@ async def delete_promo_code(
     await db.commit()
 
     return {"message": "Promocode o'chirildi", "promo_id": promo_id}
+
+
+# ============================================================================
+# BOOKSTORE MODERATION
+# ============================================================================
+
+from sqlalchemy import text
+
+@router.get("/stores/pending")
+async def list_pending_stores(
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Pending holatidagi kitob do'konlari va kutubxonalarni olish"""
+    query = text("SELECT id, name, description, address, phone, inn, type, status, owner_id FROM stores WHERE status = 'pending' ORDER BY created_at DESC")
+    result = await db.execute(query)
+    stores = [dict(row) for row in result.mappings().all()]
+    return {"stores": stores}
+
+
+@router.post("/stores/{store_id}/approve")
+async def approve_store(
+    store_id: int,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Do'konni tasdiqlash"""
+    query = text("UPDATE stores SET status = 'approved' WHERE id = :id")
+    await db.execute(query, {"id": store_id})
+    await db.commit()
+    return {"message": "Do'kon tasdiqlandi", "store_id": store_id}
+
+
+@router.post("/stores/{store_id}/reject")
+async def reject_store(
+    store_id: int,
+    admin: Dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Do'konni rad etish"""
+    query = text("UPDATE stores SET status = 'rejected' WHERE id = :id")
+    await db.execute(query, {"id": store_id})
+    await db.commit()
+    return {"message": "Do'kon rad etildi", "store_id": store_id}

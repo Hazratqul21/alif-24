@@ -788,6 +788,7 @@ export const CreateStoreBody = zod.object({
   lng: zod.number(),
   phone: zod.string().optional(),
   openHours: zod.string().optional(),
+  inn: zod.string(),
   avatar: zod.string().optional(),
   type: zod.enum(["library", "bookstore"]).optional(),
   subscriptionPrice: zod.number().optional(),

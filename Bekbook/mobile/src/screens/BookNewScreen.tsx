@@ -351,7 +351,7 @@ export default function BookNewScreen({ navigation, user }: BookNewScreenProps) 
             placeholderTextColor={theme.colors.textMuted}
           />
 
-          <Text style={styles.label}>Manzil</Text>
+          <Text style={styles.label}>Manzil *</Text>
           <View style={styles.locationRow}>
             <TextInput 
               style={[styles.input, { flex: 1, marginBottom: 0 }]}
@@ -362,10 +362,15 @@ export default function BookNewScreen({ navigation, user }: BookNewScreenProps) 
             />
             <TouchableOpacity 
               style={[styles.gpsBtn, form.lat ? styles.gpsBtnActive : null]}
-              onPress={getLocation}
-              disabled={gettingLocation}
+              onPress={() => navigation.navigate('MapPicker', {
+                initialLat: form.lat ? parseFloat(form.lat) : null,
+                initialLng: form.lng ? parseFloat(form.lng) : null,
+                onSelect: (coords: { lat: number, lng: number }) => {
+                  setForm({ ...form, lat: String(coords.lat), lng: String(coords.lng) });
+                }
+              })}
             >
-              {gettingLocation ? <ActivityIndicator size="small" color={theme.colors.primary} /> : <MapPin size={20} color={form.lat ? theme.colors.primary : theme.colors.textMuted} />}
+              <MapPin size={20} color={form.lat ? theme.colors.primary : theme.colors.textMuted} />
             </TouchableOpacity>
           </View>
 

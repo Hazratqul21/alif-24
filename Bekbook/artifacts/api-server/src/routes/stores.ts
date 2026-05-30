@@ -32,7 +32,7 @@ router.get("/", async (req, res) => {
   const lng = req.query.lng ? parseFloat(req.query.lng as string) : undefined;
   const radius = req.query.radius ? parseFloat(req.query.radius as string) : undefined;
 
-  let stores = await db.select().from(storesTable).orderBy(desc(storesTable.createdAt));
+  let stores = await db.select().from(storesTable).where(eq(storesTable.status, "approved")).orderBy(desc(storesTable.createdAt));
   if (search) stores = stores.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
   if (lat !== undefined && lng !== undefined && radius !== undefined) {
     stores = stores.filter(s => {
@@ -70,6 +70,8 @@ router.post("/", requireAuth, async (req, res) => {
       avatar: parsed.data.avatar || null,
       type: parsed.data.type || "library",
       subscriptionPrice: parsed.data.subscriptionPrice || 0,
+      inn: parsed.data.inn,
+      status: "pending",
       pendingBalance: 0,
       withdrawableBalance: 0,
       ownerId: String(req.user!.userId),
@@ -871,6 +873,7 @@ router.post("/:storeId/books/from-catalog", requireAuth, async (req, res) => {
   const [store] = await db.select().from(storesTable).where(eq(storesTable.id, storeId)).limit(1);
   if (!store) { res.status(404).json({ error: "Not Found" }); return; }
   if (store.ownerId !== String(req.user!.userId)) { res.status(403).json({ error: "Forbidden" }); return; }
+  if (store.status !== "approved") { res.status(403).json({ error: "Do'koningiz hali adminlar tomonidan tasdiqlanmagan" }); return; }
 
   const { catalogIds, type = "rent", price = 0, stock = 1 } = req.body;
   if (!catalogIds || !Array.isArray(catalogIds) || catalogIds.length === 0) {
@@ -905,6 +908,7 @@ router.post("/:storeId/books", requireAuth, async (req, res) => {
   const [store] = await db.select().from(storesTable).where(eq(storesTable.id, storeId)).limit(1);
   if (!store) { res.status(404).json({ error: "Not Found" }); return; }
   if (store.ownerId !== String(req.user!.userId)) { res.status(403).json({ error: "Forbidden" }); return; }
+  if (store.status !== "approved") { res.status(403).json({ error: "Do'koningiz hali adminlar tomonidan tasdiqlanmagan" }); return; }
   const parsed = AddStoreBookBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Validation error" }); return; }
   const [book] = await db.insert(storeBooksTable).values({ ...parsed.data, storeId }).returning();

@@ -12,6 +12,8 @@ export const storesTable = pgTable("stores", {
   lng: real("lng").notNull(),
   phone: text("phone"),
   openHours: text("open_hours"),
+  inn: varchar("inn", { length: 20 }).default(""),
+  status: text("status").notNull().default("pending"),
   avatar: text("avatar"),
   ownerId: varchar("owner_id", { length: 8 }).notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   type: text("type").notNull().default("library"), // "library" | "bookstore"

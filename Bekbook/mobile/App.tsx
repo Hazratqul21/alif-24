@@ -14,6 +14,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import BookDetailScreen from './src/screens/BookDetailScreen';
 import ScanScreen from './src/screens/ScanScreen';
 import MapScreen from './src/screens/MapScreen';
+import MapPickerScreen from './src/screens/MapPickerScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import StoresScreen from './src/screens/StoresScreen';
 import StoreDetailScreen from './src/screens/StoreDetailScreen';
@@ -166,6 +167,7 @@ export default function App() {
           <Stack.Screen name="BookDetail" component={BookDetailScreen} />
           <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
           <Stack.Screen name="StoreNew" component={StoreNewScreen} />
+          <Stack.Screen name="MapPicker" component={MapPickerScreen} />
           <Stack.Screen name="StoreCatalogNew" component={StoreCatalogNewScreen} />
           <Stack.Screen name="StoreReaders" component={StoreReadersScreen} />
           <Stack.Screen name="Admin" component={AdminScreen} />

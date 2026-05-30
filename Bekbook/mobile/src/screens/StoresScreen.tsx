@@ -78,13 +78,6 @@ export default function StoresScreen() {
           <Text style={styles.title}>Kutubxonalar</Text>
           <Text style={styles.subtitle}>Yaqinidagi kutubxonalar va kitob do'konlari</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => navigation.navigate('StoreNew')}
-        >
-          <Plus size={16} color="#fff" />
-          <Text style={styles.addButtonText}>Qo'shish</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>

@@ -5,6 +5,17 @@ import { useCreateBook, getListBooksQueryKey, getGetMyBooksQueryKey } from "@wor
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth, getToken } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+// Fix for leaflet default icon
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png"
+});
 
 const TYPES = [
   { value: "sell", label: "Sotiladi", desc: "Narxini belgilang" },
@@ -51,7 +62,20 @@ export default function BookNew() {
   const [images, setImages] = useState<ImageSlot[]>([]);
   const [error, setError] = useState("");
   const [gettingLocation, setGettingLocation] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [tempLat, setTempLat] = useState<number | null>(null);
+  const [tempLng, setTempLng] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function MapEvents() {
+    useMapEvents({
+      click(e) {
+        setTempLat(e.latlng.lat);
+        setTempLng(e.latlng.lng);
+      }
+    });
+    return null;
+  }
 
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [quotaLoading, setQuotaLoading] = useState(false);
@@ -84,10 +108,12 @@ export default function BookNew() {
 
   function getMyLocation() {
     if (!navigator.geolocation) return;
-    setGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      pos => { setForm(f => ({ ...f, lat: String(pos.coords.latitude), lng: String(pos.coords.longitude) })); setGettingLocation(false); },
-      () => setGettingLocation(false)
+      pos => { 
+        setTempLat(pos.coords.latitude);
+        setTempLng(pos.coords.longitude); 
+      },
+      () => {}
     );
   }
 
@@ -381,18 +407,22 @@ export default function BookNew() {
 
           {/* Address + GPS */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Manzil</label>
+            <label className="block text-sm font-medium mb-1.5">Manzil va Joylashuv xaritada *</label>
             <div className="flex gap-2">
-              <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+              <input required value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
                 className="flex-1 px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 placeholder="Ko'cha, mahalla..." />
-              <button type="button" onClick={getMyLocation} disabled={gettingLocation}
+              <button type="button" onClick={() => {
+                  setTempLat(form.lat ? parseFloat(form.lat) : 41.3111);
+                  setTempLng(form.lng ? parseFloat(form.lng) : 69.2401);
+                  setShowMap(true);
+                }}
                 className="flex items-center gap-1.5 px-3 py-2.5 border border-border rounded-xl text-sm text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-50">
-                {gettingLocation ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
-                {form.lat ? "OK" : "GPS"}
+                <MapPin className="w-4 h-4" />
+                {form.lat ? "Belgilangan" : "Xaritadan tanlash"}
               </button>
             </div>
-            {form.lat && <p className="text-xs text-teal-600 mt-1">Joylashuv aniqlandi</p>}
+            {form.lat && <p className="text-xs text-teal-600 mt-1">Joylashuv aniqlandi: {parseFloat(form.lat).toFixed(4)}, {parseFloat(form.lng).toFixed(4)}</p>}
           </div>
 
           <button type="submit" disabled={isPending || images.some(s => s.uploading)}
@@ -470,6 +500,47 @@ export default function BookNew() {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {showMap && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-background w-full max-w-lg rounded-2xl overflow-hidden flex flex-col h-[70vh]">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="font-bold text-lg">Joylashuvni tanlang</h3>
+              <button type="button" onClick={() => setShowMap(false)} className="text-muted-foreground hover:text-foreground">X</button>
+            </div>
+            <div className="p-2 border-b">
+               <button type="button" onClick={getMyLocation} className="w-full flex items-center justify-center gap-2 py-2 bg-slate-100 rounded-lg text-sm hover:bg-slate-200 transition-colors">
+                  <MapPin className="w-4 h-4" /> Hozirgi joylashuvimni aniqlash
+               </button>
+            </div>
+            <div className="flex-1 relative">
+              <MapContainer 
+                center={[tempLat || 41.3111, tempLng || 69.2401]} 
+                zoom={12} 
+                style={{ height: '100%', width: '100%', zIndex: 0 }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {tempLat && tempLng && (
+                  <Marker position={[tempLat, tempLng]} />
+                )}
+                <MapEvents />
+              </MapContainer>
+            </div>
+            <div className="p-4 border-t flex justify-end gap-3">
+              <button type="button" onClick={() => setShowMap(false)} className="px-4 py-2 border rounded-xl text-sm">Bekor qilish</button>
+              <button type="button" onClick={() => {
+                if (tempLat && tempLng) {
+                  setForm(f => ({ ...f, lat: String(tempLat), lng: String(tempLng) }));
+                  setShowMap(false);
+                }
+              }} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold">Saqlash</button>
+            </div>
           </div>
         </div>
       )}

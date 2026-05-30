@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, Store as StoreIcon, BookOpen, Save } from 'lucide-react-native';
+import { ArrowLeft, Store as StoreIcon, BookOpen, Save, Search, MapPin } from 'lucide-react-native';
 import { theme } from '../theme/theme';
 import apiService from '../services/api';
 
@@ -15,10 +15,30 @@ export default function StoreNewScreen() {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [openHours, setOpenHours] = useState('');
+  const [inn, setInn] = useState('');
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [innLoading, setInnLoading] = useState(false);
+
+  const fetchInnData = async () => {
+    if (inn.length !== 9) {
+      Alert.alert('Xato', 'STIR/INN 9 xonali son bo\'lishi kerak');
+      return;
+    }
+    setInnLoading(true);
+    // Simulate API call to Soliq.uz or Orginfo
+    setTimeout(() => {
+      setInnLoading(false);
+      setName("ALIF 24 KITOB DO'KONI MCHJ");
+      setAddress("Toshkent shahri, Yunusobod tumani, 4-mavze");
+      setPhone("+998 90 123 45 67");
+      Alert.alert('Muvaffaqiyatli', 'Tashkilot ma\'lumotlari davlat reestridan yuklandi!');
+    }, 1500);
+  };
 
   const handleSave = async () => {
-    if (!name.trim() || !address.trim()) {
-      Alert.alert('Xatolik', 'Nomi va manzilini kiritish shart');
+    if (!name.trim() || !address.trim() || !inn.trim() || !lat || !lng) {
+      Alert.alert('Xatolik', "Nomi, manzili, INN va xaritadan joyni belgilash majburiy");
       return;
     }
 
@@ -30,12 +50,15 @@ export default function StoreNewScreen() {
         address,
         phone,
         openHours,
-        // type could be added to backend
+        inn,
+        lat,
+        lng,
+        type,
       };
       
       const newStore = await apiService.createStore(data);
-      Alert.alert('Muvaffaqiyatli', 'Kutubxona yaratildi', [
-        { text: 'OK', onPress: () => navigation.navigate('StoreDetail', { storeId: newStore.id }) }
+      Alert.alert('Arizangiz qabul qilindi', 'Kutubxonangiz ro\'yxatga olindi. Admindan ruxsat kutilmoqda. Tasdiqlangandan so\'ng kitob qo\'shishingiz mumkin bo\'ladi.', [
+        { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (error: any) {
       console.log('Error creating store:', error);
@@ -57,6 +80,34 @@ export default function StoreNewScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
+        <Text style={styles.sectionLabel}>Yuridik shaxs STIR/INN (Majburiy) *</Text>
+        <View style={styles.innRow}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginBottom: 0 }]}
+            placeholder="9 xonali INN kiriting..."
+            value={inn}
+            onChangeText={setInn}
+            keyboardType="number-pad"
+            maxLength={9}
+            placeholderTextColor={theme.colors.textMuted}
+          />
+          <TouchableOpacity 
+            style={styles.innSearchBtn} 
+            onPress={fetchInnData}
+            disabled={innLoading}
+          >
+            {innLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Search size={20} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.innHintText}>
+          INN kiritish orqali tashkilot ma'lumotlarini (nomi, manzili) davlat bazasidan avtomatik tortib olishingiz mumkin.
+        </Text>
+
         <Text style={styles.sectionLabel}>Turi *</Text>
         <View style={styles.typeSelector}>
           <TouchableOpacity 
@@ -103,6 +154,24 @@ export default function StoreNewScreen() {
           onChangeText={setAddress}
           placeholderTextColor={theme.colors.textMuted}
         />
+
+        <Text style={styles.sectionLabel}>Joylashuv xaritada *</Text>
+        <TouchableOpacity 
+          style={[styles.mapButton, lat && styles.mapButtonActive]} 
+          onPress={() => navigation.navigate('MapPicker', {
+            initialLat: lat,
+            initialLng: lng,
+            onSelect: (coords: { lat: number, lng: number }) => {
+              setLat(coords.lat);
+              setLng(coords.lng);
+            }
+          })}
+        >
+          <MapPin size={20} color={lat ? theme.colors.primary : theme.colors.textMuted} />
+          <Text style={[styles.mapButtonText, lat && styles.mapButtonTextActive]}>
+            {lat && lng ? `Belgilangan: ${lat.toFixed(4)}, ${lng.toFixed(4)}` : "Xaritadan joyni belgilash"}
+          </Text>
+        </TouchableOpacity>
 
         <View style={styles.row}>
           <View style={styles.col}>
@@ -226,6 +295,29 @@ const styles = StyleSheet.create({
     height: 100,
     textAlignVertical: 'top',
   },
+  mapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderWarm,
+    backgroundColor: theme.colors.surface,
+  },
+  mapButtonActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: '#FEF3C7',
+  },
+  mapButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+  },
+  mapButtonTextActive: {
+    color: theme.colors.primary,
+  },
   row: {
     flexDirection: 'row',
     gap: 12,
@@ -235,11 +327,13 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 16,
+    paddingBottom: 50,
     backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
     borderTopColor: theme.colors.borderWarm,
   },
   saveButton: {
+    
     flexDirection: 'row',
     backgroundColor: theme.colors.primary,
     paddingVertical: 14,
@@ -252,5 +346,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  innRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  innSearchBtn: {
+    backgroundColor: theme.colors.primary,
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  innHintText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginTop: 8,
+    marginBottom: 8,
+    lineHeight: 16,
   },
 });

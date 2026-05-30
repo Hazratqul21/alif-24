@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { theme } from '../theme/theme';
 import apiService, { Transaction, Book, User } from '../services/api';
-import { User as UserIcon, LogOut, Award, CheckCircle, FileText, CreditCard, Shield, BarChart2, Settings } from 'lucide-react-native';
+import { User as UserIcon, LogOut, Award, CheckCircle, FileText, CreditCard, Shield, BarChart2, Settings, Plus } from 'lucide-react-native';
 
 interface ProfileScreenProps {
   user: User | null;
@@ -183,6 +183,14 @@ export default function ProfileScreen({ navigation, user, onLogout }: ProfileScr
             <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}>
               <UserIcon size={20} color="#64748B" />
               <Text style={{ marginLeft: 12, fontSize: 14 }}>Shaxsiy ma'lumotlar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}
+              onPress={() => navigation.navigate('StoreNew')}
+            >
+              <Plus size={20} color="#64748B" />
+              <Text style={{ marginLeft: 12, fontSize: 14 }}>Kutubxona / Do'kon qo'shish</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}>

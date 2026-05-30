@@ -283,6 +283,7 @@ export interface CreateStoreBody {
   lng: number;
   phone?: string;
   openHours?: string;
+  inn: string;
   avatar?: string;
   type?: CreateStoreBodyType;
   subscriptionPrice?: number;

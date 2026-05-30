@@ -10,11 +10,11 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
   Linking,
   Modal,
   Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Callout } from 'react-native-maps';
 import { theme } from '../theme/theme';
 import apiService, { Book, User, Store } from '../services/api';
@@ -82,28 +82,21 @@ export default function HomeScreen({ navigation, user, tabType }: HomeScreenProp
     fetchData();
   }, [activeType, viewMode]);
 
+  useEffect(() => {
+    if (viewMode === 'map') {
+      (async () => {
+        try {
+          await Location.requestForegroundPermissionsAsync();
+        } catch (e) {
+          console.log('Permission request error:', e);
+        }
+      })();
+    }
+  }, [viewMode]);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchData(true);
-  };
-
-  const goToMyLocation = async () => {
-    try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Xato', 'Xaritada joylashuvni aniqlash uchun ruxsat kerak.');
-        return;
-      }
-      let location = await Location.getCurrentPositionAsync({});
-      mapRef.current?.animateToRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }, 1000);
-    } catch (e) {
-      console.log('Location error:', e);
-    }
   };
 
   const handleSearchSubmit = () => {
@@ -258,7 +251,7 @@ export default function HomeScreen({ navigation, user, tabType }: HomeScreenProp
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Unified Absolute Header */}
       <View style={styles.absoluteHeader}>
         {/* Header Banner */}
@@ -367,10 +360,6 @@ export default function HomeScreen({ navigation, user, tabType }: HomeScreenProp
               );
             })}
           </MapView>
-          
-          <TouchableOpacity style={styles.locateBtn} onPress={goToMyLocation}>
-            <LocateFixed size={24} color={theme.colors.primary} />
-          </TouchableOpacity>
           
           {selectedMapItem && (
             <View style={styles.detailCardOverlay}>
@@ -1044,12 +1033,12 @@ const styles = StyleSheet.create({
   },
   locateBtn: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 110,
     right: 24,
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#fff',
+    backgroundColor: '#bebeb2ff',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
