@@ -248,6 +248,15 @@ async def list_direct_lessons(
                 "title": l.title,
                 "subject": l.subject,
                 "grade_level": l.grade_level,
+                "language": l.language,
+                "video_url": l.video_url,
+                "attachments": l.attachments,
+                "created_at": l.created_at.isoformat() if l.created_at else None,
+                "updated_at": l.updated_at.isoformat() if l.updated_at else None,
+            }
+            for l in lessons
+        ]
+    }
 
 # ============================================================================
 # BOOKS CATALOG MANAGEMENT
@@ -384,15 +393,6 @@ async def delete_books_catalog(
         raise HTTPException(status_code=404, detail="Kitob topilmadi")
         
     return {"success": True}
-                "language": l.language,
-                "video_url": l.video_url,
-                "attachments": l.attachments,
-                "created_at": l.created_at.isoformat() if l.created_at else None,
-                "updated_at": l.updated_at.isoformat() if l.updated_at else None,
-            }
-            for l in lessons
-        ]
-    }
 
 
 @router.get("/direct/lessons/{lesson_id}")
