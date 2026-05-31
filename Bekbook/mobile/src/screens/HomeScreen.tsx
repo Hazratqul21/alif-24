@@ -311,12 +311,27 @@ export default function HomeScreen({ navigation, user, tabType }: HomeScreenProp
             >
               <Text style={viewMode === 'books' ? styles.navTabTextActive : styles.navTabText}>Ro'yxat</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.navTab, viewMode === 'stores' && styles.navTabActive]} 
-              onPress={() => setViewMode('stores')}
-            >
-              <Text style={viewMode === 'stores' ? styles.navTabTextActive : styles.navTabText}>Do'kon</Text>
-            </TouchableOpacity>
+
+            {tabType === 'store' ? (
+              <TouchableOpacity 
+                style={[styles.navTab, viewMode === 'stores' && styles.navTabActive]} 
+                onPress={() => setViewMode('stores')}
+              >
+                <Text style={viewMode === 'stores' ? styles.navTabTextActive : styles.navTabText}>Do'kon</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                style={[styles.navTab, { backgroundColor: theme.colors.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 }]} 
+                onPress={() => {
+                  if (!user) navigation.navigate('Login');
+                  else navigation.navigate('BookNew');
+                }}
+              >
+                <Plus size={14} color="#FFF" />
+                <Text style={styles.navTabTextActive}>E'lon berish</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity 
               style={[styles.navTab, viewMode === 'map' && styles.navTabActive]} 
               onPress={() => setViewMode('map')}
