@@ -287,16 +287,30 @@ export default function Navbar() {
       <div className="border-t border-slate-50 bg-slate-50/50 hidden md:block">
         <div className="max-w-6xl mx-auto px-4 h-11 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            {sublinks.map(({ href, label, icon: Icon }) => (
-              <Link key={href} href={href}
-                className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all tracking-wide",
-                  (location === href || (href !== "/" && location.startsWith(href)))
-                    ? "bg-amber-500/10 text-amber-700"
-                    : "text-slate-600 hover:text-amber-600 hover:bg-white")}>
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-              </Link>
-            ))}
+            {sublinks.map(({ href, label, icon: Icon }) => {
+              const isUserTab = href === "/?tab=user";
+              const isMainTab = href === "/";
+              let isActive = false;
+              
+              if (isUserTab) {
+                isActive = location === "/" && window.location.search.includes("tab=user");
+              } else if (isMainTab) {
+                isActive = location === "/" && !window.location.search.includes("tab=user");
+              } else {
+                isActive = location === href || (href !== "/" && location.startsWith(href));
+              }
+
+              return (
+                <Link key={href} href={href}
+                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all tracking-wide",
+                    isActive
+                      ? "bg-amber-500/10 text-amber-700"
+                      : "text-slate-600 hover:text-amber-600 hover:bg-white")}>
+                  <Icon className="w-3.5 h-3.5" />
+                  {label}
+                </Link>
+              );
+            })}
             <a href="https://alif24.uz" target="_blank" rel="noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-amber-600 hover:bg-amber-50/50 transition-all tracking-wide border border-transparent hover:border-amber-100">
               <img src="https://alif24.uz/images/logo.png" className="h-4 w-auto object-contain rounded-sm" />
@@ -333,12 +347,26 @@ export default function Navbar() {
 
           <div className="h-px bg-slate-100" />
 
-          {sublinks.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors",
-              location === href ? "bg-amber-500/10 text-amber-700 font-bold" : "text-slate-600 hover:text-amber-600 hover:bg-muted")}>
-              <Icon className="w-4 h-4" />{label}
-            </Link>
-          ))}
+          {sublinks.map(({ href, label, icon: Icon }) => {
+            const isUserTab = href === "/?tab=user";
+            const isMainTab = href === "/";
+            let isActive = false;
+            
+            if (isUserTab) {
+              isActive = location === "/" && window.location.search.includes("tab=user");
+            } else if (isMainTab) {
+              isActive = location === "/" && !window.location.search.includes("tab=user");
+            } else {
+              isActive = location === href || (href !== "/" && location.startsWith(href));
+            }
+
+            return (
+              <Link key={href} href={href} className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors",
+                isActive ? "bg-amber-500/10 text-amber-700 font-bold" : "text-slate-600 hover:text-amber-600 hover:bg-muted")}>
+                <Icon className="w-4 h-4" />{label}
+              </Link>
+            );
+          })}
           <a href="https://alif24.uz" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-amber-600 hover:bg-amber-50/50 transition-colors">
             <img src="https://alif24.uz/images/logo.png" className="h-4 w-auto object-contain rounded-sm" /> Alif24.uz
           </a>
