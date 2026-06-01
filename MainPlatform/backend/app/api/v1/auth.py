@@ -1254,6 +1254,7 @@ async def list_children(
     )
     children = result.scalars().all()
     
+    from shared.database.models.reading_rating import ReadingRating
     data = []
     for child in children:
         c_dict = child.to_dict()
@@ -1264,6 +1265,20 @@ async def list_children(
                 "total_coins": child.student_profile.total_coins,
                 "current_streak": child.student_profile.current_streak,
             }
+        
+        # Add reading stats
+        reading_res = await db.execute(
+            select(ReadingRating).where(
+                ReadingRating.student_id == child.id,
+                ReadingRating.period == 'all_time'
+            )
+        )
+        reading_rating = reading_res.scalars().first()
+        c_dict["reading_stats"] = {
+            "total_books": reading_rating.total_books if reading_rating else 0,
+            "total_score": reading_rating.total_score if reading_rating else 0,
+            "rating": reading_rating.rating if reading_rating else 0,
+        }
         data.append(c_dict)
 
     return {
@@ -1298,6 +1313,21 @@ async def get_child_details(
             "total_lessons": child.student_profile.total_lessons_completed,
             "average_score": child.student_profile.average_score
         }
+        
+    from shared.database.models.reading_rating import ReadingRating
+    reading_res = await db.execute(
+        select(ReadingRating).where(
+            ReadingRating.student_id == child.id,
+            ReadingRating.period == 'all_time'
+        )
+    )
+    reading_rating = reading_res.scalars().first()
+    c_dict["reading_stats"] = {
+        "total_books": reading_rating.total_books if reading_rating else 0,
+        "total_score": reading_rating.total_score if reading_rating else 0,
+        "rating": reading_rating.rating if reading_rating else 0,
+    }
+        
     return {"success": True, "data": c_dict}
 
 

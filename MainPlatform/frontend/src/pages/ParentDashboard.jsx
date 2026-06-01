@@ -355,6 +355,24 @@ const ParentDashboard = () => {
                             </div>
                         </div>
 
+                        {child.reading_stats && (
+                            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-6 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                                        <BookOpen size={20} />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wider">Kitobxonlik</p>
+                                        <p className="text-sm font-bold text-gray-800">{child.reading_stats.total_books} ta kitob o'qilgan</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-blue-600 font-semibold uppercase tracking-wider">Umumiy ball</p>
+                                    <p className="text-lg font-black text-blue-700">{child.reading_stats.total_score}</p>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex gap-3">
                             <button
                                 onClick={async () => {
