@@ -62,6 +62,9 @@ class TeacherBookCreate(BaseModel):
     image_url: Optional[str] = None
     questions: Optional[List[Dict[str, str]]] = None
     test: Optional[List[Dict[str, Any]]] = None
+    is_premium: bool = False
+    questions_limit: Optional[int] = 3
+    test_limit: Optional[int] = None
 
 class TeacherBookUpdate(BaseModel):
     title: Optional[str] = None
@@ -72,6 +75,9 @@ class TeacherBookUpdate(BaseModel):
     image_url: Optional[str] = None
     questions: Optional[List[Dict[str, str]]] = None
     test: Optional[List[Dict[str, Any]]] = None
+    is_premium: Optional[bool] = None
+    questions_limit: Optional[int] = None
+    test_limit: Optional[int] = None
 
 async def get_teacher_profile_local(user: User, db: AsyncSession) -> TeacherProfile:
     if user.role != UserRole.teacher:
@@ -789,6 +795,9 @@ async def create_teacher_book(
         image_url=data.image_url,
         questions=data.questions or [],
         test=data.test or [],
+        is_premium=data.is_premium,
+        questions_limit=data.questions_limit,
+        test_limit=data.test_limit,
         teacher_id=profile.id
     )
     db.add(book)
@@ -817,6 +826,9 @@ async def update_teacher_book(
     if data.image_url is not None: book.image_url = data.image_url
     if data.questions is not None: book.questions = data.questions
     if data.test is not None: book.test = data.test
+    if data.is_premium is not None: book.is_premium = data.is_premium
+    if data.questions_limit is not None: book.questions_limit = data.questions_limit
+    if data.test_limit is not None: book.test_limit = data.test_limit
         
     await db.commit()
     return {"success": True, "message": "Kitob yangilandi", "data": book.to_dict()}

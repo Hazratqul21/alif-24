@@ -280,7 +280,7 @@ function QuizModal({ book, onClose, readingStats = {} }) {
                 test_score: finalTestScore !== null ? finalTestScore : 0
             };
 
-            await apiService.post(`/kitoblar/${book.id}/complete`, payload);
+            await apiService.post(`/books/${book.id}/complete`, payload);
         } catch (e) {
             console.error("Natijani saqlashda xatolik:", e);
         } finally {
@@ -1038,7 +1038,7 @@ export default function KitoblarPage({ lang = 'uz' }) {
         const loadBooks = async () => {
             try {
                 setLoading(true);
-                const res = await apiService.get('/kitoblar', { language: lang });
+                const res = await apiService.get('/books', { language: lang });
                 const list = res.data?.books || res.data || [];
                 setBooks(list);
             } catch (err) {

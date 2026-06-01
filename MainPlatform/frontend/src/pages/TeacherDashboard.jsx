@@ -99,7 +99,10 @@ const TeacherDashboard = () => {
   const [teacherBooks, setTeacherBooks] = useState([]);
   const [activeKitoblarTab, setActiveKitoblarTab] = useState('books'); // 'books' or 'ertaklar'
   const [showCreateBookModal, setShowCreateBookModal] = useState(false);
-  const [bookForm, setBookForm] = useState({ title: '', description: '', language: 'uz', age_group: 'Barchasi' });
+  const [bookForm, setBookForm] = useState({ title: '', description: '', language: 'uz', age_group: 'Barchasi', is_premium: false, questions_limit: 3, test_limit: '' });
+  const [bookTest, setBookTest] = useState([]);
+  const [bulkQuestionsText, setBulkQuestionsText] = useState('');
+  const [bulkTestsText, setBulkTestsText] = useState('');
   const [bookQuestions, setBookQuestions] = useState([]);
   const [bookPdfFile, setBookPdfFile] = useState(null);
   const [bookImageFile, setBookImageFile] = useState(null);
