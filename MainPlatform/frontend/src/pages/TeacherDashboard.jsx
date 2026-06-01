@@ -96,6 +96,13 @@ const TeacherDashboard = () => {
 
   // Ertaklar states
   const [ertaklar, setErtaklar] = useState([]);
+  const [teacherBooks, setTeacherBooks] = useState([]);
+  const [activeKitoblarTab, setActiveKitoblarTab] = useState('books'); // 'books' or 'ertaklar'
+  const [showCreateBookModal, setShowCreateBookModal] = useState(false);
+  const [bookForm, setBookForm] = useState({ title: '', description: '', language: 'uz', age_group: 'Barchasi' });
+  const [bookQuestions, setBookQuestions] = useState([]);
+  const [bookPdfFile, setBookPdfFile] = useState(null);
+  const [bookImageFile, setBookImageFile] = useState(null);
   const [ertakForm, setErtakForm] = useState({ title: '', content: '', language: 'uz', age_group: 'Barchasi' });
   const [ertakQuestions, setErtakQuestions] = useState([]);
   const [editErtak, setEditErtak] = useState(null);
@@ -183,6 +190,13 @@ const TeacherDashboard = () => {
     } catch (e) { console.error('Ertaklar fetch error:', e); }
   }, []);
 
+  const fetchTeacherBooks = useCallback(async () => {
+    try {
+      const res = await teacherService.getTeacherBooks();
+      setTeacherBooks(res.data || []);
+    } catch (e) { console.error('Books fetch error:', e); }
+  }, []);
+
   const fetchMyStudents = useCallback(async () => {
     try {
       const res = await teacherService.getTeacherStudents();
@@ -202,11 +216,12 @@ const TeacherDashboard = () => {
     fetchAssignments();
     fetchLessons();
     fetchErtaklar();
+    fetchTeacherBooks();
     fetchUnread();
     fetchMyStudents();
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
-  }, [fetchClassrooms, fetchAssignments, fetchLessons, fetchErtaklar, fetchUnread, fetchMyStudents]);
+  }, [fetchClassrooms, fetchAssignments, fetchLessons, fetchErtaklar, fetchTeacherBooks, fetchUnread, fetchMyStudents]);
 
   useEffect(() => {
     if (activeTab === 'school' && !mySchool) {
@@ -591,6 +606,7 @@ const TeacherDashboard = () => {
       setUploadFile(null);
       setUploadImage(null);
       fetchErtaklar();
+    fetchTeacherBooks();
     } catch (err) {
       setError(err.message || 'Xatolik');
       showNotif('error', err.message || 'Xatolik');
@@ -634,6 +650,7 @@ const TeacherDashboard = () => {
       setUploadFile(null);
       setUploadImage(null);
       fetchErtaklar();
+    fetchTeacherBooks();
     } catch (err) {
       setError(err.message || 'Xatolik');
       showNotif('error', err.message || 'Xatolik');
@@ -648,6 +665,7 @@ const TeacherDashboard = () => {
       await teacherService.deleteErtak(id);
       showNotif('success', "Kitob o'chirildi");
       fetchErtaklar();
+    fetchTeacherBooks();
     } catch (e) { showNotif('error', e.message || 'Xatolik'); }
   };
 

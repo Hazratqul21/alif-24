@@ -206,6 +206,23 @@ class TeacherService {
         return apiService.delete(`/teachers/stories/${id}`);
     }
 
+    // Teacher Books (Kitoblar) API
+    async getTeacherBooks() {
+        return apiService.get('/teachers/books');
+    }
+
+    async createTeacherBook(data) {
+        return apiService.post('/teachers/books', data);
+    }
+
+    async updateTeacherBook(id, data) {
+        return apiService.put(`/teachers/books/${id}`, data);
+    }
+
+    async deleteTeacherBook(id) {
+        return apiService.delete(`/teachers/books/${id}`);
+    }
+
     // TestAI Integration
     async parseTextTest(text) {
         return apiService.post('/testai/parse/text', { text });

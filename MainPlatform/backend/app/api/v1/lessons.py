@@ -53,6 +53,26 @@ class StoryUpdate(BaseModel):
     questions: Optional[List[Dict[str, str]]] = None
     test: Optional[List[Dict[str, Any]]] = None
 
+class TeacherBookCreate(BaseModel):
+    title: str = Field(..., min_length=2, max_length=200)
+    description: Optional[str] = None
+    language: Optional[str] = "uz"
+    age_group: Optional[str] = "Barchasi"
+    pdf_url: Optional[str] = None
+    image_url: Optional[str] = None
+    questions: Optional[List[Dict[str, str]]] = None
+    test: Optional[List[Dict[str, Any]]] = None
+
+class TeacherBookUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    language: Optional[str] = None
+    age_group: Optional[str] = None
+    pdf_url: Optional[str] = None
+    image_url: Optional[str] = None
+    questions: Optional[List[Dict[str, str]]] = None
+    test: Optional[List[Dict[str, Any]]] = None
+
 async def get_teacher_profile_local(user: User, db: AsyncSession) -> TeacherProfile:
     if user.role != UserRole.teacher:
         raise HTTPException(status_code=403, detail="Faqat o'qituvchilar ruxsatga ega")
@@ -740,4 +760,79 @@ async def get_public_book(
         "data": book.to_dict()
     }
 
+# ============================================================
+# TEACHER BOOKS (PDF KITOB YARATISH)
+# ============================================================
 
+@router.get("/teachers/books")
+async def get_teacher_books(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = await get_teacher_profile_local(current_user, db)
+    res = await db.execute(select(Book).where(Book.teacher_id == profile.id).order_by(desc(Book.created_at)))
+    return {"success": True, "data": [b.to_dict() for b in res.scalars().all()]}
+
+@router.post("/teachers/books")
+async def create_teacher_book(
+    data: TeacherBookCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = await get_teacher_profile_local(current_user, db)
+    book = Book(
+        title=data.title,
+        description=data.description,
+        language=data.language,
+        age_group=data.age_group,
+        pdf_url=data.pdf_url,
+        image_url=data.image_url,
+        questions=data.questions or [],
+        test=data.test or [],
+        teacher_id=profile.id
+    )
+    db.add(book)
+    await db.commit()
+    await db.refresh(book)
+    return {"success": True, "message": "Kitob yaratildi", "data": book.to_dict()}
+
+@router.put("/teachers/books/{book_id}")
+async def update_teacher_book(
+    book_id: str,
+    data: TeacherBookUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = await get_teacher_profile_local(current_user, db)
+    res = await db.execute(select(Book).where(Book.id == book_id, Book.teacher_id == profile.id))
+    book = res.scalars().first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+    
+    if data.title is not None: book.title = data.title
+    if data.description is not None: book.description = data.description
+    if data.language is not None: book.language = data.language
+    if data.age_group is not None: book.age_group = data.age_group
+    if data.pdf_url is not None: book.pdf_url = data.pdf_url
+    if data.image_url is not None: book.image_url = data.image_url
+    if data.questions is not None: book.questions = data.questions
+    if data.test is not None: book.test = data.test
+        
+    await db.commit()
+    return {"success": True, "message": "Kitob yangilandi", "data": book.to_dict()}
+
+@router.delete("/teachers/books/{book_id}")
+async def delete_teacher_book(
+    book_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = await get_teacher_profile_local(current_user, db)
+    res = await db.execute(select(Book).where(Book.id == book_id, Book.teacher_id == profile.id))
+    book = res.scalars().first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Kitob topilmadi")
+        
+    await db.delete(book)
+    await db.commit()
+    return {"success": True, "message": "Kitob o'chirildi"}

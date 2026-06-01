@@ -149,17 +149,18 @@ class RatingService:
         period_keys = get_period_keys()
         p_key = period_keys[period]
         
-        stmt = select(ReadingRating, User).join(
-            User, ReadingRating.student_id == User.id
-        ).where(
+        stmt = select(User, ReadingRating).select_from(User).outerjoin(
+            ReadingRating,
             and_(
+                ReadingRating.student_id == User.id,
                 ReadingRating.period == period,
-                ReadingRating.period_key == p_key,
-                ReadingRating.total_books > 0
+                ReadingRating.period_key == p_key
             )
+        ).where(
+            User.role == UserRole.student
         ).order_by(
-            desc(ReadingRating.total_score),
-            desc(ReadingRating.total_books)
+            desc(func.coalesce(ReadingRating.total_score, 0)),
+            desc(func.coalesce(ReadingRating.total_books, 0))
         )
         
         # total count
@@ -173,8 +174,15 @@ class RatingService:
         rows = result.all()
         
         leaderboard = []
-        for rating, user in rows:
-            data = rating.to_dict()
+        for user, rating in rows:
+            data = rating.to_dict() if rating else {
+                "id": None,
+                "student_id": user.id,
+                "period": period,
+                "period_key": p_key,
+                "total_books": 0,
+                "total_score": 0
+            }
             data["student"] = {
                 "id": user.id,
                 "first_name": user.first_name,
@@ -209,31 +217,35 @@ class RatingService:
                 "most_active_student": None
             }
             
-        stmt_ratings = select(ReadingRating, User).join(
-            User, ReadingRating.student_id == User.id
-        ).where(
+        stmt_ratings = select(User, ReadingRating).select_from(User).outerjoin(
+            ReadingRating,
             and_(
-                ReadingRating.student_id.in_(student_ids),
+                ReadingRating.student_id == User.id,
                 ReadingRating.period == period,
                 ReadingRating.period_key == p_key
             )
-        ).order_by(desc(ReadingRating.total_books), desc(ReadingRating.total_score))
+        ).where(
+            User.id.in_(student_ids)
+        ).order_by(
+            desc(func.coalesce(ReadingRating.total_score, 0)),
+            desc(func.coalesce(ReadingRating.total_books, 0))
+        )
         
         res_ratings = await self.db.execute(stmt_ratings)
         ratings = res_ratings.all()
         
         total_students = len(student_ids)
-        total_books = sum([r[0].total_books for r in ratings])
-        total_score = sum([r[0].total_score for r in ratings])
+        total_books = sum([r[1].total_books for r in ratings if r[1]])
+        total_score = sum([r[1].total_score for r in ratings if r[1]])
         
         active_student = None
-        if ratings and ratings[0][0].total_books > 0:
+        if ratings and ratings[0][1] and ratings[0][1].total_books > 0:
             active_student = {
-                "id": ratings[0][1].id,
-                "first_name": ratings[0][1].first_name,
-                "last_name": ratings[0][1].last_name,
-                "total_books": ratings[0][0].total_books,
-                "total_score": ratings[0][0].total_score
+                "id": ratings[0][0].id,
+                "first_name": ratings[0][0].first_name,
+                "last_name": ratings[0][0].last_name,
+                "total_books": ratings[0][1].total_books,
+                "total_score": ratings[0][1].total_score
             }
             
         return {
@@ -255,16 +267,17 @@ class RatingService:
         
         # Placeholder: just get overall stats for now. Real implementation would filter by org's students.
         stmt_agg = select(
-            func.count(ReadingRating.id),
-            func.sum(ReadingRating.total_books),
-            func.sum(ReadingRating.total_score)
-        ).where(
+            func.count(User.id),
+            func.sum(func.coalesce(ReadingRating.total_books, 0)),
+            func.sum(func.coalesce(ReadingRating.total_score, 0))
+        ).select_from(User).outerjoin(
+            ReadingRating,
             and_(
+                ReadingRating.student_id == User.id,
                 ReadingRating.period == period,
-                ReadingRating.period_key == p_key,
-                ReadingRating.total_books > 0
+                ReadingRating.period_key == p_key
             )
-        )
+        ).where(User.role == UserRole.student)
         
         res = await self.db.execute(stmt_agg)
         count, total_books, total_score = res.first()

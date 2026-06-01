@@ -617,6 +617,44 @@ function PDFReaderModal({ book, onClose, onFinished }) {
         ? currentPage === numPages
         : (currentPage === numPages || (currentPage + 1 >= numPages && currentPage > 1));
 
+    if (!book.pdf_url) {
+        return (
+            <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-[#060613]/80 backdrop-blur-sm p-4"
+            >
+                <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl w-full max-w-lg p-6 relative">
+                    <button onClick={onClose} className="absolute top-4 right-4 p-2 text-white/50 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                    <div className="flex flex-col items-center text-center space-y-4">
+                        {book.image_url ? (
+                            <img src={book.image_url.startsWith('http') ? book.image_url : \`https://api.alif24.uz\${book.image_url}\`} alt={book.title} className="w-32 h-48 object-cover rounded-xl shadow-lg border border-white/10" />
+                        ) : (
+                            <div className="w-32 h-48 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 rounded-xl flex items-center justify-center">
+                                <BookOpen className="w-12 h-12 text-white/20" />
+                            </div>
+                        )}
+                        <div>
+                            <h2 className="text-2xl font-bold text-white mb-2">{book.title}</h2>
+                            <p className="text-white/60 text-sm">{book.description}</p>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs font-medium text-white/40">
+                            <span className="px-3 py-1 bg-white/5 rounded-lg border border-white/5 uppercase tracking-wider">{book.language}</span>
+                            <span className="px-3 py-1 bg-white/5 rounded-lg border border-white/5">{book.age_group} yosh</span>
+                        </div>
+                        <div className="pt-4 w-full">
+                            <button onClick={() => { onClose(); if (book.test?.length > 0 || book.questions?.length > 0) onFinished(); }} 
+                                    className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold rounded-xl hover:scale-[1.02] transition-transform">
+                                {(book.test?.length > 0 || book.questions?.length > 0) ? "Testni Boshlash" : "Yopish"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
+
     return (
         <div className="fixed inset-0 z-50 bg-[#070714] text-white flex flex-col">
             {/* Header */}
