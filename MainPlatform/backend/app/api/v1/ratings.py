@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from shared.database import get_db
 from app.services.rating_service import RatingService
 from shared.database.models.reading_rating import RatingPeriod
 from shared.database.models.user import User
