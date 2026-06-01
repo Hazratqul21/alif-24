@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ArrowLeft, BookOpen, ChevronRight, ChevronLeft, RotateCcw, 
     ChevronDown, CheckCircle2, Trophy, ZoomIn, ZoomOut, X, 
-    Lock, Sparkles, HelpCircle, FileText, ArrowRight
+    Lock, Sparkles, HelpCircle, FileText, ArrowRight, Mic, MicOff
 } from 'lucide-react';
 import apiService from '../services/apiService';
 
@@ -263,6 +263,8 @@ function QuizModal({ book, onClose, readingStats = {} }) {
     const [scores, setScores] = useState([]);
     const [evaluating, setEvaluating] = useState(false);
     const [showFeedback, setShowFeedback] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef(null);
     
     const [testScore, setTestScore] = useState(null);
     const [submitting, setSubmitting] = useState(false);
@@ -293,6 +295,52 @@ function QuizModal({ book, onClose, readingStats = {} }) {
             submitResult(scores, testScore);
         }
     }, [step]);
+
+    const toggleListening = () => {
+        if (isListening) {
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
+            setIsListening(false);
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Kechirasiz, brauzeringiz ovozli kiritishni qo'llab-quvvatlamaydi.");
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = book.language === 'uz' ? 'uz-UZ' : book.language === 'ru' ? 'ru-RU' : 'en-US';
+        recognition.interimResults = true;
+        recognition.continuous = false;
+
+        recognition.onstart = () => {
+            setIsListening(true);
+            setAnswerText('');
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = Array.from(event.results)
+                .map(result => result[0])
+                .map(result => result.transcript)
+                .join('');
+            setAnswerText(transcript);
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error', event.error);
+            setIsListening(false);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+    };
 
     const evaluateText = async () => {
         if (!answerText.trim()) return;
@@ -405,13 +453,33 @@ function QuizModal({ book, onClose, readingStats = {} }) {
 
                         {!showFeedback ? (
                             <div className="flex flex-col gap-4">
-                                <textarea
-                                    value={answerText}
-                                    onChange={(e) => setAnswerText(e.target.value)}
-                                    placeholder="Javobingizni shu yerga batafsil yozing..."
-                                    rows={4}
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white placeholder-white/30 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-                                />
+                                <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 transition-colors relative min-h-[160px]">
+                                    <button
+                                        onClick={toggleListening}
+                                        className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${
+                                            isListening 
+                                                ? 'bg-red-500/20 text-red-500 border border-red-500/50 animate-pulse' 
+                                                : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30'
+                                        }`}
+                                    >
+                                        {isListening ? <MicOff className="w-8 h-8" /> : <Mic className="w-8 h-8" />}
+                                    </button>
+                                    
+                                    <div className="text-center w-full">
+                                        {isListening ? (
+                                            <p className="text-red-400 text-sm font-medium animate-pulse">Eshitilmoqda...</p>
+                                        ) : (
+                                            <p className="text-white/50 text-sm font-medium">
+                                                {answerText ? "Javob yozib olindi" : "Javob berish uchun mikrafonni bosing"}
+                                            </p>
+                                        )}
+                                        {answerText && (
+                                            <p className="text-white text-base mt-2 font-semibold bg-black/20 p-3 rounded-xl border border-white/5">
+                                                "{answerText}"
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
 
                                 {evaluating ? (
                                     <div className="flex flex-col items-center gap-2 py-4">
