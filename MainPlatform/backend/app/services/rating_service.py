@@ -115,7 +115,7 @@ class RatingService:
             stmt_rating = select(ReadingRating).where(
                 and_(
                     ReadingRating.student_id == student_id,
-                    ReadingRating.period == period,
+                    ReadingRating.period == period.value,
                     ReadingRating.period_key == p_key
                 )
             )
@@ -153,18 +153,18 @@ class RatingService:
             ReadingRating,
             and_(
                 ReadingRating.student_id == User.id,
-                ReadingRating.period == period,
+                ReadingRating.period == period.value,
                 ReadingRating.period_key == p_key
             )
         ).where(
-            User.role == UserRole.student
+            User.role == UserRole.student.value
         ).order_by(
             desc(func.coalesce(ReadingRating.total_score, 0)),
             desc(func.coalesce(ReadingRating.total_books, 0))
         )
         
         # total count
-        count_stmt = select(func.count(User.id)).where(User.role == UserRole.student)
+        count_stmt = select(func.count(User.id)).where(User.role == UserRole.student.value)
         total_res = await self.db.execute(count_stmt)
         total = total_res.scalar() or 0
         
@@ -178,10 +178,13 @@ class RatingService:
             data = rating.to_dict() if rating else {
                 "id": None,
                 "student_id": user.id,
-                "period": period,
+                "period": period.value,
                 "period_key": p_key,
                 "total_books": 0,
-                "total_score": 0
+                "total_score": 0,
+                "previous_score": 0,
+                "growth": 0,
+                "updated_at": None
             }
             data["student"] = {
                 "id": user.id,
@@ -221,7 +224,7 @@ class RatingService:
             ReadingRating,
             and_(
                 ReadingRating.student_id == User.id,
-                ReadingRating.period == period,
+                ReadingRating.period == period.value,
                 ReadingRating.period_key == p_key
             )
         ).where(
@@ -274,13 +277,17 @@ class RatingService:
             ReadingRating,
             and_(
                 ReadingRating.student_id == User.id,
-                ReadingRating.period == period,
+                ReadingRating.period == period.value,
                 ReadingRating.period_key == p_key
             )
-        ).where(User.role == UserRole.student)
+        ).where(User.role == UserRole.student.value)
         
         res = await self.db.execute(stmt_agg)
-        count, total_books, total_score = res.first()
+        row = res.first()
+        if not row:
+            count, total_books, total_score = 0, 0, 0
+        else:
+            count, total_books, total_score = row
         
         count = count or 0
         total_books = total_books or 0
