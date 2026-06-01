@@ -247,8 +247,9 @@ const StudentDashboard = () => {
         }
         if (activeTab === 'leaderboard' && readingLeaderboard.length === 0) {
             getStudentLeaderboard('all_time').then(res => {
-                setReadingLeaderboard(res.data || []);
-                const me = res.data?.find(r => r.student_id === authUser?.id);
+                setReadingLeaderboard(Array.isArray(res) ? res : res.data || []);
+                const list = Array.isArray(res) ? res : res.data || [];
+                const me = list.find(r => r.student_id === authUser?.id);
                 setMyReadingRank(me || null);
             }).catch(() => {});
         }

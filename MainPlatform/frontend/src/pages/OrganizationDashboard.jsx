@@ -155,7 +155,7 @@ const OrganizationDashboard = () => {
         try {
           // org auth user ID is used as organization_id
           const res = await getOrganizationDashboardStats(user?.id, 'all_time');
-          setReadingStats(res.data || null);
+          setReadingStats(res?.total_students !== undefined ? res : res.data || null);
         } catch (e) {
           console.error("Reading stats fetch error", e);
         } finally {

@@ -247,7 +247,7 @@ const TeacherDashboard = () => {
           // Let's pass user?.id as a fallback.
           const { getTeacherDashboardStats } = await import('../services/readingRatingService');
           const res = await getTeacherDashboardStats(user?.id, 'all_time');
-          setReadingStats(res.data || null);
+          setReadingStats(res?.total_students !== undefined ? res : res.data || null);
         } catch (e) {
           console.error("Reading stats fetch error", e);
         } finally {
