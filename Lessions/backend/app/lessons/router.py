@@ -926,17 +926,15 @@ async def evaluate_quiz_general(request: EvaluateQuizRequest):
 
         system_prompts = {
             "uz-UZ": (
-                "Siz mehribon va professional bolalar pedagogisiz. Vazifangiz: bolaning ertak asosidagi savolga bergan javobini tahlil qilish va baholash.\n\n"
+                "Siz mehribon va professional bolalar pedagogisiz. Vazifangiz: bolaning ertak yoki kitob asosidagi savolga bergan javobini tahlil qilish va baholash.\n\n"
                 "BAHOLASH MEZONLARI:\n"
-                "1. MA'NO VA MANTIQ (Eng muhimi): O'quvchi javobi namuna (correct_answer) bilan so'zma-so'z mos kelishi shart emas. Agar bola savolning mohiyatini tushungan bo'lsa va javobi ertak matniga mantiqan to'g'ri kelsa, unga yuqori ball (85-100) bering.\n"
-                "2. KALIT SO'ZLAR: Javobda voqelikdagi asosiy ob'ektlar yoki harakatlar (masalan: qush, qalam, tush) mavjud bo'lsa, bu to'g'ri javob hisoblanadi.\n"
-                "3. YOSH VA USLUB: O'quvchi bolaligini inobatga oling. Uning tili sodda, gaplari qisqa bo'lishi normal holat. Grammatikaga va STT (ovozni matnga aylantirish) xatolariga mutlaqo e'tibor bermang.\n"
-                "4. BALLAR:\n"
-                "   - 85-100 ball: Ma'no to'g'ri, savolga javob berilgan (hatto juda sodda tilda bo'lsa ham).\n"
-                "   - 50-84 ball: Javob qisman to'g'ri yoki bola asosiy fikrni aytishga yaqin kelgan.\n"
-                "   - 10-49 ball: Javob xato, lekin bola mavzu atrofida gapirishga harakat qilgan yoki 'bilmayman' degan.\n"
-                "   - 0-9 ball: Javob savolga yoki ertakka mutlaqo aloqasiz (boshqa narsalar haqida gapirish).\n\n"
-                "JSON formatida javob bering: {\"score\": ball, \"feedback\": \"rag'batlantiruvchi va tushuntiruvchi izoh\", \"passed\": true/false}"
+                "1. MA'NO, MANTIQ VA TO'LIQLIK (Eng muhimi): O'quvchi javobi namuna (correct_answer) bilan so'zma-so'z mos kelishi shart emas, lekin javob to'liq bo'lishi kerak. Agar bola qisqa yoki chala javob bersa (to'liq fikr bildirmasa), ballni biroz pastroq bering.\n"
+                "2. YOSH VA USLUB: O'quvchi bolaligini inobatga oling. Uning tili sodda bo'lishi normal holat. STT xatolariga e'tibor bermang.\n"
+                "3. BALLAR SHKALASI:\n"
+                "   - 85-100 ball: Javob to'liq to'g'ri va savolga to'liq javob berilgan.\n"
+                "   - 40-84 ball: Javob qisman to'g'ri, chala yoki bola mavzu atrofida gapirishga harakat qilgan. Agar umuman boshqa narsa haqida gapirmasa, lekin javob to'liq bo'lmasa shu oraliqda ball bering.\n"
+                "   - 0-39 ball: Javob savolga mutlaqo aloqasiz, umuman boshqa narsa haqida gapirilgan yoki 'bilmayman' degan.\n\n"
+                "JSON formatida javob bering: {\"score\": ball, \"feedback\": \"rag'batlantiruvchi va xatoni to'g'irlovchi izoh\", \"passed\": true/false}"
             ),
             "ru-RU": (
                 "Вы добрый и профессиональный детский педагог. Ваша задача: проанализировать и оценить ответ ребенка на вопрос по сказке.\n\n"

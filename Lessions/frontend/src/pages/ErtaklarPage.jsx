@@ -131,7 +131,7 @@ function MultipleChoicePhase({ test, testLimit, onDone }) {
 
 // ─── Quiz Modal ────────────────────────────────────────────────────────────────
 function QuizModal({ ertak, onClose, readingStats = {} }) {
-    const questions = useMemo(() => {
+    const [questions] = useState(() => {
         if (!ertak.questions || ertak.questions.length === 0) return [];
         let list = [...ertak.questions];
         for (let i = list.length - 1; i > 0; i--) {
@@ -140,7 +140,7 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
         }
         const limit = ertak.questions_limit !== undefined && ertak.questions_limit !== null ? ertak.questions_limit : 3;
         return list.slice(0, Math.max(3, limit));
-    }, [ertak]);
+    });
     const hasQuestions = questions.length > 0;
     const hasTest = ertak.test && ertak.test.length > 0;
     
@@ -235,7 +235,7 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
     };
 
     useEffect(() => {
-        if (step === 'result' && !submitting) {
+        if ((step === 'quiz_result' || step === 'result') && !submitting) {
             submitResult(scores, testScore);
         }
     }, [step]);
@@ -351,11 +351,7 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
 
     const nextQuestion = () => {
         if (qIndex + 1 >= questions.length) {
-            if (hasTest) {
-                setStep('test');
-            } else {
-                setStep('result');
-            }
+            setStep('quiz_result');
         } else {
             setQIndex(i => i + 1);
             setPhase('tts');
@@ -471,12 +467,52 @@ function QuizModal({ ertak, onClose, readingStats = {} }) {
                                 <p className={`text-4xl font-black ${scoreColor(scores[qIndex].score)}`}>{scores[qIndex].score}</p>
                                 <button onClick={nextQuestion}
                                     className="w-full py-3 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-medium hover:scale-105 transition-transform">
-                                    {qIndex + 1 >= questions.length ? 'Keyingi bosqich' : 'Keyingi savol'}
+                                    {qIndex + 1 >= questions.length ? 'Natijani ko\'rish' : 'Keyingi savol'}
                                 </button>
                             </div>
                         )}
                         {sttError && <p className="text-red-400 text-xs text-center mt-2">{sttError}</p>}
                     </>
+                )}
+
+                {!submitting && step === 'quiz_result' && (
+                    <div className="flex flex-col items-center gap-5 pt-2">
+                        <div className="text-6xl animate-bounce">🎯</div>
+                        <div className="text-center">
+                            <p className="text-white font-black text-2xl mb-1 uppercase tracking-tight">Savollar yakunlandi</p>
+                            <p className="text-white/40 text-xs">Javoblaringiz uchun rahmat!</p>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-[#4b30fb]/35 to-[#764ba2]/10 rounded-2xl p-6 text-center border border-white/10 relative overflow-hidden w-full shadow-lg">
+                            <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-2">Umumiy Savol-javob bali</p>
+                            <p className="text-white text-5xl font-black">{avgScore}</p>
+                        </div>
+
+                        {hasTest ? (
+                            <div className="flex flex-col gap-3 w-full mt-2">
+                                <p className="text-white/60 text-sm text-center">Endi test savollariga o'tamizmi?</p>
+                                <button 
+                                    onClick={() => setStep('test')}
+                                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform shadow-xl shadow-blue-500/20"
+                                >
+                                    Testlarga o'tish 📝
+                                </button>
+                                <button 
+                                    onClick={() => { setTestScore(0); setStep('result'); }}
+                                    className="w-full py-3 bg-white/5 border border-white/10 text-white/60 rounded-2xl font-bold text-sm hover:bg-white/10 hover:text-white transition-colors"
+                                >
+                                    Yo'q, testni keyin ishlayman
+                                </button>
+                            </div>
+                        ) : (
+                            <button 
+                                onClick={() => setStep('result')}
+                                className="w-full py-4 bg-gradient-to-r from-[#4b30fb] to-[#764ba2] text-white rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform shadow-xl mt-2"
+                            >
+                                Tugatish
+                            </button>
+                        )}
+                    </div>
                 )}
 
                 {!submitting && step === 'test' && (
