@@ -182,6 +182,12 @@ from shared.database.models.analytics import (
     AdminNotification,
 )
 
+# Reading Rating System
+from shared.database.models.reading_rating import (
+    ReadingRating,
+    RatingPeriod,
+)
+
 # Marketplace System
 from shared.database.models.marketplace import (
     MarketplaceItemType,
@@ -370,4 +376,8 @@ __all__ = [
     "TransactionStatus",
     "PaymentGatewayConfig",
     "PaymentTransaction",
+
+    # Reading Rating Models
+    "ReadingRating",
+    "RatingPeriod",
 ]

@@ -56,6 +56,11 @@ class BookReadingRecord(Base):
     quiz_score = Column(Integer, nullable=True)
     test_score = Column(Integer, nullable=True)
     
+    # Reading Rating system fields
+    max_score = Column(Integer, default=0, nullable=False)
+    is_counted = Column(Boolean, default=False, nullable=False)
+    source_type = Column(String(20), default="library", nullable=False) # library or assignment
+    
     completed_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

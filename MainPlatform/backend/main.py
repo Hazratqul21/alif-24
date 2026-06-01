@@ -277,7 +277,7 @@ app.add_middleware(SubscriptionInfoMiddleware)
 from app.api.v1 import auth, dashboard, admin_panel, verification, health, feedback, telegram, oauth_google, admin_email
 from app.api.v1 import classrooms, assignments, notifications, lessons, platform_content, aiops, uploads, coins, organizations, olympiads
 from app.api.v1 import reading_competition
-from app.api.v1 import admin_analytics, testai
+from app.api.v1 import admin_analytics, testai, ratings
 from app.api.v1 import payments, marketplace
 from app.smartkids import story_router, image_reader_router, file_reader_router, speech_token_router
 from app.mathkids import math_solver_router, math_image_router
@@ -335,6 +335,8 @@ from app.api.v1.multi_stage_olympiad import router as multi_stage_olympiad_route
 app.include_router(multi_stage_olympiad_router, prefix=f"{settings.API_PREFIX}/olympiads/multi-stage", tags=["multi-stage-olympiad"])
 # Reading Competition
 app.include_router(reading_competition.router, prefix=f"{settings.API_PREFIX}/admin/reading", tags=["reading-competition"])
+# Reading Rating
+app.include_router(ratings.router, prefix=f"{settings.API_PREFIX}", tags=["reading-ratings"])
 # Payments
 app.include_router(payments.router, prefix=f"{settings.API_PREFIX}/payments", tags=["payments"])
 app.include_router(marketplace.router, prefix=f"{settings.API_PREFIX}/marketplace", tags=["marketplace"])
