@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, func, desc, and_
+from sqlalchemy import select, update, func, desc, and_, cast, String
 from datetime import datetime, timezone
 
 from shared.database.models import User, UserRole, AccountStatus
@@ -115,7 +115,7 @@ class RatingService:
             stmt_rating = select(ReadingRating).where(
                 and_(
                     ReadingRating.student_id == student_id,
-                    ReadingRating.period == period,
+                    cast(ReadingRating.period, String) == period.value,
                     ReadingRating.period_key == p_key
                 )
             )
@@ -153,7 +153,7 @@ class RatingService:
             ReadingRating,
             and_(
                 ReadingRating.student_id == User.id,
-                ReadingRating.period == period,
+                cast(ReadingRating.period, String) == period.value,
                 ReadingRating.period_key == p_key
             )
         ).where(
@@ -224,7 +224,7 @@ class RatingService:
             ReadingRating,
             and_(
                 ReadingRating.student_id == User.id,
-                ReadingRating.period == period,
+                cast(ReadingRating.period, String) == period.value,
                 ReadingRating.period_key == p_key
             )
         ).where(
@@ -284,7 +284,7 @@ class RatingService:
             func.sum(ReadingRating.total_books),
             func.sum(ReadingRating.total_score)
         ).where(
-            ReadingRating.period == period,
+            cast(ReadingRating.period, String) == period.value,
             ReadingRating.period_key == p_key
         )
         
