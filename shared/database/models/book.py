@@ -14,7 +14,7 @@ class Book(Base):
     description = Column(Text, nullable=True)
     language = Column(String(5), default="uz")
     age_group = Column(String(10), default="6-8")
-    pdf_url = Column(String(500), nullable=False)
+    pdf_url = Column(String(500), nullable=True)
     image_url = Column(String(500), nullable=True)
     is_premium = Column(Boolean, default=False, nullable=False)
     view_count = Column(Integer, default=0)

@@ -172,7 +172,7 @@ class StoryUpdateRequest(BaseModel):
 class BookCreateRequest(BaseModel):
     title: str
     description: Optional[str] = None
-    pdf_url: str
+    pdf_url: Optional[str] = None
     image_url: Optional[str] = None
     is_premium: bool = False
     language: str = "uz"
