@@ -25,6 +25,7 @@ import StudentPortalHeader from '../components/Student/StudentPortalHeader';
 import ProgressCharts from '../components/Student/ProgressCharts';
 import LevelUpModal from '../components/Student/LevelUpModal';
 import ErtakReadingModal from '../components/ErtakReadingModal';
+import BookReadingModal from '../components/BookReadingModal';
 
 const STORY_API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '')
     ? (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') + '/smartkids'
@@ -1199,9 +1200,9 @@ const StudentDashboard = () => {
                                 const maxScore = record ? Math.max(record.quiz_score || 0, record.test_score || 0) : 0;
                                 const colorClass = record ? getBookColor(maxScore) : 'bg-gray-200 text-gray-600';
                                 return (
-                                    <div key={book.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col relative overflow-hidden">
+                                    <div key={book.id} onClick={() => setSelectedBook(book)} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col relative overflow-hidden cursor-pointer group">
                                         <div className="p-4 flex flex-col flex-1">
-                                            <h3 className="font-bold text-gray-800 mb-1 line-clamp-1">{book.title}</h3>
+                                            <h3 className="font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-600 transition-colors">{book.title}</h3>
                                             <p className="text-gray-500 text-xs mb-3">Muallif: {book.author || 'Noma\'lum'}</p>
                                             
                                             {record && (
@@ -2476,6 +2477,14 @@ const StudentDashboard = () => {
                     assignmentId={storyAssignmentId}
                     onClose={() => { setSelectedStory(null); setStoryAssignmentId(null); }}
                     onDone={handleStoryDone}
+                />
+            )}
+
+            {selectedBook && (
+                <BookReadingModal
+                    book={selectedBook}
+                    onClose={() => setSelectedBook(null)}
+                    onDone={() => { setSelectedBook(null); fetchDashboard(); }}
                 />
             )}
 
