@@ -629,7 +629,7 @@ function PDFReaderModal({ book, onClose, onFinished }) {
                     </button>
                     <div className="flex flex-col items-center text-center space-y-4">
                         {book.image_url ? (
-                            <img src={book.image_url.startsWith('http') ? book.image_url : \`https://api.alif24.uz\${book.image_url}\`} alt={book.title} className="w-32 h-48 object-cover rounded-xl shadow-lg border border-white/10" />
+                            <img src={book.image_url.startsWith('http') ? book.image_url : `https://api.alif24.uz${book.image_url}`} alt={book.title} className="w-32 h-48 object-cover rounded-xl shadow-lg border border-white/10" />
                         ) : (
                             <div className="w-32 h-48 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 rounded-xl flex items-center justify-center">
                                 <BookOpen className="w-12 h-12 text-white/20" />
