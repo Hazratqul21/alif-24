@@ -841,7 +841,7 @@ function SmartKidsCard() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={() => window.open('https://alif24.uz/smartkids', '_blank')}
-            className="bg-white rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full border border-white/10"
+            className="bg-white/5 backdrop-blur-sm rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full border border-white/10"
         >
             <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-[#ff8a00] to-[#ff3d00]">
                 <div className="w-full h-full flex flex-col items-center justify-center text-white p-4">
@@ -851,8 +851,8 @@ function SmartKidsCard() {
                 </div>
             </div>
             <div className="p-5 flex-1 flex flex-col">
-                <h3 className="text-[#1a1a2e] font-bold text-base mb-2 leading-tight">SmartKids AI Platformasi</h3>
-                <p className="text-gray-500 text-xs mb-4 line-clamp-2 leading-relaxed">
+                <h3 className="text-white font-bold text-base mb-2 leading-tight">SmartKids AI Platformasi</h3>
+                <p className="text-white/60 text-xs mb-4 line-clamp-2 leading-relaxed">
                     Istagan hikoyangizni o'qib, AI yordamida o'z natijangizni tekshiring.
                 </p>
                 <button className="mt-auto w-full py-3 bg-gradient-to-r from-[#ff8a00] to-[#ff3d00] text-white rounded-2xl font-bold text-sm shadow-lg shadow-orange-500/30 group-hover:scale-[1.02] transition-transform">
@@ -875,7 +875,7 @@ function ErtakCard({ ertak, index, onRead, onQuiz, onTest }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
             onClick={onRead}
-            className="bg-white rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full border border-white/10"
+            className="bg-white/5 backdrop-blur-sm rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full border border-white/10 hover:-translate-y-1.5 duration-300"
         >
             <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-[#4b30fb] to-[#764ba2]">
                 {ertak.image_url && !imgError ? (
@@ -898,10 +898,10 @@ function ErtakCard({ ertak, index, onRead, onQuiz, onTest }) {
             </div>
             <div className="p-5 flex-1 flex flex-col justify-between">
                 <div>
-                    <h3 className="text-[#1a1a2e] font-bold text-base mb-1 line-clamp-2 leading-tight group-hover:text-[#4b30fb] transition-colors">
+                    <h3 className="text-white font-bold text-base mb-1 line-clamp-2 leading-tight group-hover:text-purple-400 transition-colors">
                         {ertak.title}
                     </h3>
-                    <div className="flex items-center gap-2 text-[10px] text-gray-400 mb-4 font-medium uppercase tracking-wider">
+                    <div className="flex items-center gap-2 text-[10px] text-white/50 mb-4 font-medium uppercase tracking-wider">
                         <span>📖 {wordCount} so'z</span>
                         <span>•</span>
                         <span>{ertak.language === 'uz' ? "O'zbekcha" : ertak.language === 'ru' ? "Ruscha" : "Inglizcha"}</span>

@@ -881,7 +881,7 @@ function BookCard({ book, index, onRead, onQuiz, onTest, lang }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
             onClick={onRead}
-            className="bg-white rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full border border-white/10 hover:-translate-y-1.5 duration-300"
+            className="bg-white/5 backdrop-blur-sm rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden cursor-pointer transition-all group flex flex-col h-full border border-white/10 hover:-translate-y-1.5 duration-300"
         >
             <div className="w-full aspect-[4/3] relative overflow-hidden bg-gradient-to-br from-indigo-650 to-violet-750">
                 {book.image_url && !imgError ? (
@@ -920,10 +920,10 @@ function BookCard({ book, index, onRead, onQuiz, onTest, lang }) {
 
             <div className="p-5 flex-1 flex flex-col justify-between">
                 <div>
-                    <h3 className="text-[#1a1a2e] font-bold text-base mb-1.5 line-clamp-2 leading-tight group-hover:text-indigo-650 transition-colors">
+                    <h3 className="text-white font-bold text-base mb-1.5 line-clamp-2 leading-tight group-hover:text-indigo-400 transition-colors">
                         {book.title}
                     </h3>
-                    <div className="flex items-center gap-2 text-[10px] text-gray-400 mb-4 font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-2 text-[10px] text-white/50 mb-4 font-bold uppercase tracking-wider">
                         <span>📖 PDF format</span>
                         <span>•</span>
                         <span>{book.language === 'uz' ? "O'zbekcha" : book.language === 'ru' ? "Ruscha" : "Inglizcha"}</span>

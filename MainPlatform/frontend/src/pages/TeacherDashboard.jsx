@@ -124,6 +124,7 @@ const TeacherDashboard = () => {
     { id: 'jurnal', label: tl.jurnal, icon: LayoutGrid },
     { id: 'lessons', label: tl.lessons, icon: BookOpen },
     { id: 'ertaklar', label: tl.ertaklar, icon: BookOpen },
+    { id: 'reading_stats', label: 'Kitobxonlik', icon: BookOpen },
     { id: 'assignments', label: tl.assignments, icon: ClipboardList },
     { id: 'testlarim', label: tl.testlarim, icon: FileText },
     { id: 'complex', label: tl.complex, icon: Sparkles },
@@ -214,6 +215,30 @@ const TeacherDashboard = () => {
       }).catch(() => {});
     }
   }, [activeTab, mySchool]);
+
+  const [readingStats, setReadingStats] = useState(null);
+  const [readingStatsLoading, setReadingStatsLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'reading_stats' && !readingStats) {
+      const fetchReadingStats = async () => {
+        setReadingStatsLoading(true);
+        try {
+          // getTeacherDashboardStats expects a teacherId, but we can also use 'me' if the backend supports it,
+          // or we can pass user.id. Wait, getTeacherDashboardStats uses teacher_id param.
+          // Let's pass user?.id as a fallback.
+          const { getTeacherDashboardStats } = await import('../services/readingRatingService');
+          const res = await getTeacherDashboardStats(user?.id, 'all_time');
+          setReadingStats(res.data || null);
+        } catch (e) {
+          console.error("Reading stats fetch error", e);
+        } finally {
+          setReadingStatsLoading(false);
+        }
+      };
+      fetchReadingStats();
+    }
+  }, [activeTab, readingStats, user?.id]);
 
   const fetchAssignmentDetail = async (assignmentId) => {
     try {
@@ -1501,8 +1526,97 @@ const TeacherDashboard = () => {
     </div>
   );
 
+  const renderReadingStats = () => {
+    if (readingStatsLoading) {
+      return <div className="text-center py-12 text-white">Yuklanmoqda...</div>;
+    }
+    if (!readingStats) {
+      return <div className="text-center py-12 text-white/60">Ma'lumot topilmadi.</div>;
+    }
+
+    return (
+      <div className="space-y-6">
+        <h3 className="text-2xl font-bold text-white flex items-center gap-2 mb-6">
+          <BookOpen className="text-blue-400" /> O'quvchilar Kitobxonligi
+        </h3>
+        
+        {/* Overall Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
+            <div className="text-3xl font-bold text-white mb-1">{readingStats.total_students}</div>
+            <div className="text-sm text-white/60">O'quvchilar soni</div>
+          </div>
+          <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
+            <div className="text-3xl font-bold text-white mb-1">{readingStats.total_books_read}</div>
+            <div className="text-sm text-white/60">O'qilgan kitoblar</div>
+          </div>
+          <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
+            <div className="text-3xl font-bold text-white mb-1">{readingStats.average_books_per_student}</div>
+            <div className="text-sm text-white/60">O'rtacha kitob/o'quvchi</div>
+          </div>
+          <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
+            <div className="text-3xl font-bold text-white mb-1">{readingStats.average_score}</div>
+            <div className="text-sm text-white/60">O'rtacha ball</div>
+          </div>
+        </div>
+
+        {/* Top Active Reader */}
+        {readingStats.most_active_student && (
+          <div className="bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/30 p-5 rounded-2xl flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-xl font-bold text-white">
+              <Award />
+            </div>
+            <div>
+              <div className="text-sm text-blue-200">Eng faol o'quvchi</div>
+              <div className="text-xl font-bold text-white">{readingStats.most_active_student.first_name} {readingStats.most_active_student.last_name}</div>
+              <div className="text-sm text-white/60">{readingStats.most_active_student.books_read} ta kitob o'qigan</div>
+            </div>
+          </div>
+        )}
+
+        {/* Leaderboard */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden mt-8">
+          <table className="w-full text-left">
+            <thead className="bg-white/5">
+              <tr>
+                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">O'rin</th>
+                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">O'quvchi</th>
+                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">Kitoblar</th>
+                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase text-right">Umumiy Ball</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {readingStats.leaderboard?.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-8 text-center text-white/40">Hozircha natijalar yo'q</td>
+                </tr>
+              ) : readingStats.leaderboard?.map((item) => (
+                <tr key={item.student_id} className="hover:bg-white/5">
+                  <td className="px-6 py-4">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-500 text-white shadow-lg' : item.rank === 2 ? 'bg-gray-300 text-gray-800' : item.rank === 3 ? 'bg-[#CD7F32] text-white' : 'text-white/60'}`}>
+                      {item.rank}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 font-medium text-white">
+                    {item.first_name} {item.last_name}
+                  </td>
+                  <td className="px-6 py-4 text-white/80">{item.books_read} ta</td>
+                  <td className="px-6 py-4 text-right font-bold text-blue-400">{item.total_score}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeTab) {
+      case 'reading_stats':
+        return renderReadingStats();
+      case 'dashboard':
+        return renderDashboard();
       case 'classes': return renderClasses();
       case 'jurnal': return renderGradebook();
       case 'lessons': return renderEnhancedLessons();

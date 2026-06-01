@@ -194,6 +194,16 @@ class StudentService {
   async completePublicStory(storyId, data) {
     return apiService.post(`/stories/${storyId}/complete`, data);
   }
+
+  // ============ Library: Read Books ============
+
+  async getMyLibraryBooks() {
+    return apiService.get('/books/my-library');
+  }
+
+  async completePublicBook(bookId, data) {
+    return apiService.post(`/books/${bookId}/complete`, data);
+  }
 }
 
 export const studentService = new StudentService();

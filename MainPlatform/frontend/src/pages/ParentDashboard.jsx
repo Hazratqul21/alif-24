@@ -569,40 +569,40 @@ const ParentDashboard = () => {
     return (
         <>
             <Navbar />
-            <div className="min-h-screen bg-gray-50/50 flex flex-col md:flex-row pt-[70px]">
+            <div className="min-h-screen bg-[#0f1624] flex flex-col md:flex-row pt-[70px]">
                 {/* Desktop sidebar */}
-                <aside className="hidden md:block w-64 bg-white border-r border-gray-200 p-6 flex-shrink-0">
+                <aside className="hidden md:block w-64 bg-[#1a1a2e] border-r border-white/10 p-6 flex-shrink-0">
                     <div className="flex items-center gap-3 mb-8 px-2">
                         <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-bold text-lg">
                             {authUser?.first_name?.[0]}{authUser?.last_name?.[0]}
                         </div>
                         <div>
-                            <h3 className="font-bold text-gray-900 leading-tight">{authUser?.first_name} {authUser?.last_name}</h3>
-                            <p className="text-xs text-gray-500">Ota-ona kabineti</p>
+                            <h3 className="font-bold text-white leading-tight">{authUser?.first_name} {authUser?.last_name}</h3>
+                            <p className="text-xs text-white/60">Ota-ona kabineti</p>
                         </div>
                     </div>
 
                     <nav className="space-y-1">
-                        <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                        <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-white/70 hover:bg-white/10'}`}>
                             <Users size={20} /> {t.tabs.dashboard}
                         </button>
-                        <button onClick={() => setActiveTab('payments')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'payments' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                        <button onClick={() => setActiveTab('payments')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'payments' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-white/70 hover:bg-white/10'}`}>
                             <CreditCard size={20} /> {t.tabs.payments}
                         </button>
-                        <button onClick={() => setActiveTab('notifications')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'notifications' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                        <button onClick={() => setActiveTab('notifications')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'notifications' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-white/70 hover:bg-white/10'}`}>
                             <Bell size={20} /> {t.tabs.notifications}
                         </button>
-                        <button onClick={() => setActiveTab('school')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'school' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                        <button onClick={() => setActiveTab('school')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'school' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-white/70 hover:bg-white/10'}`}>
                             <School size={20} /> {t.tabs.school}
                         </button>
-                        <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'settings' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                        <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${activeTab === 'settings' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-white/70 hover:bg-white/10'}`}>
                             <Settings size={20} /> {t.tabs.settings}
                         </button>
                     </nav>
                 </aside>
 
                 {/* Mobile horizontal tab bar */}
-                <div className="md:hidden bg-white border-b border-gray-200 flex overflow-x-auto no-scrollbar">
+                <div className="md:hidden bg-[#1a1a2e] border-b border-white/10 flex overflow-x-auto no-scrollbar">
                     {[
                         { key: 'dashboard', icon: <Users size={18} />, label: t.tabs.dashboard },
                         { key: 'payments', icon: <CreditCard size={18} />, label: t.tabs.payments },
@@ -611,7 +611,7 @@ const ParentDashboard = () => {
                         { key: 'settings', icon: <Settings size={18} />, label: t.tabs.settings }
                     ].map(tab => (
                         <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                            className={`flex items-center gap-2 px-4 py-3 whitespace-nowrap text-sm font-medium border-b-2 transition-all flex-1 justify-center ${activeTab === tab.key ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500'}`}>
+                            className={`flex items-center gap-2 px-4 py-3 whitespace-nowrap text-sm font-medium border-b-2 transition-all flex-1 justify-center ${activeTab === tab.key ? 'border-purple-400 text-purple-400' : 'border-transparent text-white/50'}`}>
                             {tab.icon}
                             <span className="hidden sm:inline">{tab.label}</span>
                         </button>
@@ -1049,7 +1049,7 @@ const ParentDashboard = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-gray-50 border rounded-xl p-4">
+                            <div className="bg-white border border-gray-200 rounded-xl p-4">
                                 <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
                                     <TrendingUp size={18} className="text-emerald-500" />
                                     O'quv faolligi

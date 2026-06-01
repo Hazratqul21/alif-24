@@ -205,7 +205,7 @@ const GlobalSubscriptionModal = () => {
                                                         <button
                                                             onClick={() => validatePromo(plan.id)}
                                                             disabled={promoLoading[plan.id] || !(promoCode[plan.id] || '').trim()}
-                                                            className="bg-indigo-500 text-black px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                                            className="bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                                                         >
                                                             {promoLoading[plan.id] ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                                                         </button>

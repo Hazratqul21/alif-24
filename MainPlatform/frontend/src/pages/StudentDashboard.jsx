@@ -8,6 +8,7 @@ import { studentService } from '../services/studentService';
 import notificationService from '../services/notificationService';
 import apiService from '../services/apiService';
 import organizationService from '../services/organizationService';
+import { getStudentLeaderboard } from '../services/readingRatingService';
 // Olympiad student UI is on olimp.alif24.uz (separate platform)
 import {
     BookOpen, Trophy, Clock, Star, Play, CheckCircle, Search, Filter,
@@ -60,6 +61,9 @@ const StudentDashboard = () => {
     const [realLessons, setRealLessons] = useState([]);
     const [realStories, setRealStories] = useState([]);
     const [libraryStories, setLibraryStories] = useState([]);
+    const [libraryBooks, setLibraryBooks] = useState([]);
+    const [readingLeaderboard, setReadingLeaderboard] = useState([]);
+    const [myReadingRank, setMyReadingRank] = useState(null);
     const [contentLoading, setContentLoading] = useState(false);
     const [selectedLesson, setSelectedLesson] = useState(null);
     const [selectedStory, setSelectedStory] = useState(null);
@@ -232,9 +236,20 @@ const StudentDashboard = () => {
         }
         if (activeTab === 'library' && !contentLoading) {
             setContentLoading(true);
-            studentService.getMyLibraryStories().then(res => {
-                setLibraryStories(res.data || []);
-            }).catch(() => { }).finally(() => setContentLoading(false));
+            Promise.allSettled([
+                studentService.getMyLibraryStories(),
+                studentService.getMyLibraryBooks()
+            ]).then(([storRes, bookRes]) => {
+                if (storRes.status === 'fulfilled') setLibraryStories(storRes.value.data || []);
+                if (bookRes.status === 'fulfilled') setLibraryBooks(bookRes.value.data || []);
+            }).finally(() => setContentLoading(false));
+        }
+        if (activeTab === 'leaderboard' && readingLeaderboard.length === 0) {
+            getStudentLeaderboard('all_time').then(res => {
+                setReadingLeaderboard(res.data || []);
+                const me = res.data?.find(r => r.student_id === authUser?.id);
+                setMyReadingRank(me || null);
+            }).catch(() => {});
         }
         // Public content for dashboard/home
         if (realLessons.length === 0 && realStories.length === 0 && !contentLoading) {
@@ -973,6 +988,60 @@ const StudentDashboard = () => {
                     </tbody>
                 </table>
             </div>
+
+            <div className="flex items-center justify-between mt-8">
+                <h3 className="font-bold text-gray-800 text-xl flex items-center gap-2">
+                    <BookOpen size={24} className="text-blue-500" /> Kitobxonlik Reytingi
+                </h3>
+            </div>
+
+            <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
+                <table className="w-full text-left">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase">Rank</th>
+                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase">O'quvchi</th>
+                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase">Kitoblar</th>
+                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase text-right">Umumiy Ball</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {readingLeaderboard.length === 0 ? (
+                            <tr>
+                                <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                                    Hozircha reytingda o'quvchilar yo'q
+                                </td>
+                            </tr>
+                        ) : readingLeaderboard.map((item) => (
+                            <tr key={item.student_id} className={`${item.student_id === authUser?.id ? 'bg-blue-50/50' : ''} hover:bg-gray-50/80 transition-colors`}>
+                                <td className="px-6 py-4">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-400 text-white shadow-lg shadow-yellow-400/20' :
+                                        item.rank === 2 ? 'bg-gray-300 text-white' :
+                                            item.rank === 3 ? 'bg-[#CD7F32] text-white' : 'text-gray-400'
+                                        }`}>
+                                        {item.rank}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+                                            {item.first_name?.charAt(0) || '?'}
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-gray-800">{item.first_name} {item.last_name}</span>
+                                            {item.student_id === authUser?.id && <span className="ml-2 bg-blue-600 text-white text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Siz</span>}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className="px-3 py-1 bg-gray-100 rounded-full text-xs font-bold text-gray-600">{item.books_read} ta</span>
+                                </td>
+                                <td className="px-6 py-4 text-right font-black text-blue-600">{item.total_score}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
     const renderClasses = () => (
@@ -1079,21 +1148,80 @@ const StudentDashboard = () => {
         </div>
     );
 
+    const getBookColor = (score) => {
+        if (score <= 40) return 'bg-red-500 text-white';
+        if (score <= 55) return 'bg-yellow-500 text-white';
+        if (score <= 70) return 'bg-[#8B4513] text-white'; // Jigarrang
+        if (score <= 85) return 'bg-blue-500 text-white'; // Moviy
+        return 'bg-green-500 text-white'; // Yashil
+    };
+
     const renderLibrary = () => (
         <div className="space-y-6">
             <div className="flex gap-2 flex-wrap">
                 {[
-                    { key: 'stories', label: 'Kitoblar', icon: <Book size={16} />, count: libraryStories.length },
+                    { key: 'books', label: 'Kitoblar', icon: <Book size={16} />, count: libraryBooks.length },
+                    { key: 'stories', label: 'Ertaklar', icon: <Book size={16} />, count: libraryStories.length },
                     { key: 'lessons', label: 'Darslar', icon: <BookOpen size={16} />, count: realLessons.length },
                 ].map(item => (
                     <button key={item.key} onClick={() => setLibraryFilter(item.key)}
-                        className={`px-4 py-2.5 rounded-full font-medium text-sm transition-all flex items-center gap-2 ${libraryFilter === item.key || (libraryFilter === 'all' && item.key === 'stories') ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+                        className={`px-4 py-2.5 rounded-full font-medium text-sm transition-all flex items-center gap-2 ${libraryFilter === item.key || (libraryFilter === 'all' && item.key === 'books') ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
                         {item.icon} {item.label} <span className="text-xs opacity-70">({item.count})</span>
                     </button>
                 ))}
             </div>
             {contentLoading ? (
                 <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" /></div>
+            ) : (libraryFilter === 'books' || libraryFilter === 'all') ? (
+                <div>
+                    {/* Overall Reading Rating Stats for Student */}
+                    {myReadingRank && (
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl mb-4 border border-blue-100 flex justify-between items-center">
+                            <div>
+                                <h4 className="font-bold text-gray-800 text-lg">Mening Kitobxonlik Reytingim</h4>
+                                <p className="text-sm text-gray-600">O'qilgan kitoblar: <span className="font-bold">{myReadingRank.books_read}</span> | Umumiy ball: <span className="font-bold">{myReadingRank.total_score}</span></p>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-3xl font-black text-indigo-600">#{myReadingRank.rank}</div>
+                                <div className="text-xs text-gray-500">O'rin</div>
+                            </div>
+                        </div>
+                    )}
+                    {libraryBooks.length === 0 ? (
+                        <div className="bg-white rounded-2xl p-12 text-center border border-gray-100">
+                            <Book size={48} className="mx-auto mb-3 text-gray-300" />
+                            <p className="text-gray-500">Hozircha kitoblar o'qimadingiz</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {libraryBooks.map(book => {
+                                const record = book.reading_record;
+                                const maxScore = record ? Math.max(record.quiz_score || 0, record.test_score || 0) : 0;
+                                const colorClass = record ? getBookColor(maxScore) : 'bg-gray-200 text-gray-600';
+                                return (
+                                    <div key={book.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col relative overflow-hidden">
+                                        <div className="p-4 flex flex-col flex-1">
+                                            <h3 className="font-bold text-gray-800 mb-1 line-clamp-1">{book.title}</h3>
+                                            <p className="text-gray-500 text-xs mb-3">Muallif: {book.author || 'Noma\'lum'}</p>
+                                            
+                                            {record && (
+                                                <div className="mt-auto space-y-2">
+                                                    <div className="flex justify-between text-xs text-gray-500">
+                                                        <span>Savollar: {record.quiz_score || 0} ball</span>
+                                                        <span>Test: {record.test_score || 0} ball</span>
+                                                    </div>
+                                                    <div className={`text-center py-1.5 rounded-lg font-bold text-sm ${colorClass}`}>
+                                                        Natija: {maxScore} ball
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
             ) : libraryFilter === 'stories' ? (
                 <div>
                     {libraryStories.length === 0 ? (
@@ -1989,7 +2117,7 @@ const StudentDashboard = () => {
                 </div>
             )}
 
-            <div className="bg-[#f0f2f5] min-h-screen pt-4 pb-20 md:pb-4">
+            <div className="bg-[#f0f2f5] text-gray-800 min-h-screen pt-4 pb-20 md:pb-4">
                 <div className="container mx-auto px-4">
                     {/* Mobile bottom nav */}
                     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 z-50 flex overflow-x-auto no-scrollbar">
