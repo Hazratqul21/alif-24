@@ -1,11 +1,19 @@
+// Polyfills for Microsoft Speech SDK (Vite environment)
+if (typeof window !== 'undefined') {
+    if (!window.EventTarget) { window.EventTarget = class EventTarget { }; }
+    if (!window.AudioContext && window.webkitAudioContext) { window.AudioContext = window.webkitAudioContext; }
+    if (!window.global) { window.global = window; }
+}
+
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ArrowLeft, BookOpen, ChevronRight, ChevronLeft, RotateCcw, 
     ChevronDown, CheckCircle2, Trophy, ZoomIn, ZoomOut, X, 
-    Lock, Sparkles, HelpCircle, FileText, ArrowRight, Mic, MicOff
+    Lock, Sparkles, HelpCircle, FileText, ArrowRight, Mic, Square
 } from 'lucide-react';
+import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import apiService from '../services/apiService';
 
 let API_URL = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/^https?:\/\//, window.location.protocol + '//') : '') || '/api/v1';
@@ -259,18 +267,33 @@ function QuizModal({ book, onClose, readingStats = {} }) {
 
     const [step, setStep] = useState(getInitialStep());
     const [qIndex, setQIndex] = useState(0);
-    const [answerText, setAnswerText] = useState('');
     const [scores, setScores] = useState([]);
+    const [recording, setRecording] = useState(false);
     const [evaluating, setEvaluating] = useState(false);
     const [showFeedback, setShowFeedback] = useState(false);
-    const [isListening, setIsListening] = useState(false);
-    const recognitionRef = useRef(null);
-    
+    const [elapsed, setElapsed] = useState(0);
+    const [sttError, setSttError] = useState('');
+
     const [testScore, setTestScore] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
+    const speechConfigRef = useRef(null);
+    const recognizerRef = useRef(null);
+    const transcriptRef = useRef('');
+    const timerRef = useRef(null);
+
     const currentQ = questions[qIndex];
     const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b.score, 0) / scores.length) : 0;
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            clearInterval(timerRef.current);
+            if (recognizerRef.current) {
+                try { recognizerRef.current.stopContinuousRecognitionAsync(); recognizerRef.current.close(); } catch (_) { }
+            }
+        };
+    }, []);
 
     const submitResult = async (finalScores, finalTestScore = null) => {
         if (submitting) return;
@@ -281,7 +304,6 @@ function QuizModal({ book, onClose, readingStats = {} }) {
                 quiz_score: avg,
                 test_score: finalTestScore !== null ? finalTestScore : 0
             };
-
             await apiService.post(`/books/${book.id}/complete`, payload);
         } catch (e) {
             console.error("Natijani saqlashda xatolik:", e);
@@ -296,54 +318,41 @@ function QuizModal({ book, onClose, readingStats = {} }) {
         }
     }, [step]);
 
-    const toggleListening = () => {
-        if (isListening) {
-            if (recognitionRef.current) {
-                recognitionRef.current.stop();
+    const ensureSpeechConfig = async () => {
+        if (speechConfigRef.current) return true;
+
+        const tokenPaths = [
+            `${API_URL}/speech-token`,
+            `${API_URL}/smartkids/speech-token`,
+            `https://alif24.uz/api/v1/speech-token`,
+            `https://alif24.uz/api/v1/smartkids/speech-token`
+        ];
+
+        for (const path of tokenPaths) {
+            try {
+                const resp = await fetch(path, { credentials: 'include' });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.token && data.region) {
+                        const cfg = SpeechSDK.SpeechConfig.fromAuthorizationToken(data.token, data.region);
+                        cfg.speechRecognitionLanguage = book.language === 'ru' ? 'ru-RU' : book.language === 'en' ? 'en-US' : 'uz-UZ';
+                        speechConfigRef.current = cfg;
+                        return true;
+                    }
+                }
+            } catch (err) {
+                console.error(`Speech token error from ${path}:`, err);
             }
-            setIsListening(false);
-            return;
         }
 
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("Kechirasiz, brauzeringiz ovozli kiritishni qo'llab-quvvatlamaydi.");
-            return;
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.lang = book.language === 'uz' ? 'uz-UZ' : book.language === 'ru' ? 'ru-RU' : 'en-US';
-        recognition.interimResults = true;
-        recognition.continuous = false;
-
-        recognition.onstart = () => {
-            setIsListening(true);
-            setAnswerText('');
-        };
-
-        recognition.onresult = (event) => {
-            const transcript = Array.from(event.results)
-                .map(result => result[0])
-                .map(result => result.transcript)
-                .join('');
-            setAnswerText(transcript);
-        };
-
-        recognition.onerror = (event) => {
-            console.error('Speech recognition error', event.error);
-            setIsListening(false);
-        };
-
-        recognition.onend = () => {
-            setIsListening(false);
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
+        setSttError("Ovozli tanish xizmatiga ulanib bo'lmadi. Iltimos, sahifani yangilang.");
+        return false;
     };
 
-    const evaluateText = async () => {
-        if (!answerText.trim()) return;
+    const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+    const evaluateText = async (text) => {
+        setRecording(false);
         setEvaluating(true);
         try {
             const res = await fetch(`${API_URL}/evaluate-quiz`, {
@@ -352,7 +361,7 @@ function QuizModal({ book, onClose, readingStats = {} }) {
                 body: JSON.stringify({
                     story_text: book.description || book.title,
                     question: currentQ.question,
-                    child_answer: answerText,
+                    child_answer: text,
                     language: book.language || 'uz',
                     correct_answer: currentQ.answer
                 }),
@@ -362,22 +371,63 @@ function QuizModal({ book, onClose, readingStats = {} }) {
             const d = json.data || {};
             setScores(prev => [...prev, {
                 score: d.score ?? 0,
-                recognized: answerText,
+                recognized: text,
                 correct: d.feedback || currentQ.answer,
                 passed: d.passed ?? false,
             }]);
         } catch (err) {
             console.error("AI evaluation failed:", err);
-            setScores(prev => [...prev, { score: 60, recognized: answerText, correct: currentQ.answer, passed: true }]);
+            setScores(prev => [...prev, { score: 0, recognized: text, correct: currentQ.answer, passed: false }]);
         } finally {
             setEvaluating(false);
             setShowFeedback(true);
         }
     };
 
+    const startRecording = async () => {
+        setSttError('');
+        transcriptRef.current = '';
+        const ok = await ensureSpeechConfig();
+        if (!ok) return;
+
+        try {
+            const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+            const recognizer = new SpeechSDK.SpeechRecognizer(speechConfigRef.current, audioConfig);
+            recognizerRef.current = recognizer;
+
+            recognizer.recognized = (s, e) => {
+                if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+                    transcriptRef.current += (e.result.text + ' ');
+                }
+            };
+
+            await recognizer.startContinuousRecognitionAsync();
+            setRecording(true);
+            setElapsed(0);
+            timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
+        } catch {
+            setSttError("Mikrofon ochilmadi.");
+        }
+    };
+
+    const stopAndEvaluate = () => {
+        clearInterval(timerRef.current);
+        if (recognizerRef.current) {
+            recognizerRef.current.stopContinuousRecognitionAsync(() => {
+                const text = transcriptRef.current.trim();
+                evaluateText(text);
+                recognizerRef.current.close();
+                recognizerRef.current = null;
+            });
+        } else {
+            evaluateText('');
+        }
+    };
+
     const nextQuestion = () => {
         setShowFeedback(false);
-        setAnswerText('');
+        setSttError('');
+        transcriptRef.current = '';
         if (qIndex + 1 >= questions.length) {
             if (hasTest) {
                 setStep('test');
@@ -453,48 +503,42 @@ function QuizModal({ book, onClose, readingStats = {} }) {
 
                         {!showFeedback ? (
                             <div className="flex flex-col gap-4">
-                                <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 transition-colors relative min-h-[160px]">
-                                    <button
-                                        onClick={toggleListening}
-                                        className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${
-                                            isListening 
-                                                ? 'bg-red-500/20 text-red-500 border border-red-500/50 animate-pulse' 
-                                                : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30'
-                                        }`}
-                                    >
-                                        {isListening ? <MicOff className="w-8 h-8" /> : <Mic className="w-8 h-8" />}
-                                    </button>
-                                    
-                                    <div className="text-center w-full">
-                                        {isListening ? (
-                                            <p className="text-red-400 text-sm font-medium animate-pulse">Eshitilmoqda...</p>
-                                        ) : (
-                                            <p className="text-white/50 text-sm font-medium">
-                                                {answerText ? "Javob yozib olindi" : "Javob berish uchun mikrafonni bosing"}
-                                            </p>
-                                        )}
-                                        {answerText && (
-                                            <p className="text-white text-base mt-2 font-semibold bg-black/20 p-3 rounded-xl border border-white/5">
-                                                "{answerText}"
-                                            </p>
-                                        )}
-                                    </div>
+                                <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 min-h-[180px]">
+                                    {recording ? (
+                                        <>
+                                            <div className="relative w-20 h-20">
+                                                <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" />
+                                                <div className="w-20 h-20 rounded-full bg-red-500/30 border-2 border-red-500 flex items-center justify-center">
+                                                    <Mic className="w-9 h-9 text-red-400" />
+                                                </div>
+                                            </div>
+                                            <div className="text-red-400 font-mono text-xl font-bold">{fmt(elapsed)}</div>
+                                            <p className="text-white/50 text-sm">Eshitilmoqda... Tugatish uchun bosing</p>
+                                            <button
+                                                onClick={stopAndEvaluate}
+                                                className="flex items-center gap-2 px-6 py-3 bg-red-500/20 border border-red-500/40 text-red-400 rounded-2xl font-bold hover:bg-red-500/30 transition-all"
+                                            >
+                                                <Square className="w-4 h-4" /> Javobni yuborish
+                                            </button>
+                                        </>
+                                    ) : evaluating ? (
+                                        <div className="flex flex-col items-center gap-3 py-4">
+                                            <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                                            <p className="text-white/50 text-sm">AI javobingizni baholamoqda...</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={startRecording}
+                                                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-bold hover:scale-105 transition-transform shadow-lg shadow-indigo-500/30"
+                                            >
+                                                <Mic className="w-6 h-6" /> Javob berish
+                                            </button>
+                                            <p className="text-white/40 text-sm">Mikrafonni bosib javob bering</p>
+                                        </>
+                                    )}
                                 </div>
-
-                                {evaluating ? (
-                                    <div className="flex flex-col items-center gap-2 py-4">
-                                        <div className="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-                                        <p className="text-white/40 text-xs">AI javobingizni baholamoqda...</p>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={evaluateText}
-                                        disabled={!answerText.trim()}
-                                        className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 disabled:from-indigo-650/40 disabled:to-violet-650/40 text-white rounded-2xl font-bold text-base hover:scale-[1.01] active:scale-95 transition-all shadow-lg shadow-indigo-500/20"
-                                    >
-                                        Javobni yuborish
-                                    </button>
-                                )}
+                                {sttError && <p className="text-red-400 text-xs text-center">{sttError}</p>}
                             </div>
                         ) : (
                             <div className="flex flex-col gap-4">
