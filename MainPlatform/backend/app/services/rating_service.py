@@ -174,6 +174,7 @@ class RatingService:
         rows = result.all()
         
         leaderboard = []
+        rank_counter = 1 + offset
         for user, rating in rows:
             data = rating.to_dict() if rating else {
                 "id": None,
@@ -186,6 +187,12 @@ class RatingService:
                 "growth": 0,
                 "updated_at": None
             }
+            data["rank"] = rank_counter
+            data["first_name"] = user.first_name
+            data["last_name"] = user.last_name
+            data["books_read"] = data.get("total_books", 0)
+            
+            # Keep student object for backwards compatibility
             data["student"] = {
                 "id": user.id,
                 "first_name": user.first_name,
@@ -193,6 +200,7 @@ class RatingService:
                 "avatar_url": user.avatar
             }
             leaderboard.append(data)
+            rank_counter += 1
             
         return leaderboard, total
 
