@@ -115,7 +115,7 @@ class RatingService:
             stmt_rating = select(ReadingRating).where(
                 and_(
                     ReadingRating.student_id == student_id,
-                    ReadingRating.period == period.value,
+                    ReadingRating.period == period,
                     ReadingRating.period_key == p_key
                 )
             )
@@ -153,18 +153,18 @@ class RatingService:
             ReadingRating,
             and_(
                 ReadingRating.student_id == User.id,
-                ReadingRating.period == period.value,
+                ReadingRating.period == period,
                 ReadingRating.period_key == p_key
             )
         ).where(
-            User.role == UserRole.student.value
+            User.role == UserRole.student
         ).order_by(
-            desc(func.coalesce(ReadingRating.total_score, 0)),
-            desc(func.coalesce(ReadingRating.total_books, 0))
+            ReadingRating.total_score.desc().nulls_last(),
+            ReadingRating.total_books.desc().nulls_last()
         )
         
         # total count
-        count_stmt = select(func.count(User.id)).where(User.role == UserRole.student.value)
+        count_stmt = select(func.count(User.id)).where(User.role == UserRole.student)
         total_res = await self.db.execute(count_stmt)
         total = total_res.scalar() or 0
         
@@ -224,14 +224,14 @@ class RatingService:
             ReadingRating,
             and_(
                 ReadingRating.student_id == User.id,
-                ReadingRating.period == period.value,
+                ReadingRating.period == period,
                 ReadingRating.period_key == p_key
             )
         ).where(
             User.id.in_(student_ids)
         ).order_by(
-            desc(func.coalesce(ReadingRating.total_score, 0)),
-            desc(func.coalesce(ReadingRating.total_books, 0))
+            ReadingRating.total_score.desc().nulls_last(),
+            ReadingRating.total_books.desc().nulls_last()
         )
         
         res_ratings = await self.db.execute(stmt_ratings)
@@ -268,30 +268,31 @@ class RatingService:
         period_keys = get_period_keys()
         p_key = period_keys[period]
         
-        # Placeholder: just get overall stats for now. Real implementation would filter by org's students.
-        stmt_agg = select(
-            func.count(User.id),
-            func.sum(func.coalesce(ReadingRating.total_books, 0)),
-            func.sum(func.coalesce(ReadingRating.total_score, 0))
-        ).select_from(User).outerjoin(
-            ReadingRating,
-            and_(
-                ReadingRating.student_id == User.id,
-                ReadingRating.period == period.value,
-                ReadingRating.period_key == p_key
-            )
-        ).where(User.role == UserRole.student.value)
+        count_stmt = select(func.count(User.id)).where(User.role == UserRole.student)
+        count_res = await self.db.execute(count_stmt)
+        count = count_res.scalar() or 0
         
-        res = await self.db.execute(stmt_agg)
-        row = res.first()
-        if not row:
-            count, total_books, total_score = 0, 0, 0
-        else:
-            count, total_books, total_score = row
+        if count == 0:
+            return {
+                "total_students": 0,
+                "total_books_read": 0,
+                "average_books": 0,
+                "average_score": 0
+            }
+            
+        stmt_sum = select(
+            func.sum(ReadingRating.total_books),
+            func.sum(ReadingRating.total_score)
+        ).where(
+            ReadingRating.period == period,
+            ReadingRating.period_key == p_key
+        )
         
-        count = count or 0
-        total_books = total_books or 0
-        total_score = total_score or 0
+        sum_res = await self.db.execute(stmt_sum)
+        row = sum_res.first()
+        
+        total_books = row[0] if row and row[0] else 0
+        total_score = row[1] if row and row[1] else 0
         
         return {
             "total_students": count,
