@@ -736,7 +736,8 @@ async def record_book_completion(
             book_id=book_id,
             quiz_score=int(quiz_score) if quiz_score is not None else 0,
             test_score=int(test_score) if test_score is not None else 0,
-            source_type="library"
+            source_type="library",
+            completed_at=datetime.now(timezone.utc)
         )
         db.add(record)
         

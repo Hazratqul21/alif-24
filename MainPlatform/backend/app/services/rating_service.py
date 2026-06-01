@@ -164,9 +164,9 @@ class RatingService:
         )
         
         # total count
-        count_stmt = select(func.count()).select_from(stmt.subquery())
+        count_stmt = select(func.count(User.id)).where(User.role == UserRole.student)
         total_res = await self.db.execute(count_stmt)
-        total = total_res.scalar_one()
+        total = total_res.scalar() or 0
         
         # paginate
         stmt = stmt.offset(offset).limit(limit)
