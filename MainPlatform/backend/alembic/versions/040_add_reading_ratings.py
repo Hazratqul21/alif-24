@@ -44,8 +44,9 @@ def upgrade():
         op.add_column('book_reading_records', sa.Column('source_type', sa.String(length=20), server_default='library', nullable=False))
 
     # 3. Create reading_ratings table
-    if not _table_exists(conn, 'reading_ratings'):
-        op.create_table('reading_ratings',
+    conn.execute(sa.text("DROP TABLE IF EXISTS reading_ratings CASCADE"))
+    
+    op.create_table('reading_ratings',
             sa.Column('id', sa.String(length=36), nullable=False),
             sa.Column('student_id', sa.String(length=8), nullable=False),
             sa.Column('period', sa.String(length=20), nullable=False),
