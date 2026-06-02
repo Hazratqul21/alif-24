@@ -308,3 +308,206 @@ class RatingService:
             "average_books": round(total_books / count, 2) if count > 0 else 0,
             "average_score": round(total_score / count, 2) if count > 0 else 0
         }
+
+    async def get_classroom_leaderboard(
+        self,
+        classroom_id: str,
+        period: RatingPeriod,
+        limit: int = 50,
+        offset: int = 0
+    ) -> Tuple[List[dict], int]:
+        """
+        Get leaderboard of students for a specific classroom.
+        Only includes students who have read at least 1 book.
+        """
+        period_keys = get_period_keys()
+        p_key = period_keys[period]
+
+        # Inner join to ensure only students who have read books appear
+        stmt = select(User, ReadingRating).select_from(ClassroomStudent).join(
+            User, User.id == ClassroomStudent.student_user_id
+        ).join(
+            ReadingRating,
+            and_(
+                ReadingRating.student_id == User.id,
+                cast(ReadingRating.period, String) == period.value,
+                ReadingRating.period_key == p_key,
+                ReadingRating.total_books > 0
+            )
+        ).where(
+            ClassroomStudent.classroom_id == classroom_id
+        ).order_by(
+            ReadingRating.total_score.desc().nulls_last(),
+            ReadingRating.total_books.desc().nulls_last()
+        )
+
+        # total count
+        count_stmt = select(func.count(User.id)).select_from(ClassroomStudent).join(
+            User, User.id == ClassroomStudent.student_user_id
+        ).join(
+            ReadingRating,
+            and_(
+                ReadingRating.student_id == User.id,
+                cast(ReadingRating.period, String) == period.value,
+                ReadingRating.period_key == p_key,
+                ReadingRating.total_books > 0
+            )
+        ).where(ClassroomStudent.classroom_id == classroom_id)
+        
+        total_res = await self.db.execute(count_stmt)
+        total = total_res.scalar() or 0
+
+        # paginate
+        stmt = stmt.offset(offset).limit(limit)
+        result = await self.db.execute(stmt)
+        rows = result.all()
+
+        leaderboard = []
+        rank_counter = 1 + offset
+        for user, rating in rows:
+            data = rating.to_dict()
+            data["rank"] = rank_counter
+            data["first_name"] = user.first_name
+            data["last_name"] = user.last_name
+            data["books_read"] = data.get("total_books", 0)
+
+            data["student"] = {
+                "id": user.id,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "avatar_url": user.avatar
+            }
+            leaderboard.append(data)
+            rank_counter += 1
+
+        return leaderboard, total
+
+    async def get_teacher_classrooms_reading_stats(self, teacher_id: str, period: RatingPeriod) -> List[dict]:
+        """
+        Get list of classrooms for a teacher and their aggregated reading stats.
+        """
+        period_keys = get_period_keys()
+        p_key = period_keys[period]
+
+        # Get all classrooms for teacher
+        stmt_classes = select(Classroom).where(Classroom.teacher_id == teacher_id)
+        res_classes = await self.db.execute(stmt_classes)
+        classrooms = res_classes.scalars().all()
+
+        stats_list = []
+        for c in classrooms:
+            # get total students in this class
+            count_stmt = select(func.count(ClassroomStudent.id)).where(ClassroomStudent.classroom_id == c.id)
+            count_res = await self.db.execute(count_stmt)
+            total_students = count_res.scalar() or 0
+
+            # get aggregated ratings for students in this class
+            stmt_sum = select(
+                func.sum(ReadingRating.total_books),
+                func.sum(ReadingRating.total_score),
+                func.count(ReadingRating.id)
+            ).select_from(ClassroomStudent).join(
+                ReadingRating,
+                and_(
+                    ReadingRating.student_id == ClassroomStudent.student_user_id,
+                    cast(ReadingRating.period, String) == period.value,
+                    ReadingRating.period_key == p_key,
+                    ReadingRating.total_books > 0
+                )
+            ).where(
+                ClassroomStudent.classroom_id == c.id
+            )
+            sum_res = await self.db.execute(stmt_sum)
+            row = sum_res.first()
+            
+            total_books = row[0] if row and row[0] else 0
+            total_score = row[1] if row and row[1] else 0
+            readers_count = row[2] if row and row[2] else 0
+
+            stats_list.append({
+                "classroom_id": c.id,
+                "classroom_name": c.name,
+                "subject": getattr(c, "subject", ""),
+                "grade_level": getattr(c, "grade_level", ""),
+                "total_students": total_students,
+                "readers_count": readers_count,
+                "total_books_read": total_books,
+                "average_score": round(total_score / readers_count, 2) if readers_count > 0 else 0
+            })
+            
+        return stats_list
+
+    async def get_student_classrooms_rank(self, student_id: str, period: RatingPeriod) -> List[dict]:
+        """
+        Find all classrooms the student belongs to and their rank within each classroom.
+        If the student hasn't read any books, return rank 0 or None.
+        """
+        period_keys = get_period_keys()
+        p_key = period_keys[period]
+
+        # 1. Check if student has a rating
+        stmt_rating = select(ReadingRating).where(
+            and_(
+                ReadingRating.student_id == student_id,
+                cast(ReadingRating.period, String) == period.value,
+                ReadingRating.period_key == p_key,
+                ReadingRating.total_books > 0
+            )
+        )
+        res_rating = await self.db.execute(stmt_rating)
+        my_rating = res_rating.scalars().first()
+
+        my_score = my_rating.total_score if my_rating else 0
+        my_books = my_rating.total_books if my_rating else 0
+
+        # 2. Get student's classrooms
+        stmt_classes = select(Classroom).join(
+            ClassroomStudent, ClassroomStudent.classroom_id == Classroom.id
+        ).where(ClassroomStudent.student_user_id == student_id)
+        res_classes = await self.db.execute(stmt_classes)
+        classrooms = res_classes.scalars().all()
+
+        results = []
+        for c in classrooms:
+            if not my_rating:
+                results.append({
+                    "classroom_id": c.id,
+                    "classroom_name": c.name,
+                    "rank": 0,
+                    "total_score": 0,
+                    "total_books": 0,
+                    "has_read": False
+                })
+                continue
+                
+            # Count how many students in this classroom have a better score/book count
+            count_stmt = select(func.count(ReadingRating.id)).select_from(ClassroomStudent).join(
+                ReadingRating,
+                and_(
+                    ReadingRating.student_id == ClassroomStudent.student_user_id,
+                    cast(ReadingRating.period, String) == period.value,
+                    ReadingRating.period_key == p_key,
+                    ReadingRating.total_books > 0
+                )
+            ).where(
+                and_(
+                    ClassroomStudent.classroom_id == c.id,
+                    # Better score OR (same score but more books)
+                    (ReadingRating.total_score > my_score) |
+                    ((ReadingRating.total_score == my_score) & (ReadingRating.total_books > my_books))
+                )
+            )
+            res_better = await self.db.execute(count_stmt)
+            better_count = res_better.scalar() or 0
+
+            # Rank is better_count + 1
+            results.append({
+                "classroom_id": c.id,
+                "classroom_name": c.name,
+                "rank": better_count + 1,
+                "total_score": my_score,
+                "total_books": my_books,
+                "has_read": True
+            })
+
+        return results

@@ -236,18 +236,18 @@ const TeacherDashboard = () => {
 
   const [readingStats, setReadingStats] = useState(null);
   const [readingStatsLoading, setReadingStatsLoading] = useState(false);
+  const [selectedReadingClassroom, setSelectedReadingClassroom] = useState(null);
+  const [classroomLeaderboard, setClassroomLeaderboard] = useState(null);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'reading_stats' && !readingStats) {
       const fetchReadingStats = async () => {
         setReadingStatsLoading(true);
         try {
-          // getTeacherDashboardStats expects a teacherId, but we can also use 'me' if the backend supports it,
-          // or we can pass user.id. Wait, getTeacherDashboardStats uses teacher_id param.
-          // Let's pass user?.id as a fallback.
-          const { getTeacherDashboardStats } = await import('../services/readingRatingService');
-          const res = await getTeacherDashboardStats(user?.id, 'all_time');
-          setReadingStats(res?.total_students !== undefined ? res : res.data || null);
+          const { getTeacherClassroomsReadingStats } = await import('../services/readingRatingService');
+          const res = await getTeacherClassroomsReadingStats(user?.id, 'all_time');
+          setReadingStats(res?.data || res || []);
         } catch (e) {
           console.error("Reading stats fetch error", e);
         } finally {
@@ -257,6 +257,25 @@ const TeacherDashboard = () => {
       fetchReadingStats();
     }
   }, [activeTab, readingStats, user?.id]);
+
+  const handleSelectReadingClassroom = async (classroomId) => {
+    if (selectedReadingClassroom === classroomId) {
+      setSelectedReadingClassroom(null);
+      setClassroomLeaderboard(null);
+      return;
+    }
+    setSelectedReadingClassroom(classroomId);
+    setLeaderboardLoading(true);
+    try {
+      const { getClassroomLeaderboard } = await import('../services/readingRatingService');
+      const res = await getClassroomLeaderboard(classroomId, 'all_time');
+      setClassroomLeaderboard(res?.data || []);
+    } catch (e) {
+      console.error("Leaderboard fetch error", e);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  };
 
   const fetchAssignmentDetail = async (assignmentId) => {
     try {
@@ -1551,82 +1570,89 @@ const TeacherDashboard = () => {
     if (readingStatsLoading) {
       return <div className="text-center py-12 text-white">Yuklanmoqda...</div>;
     }
-    if (!readingStats) {
-      return <div className="text-center py-12 text-white/60">Ma'lumot topilmadi.</div>;
+    if (!readingStats || readingStats.length === 0) {
+      return <div className="text-center py-12 text-white/60">Sinflar reytingi topilmadi. Avval sinf va o'quvchi qo'shing.</div>;
     }
 
     return (
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-white flex items-center gap-2 mb-6">
-          <BookOpen className="text-blue-400" /> O'quvchilar Kitobxonligi
+          <BookOpen className="text-blue-400" /> Sinflar bo'yicha Kitobxonlik
         </h3>
         
-        {/* Overall Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
-            <div className="text-3xl font-bold text-white mb-1">{readingStats.total_students}</div>
-            <div className="text-sm text-white/60">O'quvchilar soni</div>
-          </div>
-          <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
-            <div className="text-3xl font-bold text-white mb-1">{readingStats.total_books_read}</div>
-            <div className="text-sm text-white/60">O'qilgan kitoblar</div>
-          </div>
-          <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
-            <div className="text-3xl font-bold text-white mb-1">{readingStats.average_books_per_student}</div>
-            <div className="text-sm text-white/60">O'rtacha kitob/o'quvchi</div>
-          </div>
-          <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
-            <div className="text-3xl font-bold text-white mb-1">{readingStats.average_score}</div>
-            <div className="text-sm text-white/60">O'rtacha ball</div>
-          </div>
-        </div>
+        <div className="grid grid-cols-1 gap-6">
+          {readingStats.map(stat => (
+            <div key={stat.classroom_id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all">
+              <div 
+                className="p-5 flex items-center justify-between cursor-pointer hover:bg-white/5"
+                onClick={() => handleSelectReadingClassroom(stat.classroom_id)}
+              >
+                <div>
+                  <h4 className="text-xl font-bold text-white flex items-center gap-2">
+                    <GraduationCap className="text-blue-400" size={24} /> {stat.classroom_name}
+                  </h4>
+                  <p className="text-sm text-white/60 mt-1">{stat.subject || 'Fan belgilanmagan'} {stat.grade_level ? `| ${stat.grade_level}` : ''}</p>
+                </div>
+                <div className="flex gap-6 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-white">{stat.readers_count}/{stat.total_students}</div>
+                    <div className="text-xs text-white/60">Faol o'quvchilar</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-400">{stat.total_books_read}</div>
+                    <div className="text-xs text-white/60">O'qilgan kitoblar</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-purple-400">{stat.average_score}</div>
+                    <div className="text-xs text-white/60">O'rtacha ball</div>
+                  </div>
+                </div>
+              </div>
 
-        {/* Top Active Reader */}
-        {readingStats.most_active_student && (
-          <div className="bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/30 p-5 rounded-2xl flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-xl font-bold text-white">
-              <Award />
+              {selectedReadingClassroom === stat.classroom_id && (
+                <div className="border-t border-white/10 bg-black/20 p-5">
+                  <h5 className="text-md font-bold text-white mb-4">Sinf reytingi</h5>
+                  {leaderboardLoading ? (
+                    <div className="text-center py-6 text-white/60">Reyting yuklanmoqda...</div>
+                  ) : classroomLeaderboard && classroomLeaderboard.length > 0 ? (
+                    <table className="w-full text-left">
+                      <thead className="bg-white/5">
+                        <tr>
+                          <th className="px-4 py-3 text-xs font-bold text-white/60 uppercase">O'rin</th>
+                          <th className="px-4 py-3 text-xs font-bold text-white/60 uppercase">O'quvchi</th>
+                          <th className="px-4 py-3 text-xs font-bold text-white/60 uppercase">Kitoblar</th>
+                          <th className="px-4 py-3 text-xs font-bold text-white/60 uppercase text-right">Umumiy Ball</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {classroomLeaderboard.map((item) => (
+                          <tr key={item.student_id} className="hover:bg-white/5">
+                            <td className="px-4 py-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-500 text-white shadow-lg' : item.rank === 2 ? 'bg-gray-300 text-gray-800' : item.rank === 3 ? 'bg-[#CD7F32] text-white' : 'text-white/60'}`}>
+                                {item.rank}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <img src={item.student?.avatar_url || '/default-avatar.png'} alt="Avatar" className="w-8 h-8 rounded-full object-cover bg-white/10" onError={e => e.target.src='https://ui-avatars.com/api/?name=' + (item.first_name||'U')} />
+                                <div>
+                                  <div className="text-sm font-bold text-white">{item.first_name} {item.last_name}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-white/80">{item.total_books} ta</td>
+                            <td className="px-4 py-3 text-sm font-bold text-white text-right">{item.total_score}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="text-center py-6 text-white/40">Bu sinfda hali kitob o'qigan o'quvchilar yo'q.</div>
+                  )}
+                </div>
+              )}
             </div>
-            <div>
-              <div className="text-sm text-blue-200">Eng faol o'quvchi</div>
-              <div className="text-xl font-bold text-white">{readingStats.most_active_student.first_name} {readingStats.most_active_student.last_name}</div>
-              <div className="text-sm text-white/60">{readingStats.most_active_student.books_read} ta kitob o'qigan</div>
-            </div>
-          </div>
-        )}
-
-        {/* Leaderboard */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden mt-8">
-          <table className="w-full text-left">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">O'rin</th>
-                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">O'quvchi</th>
-                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">Kitoblar</th>
-                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase text-right">Umumiy Ball</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {readingStats.leaderboard?.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-white/40">Hozircha natijalar yo'q</td>
-                </tr>
-              ) : readingStats.leaderboard?.map((item) => (
-                <tr key={item.student_id} className="hover:bg-white/5">
-                  <td className="px-6 py-4">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-500 text-white shadow-lg' : item.rank === 2 ? 'bg-gray-300 text-gray-800' : item.rank === 3 ? 'bg-[#CD7F32] text-white' : 'text-white/60'}`}>
-                      {item.rank}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-white">
-                    {item.first_name} {item.last_name}
-                  </td>
-                  <td className="px-6 py-4 text-white/80">{item.books_read} ta</td>
-                  <td className="px-6 py-4 text-right font-bold text-blue-400">{item.total_score}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          ))}
         </div>
       </div>
     );

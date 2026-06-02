@@ -62,3 +62,57 @@ async def get_organization_dashboard(
         "status": "success",
         "data": stats
     }
+
+@router.get("/teacher/classrooms")
+async def get_teacher_classrooms_reading_stats(
+    teacher_id: str = Query(..., description="Teacher's user ID"),
+    period: RatingPeriod = Query(RatingPeriod.all_time, description="Time period for dashboard"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get the reading stats aggregated for each of the teacher's classrooms."""
+    service = RatingService(db)
+    stats = await service.get_teacher_classrooms_reading_stats(teacher_id, period)
+    
+    return {
+        "status": "success",
+        "data": stats
+    }
+
+@router.get("/classrooms/{classroom_id}")
+async def get_classroom_leaderboard(
+    classroom_id: str,
+    period: RatingPeriod = Query(RatingPeriod.all_time, description="Time period for leaderboard"),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get the reading leaderboard for a specific classroom."""
+    service = RatingService(db)
+    leaderboard, total = await service.get_classroom_leaderboard(classroom_id, period, limit, offset)
+    
+    return {
+        "status": "success",
+        "data": leaderboard,
+        "pagination": {
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+    }
+
+from shared.auth import get_current_user
+
+@router.get("/student/me/classrooms")
+async def get_student_classrooms_rank(
+    period: RatingPeriod = Query(RatingPeriod.all_time, description="Time period for dashboard"),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get the student's rank in each of their classrooms."""
+    service = RatingService(db)
+    stats = await service.get_student_classrooms_rank(current_user["sub"], period)
+    
+    return {
+        "status": "success",
+        "data": stats
+    }

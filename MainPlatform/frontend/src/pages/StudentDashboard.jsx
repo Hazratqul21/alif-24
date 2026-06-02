@@ -8,7 +8,7 @@ import { studentService } from '../services/studentService';
 import notificationService from '../services/notificationService';
 import apiService from '../services/apiService';
 import organizationService from '../services/organizationService';
-import { getStudentLeaderboard } from '../services/readingRatingService';
+import { getStudentClassroomRanks } from '../services/readingRatingService';
 // Olympiad student UI is on olimp.alif24.uz (separate platform)
 import {
     BookOpen, Trophy, Clock, Star, Play, CheckCircle, Search, Filter,
@@ -63,7 +63,7 @@ const StudentDashboard = () => {
     const [realStories, setRealStories] = useState([]);
     const [libraryStories, setLibraryStories] = useState([]);
     const [libraryBooks, setLibraryBooks] = useState([]);
-    const [readingLeaderboard, setReadingLeaderboard] = useState([]);
+    const [myClassroomRanks, setMyClassroomRanks] = useState([]);
     const [myReadingRank, setMyReadingRank] = useState(null);
     const [contentLoading, setContentLoading] = useState(false);
     const [selectedLesson, setSelectedLesson] = useState(null);
@@ -245,12 +245,9 @@ const StudentDashboard = () => {
                 if (bookRes.status === 'fulfilled') setLibraryBooks(bookRes.value.data || []);
             }).finally(() => setContentLoading(false));
         }
-        if (activeTab === 'leaderboard' && readingLeaderboard.length === 0) {
-            getStudentLeaderboard('all_time').then(res => {
-                setReadingLeaderboard(Array.isArray(res) ? res : res.data || []);
-                const list = Array.isArray(res) ? res : res.data || [];
-                const me = list.find(r => r.student_id === authUser?.id);
-                setMyReadingRank(me || null);
+        if (activeTab === 'leaderboard' && myClassroomRanks.length === 0) {
+            getStudentClassroomRanks('all_time').then(res => {
+                setMyClassroomRanks(res?.data || res || []);
             }).catch(() => {});
         }
         // Public content for dashboard/home
@@ -993,56 +990,40 @@ const StudentDashboard = () => {
 
             <div className="flex items-center justify-between mt-8">
                 <h3 className="font-bold text-gray-800 text-xl flex items-center gap-2">
-                    <BookOpen size={24} className="text-blue-500" /> Kitobxonlik Reytingi
+                    <BookOpen size={24} className="text-blue-500" /> Mening Kitobxonlik Reytingim (Sinflar bo'yicha)
                 </h3>
             </div>
 
-            <div className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase">Rank</th>
-                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase">O'quvchi</th>
-                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase">Kitoblar</th>
-                            <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase text-right">Umumiy Ball</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {readingLeaderboard.length === 0 ? (
-                            <tr>
-                                <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
-                                    Hozircha reytingda o'quvchilar yo'q
-                                </td>
-                            </tr>
-                        ) : readingLeaderboard.map((item) => (
-                            <tr key={item.student_id} className={`${item.student_id === authUser?.id ? 'bg-blue-50/50' : ''} hover:bg-gray-50/80 transition-colors`}>
-                                <td className="px-6 py-4">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-400 text-white shadow-lg shadow-yellow-400/20' :
-                                        item.rank === 2 ? 'bg-gray-300 text-white' :
-                                            item.rank === 3 ? 'bg-[#CD7F32] text-white' : 'text-gray-400'
-                                        }`}>
-                                        {item.rank}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
-                                            {item.first_name?.charAt(0) || '?'}
-                                        </div>
-                                        <div>
-                                            <span className="font-bold text-gray-800">{item.first_name} {item.last_name}</span>
-                                            {item.student_id === authUser?.id && <span className="ml-2 bg-blue-600 text-white text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Siz</span>}
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <span className="px-3 py-1 bg-gray-100 rounded-full text-xs font-bold text-gray-600">{item.books_read} ta</span>
-                                </td>
-                                <td className="px-6 py-4 text-right font-black text-blue-600">{item.total_score}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {myClassroomRanks.length === 0 ? (
+                    <div className="col-span-1 md:col-span-2 bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
+                        <BookOpen size={48} className="mx-auto mb-3 text-gray-300" />
+                        <p className="text-gray-500">Hozircha reyting ma'lumotlari yo'q yoki birorta ham sinfda emassiz.</p>
+                    </div>
+                ) : myClassroomRanks.map((rankData) => (
+                    <div key={rankData.classroom_id} className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] p-6 text-white shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-20">
+                            <Trophy size={64} />
+                        </div>
+                        <h4 className="font-bold text-xl mb-1 relative z-10">{rankData.classroom_name}</h4>
+                        <p className="text-white/80 text-sm mb-6 relative z-10">Jami o'quvchilar: {rankData.total_students}</p>
+                        
+                        <div className="grid grid-cols-3 gap-4 relative z-10 text-center">
+                            <div className="bg-white/10 rounded-xl p-3 border border-white/20 backdrop-blur-sm">
+                                <div className="text-3xl font-black text-yellow-300">{rankData.has_read !== false && rankData.rank > 0 ? `#${rankData.rank}` : '-'}</div>
+                                <div className="text-xs font-bold text-white/80 mt-1 uppercase tracking-wider">O'rin</div>
+                            </div>
+                            <div className="bg-white/10 rounded-xl p-3 border border-white/20 backdrop-blur-sm">
+                                <div className="text-2xl font-bold text-white">{rankData.total_books || rankData.books_read || 0}</div>
+                                <div className="text-xs font-bold text-white/80 mt-1 uppercase tracking-wider">Kitob</div>
+                            </div>
+                            <div className="bg-white/10 rounded-xl p-3 border border-white/20 backdrop-blur-sm">
+                                <div className="text-2xl font-bold text-white">{rankData.total_score || 0}</div>
+                                <div className="text-xs font-bold text-white/80 mt-1 uppercase tracking-wider">Ball</div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );
