@@ -473,6 +473,8 @@ class RatingService:
                 results.append({
                     "classroom_id": c.id,
                     "classroom_name": c.name,
+                    "subject": getattr(c, "subject", ""),
+                    "grade_level": getattr(c, "grade_level", ""),
                     "rank": 0,
                     "total_score": 0,
                     "total_books": 0,
@@ -504,6 +506,8 @@ class RatingService:
             results.append({
                 "classroom_id": c.id,
                 "classroom_name": c.name,
+                "subject": getattr(c, "subject", ""),
+                "grade_level": getattr(c, "grade_level", ""),
                 "rank": better_count + 1,
                 "total_score": my_score,
                 "total_books": my_books,

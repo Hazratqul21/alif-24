@@ -332,6 +332,7 @@ const TeacherDashboard = () => {
       setShowCreateClass(false);
       setNewClass({ name: '', subject: '', grade_level: '', description: '' });
       fetchClassrooms();
+      setReadingStats(null); // Force reading stats to fetch again
     } catch (e) { showNotif('error', e.message || 'Xatolik'); }
   };
 
