@@ -105,12 +105,12 @@ from app.middleware.auth import get_current_user
 @router.get("/student/me/classrooms")
 async def get_student_classrooms_rank(
     period: RatingPeriod = Query(RatingPeriod.all_time, description="Time period for dashboard"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get the student's rank in each of their classrooms."""
     service = RatingService(db)
-    stats = await service.get_student_classrooms_rank(current_user["sub"], period)
+    stats = await service.get_student_classrooms_rank(current_user.id, period)
     
     return {
         "status": "success",
