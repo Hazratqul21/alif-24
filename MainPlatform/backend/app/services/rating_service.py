@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func, desc, and_, cast, String
 from datetime import datetime, timezone
 
-from shared.database.models import User, UserRole, AccountStatus
+from shared.database.models import User, UserRole, AccountStatus, TeacherProfile
 from shared.database.models.book import BookReadingRecord
 from shared.database.models.reading_rating import ReadingRating, RatingPeriod
 from shared.database.models.classroom import Classroom, ClassroomStudent
@@ -389,8 +389,16 @@ class RatingService:
         period_keys = get_period_keys()
         p_key = period_keys[period]
 
+        # Get the actual teacher profile ID using the user's ID
+        stmt_teacher = select(TeacherProfile).where(TeacherProfile.user_id == teacher_id)
+        res_teacher = await self.db.execute(stmt_teacher)
+        teacher = res_teacher.scalars().first()
+        
+        if not teacher:
+            return []
+
         # Get all classrooms for teacher
-        stmt_classes = select(Classroom).where(Classroom.teacher_id == teacher_id)
+        stmt_classes = select(Classroom).where(Classroom.teacher_id == teacher.id)
         res_classes = await self.db.execute(stmt_classes)
         classrooms = res_classes.scalars().all()
 
