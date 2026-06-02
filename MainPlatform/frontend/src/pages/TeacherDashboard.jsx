@@ -19,7 +19,7 @@ import {
   Play, Eye, Edit, Trash2, ArrowLeft, LogOut, Zap, Copy,
   Send, UserPlus, X, ClipboardList, Hash, Mail, Phone, User as UserIcon, Paperclip,
   FolderOpen, Sparkles, Upload, List, LayoutGrid, Tag, ShoppingBag,
-  Type, Image as ImageIcon, Menu, Share2
+  Type, Image as ImageIcon, Menu, Share2, AlertTriangle
 } from 'lucide-react';
 import GradebookMatrix from '../components/Teacher/GradebookMatrix';
 import ErtakPreviewModal from '../components/Teacher/ErtakPreviewModal';
@@ -2022,16 +2022,6 @@ const TeacherDashboard = () => {
         </main>
       </div>
 
-        {showSchoolModal && (
-          <SchoolEditModal
-            school={mySchool}
-            onClose={() => setShowSchoolModal(false)}
-            onSave={(updated) => {
-              setMySchool(updated);
-              showNotif('success', "Maktab ma'lumotlari saqlandi");
-            }}
-          />
-        )}
 
         {/* Sinfni o'chirishni tasdiqlash modali */}
         {classToDelete && (
