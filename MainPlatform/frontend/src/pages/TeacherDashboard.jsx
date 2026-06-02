@@ -239,6 +239,7 @@ const TeacherDashboard = () => {
   const [selectedReadingClassroom, setSelectedReadingClassroom] = useState(null);
   const [classroomLeaderboard, setClassroomLeaderboard] = useState(null);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [classToDelete, setClassToDelete] = useState(null);
 
   useEffect(() => {
     if (activeTab === 'reading_stats' && !readingStats) {
@@ -696,16 +697,32 @@ const TeacherDashboard = () => {
     } catch (e) { showNotif('error', e.message || 'Xatolik'); }
   };
 
-  const handleDeleteClassroom = async (id) => {
-    if (!confirm("Sinfni o'chirishni xohlaysizmi?")) return;
+  const confirmDeleteClassroom = (cls) => {
+    setClassToDelete(cls);
+  };
+
+  const executeDeleteClassroom = async () => {
+    if (!classToDelete) return;
     try {
+      const id = classToDelete.id || classToDelete.classroom_id;
       await teacherService.deleteClassroom(id);
       showNotif('success', "Sinf o'chirildi");
       setSelectedClassroom(null);
       setClassroomDetail(null);
       fetchClassrooms();
-      setReadingStats(null);
+      
+      if (activeTab === 'reading_stats') {
+          const { getTeacherClassroomsReadingStats } = await import('../services/readingRatingService');
+          const res = await getTeacherClassroomsReadingStats(user?.id, 'all_time');
+          setReadingStats(res?.data || res || []);
+          if (selectedReadingClassroom === id) {
+              setSelectedReadingClassroom(null);
+          }
+      } else {
+          setReadingStats(null);
+      }
     } catch (e) { showNotif('error', e.message || 'Xatolik'); }
+    setClassToDelete(null);
   };
 
   const copyInviteCode = (code) => {
@@ -864,9 +881,9 @@ const TeacherDashboard = () => {
                     <div className="text-white/40 text-sm">{c.subject || ''} {c.grade_level ? `| ${c.grade_level}` : ''}</div>
                   </div>
                 </div>
-                <button onClick={() => handleDeleteClassroom(c.id)}
-                  className="text-white/30 hover:text-red-400 bg-transparent border-none cursor-pointer p-1">
-                  <Trash2 size={16} />
+                <button onClick={() => confirmDeleteClassroom(c)}
+                  className="p-2 text-white/50 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">
+                  <Trash2 size={18} />
                 </button>
               </div>
               <div className="flex items-center gap-4 mb-3 text-sm">
@@ -1639,7 +1656,7 @@ const TeacherDashboard = () => {
                       className="flex items-center gap-2 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">
                       <UserPlus size={16} /> Taklif qilish
                     </button>
-                    <button onClick={() => handleDeleteClassroom(stat.classroom_id)}
+                    <button onClick={() => confirmDeleteClassroom(stat)}
                       className="flex items-center gap-2 bg-red-500/20 text-red-400 px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:bg-red-500/30 transition-transform ml-auto">
                       <Trash2 size={16} /> Sinfni o'chirish
                     </button>
@@ -2004,6 +2021,50 @@ const TeacherDashboard = () => {
           <div className="max-w-4xl mx-auto">{renderContent()}</div>
         </main>
       </div>
+
+        {showSchoolModal && (
+          <SchoolEditModal
+            school={mySchool}
+            onClose={() => setShowSchoolModal(false)}
+            onSave={(updated) => {
+              setMySchool(updated);
+              showNotif('success', "Maktab ma'lumotlari saqlandi");
+            }}
+          />
+        )}
+
+        {/* Sinfni o'chirishni tasdiqlash modali */}
+        {classToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setClassToDelete(null)}></div>
+            <div className="bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-white/10 rounded-3xl p-6 sm:p-8 w-full max-w-md relative z-10 shadow-2xl flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4 text-red-400">
+                <AlertTriangle size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Sinfni o'chirishni tasdiqlaysizmi?</h3>
+              <p className="text-white/60 text-sm mb-6">
+                Siz <strong>{classToDelete.name || classToDelete.classroom_name}</strong> sinfini o'chirmoqchisiz.<br/>
+                Sinfda <strong>{classToDelete.students_count ?? classToDelete.total_students ?? 0} ta o'quvchi</strong> bor.<br/>
+                <span className="text-red-400 font-medium block mt-2">Bu ma'lumotlar qayta tiklanmaydi!</span>
+              </p>
+              
+              <div className="flex gap-4 w-full">
+                <button
+                  onClick={() => setClassToDelete(null)}
+                  className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-semibold transition-colors"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  onClick={executeDeleteClassroom}
+                  className="flex-1 py-3 px-4 bg-red-500 hover:bg-red-600 rounded-xl text-white font-bold transition-colors shadow-lg shadow-red-500/20"
+                >
+                  O'chirish
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* Create Class Modal */}
       {renderModal(showCreateClass, () => setShowCreateClass(false), 'Yangi sinf yaratish',

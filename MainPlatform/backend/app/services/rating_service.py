@@ -318,21 +318,20 @@ class RatingService:
     ) -> Tuple[List[dict], int]:
         """
         Get leaderboard of students for a specific classroom.
-        Only includes students who have read at least 1 book.
+        Includes all students in the classroom, even if they haven't read any books.
         """
         period_keys = get_period_keys()
         p_key = period_keys[period]
 
-        # Inner join to ensure only students who have read books appear
+        # Use outerjoin to include students who haven't read books
         stmt = select(User, ReadingRating).select_from(ClassroomStudent).join(
             User, User.id == ClassroomStudent.student_user_id
-        ).join(
+        ).outerjoin(
             ReadingRating,
             and_(
                 ReadingRating.student_id == User.id,
                 cast(ReadingRating.period, String) == period.value,
-                ReadingRating.period_key == p_key,
-                ReadingRating.total_books > 0
+                ReadingRating.period_key == p_key
             )
         ).where(
             ClassroomStudent.classroom_id == classroom_id
@@ -341,17 +340,9 @@ class RatingService:
             ReadingRating.total_books.desc().nulls_last()
         )
 
-        # total count
+        # total count (just count students in the classroom)
         count_stmt = select(func.count(User.id)).select_from(ClassroomStudent).join(
             User, User.id == ClassroomStudent.student_user_id
-        ).join(
-            ReadingRating,
-            and_(
-                ReadingRating.student_id == User.id,
-                cast(ReadingRating.period, String) == period.value,
-                ReadingRating.period_key == p_key,
-                ReadingRating.total_books > 0
-            )
         ).where(ClassroomStudent.classroom_id == classroom_id)
         
         total_res = await self.db.execute(count_stmt)
@@ -365,7 +356,19 @@ class RatingService:
         leaderboard = []
         rank_counter = 1 + offset
         for user, rating in rows:
-            data = rating.to_dict()
+            if rating:
+                data = rating.to_dict()
+            else:
+                data = {
+                    "student_id": user.id,
+                    "total_score": 0,
+                    "total_books": 0,
+                    "total_time_seconds": 0,
+                    "average_wpm": 0,
+                    "average_quiz_score": 0,
+                    "period": period.value,
+                    "period_key": p_key
+                }
             data["rank"] = rank_counter
             data["first_name"] = user.first_name
             data["last_name"] = user.last_name
@@ -375,7 +378,7 @@ class RatingService:
                 "id": user.id,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
-                "avatar_url": user.avatar
+                "avatar_url": getattr(user, 'avatar', None)
             }
             leaderboard.append(data)
             rank_counter += 1
