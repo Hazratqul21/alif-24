@@ -879,6 +879,7 @@ const TeacherDashboard = () => {
       )}
     </div>
   );
+  };
 
   const renderClassDetail = () => {
     const cls = classroomDetail?.class;
