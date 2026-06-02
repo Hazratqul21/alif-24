@@ -938,7 +938,9 @@ const StudentDashboard = () => {
         </div>
     );
 
-    const renderLeaderboard = () => (
+    const renderLeaderboard = () => {
+        const kitobxonlikRanks = myClassroomRanks.filter(r => r.subject === 'Kitobxonlik');
+        return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="font-bold text-gray-800 text-xl flex items-center gap-2">
@@ -996,9 +998,27 @@ const StudentDashboard = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {myClassroomRanks.length === 0 ? (
-                    <div className="col-span-1 md:col-span-2 bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
-                        <BookOpen size={48} className="mx-auto mb-3 text-gray-300" />
-                        <p className="text-gray-500">Hozircha reyting ma'lumotlari yo'q yoki birorta ham sinfda emassiz.</p>
+                    <div className="bg-gradient-to-br from-gray-500 to-slate-600 rounded-[2rem] p-6 text-white shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Trophy size={64} />
+                        </div>
+                        <h4 className="font-bold text-xl mb-1 relative z-10">Hech qanday sinf yo'q</h4>
+                        <p className="text-white/80 text-sm mb-6 relative z-10">Siz hali sinfga qo'shilmagansiz</p>
+                        
+                        <div className="grid grid-cols-3 gap-4 relative z-10 text-center">
+                            <div className="bg-white/10 rounded-xl p-3 border border-white/20 backdrop-blur-sm">
+                                <div className="text-3xl font-black text-yellow-300">#1</div>
+                                <div className="text-xs font-bold text-white/80 mt-1 uppercase tracking-wider">O'rin</div>
+                            </div>
+                            <div className="bg-white/10 rounded-xl p-3 border border-white/20 backdrop-blur-sm">
+                                <div className="text-2xl font-bold text-white">0</div>
+                                <div className="text-xs font-bold text-white/80 mt-1 uppercase tracking-wider">Kitob</div>
+                            </div>
+                            <div className="bg-white/10 rounded-xl p-3 border border-white/20 backdrop-blur-sm">
+                                <div className="text-2xl font-bold text-white">0</div>
+                                <div className="text-xs font-bold text-white/80 mt-1 uppercase tracking-wider">Ball</div>
+                            </div>
+                        </div>
                     </div>
                 ) : myClassroomRanks.map((rankData) => (
                     <div key={rankData.classroom_id} className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] p-6 text-white shadow-lg relative overflow-hidden">
@@ -1027,7 +1047,10 @@ const StudentDashboard = () => {
             </div>
         </div>
     );
-    const renderClasses = () => (
+    };
+    const renderClasses = () => {
+        const regularClassrooms = classrooms.filter(c => c.subject !== 'Kitobxonlik');
+        return (
         <div className="space-y-6">
             {/* Invitations */}
             {invitations.length > 0 && (
@@ -1091,7 +1114,7 @@ const StudentDashboard = () => {
             {/* My Classrooms */}
             <div className="flex items-center justify-between">
                 <h3 className="font-bold text-gray-800 text-xl flex items-center gap-2">
-                    <SchoolIcon size={24} className="text-indigo-500" /> Sinflarim ({classrooms.length})
+                    <SchoolIcon size={24} className="text-indigo-500" /> Sinflarim ({regularClassrooms.length})
                 </h3>
                 <button onClick={() => setShowJoinModal(true)}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2">
@@ -1099,7 +1122,7 @@ const StudentDashboard = () => {
                 </button>
             </div>
 
-            {classrooms.length === 0 ? (
+            {regularClassrooms.length === 0 ? (
                 <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
                     <SchoolIcon size={48} className="mx-auto mb-4 text-gray-300" />
                     <p className="text-gray-500">Hozircha hech qanday sinfga qo'shilmagansiz</p>
@@ -1107,7 +1130,7 @@ const StudentDashboard = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {classrooms.map(c => (
+                    {regularClassrooms.map(c => (
                         <div key={c.classroom_id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-3">
@@ -1130,6 +1153,7 @@ const StudentDashboard = () => {
             )}
         </div>
     );
+    };
 
     const getBookColor = (score) => {
         if (score <= 40) return 'bg-red-500 text-white';

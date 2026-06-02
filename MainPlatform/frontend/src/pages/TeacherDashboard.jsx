@@ -827,7 +827,9 @@ const TeacherDashboard = () => {
     </div>
   );
 
-  const renderClassList = () => (
+  const renderClassList = () => {
+    const regularClassrooms = classrooms.filter(c => c.subject !== 'Kitobxonlik');
+    return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-white">Sinflarim</h3>
@@ -836,7 +838,7 @@ const TeacherDashboard = () => {
           <Plus size={16} /> Yangi sinf
         </button>
       </div>
-      {classrooms.length === 0 ? (
+      {regularClassrooms.length === 0 ? (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
           <GraduationCap className="w-12 h-12 text-white/30 mx-auto mb-3" />
           <p className="text-white/60">Hozircha sinf yo'q</p>
@@ -844,7 +846,7 @@ const TeacherDashboard = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {classrooms.map(c => (
+          {regularClassrooms.map(c => (
             <div key={c.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -1570,19 +1572,14 @@ const TeacherDashboard = () => {
     if (readingStatsLoading) {
       return <div className="text-center py-12 text-white">Yuklanmoqda...</div>;
     }
-    if (!readingStats || readingStats.length === 0) {
+    const kitobxonlikStats = readingStats ? readingStats.filter(s => s.subject === 'Kitobxonlik') : [];
+    if (!kitobxonlikStats || kitobxonlikStats.length === 0) {
       return (
         <div className="text-center py-12">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-12 max-w-lg mx-auto">
             <BookOpen size={48} className="mx-auto mb-4 text-white/30" />
             <h4 className="text-xl font-bold text-white mb-2">Sinflar reytingi topilmadi</h4>
-            <p className="text-white/60 mb-6">Reyting shakllanishi uchun avval sinf yarating va o'quvchilarni qo'shing. O'quvchilar kitob o'qigach, bu yerda reyting avtomatik shakllanadi.</p>
-            <button 
-              onClick={() => { setActiveTab('classes'); setShowCreateClass(true); }}
-              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 mx-auto"
-            >
-              Yangi sinf yaratish
-            </button>
+            <p className="text-white/60 mb-0">Sizda "Kitobxonlik" fani bo'yicha sinf mavjud emas. Sinflar bo'limidan "Kitobxonlik" fani bilan yangi sinf yarating.</p>
           </div>
         </div>
       );
@@ -1595,7 +1592,7 @@ const TeacherDashboard = () => {
         </h3>
         
         <div className="grid grid-cols-1 gap-6">
-          {readingStats.map(stat => (
+          {kitobxonlikStats.map(stat => (
             <div key={stat.classroom_id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all">
               <div 
                 className="p-5 flex items-center justify-between cursor-pointer hover:bg-white/5"
@@ -1990,8 +1987,20 @@ const TeacherDashboard = () => {
         <form onSubmit={handleCreateClass} className="space-y-4">
           <input type="text" placeholder="Sinf nomi *" value={newClass.name} onChange={e => setNewClass({ ...newClass, name: e.target.value })}
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb]" />
-          <input type="text" placeholder="Fan (masalan: Matematika)" value={newClass.subject} onChange={e => setNewClass({ ...newClass, subject: e.target.value })}
-            className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb]" />
+          <select value={newClass.subject || ''} onChange={e => setNewClass({ ...newClass, subject: e.target.value })}
+            className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#4b30fb]">
+            <option value="" disabled className="text-gray-800">Fan tanlang *</option>
+            <option value="Kitobxonlik" className="text-gray-800">Kitobxonlik</option>
+            <option value="Matematika" className="text-gray-800">Matematika</option>
+            <option value="Ona tili va Adabiyot" className="text-gray-800">Ona tili va Adabiyot</option>
+            <option value="Ingliz tili" className="text-gray-800">Ingliz tili</option>
+            <option value="Fizika" className="text-gray-800">Fizika</option>
+            <option value="Kimyo" className="text-gray-800">Kimyo</option>
+            <option value="Tarix" className="text-gray-800">Tarix</option>
+            <option value="Biologiya" className="text-gray-800">Biologiya</option>
+            <option value="Informatika" className="text-gray-800">Informatika</option>
+            <option value="Boshqa" className="text-gray-800">Boshqa</option>
+          </select>
           <input type="text" placeholder="Sinf darajasi (masalan: 5-sinf, 9-A)" value={newClass.grade_level} onChange={e => setNewClass({ ...newClass, grade_level: e.target.value })}
             className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#4b30fb]" />
           <textarea placeholder="Tavsif (ixtiyoriy)" value={newClass.description} onChange={e => setNewClass({ ...newClass, description: e.target.value })}
