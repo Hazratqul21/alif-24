@@ -100,7 +100,7 @@ async def get_classroom_leaderboard(
         }
     }
 
-from shared.auth import get_current_user
+from app.middleware.auth import get_current_user
 
 @router.get("/student/me/classrooms")
 async def get_student_classrooms_rank(
