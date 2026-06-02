@@ -327,7 +327,11 @@ const TeacherDashboard = () => {
     e.preventDefault();
     if (!newClass.name.trim()) return showNotif('error', 'Sinf nomini kiriting');
     try {
-      await teacherService.createClassroom(newClass);
+      const classData = { ...newClass };
+      if (classData.subject === 'Kitobxonlik') {
+        classData.max_students = 10000;
+      }
+      await teacherService.createClassroom(classData);
       showNotif('success', 'Sinf yaratildi!');
       setShowCreateClass(false);
       setNewClass({ name: '', subject: '', grade_level: '', description: '' });

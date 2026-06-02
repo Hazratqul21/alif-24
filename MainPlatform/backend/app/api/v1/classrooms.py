@@ -36,7 +36,7 @@ class ClassroomCreate(BaseModel):
     subject: Optional[str] = None
     grade_level: Optional[str] = None
     description: Optional[str] = None
-    max_students: int = Field(default=40, ge=1, le=100)
+    max_students: int = Field(default=40, ge=1, le=10000)
 
 
 class ClassroomUpdate(BaseModel):
