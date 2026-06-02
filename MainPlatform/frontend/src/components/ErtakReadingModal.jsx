@@ -402,8 +402,60 @@ function QuizPhase({ ertak, assignmentId, readingStats, onDone, onClose }) {
     );
 }
 
-// ─── Phase 3: Multiple Choice Phase ──────────────────────────────────────────
-function MultipleChoicePhase({ test, testLimit, onDone }) {
+// ─── Phase 3: Quiz Summary Phase ───────────────────────────────────────────────
+function QuizSummaryPhase({ ertak, quizResult, onProceedToTest }) {
+    const { quiz_average = 0, scores = [] } = quizResult || {};
+    const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-rose-400';
+    const scoreBg = (s) => s >= 80 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-rose-500';
+
+    return (
+        <div className="flex flex-col items-center gap-5 pt-2">
+            <div className="text-center">
+                <p className="text-white font-bold text-2xl mb-1 uppercase tracking-tight">Oraliq Natija</p>
+                <p className="text-white/40 text-xs">Savol-javob (STT) bosqichi yakunlandi</p>
+            </div>
+
+            <div className="w-full">
+                <div className="bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-3xl p-6 text-center shadow-xl border border-white/10 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 opacity-10"><Trophy className="w-20 h-20 text-white" /></div>
+                    <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-2">Sizning balingiz</p>
+                    <p className="text-white text-6xl font-black">{quiz_average}</p>
+                </div>
+            </div>
+
+            {scores.length > 0 && (
+                <div className="w-full">
+                    <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold mb-2">🧠 JAVOBLAR TAHLILI</p>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                        {scores.map((s, i) => (
+                            <div key={i} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3 border border-white/5">
+                                <span className="text-white/60 text-sm">{i + 1}-savol</span>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-24 h-2 bg-white/5 rounded-full overflow-hidden">
+                                        <div className={`h-full ${scoreBg(s.score)}`} style={{ width: `${s.score}%` }} />
+                                    </div>
+                                    <span className={`text-sm font-bold ${scoreColor(s.score)}`}>{s.score}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-center mt-2">
+                <p className="text-white text-sm">Natija bazaga saqlandi. Endi yopiq test (A, B, C) savollariga o'tishingiz mumkin.</p>
+            </div>
+
+            <button onClick={onProceedToTest}
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform shadow-xl flex justify-center items-center gap-2 mt-2">
+                Testga o'tish <ChevronRight className="w-5 h-5" />
+            </button>
+        </div>
+    );
+}
+
+// ─── Phase 4: Multiple Choice Test Phase ─────────────────────────────────────
+function MultipleChoicePhase({ test, onDone }) {
     const shuffledTest = useMemo(() => {
         if (!test || test.length === 0) return [];
         let list = [...test];
@@ -411,11 +463,8 @@ function MultipleChoicePhase({ test, testLimit, onDone }) {
             const j = Math.floor(Math.random() * (i + 1));
             [list[i], list[j]] = [list[j], list[i]];
         }
-        if (testLimit !== undefined && testLimit !== null && testLimit > 0) {
-            return list.slice(0, testLimit);
-        }
         return list;
-    }, [test, testLimit]);
+    }, [test]);
 
     const [qIndex, setQIndex] = useState(0);
     const [selectedOption, setSelectedOption] = useState(null);
@@ -424,31 +473,25 @@ function MultipleChoicePhase({ test, testLimit, onDone }) {
     const currentQ = shuffledTest[qIndex];
     const isLast = qIndex === shuffledTest.length - 1;
 
-    const handleOptionSelect = (idx) => {
-        setSelectedOption(idx);
-    };
-
     const handleNext = () => {
         if (selectedOption === null) return;
-        
         let newCorrect = correctCount;
         if (selectedOption === currentQ?.correct) {
             newCorrect += 1;
             setCorrectCount(newCorrect);
         }
-
         if (isLast) {
-            const finalScore = Math.round((newCorrect / shuffledTest.length) * 100);
-            onDone(finalScore);
+            onDone(Math.round((newCorrect / shuffledTest.length) * 100));
         } else {
             setSelectedOption(null);
             setQIndex(prev => prev + 1);
         }
     };
 
+    if (!currentQ) return null;
+
     return (
         <div className="flex flex-col gap-5">
-            {/* Progress */}
             <div className="flex items-center justify-between">
                 <p className="text-white/50 text-xs">Test {qIndex + 1} / {shuffledTest.length}</p>
                 <p className="text-white/40 text-xs">To'g'ri: {correctCount}</p>
@@ -457,30 +500,25 @@ function MultipleChoicePhase({ test, testLimit, onDone }) {
                 <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all" style={{ width: `${((qIndex) / shuffledTest.length) * 100}%` }} />
             </div>
 
-            {/* Question */}
             <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
-                <p className="text-white text-lg font-bold">{currentQ?.question}</p>
+                <p className="text-white text-lg font-bold">{currentQ.question}</p>
             </div>
 
-            {/* Options */}
             <div className="flex flex-col gap-3">
-                {currentQ?.options?.map((opt, idx) => {
-                    const isSelected = selectedOption === idx;
-                    return (
-                        <button
-                            key={idx}
-                            onClick={() => handleOptionSelect(idx)}
-                            className={`w-full py-4 px-5 text-left rounded-2xl text-sm font-semibold transition-all border flex items-center justify-between ${
-                                isSelected
-                                    ? 'bg-blue-600/20 border-blue-500 text-blue-200'
-                                    : 'bg-white/5 hover:bg-white/10 border-white/5 text-white/80 hover:text-white'
-                            }`}
-                        >
-                            <span>{String.fromCharCode(65 + idx)}. {opt}</span>
-                            {isSelected && <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />}
-                        </button>
-                    );
-                })}
+                {currentQ.options?.map((opt, idx) => (
+                    <button
+                        key={idx}
+                        onClick={() => setSelectedOption(idx)}
+                        className={`w-full py-4 px-5 text-left rounded-2xl text-sm font-semibold transition-all border flex items-center justify-between ${
+                            selectedOption === idx
+                                ? 'bg-blue-600/20 border-blue-500 text-blue-200'
+                                : 'bg-white/5 hover:bg-white/10 border-white/5 text-white/80 hover:text-white'
+                        }`}
+                    >
+                        <span>{String.fromCharCode(65 + idx)}. {opt}</span>
+                        {selectedOption === idx && <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />}
+                    </button>
+                ))}
             </div>
 
             <button
@@ -495,58 +533,59 @@ function MultipleChoicePhase({ test, testLimit, onDone }) {
     );
 }
 
-// ─── Phase 4: Result Screen ──────────────────────────────────────────────────
-function ResultScreen({ ertak, readingStats, quizResult, testScore, onClose }) {
-    const { wpm = 0, readPercent = 0, elapsed = 0 } = readingStats || {};
+// ─── Phase 5: Result Phase ───────────────────────────────────────────────────
+function ResultScreen({ ertak, readingStats, quizResult, testScore, assignmentId, onClose }) {
+    const { elapsed = 0 } = readingStats || {};
     const { quiz_average = 0, scores = [] } = quizResult || {};
     const hasTest = ertak.test && ertak.test.length > 0;
     const tScore = testScore !== null ? testScore : 0;
     const fmtTime = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
     
-    const readingCoin = wpm >= 60 ? 10 : wpm >= 40 ? 5 : 2;
-    const quizCoin = quiz_average >= 80 ? 15 : quiz_average >= 50 ? 8 : 3;
-    const testCoin = hasTest ? (tScore >= 80 ? 15 : tScore >= 50 ? 8 : 3) : 0;
-    const totalCoin = readingCoin + quizCoin + testCoin;
+    // Coin calculation visualization
+    let wpmCoin = 2;
+    if (readingStats?.wpm >= 60) wpmCoin = 10;
+    else if (readingStats?.wpm >= 40) wpmCoin = 5;
     
-    const wpmColor = wpm >= 60 ? 'text-emerald-400' : wpm >= 40 ? 'text-amber-400' : 'text-red-400';
+    let quizCoin = 3;
+    if (quiz_average >= 80) quizCoin = 15;
+    else if (quiz_average >= 50) quizCoin = 8;
+    
+    let testCoin = 0;
+    if (hasTest) {
+        if (tScore >= 80) testCoin = 15;
+        else if (tScore >= 50) testCoin = 8;
+        else testCoin = 3;
+    }
+    
+    const totalCoin = wpmCoin + quizCoin + testCoin;
+    
     const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-rose-400';
     const scoreBg = (s) => s >= 80 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-rose-500';
 
     return (
         <div className="flex flex-col items-center gap-5 pt-2">
-            <div className="text-6xl animate-bounce">💪</div>
+            <div className="text-6xl animate-bounce">🏆</div>
             <div className="text-center">
-                <p className="text-white font-bold text-2xl mb-1 uppercase tracking-tight">Umumiy natija</p>
+                <p className="text-white font-bold text-2xl mb-1 uppercase tracking-tight">Umumiy Natija</p>
                 <p className="text-white/40 text-xs">{ertak.title}</p>
             </div>
 
-            {/* Reading Stats */}
-            <div className="w-full">
-                <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold mb-3">📖 O'QISH NATIJASI</p>
-                <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-                        <p className={`text-xl font-black ${wpmColor}`}>{wpm}</p>
-                        <p className="text-white/40 text-[9px] uppercase">so'z/daq</p>
-                    </div>
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-                        <p className="text-xl font-black text-blue-400">{readPercent}%</p>
-                        <p className="text-white/40 text-[9px] uppercase">o'qilgan</p>
-                    </div>
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-                        <p className="text-xl font-black text-purple-400">{fmtTime}</p>
-                        <p className="text-white/40 text-[9px] uppercase">vaqt</p>
-                    </div>
+            <div className="w-full grid grid-cols-2 gap-4">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                    <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold mb-1">📖 O'QISH TEZLIGI</p>
+                    <p className="text-2xl font-black text-blue-400">{readingStats?.wpm || 0} <span className="text-[10px] text-white/40 font-medium">so'z/daq</span></p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                    <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold mb-1">⏱️ SARFLANGAN VAQT</p>
+                    <p className="text-2xl font-black text-purple-400">{fmtTime}</p>
                 </div>
             </div>
 
-            {/* Quiz & Test Stats Grid */}
             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold mb-3">🧠 SAVOLLAR TAHLILI</p>
                     <div className="bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-3xl p-5 text-center shadow-xl border border-white/10 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-2 opacity-10">
-                            <Trophy className="w-16 h-16 text-white" />
-                        </div>
+                        <div className="absolute top-0 right-0 p-2 opacity-10"><Mic className="w-16 h-16 text-white" /></div>
                         <p className="text-white/70 text-[9px] font-bold uppercase tracking-widest mb-1">Savol-javob bali</p>
                         <p className="text-white text-5xl font-black">{quiz_average}</p>
                     </div>
@@ -556,9 +595,7 @@ function ResultScreen({ ertak, readingStats, quizResult, testScore, onClose }) {
                     <div>
                         <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold mb-3">📝 TEST NATIJASI</p>
                         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-5 text-center shadow-xl border border-white/10 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-2 opacity-10">
-                                <CheckCircle2 className="w-16 h-16 text-white" />
-                            </div>
+                            <div className="absolute top-0 right-0 p-2 opacity-10"><CheckCircle2 className="w-16 h-16 text-white" /></div>
                             <p className="text-white/70 text-[9px] font-bold uppercase tracking-widest mb-1">Test bali</p>
                             <p className="text-white text-5xl font-black">{tScore}</p>
                         </div>
@@ -566,7 +603,6 @@ function ResultScreen({ ertak, readingStats, quizResult, testScore, onClose }) {
                 )}
             </div>
 
-            {/* Detailed voice question breakdown if they didn't skip */}
             {quiz_average > 0 && scores.length > 0 && (
                 <div className="w-full">
                     <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold mb-2">🧠 JAVOBLAR TAHLILI</p>
@@ -586,15 +622,12 @@ function ResultScreen({ ertak, readingStats, quizResult, testScore, onClose }) {
                 </div>
             )}
 
-            {/* Coins */}
             <div className="w-full bg-gradient-to-r from-yellow-500/10 via-yellow-500/20 to-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 text-center">
                 <div className="flex items-center justify-center gap-2 mb-1">
                     <span className="text-3xl font-black text-yellow-400">+{totalCoin}</span>
                     <span className="text-3xl">🪙</span>
                 </div>
-                <p className="text-white/40 text-[11px]">
-                    O'qish: +{readingCoin} • Quiz: +{quizCoin} {hasTest && `• Test: +${testCoin}`}
-                </p>
+                <p className="text-white/40 text-[11px]">O'qish: +{wpmCoin} • Quiz: +{quizCoin} {hasTest && `• Test: +${testCoin}`}</p>
             </div>
 
             <button onClick={onClose}
@@ -607,7 +640,7 @@ function ResultScreen({ ertak, readingStats, quizResult, testScore, onClose }) {
 
 // ─── Main Modal ──────────────────────────────────────────────────────────────
 export default function ErtakReadingModal({ ertak, assignmentId, onClose, onDone }) {
-    const [step, setStep] = useState('reading'); // reading | quiz | test | result | error
+    const [step, setStep] = useState('reading'); // reading | quiz | quiz_summary | test | result | error
     const [readingStats, setReadingStats] = useState(null);
     const [quizResult, setQuizResult] = useState(null);
     const [testScore, setTestScore] = useState(null);
@@ -649,21 +682,64 @@ export default function ErtakReadingModal({ ertak, assignmentId, onClose, onDone
         }
     };
 
-    const handleQuizDone = (result) => {
+    const handleQuizDone = async (result) => {
         setQuizResult(result);
         const hasTest = ertak.test && ertak.test.length > 0;
+        
+        // Bazaga hozirgi quiz_score ni yozib qo'yamiz (oraliq saqlash)
+        try {
+            const payload = {
+                wpm: readingStats?.wpm || 0,
+                read_percent: readingStats?.readPercent || 0,
+                reading_time_seconds: readingStats?.elapsed || 0,
+                quiz_scores: result.scores,
+                quiz_average: result.quiz_average !== null ? result.quiz_average : 0,
+                test_score: 0
+            };
+            if (assignmentId) {
+                await studentService.submitErtak(assignmentId, payload);
+            } else {
+                await studentService.completePublicStory(ertak.id, {
+                    wpm: readingStats?.wpm || 0,
+                    quiz_score: result.quiz_average !== null ? result.quiz_average : 0
+                });
+            }
+        } catch (e) {
+            console.error("Quiz result save error:", e);
+        }
+
         if (hasTest) {
-            setStep('test');
+            setStep('quiz_summary');
         } else {
             handleSubmitFinalResult(result.quiz_average, result.scores, null);
         }
     };
 
-    const handleQuizSkip = () => {
+    const handleQuizSkip = async () => {
         const hasTest = ertak.test && ertak.test.length > 0;
         setQuizResult({ quiz_average: 0, scores: [] });
+        
+        try {
+            const payload = {
+                wpm: readingStats?.wpm || 0,
+                read_percent: readingStats?.readPercent || 0,
+                reading_time_seconds: readingStats?.elapsed || 0,
+                quiz_scores: [],
+                quiz_average: 0,
+                test_score: 0
+            };
+            if (assignmentId) {
+                await studentService.submitErtak(assignmentId, payload);
+            } else {
+                await studentService.completePublicStory(ertak.id, {
+                    wpm: readingStats?.wpm || 0,
+                    quiz_score: 0
+                });
+            }
+        } catch (e) {}
+
         if (hasTest) {
-            setStep('test');
+            setStep('quiz_summary');
         } else {
             handleSubmitFinalResult(0, [], null);
         }
@@ -682,80 +758,86 @@ export default function ErtakReadingModal({ ertak, assignmentId, onClose, onDone
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: "100%", opacity: 0 }}
                     transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                    className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] sm:border border-white/10 rounded-t-[32px] sm:rounded-3xl p-6 w-full h-[98vh] sm:h-auto sm:max-w-2xl shadow-2xl flex flex-col"
+                    className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] sm:border border-white/10 rounded-t-[32px] sm:rounded-3xl p-6 w-full h-[98vh] sm:h-[85vh] sm:max-w-3xl shadow-2xl flex flex-col"
                     onClick={e => e.stopPropagation()}
                 >
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
-                    <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
-                        <X className="w-5 h-5" />
-                    </button>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
+                            <X className="w-5 h-5" />
+                        </button>
 
-                    <h2 className="text-white font-bold text-lg mb-1 pr-8">{ertak.title}</h2>
-                    <p className="text-white/40 text-xs mb-5">
-                        {step === 'reading' ? '📖 O\'qish bosqichi' : step === 'quiz' ? '🧠 Savol-javob' : step === 'test' ? '📝 Test topshirish' : '🏆 Natija'}
-                    </p>
+                        <h2 className="text-white font-bold text-lg mb-1 pr-8">{ertak.title}</h2>
+                        <p className="text-white/40 text-xs mb-5">
+                            {step === 'reading' ? '📖 O\'qish bosqichi' : step === 'quiz' ? '🧠 Savol-javob' : step === 'quiz_summary' ? '📊 Oraliq Natija' : step === 'test' ? '📝 Test topshirish' : '🏆 Natija'}
+                        </p>
 
-                    {submitting && (
-                        <div className="flex flex-col items-center gap-4 py-12">
-                            <div className="w-12 h-12 border-4 border-[#4b30fb]/30 border-t-[#4b30fb] rounded-full animate-spin" />
-                            <p className="text-white/50 text-sm">Natijalar saqlanmoqda...</p>
-                        </div>
-                    )}
+                        {submitting && (
+                            <div className="flex flex-col items-center gap-4 py-12 flex-1 justify-center">
+                                <div className="w-12 h-12 border-4 border-[#4b30fb]/30 border-t-[#4b30fb] rounded-full animate-spin" />
+                                <p className="text-white/50 text-sm">Natijalar saqlanmoqda...</p>
+                            </div>
+                        )}
 
-                    {!submitting && step === 'reading' && (
-                        <ReadingPhase
-                            ertak={ertak}
-                            onDone={(stats) => { 
-                                setReadingStats(stats); 
-                                const hasQuestions = ertak.questions && ertak.questions.length > 0;
-                                const hasTest = ertak.test && ertak.test.length > 0;
-                                if (hasQuestions) {
-                                    setStep('quiz');
-                                } else if (hasTest) {
-                                    setStep('test');
-                                } else {
-                                    handleSubmitFinalResult(0, [], null);
-                                }
-                            }}
-                        />
-                    )}
+                        {!submitting && step === 'reading' && (
+                            <ReadingPhase
+                                ertak={ertak}
+                                onDone={(stats) => { 
+                                    setReadingStats(stats); 
+                                    const hasQuestions = ertak.questions && ertak.questions.length > 0;
+                                    const hasTest = ertak.test && ertak.test.length > 0;
+                                    if (hasQuestions) {
+                                        setStep('quiz');
+                                    } else if (hasTest) {
+                                        setStep('test');
+                                    } else {
+                                        handleSubmitFinalResult(0, [], null);
+                                    }
+                                }}
+                            />
+                        )}
 
-                    {!submitting && step === 'quiz' && (
-                        <QuizPhase
-                            ertak={ertak}
-                            readingStats={readingStats}
-                            onDone={handleQuizDone}
-                            onSkipToTest={handleQuizSkip}
-                            onClose={onClose}
-                        />
-                    )}
+                        {!submitting && step === 'quiz' && (
+                            <QuizPhase
+                                ertak={ertak}
+                                onDone={handleQuizDone}
+                                onSkipToTest={handleQuizSkip}
+                            />
+                        )}
 
-                    {!submitting && step === 'test' && (
-                        <MultipleChoicePhase
-                            test={ertak.test || []}
-                            testLimit={ertak.test_limit}
-                            onDone={handleTestDone}
-                        />
-                    )}
+                        {!submitting && step === 'quiz_summary' && (
+                            <QuizSummaryPhase
+                                ertak={ertak}
+                                quizResult={quizResult}
+                                onProceedToTest={() => setStep('test')}
+                            />
+                        )}
 
-                    {!submitting && step === 'result' && (
-                        <ResultScreen
-                            ertak={ertak}
-                            readingStats={readingStats}
-                            quizResult={quizResult}
-                            testScore={testScore}
-                            onClose={onClose}
-                        />
-                    )}
+                        {!submitting && step === 'test' && (
+                            <MultipleChoicePhase
+                                test={ertak.test || []}
+                                onDone={handleTestDone}
+                            />
+                        )}
 
-                    {!submitting && step === 'error' && (
-                        <div className="flex flex-col items-center gap-4 py-8 text-center">
-                            <div className="text-4xl">⚠️</div>
-                            <p className="text-red-400 font-semibold">Topshirishda xatolik yuz berdi</p>
-                            <p className="text-white/50 text-xs">Internet aloqasini tekshirib qaytadan urinib ko'ring.</p>
-                            <button onClick={onClose} className="px-6 py-3 bg-white/10 text-white rounded-2xl hover:bg-white/20">Yopish</button>
-                        </div>
-                    )}
+                        {!submitting && step === 'result' && (
+                            <ResultScreen
+                                ertak={ertak}
+                                readingStats={readingStats}
+                                quizResult={quizResult}
+                                testScore={testScore}
+                                assignmentId={assignmentId}
+                                onClose={onClose}
+                            />
+                        )}
+
+                        {!submitting && step === 'error' && (
+                            <div className="flex flex-col items-center gap-4 py-8 text-center flex-1 justify-center">
+                                <div className="text-4xl">⚠️</div>
+                                <p className="text-red-400 font-semibold">Topshirishda xatolik yuz berdi</p>
+                                <p className="text-white/50 text-xs">Internet aloqasini tekshirib qaytadan urinib ko'ring.</p>
+                                <button onClick={onClose} className="px-6 py-3 bg-white/10 text-white rounded-2xl hover:bg-white/20 mt-4">Yopish</button>
+                            </div>
+                        )}
                     </div>
                 </motion.div>
             </div>

@@ -286,7 +286,59 @@ function QuizPhase({ book, onDone, onSkipToTest }) {
     );
 }
 
-// ─── Phase 3: Multiple Choice Test Phase ─────────────────────────────────────
+// ─── Phase 3: Quiz Summary Phase ───────────────────────────────────────────────
+function QuizSummaryPhase({ book, quizResult, onProceedToTest }) {
+    const { quiz_average = 0, scores = [] } = quizResult || {};
+    const scoreColor = (s) => s >= 80 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-rose-400';
+    const scoreBg = (s) => s >= 80 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-rose-500';
+
+    return (
+        <div className="flex flex-col items-center gap-5 pt-2">
+            <div className="text-center">
+                <p className="text-white font-bold text-2xl mb-1 uppercase tracking-tight">Oraliq Natija</p>
+                <p className="text-white/40 text-xs">Savol-javob (STT) bosqichi yakunlandi</p>
+            </div>
+
+            <div className="w-full">
+                <div className="bg-gradient-to-br from-[#4b30fb] to-[#764ba2] rounded-3xl p-6 text-center shadow-xl border border-white/10 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 opacity-10"><Trophy className="w-20 h-20 text-white" /></div>
+                    <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-2">Sizning balingiz</p>
+                    <p className="text-white text-6xl font-black">{quiz_average}</p>
+                </div>
+            </div>
+
+            {scores.length > 0 && (
+                <div className="w-full">
+                    <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold mb-2">🧠 JAVOBLAR TAHLILI</p>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                        {scores.map((s, i) => (
+                            <div key={i} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3 border border-white/5">
+                                <span className="text-white/60 text-sm">{i + 1}-savol</span>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-24 h-2 bg-white/5 rounded-full overflow-hidden">
+                                        <div className={`h-full ${scoreBg(s.score)}`} style={{ width: `${s.score}%` }} />
+                                    </div>
+                                    <span className={`text-sm font-bold ${scoreColor(s.score)}`}>{s.score}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-center mt-2">
+                <p className="text-white text-sm">Natija bazaga saqlandi. Endi yopiq test (A, B, C) savollariga o'tishingiz mumkin.</p>
+            </div>
+
+            <button onClick={onProceedToTest}
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform shadow-xl flex justify-center items-center gap-2 mt-2">
+                Testga o'tish <ChevronRight className="w-5 h-5" />
+            </button>
+        </div>
+    );
+}
+
+// ─── Phase 4: Multiple Choice Test Phase ─────────────────────────────────────
 function MultipleChoicePhase({ test, testLimit, onDone }) {
     const shuffledTest = useMemo(() => {
         if (!test || test.length === 0) return [];
@@ -366,7 +418,7 @@ function MultipleChoicePhase({ test, testLimit, onDone }) {
     );
 }
 
-// ─── Phase 4: Result Phase ───────────────────────────────────────────────────
+// ─── Phase 5: Result Phase ───────────────────────────────────────────────────
 function ResultScreen({ book, readingStats, quizResult, testScore, onClose }) {
     const { elapsed = 0 } = readingStats || {};
     const { quiz_average = 0, scores = [] } = quizResult || {};
@@ -456,7 +508,7 @@ function ResultScreen({ book, readingStats, quizResult, testScore, onClose }) {
 
 // ─── Main Modal ──────────────────────────────────────────────────────────────
 export default function BookReadingModal({ book, onClose, onDone }) {
-    const [step, setStep] = useState('reading'); // reading | quiz | test | result | error
+    const [step, setStep] = useState('reading'); // reading | quiz | quiz_summary | test | result | error
     const [readingStats, setReadingStats] = useState(null);
     const [quizResult, setQuizResult] = useState(null);
     const [testScore, setTestScore] = useState(null);
@@ -483,21 +535,36 @@ export default function BookReadingModal({ book, onClose, onDone }) {
         }
     };
 
-    const handleQuizDone = (result) => {
+    const handleQuizDone = async (result) => {
         setQuizResult(result);
         const hasTest = book.test && book.test.length > 0;
+        
+        // Bazaga hozirgi quiz_score ni yozib qo'yamiz (oraliq saqlash)
+        try {
+            await studentService.completePublicBook(book.id, {
+                quiz_score: result.quiz_average !== null ? result.quiz_average : 0
+            });
+        } catch (e) {
+            console.error("Quiz result save error:", e);
+        }
+
         if (hasTest) {
-            setStep('test');
+            setStep('quiz_summary');
         } else {
             handleSubmitFinalResult(result.quiz_average, result.scores, null);
         }
     };
 
-    const handleQuizSkip = () => {
+    const handleQuizSkip = async () => {
         const hasTest = book.test && book.test.length > 0;
         setQuizResult({ quiz_average: 0, scores: [] });
+        
+        try {
+            await studentService.completePublicBook(book.id, { quiz_score: 0 });
+        } catch (e) {}
+
         if (hasTest) {
-            setStep('test');
+            setStep('quiz_summary');
         } else {
             handleSubmitFinalResult(0, [], null);
         }
@@ -522,7 +589,7 @@ export default function BookReadingModal({ book, onClose, onDone }) {
 
                         <h2 className="text-white font-bold text-lg mb-1 pr-8">{book.title}</h2>
                         <p className="text-white/40 text-xs mb-5">
-                            {step === 'reading' ? '📖 O\'qish bosqichi' : step === 'quiz' ? '🧠 Savol-javob' : step === 'test' ? '📝 Test topshirish' : '🏆 Natija'}
+                            {step === 'reading' ? '📖 O\'qish bosqichi' : step === 'quiz' ? '🧠 Savol-javob' : step === 'quiz_summary' ? '📊 Oraliq Natija' : step === 'test' ? '📝 Test topshirish' : '🏆 Natija'}
                         </p>
 
                         {submitting && (
@@ -555,6 +622,14 @@ export default function BookReadingModal({ book, onClose, onDone }) {
                                 book={book}
                                 onDone={handleQuizDone}
                                 onSkipToTest={handleQuizSkip}
+                            />
+                        )}
+
+                        {!submitting && step === 'quiz_summary' && (
+                            <QuizSummaryPhase
+                                book={book}
+                                quizResult={quizResult}
+                                onProceedToTest={() => setStep('test')}
                             />
                         )}
 
