@@ -437,6 +437,7 @@ class RatingService:
                 "classroom_name": c.name,
                 "subject": getattr(c, "subject", ""),
                 "grade_level": getattr(c, "grade_level", ""),
+                "invite_code": getattr(c, "invite_code", ""),
                 "total_students": total_students,
                 "readers_count": readers_count,
                 "total_books_read": total_books,

@@ -700,6 +700,7 @@ const TeacherDashboard = () => {
       setSelectedClassroom(null);
       setClassroomDetail(null);
       fetchClassrooms();
+      setReadingStats(null);
     } catch (e) { showNotif('error', e.message || 'Xatolik'); }
   };
 
@@ -1624,6 +1625,22 @@ const TeacherDashboard = () => {
 
               {selectedReadingClassroom === stat.classroom_id && (
                 <div className="border-t border-white/10 bg-black/20 p-5">
+                  <div className="flex flex-wrap items-center gap-4 mb-6">
+                    <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2 cursor-pointer" onClick={() => copyInviteCode(stat.invite_code)}>
+                      <Hash size={14} className="text-white/60" />
+                      <span className="text-white font-mono font-bold">{stat.invite_code || 'Yo\'q'}</span>
+                      <Copy size={14} className="text-white/40" />
+                    </div>
+                    <button onClick={() => { setSelectedClassroom(stat.classroom_id); setShowInviteModal(true); }}
+                      className="flex items-center gap-2 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">
+                      <UserPlus size={16} /> Taklif qilish
+                    </button>
+                    <button onClick={() => handleDeleteClassroom(stat.classroom_id)}
+                      className="flex items-center gap-2 bg-red-500/20 text-red-400 px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:bg-red-500/30 transition-transform ml-auto">
+                      <Trash2 size={16} /> Sinfni o'chirish
+                    </button>
+                  </div>
+                  
                   <h5 className="text-md font-bold text-white mb-4">Sinf reytingi</h5>
                   {leaderboardLoading ? (
                     <div className="text-center py-6 text-white/60">Reyting yuklanmoqda...</div>
