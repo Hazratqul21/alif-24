@@ -270,7 +270,7 @@ const TeacherDashboard = () => {
     try {
       const { getClassroomLeaderboard } = await import('../services/readingRatingService');
       const res = await getClassroomLeaderboard(classroomId, 'all_time');
-      setClassroomLeaderboard(res?.data || []);
+      setClassroomLeaderboard(res?.data || res || []);
     } catch (e) {
       console.error("Leaderboard fetch error", e);
     } finally {
