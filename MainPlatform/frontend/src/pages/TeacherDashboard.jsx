@@ -1571,7 +1571,21 @@ const TeacherDashboard = () => {
       return <div className="text-center py-12 text-white">Yuklanmoqda...</div>;
     }
     if (!readingStats || readingStats.length === 0) {
-      return <div className="text-center py-12 text-white/60">Sinflar reytingi topilmadi. Avval sinf va o'quvchi qo'shing.</div>;
+      return (
+        <div className="text-center py-12">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-12 max-w-lg mx-auto">
+            <BookOpen size={48} className="mx-auto mb-4 text-white/30" />
+            <h4 className="text-xl font-bold text-white mb-2">Sinflar reytingi topilmadi</h4>
+            <p className="text-white/60 mb-6">Reyting shakllanishi uchun avval sinf yarating va o'quvchilarni qo'shing. O'quvchilar kitob o'qigach, bu yerda reyting avtomatik shakllanadi.</p>
+            <button 
+              onClick={() => { setActiveTab('classes'); setShowCreateClass(true); }}
+              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 mx-auto"
+            >
+              Yangi sinf yaratish
+            </button>
+          </div>
+        </div>
+      );
     }
 
     return (
