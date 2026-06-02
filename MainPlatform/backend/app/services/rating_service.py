@@ -472,15 +472,26 @@ class RatingService:
         my_score = my_rating.total_score if my_rating else 0
         my_books = my_rating.total_books if my_rating else 0
 
-        # 2. Get student's classrooms
-        stmt_classes = select(Classroom).join(
+        # 2. Get student's classrooms with Teacher info
+        stmt_classes = select(Classroom, User).join(
             ClassroomStudent, ClassroomStudent.classroom_id == Classroom.id
+        ).join(
+            TeacherProfile, TeacherProfile.id == Classroom.teacher_id
+        ).join(
+            User, User.id == TeacherProfile.user_id
         ).where(ClassroomStudent.student_user_id == student_id)
         res_classes = await self.db.execute(stmt_classes)
-        classrooms = res_classes.scalars().all()
+        classrooms_with_teachers = res_classes.all()
 
         results = []
-        for c in classrooms:
+        for c, t_user in classrooms_with_teachers:
+            # Query total students in this class
+            count_students_stmt = select(func.count(ClassroomStudent.id)).where(ClassroomStudent.classroom_id == c.id)
+            total_students_res = await self.db.execute(count_students_stmt)
+            total_students = total_students_res.scalar() or 0
+
+            teacher_name = f"{t_user.first_name or ''} {t_user.last_name or ''}".strip()
+
             if not my_rating:
                 results.append({
                     "classroom_id": c.id,
@@ -490,7 +501,9 @@ class RatingService:
                     "rank": 0,
                     "total_score": 0,
                     "total_books": 0,
-                    "has_read": False
+                    "has_read": False,
+                    "total_students": total_students,
+                    "teacher_name": teacher_name
                 })
                 continue
                 
@@ -523,7 +536,42 @@ class RatingService:
                 "rank": better_count + 1,
                 "total_score": my_score,
                 "total_books": my_books,
-                "has_read": True
+                "has_read": True,
+                "total_students": total_students,
+                "teacher_name": teacher_name
             })
 
         return results
+
+    async def get_student_reading_history(self, student_id: str, limit: int = 50, offset: int = 0) -> Tuple[List[dict], int]:
+        from shared.database.models.book import Book
+        
+        count_stmt = select(func.count(BookReadingRecord.id)).where(BookReadingRecord.student_user_id == student_id)
+        total_res = await self.db.execute(count_stmt)
+        total = total_res.scalar() or 0
+
+        stmt = select(BookReadingRecord, Book).join(
+            Book, Book.id == BookReadingRecord.book_id
+        ).where(
+            BookReadingRecord.student_user_id == student_id
+        ).order_by(
+            BookReadingRecord.completed_at.desc()
+        ).offset(offset).limit(limit)
+
+        result = await self.db.execute(stmt)
+        rows = result.all()
+
+        history = []
+        for record, book in rows:
+            history.append({
+                "id": record.id,
+                "book_id": book.id,
+                "book_title": book.title,
+                "book_image_url": book.image_url,
+                "quiz_score": record.quiz_score,
+                "test_score": record.test_score,
+                "max_score": record.max_score,
+                "completed_at": record.completed_at.isoformat() if record.completed_at else None
+            })
+
+        return history, total

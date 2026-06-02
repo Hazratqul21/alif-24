@@ -93,6 +93,9 @@ const TeacherDashboard = () => {
   const [assignmentView, setAssignmentView] = useState('list'); // list, calendar
   const [lessonView, setLessonView] = useState('list'); // list, ai
   const [showStudentImport, setShowStudentImport] = useState(false);
+  const [selectedStudentHistory, setSelectedStudentHistory] = useState(null);
+  const [studentHistoryLoading, setStudentHistoryLoading] = useState(false);
+  const [studentHistoryData, setStudentHistoryData] = useState([]);
 
   // Ertaklar states
   const [ertaklar, setErtaklar] = useState([]);
@@ -275,6 +278,20 @@ const TeacherDashboard = () => {
       console.error("Leaderboard fetch error", e);
     } finally {
       setLeaderboardLoading(false);
+    }
+  };
+
+  const handleStudentClick = async (student) => {
+    setSelectedStudentHistory(student);
+    setStudentHistoryLoading(true);
+    try {
+        const { getStudentReadingHistory } = await import('../services/readingRatingService');
+        const res = await getStudentReadingHistory(student.student_id);
+        setStudentHistoryData(res?.data || res || []);
+    } catch (e) {
+        console.error("Failed to fetch student history", e);
+    } finally {
+        setStudentHistoryLoading(false);
     }
   };
 
@@ -1677,7 +1694,7 @@ const TeacherDashboard = () => {
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {classroomLeaderboard.map((item) => (
-                          <tr key={item.student_id} className="hover:bg-white/5">
+                          <tr key={item.student_id} className="hover:bg-white/5 cursor-pointer" onClick={() => handleStudentClick(item)}>
                             <td className="px-4 py-3">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-500 text-white shadow-lg' : item.rank === 2 ? 'bg-gray-300 text-gray-800' : item.rank === 3 ? 'bg-[#CD7F32] text-white' : 'text-white/60'}`}>
                                 {item.rank}
@@ -2682,6 +2699,64 @@ const TeacherDashboard = () => {
           ertak={selectedErtakForPreview} 
           onClose={() => { setShowErtakPreview(false); setSelectedErtakForPreview(null); }} 
         />
+      )}
+
+      {/* Student Reading History Modal */}
+      {selectedStudentHistory && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSelectedStudentHistory(null)}>
+          <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <BookOpen className="text-blue-400" />
+                {selectedStudentHistory.first_name} {selectedStudentHistory.last_name} tarixi
+              </h3>
+              <button onClick={() => setSelectedStudentHistory(null)} className="text-white/60 hover:text-white transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            {studentHistoryLoading ? (
+              <div className="text-center py-8 text-white/60">Yuklanmoqda...</div>
+            ) : studentHistoryData.length > 0 ? (
+              <div className="space-y-4">
+                {studentHistoryData.map((record) => (
+                  <div key={record.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex gap-4 items-center">
+                    <img 
+                      src={record.book_image_url || '/default-book.png'} 
+                      alt={record.book_title} 
+                      className="w-16 h-20 object-cover rounded-lg bg-white/10 shrink-0" 
+                      onError={e => e.target.src='/default-book.png'}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-lg font-bold text-white truncate">{record.book_title}</h4>
+                      <div className="flex items-center gap-4 mt-2">
+                        <div className="text-sm">
+                          <span className="text-white/60">Savollar: </span>
+                          <span className="font-bold text-green-400">{record.quiz_score !== null ? record.quiz_score : '-'}</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-white/60">Test: </span>
+                          <span className="font-bold text-blue-400">{record.test_score !== null ? record.test_score : '-'}</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-white/60">Sana: </span>
+                          <span className="text-white/80">{new Date(record.completed_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-black text-yellow-400">{(record.quiz_score || 0) + (record.test_score || 0)}</div>
+                      <div className="text-xs text-white/40 uppercase">Ball</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-white/40">
+                O'quvchi hali kitob o'qimagan.
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <TestReviewModal 

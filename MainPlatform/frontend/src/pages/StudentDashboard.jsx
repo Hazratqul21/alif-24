@@ -1026,8 +1026,14 @@ const StudentDashboard = () => {
                             <Trophy size={64} />
                         </div>
                         <h4 className="font-bold text-xl mb-1 relative z-10">{rankData.classroom_name}</h4>
-                        <p className="text-white/80 text-sm mb-6 relative z-10">Jami o'quvchilar: {rankData.total_students}</p>
-                        
+                        <div className="flex flex-col gap-1 mb-6 relative z-10">
+                            <p className="text-white/80 text-sm flex items-center gap-2">
+                                <Users size={14} /> Jami o'quvchilar: {rankData.total_students || 0}
+                            </p>
+                            <p className="text-white/80 text-sm flex items-center gap-2">
+                                <GraduationCap size={14} /> O'qituvchi: {rankData.teacher_name || "Noma'lum"}
+                            </p>
+                        </div>
                         <div className="grid grid-cols-3 gap-4 relative z-10 text-center">
                             <div className="bg-white/10 rounded-xl p-3 border border-white/20 backdrop-blur-sm">
                                 <div className="text-3xl font-black text-yellow-300">{rankData.has_read !== false && rankData.rank > 0 ? `#${rankData.rank}` : '-'}</div>

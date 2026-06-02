@@ -60,3 +60,12 @@ export const getStudentClassroomRanks = async (period = 'all_time') => {
     }
 };
 
+export const getStudentReadingHistory = async (studentId, limit = 50, offset = 0) => {
+    try {
+        const response = await api.get(`/ratings/students/${studentId}/reading-history`, { limit, offset });
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching student reading history:', error);
+        throw error;
+    }
+};

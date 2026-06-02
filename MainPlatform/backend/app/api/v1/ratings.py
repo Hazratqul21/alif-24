@@ -116,3 +116,23 @@ async def get_student_classrooms_rank(
         "status": "success",
         "data": stats
     }
+
+@router.get("/students/{student_id}/reading-history")
+async def get_student_reading_history(
+    student_id: str,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get the reading history for a specific student."""
+    service = RatingService(db)
+    history, total = await service.get_student_reading_history(student_id, limit, offset)
+    return {
+        "status": "success",
+        "data": history,
+        "pagination": {
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+    }
