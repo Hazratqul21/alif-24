@@ -29,6 +29,16 @@ class TeacherService {
     }
 
     /**
+     * Create a new student and add them to a classroom
+     * @param {string} classroomId - Classroom ID
+     * @param {Object} data - Student data (first_name, last_name, etc.)
+     * @returns {Promise<Object>} Response
+     */
+    async createStudentForClass(classroomId, data) {
+        return apiService.post(`/teachers/classrooms/${classroomId}/students/create`, data);
+    }
+
+    /**
      * Get teacher's classrooms
      * @returns {Promise<Array>} List of classrooms
      */

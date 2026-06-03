@@ -540,38 +540,47 @@ async def child_login(
     response: Response,
     db: AsyncSession = Depends(get_db)
 ):
-    """Login for child accounts using username + PIN"""
+    """Login for child accounts using username/id + PIN/Password"""
     from ...repositories.user_repository import UserRepository
     from ...core.errors import UnauthorizedError
     from sqlalchemy import select
     
     user_repo = UserRepository(db)
-    parent = await user_repo.get_by_phone(data.parent_phone)
-    if not parent:
-        raise UnauthorizedError("Parent account not found")
-        
-    # Get children
-    children = await user_repo.get_children(parent.id)
-    child = next((c for c in children if c.username == data.username and getattr(c, 'pin_code', None) == data.pin_code), None)
     
-    if not child:
-        raise UnauthorizedError("Invalid username or PIN")
+    # 1. Try to find by ID
+    user = await user_repo.find_by_id(data.username)
+    # 2. Try to find by Username
+    if not user:
+        user = await user_repo.find_by_username(data.username)
+        
+    if not user:
+        raise UnauthorizedError("ID yoki foydalanuvchi nomi topilmadi")
+        
+    # Check if PIN matches or Password matches
+    is_valid = False
+    if getattr(user, 'pin_code', None) == data.pin:
+        is_valid = True
+    elif user.verify_password(data.pin):
+        is_valid = True
+        
+    if not is_valid:
+        raise UnauthorizedError("Login yoki parol noto'g'ri")
     
     # Update last login
-    child.last_login_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(timezone.utc)
     
     # Generate tokens
     access_token = create_access_token(
         data={
-            "sub": child.id,
-            "email": child.username,
-            "role": child.role.value
+            "sub": user.id,
+            "email": user.username,
+            "role": user.role.value
         }
     )
-    refresh_token = create_refresh_token(data={"sub": child.id})
+    refresh_token = create_refresh_token(data={"sub": user.id})
     
     # Save refresh token
-    child.refresh_token = refresh_token
+    user.refresh_token = refresh_token
     await db.commit()
     
     # Set Cookies

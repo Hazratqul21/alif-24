@@ -96,6 +96,9 @@ const TeacherDashboard = () => {
   const [selectedStudentHistory, setSelectedStudentHistory] = useState(null);
   const [studentHistoryLoading, setStudentHistoryLoading] = useState(false);
   const [studentHistoryData, setStudentHistoryData] = useState([]);
+  const [showCreateStudentModal, setShowCreateStudentModal] = useState(false);
+  const [createStudentData, setCreateStudentData] = useState({ first_name: '', last_name: '', password: '', grade: '', school_name: '' });
+  const [createdStudentInfo, setCreatedStudentInfo] = useState(null);
 
   // Ertaklar states
   const [ertaklar, setErtaklar] = useState([]);
@@ -387,6 +390,28 @@ const TeacherDashboard = () => {
       setSearchQuery('');
       fetchClassroomDetail(selectedClassroom);
     } catch (e) { showNotif('error', e.message || 'Xatolik'); }
+  };
+
+  const handleCreateStudent = async (e) => {
+    e.preventDefault();
+    if (!createStudentData.first_name.trim() || !createStudentData.last_name.trim()) {
+        return showNotif('error', 'Ism va familiyani kiriting');
+    }
+    try {
+        setLoading(true);
+        const res = await teacherService.createStudentForClass(selectedClassroom, createStudentData);
+        if (res.success || res.data) {
+            showNotif('success', "O'quvchi yaratildi!");
+            setShowCreateStudentModal(false);
+            setCreateStudentData({ first_name: '', last_name: '', password: '', grade: '', school_name: '' });
+            setCreatedStudentInfo(res.data?.data || res.data || res);
+            fetchClassroomDetail(selectedClassroom);
+        }
+    } catch (e) {
+        showNotif('error', e.message || 'Xatolik yuz berdi');
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleInviteStudentDirect = async (studentUserId) => {
@@ -947,6 +972,10 @@ const TeacherDashboard = () => {
             <button onClick={() => setShowInviteModal(true)}
               className="flex items-center gap-2 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">
               <UserPlus size={16} /> Taklif qilish
+            </button>
+            <button onClick={() => setShowCreateStudentModal(true)}
+              className="flex items-center gap-2 bg-gradient-to-br from-pink-500 to-rose-500 text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">
+              <UserPlus size={16} /> Yangi yaratish
             </button>
             <button onClick={() => setShowStudentImport(true)}
               className="flex items-center gap-2 bg-gradient-to-br from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">
@@ -2121,6 +2150,64 @@ const TeacherDashboard = () => {
             <Send size={16} className="inline mr-2" />Taklif yuborish
           </button>
         </form>
+      )}
+
+      {renderModal(showCreateStudentModal, () => setShowCreateStudentModal(false), "Yangi o'quvchi yaratish",
+        <form onSubmit={handleCreateStudent} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-white/60 mb-2">Ism</label>
+              <input type="text" required value={createStudentData.first_name} onChange={e => setCreateStudentData({...createStudentData, first_name: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#4b30fb]" placeholder="Masalan: Ali" />
+            </div>
+            <div>
+              <label className="block text-sm text-white/60 mb-2">Familiya</label>
+              <input type="text" required value={createStudentData.last_name} onChange={e => setCreateStudentData({...createStudentData, last_name: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#4b30fb]" placeholder="Masalan: Valiyev" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm text-white/60 mb-2">Parol (ixtiyoriy, kiritilmasa avtomatik yaratiladi)</label>
+            <input type="text" value={createStudentData.password} onChange={e => setCreateStudentData({...createStudentData, password: e.target.value})}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#4b30fb]" placeholder="Kamida 6 belgi" />
+          </div>
+          <button type="submit" disabled={loading} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">
+             {loading ? 'Yaratilmoqda...' : 'Yaratish'}
+          </button>
+        </form>
+      )}
+
+      {renderModal(!!createdStudentInfo, () => setCreatedStudentInfo(null), "O'quvchi yaratildi",
+        <div className="space-y-4 text-center">
+          <div className="bg-green-500/20 text-green-400 p-4 rounded-xl mb-4">
+            <CheckCircle className="w-12 h-12 mx-auto mb-2" />
+            <p className="font-bold">O'quvchi tizimga qo'shildi</p>
+          </div>
+          <p className="text-white/80 text-sm">
+            Quyidagi ma'lumotlarni o'quvchiga taqdim eting. O'quvchi ushbu ID va parol orqali tizimga kiradi.
+          </p>
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-left">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-white/60">F.I.SH:</span>
+              <span className="text-white font-bold">{createdStudentInfo?.first_name} {createdStudentInfo?.last_name}</span>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-white/60">Login ID:</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-mono text-[#4b30fb] bg-white px-2 rounded font-bold">{createdStudentInfo?.id}</span>
+                <button onClick={() => copyInviteCode(createdStudentInfo?.id)} className="text-white/40 hover:text-white"><Copy size={16}/></button>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-white/60">Parol:</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-mono text-[#4b30fb] bg-white px-2 rounded font-bold">{createdStudentInfo?.password}</span>
+                <button onClick={() => copyInviteCode(createdStudentInfo?.password)} className="text-white/40 hover:text-white"><Copy size={16}/></button>
+              </div>
+            </div>
+          </div>
+          <button onClick={() => setCreatedStudentInfo(null)} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl mt-4">Yopish</button>
+        </div>
       )}
 
       {/* Create Assignment Modal */}

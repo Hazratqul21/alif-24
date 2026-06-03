@@ -218,7 +218,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ID raqam yoki Username</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
@@ -227,13 +227,13 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
                       value={formData.username}
                       onChange={handleChange}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
-                      placeholder="ali_v1234"
+                      placeholder="Masalan: 12345678"
                       required
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">PIN kod</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Parol yoki PIN kod</label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
@@ -241,10 +241,8 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
                       name="pin"
                       value={formData.pin}
                       onChange={handleChange}
-                      maxLength={6}
-                      autoComplete="one-time-code"
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center tracking-[0.5em] text-lg text-gray-900"
-                      placeholder="••••"
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                      placeholder="••••••"
                       required
                     />
                   </div>
