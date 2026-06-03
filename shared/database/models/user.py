@@ -158,23 +158,14 @@ class User(Base):
         return generate_username(first_name)
     
     def set_pin(self, pin: str):
-        """PIN'ni hash qilish (bcrypt)"""
-        import bcrypt
-        salt = bcrypt.gensalt()
-        self.pin_code = bcrypt.hashpw(pin.encode('utf-8'), salt).decode('utf-8')
+        """PIN kodni o'rnatish (shifrlanmagan holda, faqat bolalar uchun)"""
+        self.pin_code = pin
     
     def verify_pin(self, pin: str) -> bool:
-        """PIN'ni tekshirish"""
+        """PIN kodni tekshirish"""
         if not self.pin_code:
             return False
-        import bcrypt
-        try:
-            # pin_code hash bo'lishi kerak
-            return bcrypt.checkpw(pin.encode('utf-8'), self.pin_code.encode('utf-8'))
-        except Exception:
-            # Xavfsizlik uchun plaintext fallback olib tashlandi
-            return False
-    
+        return self.pin_code == pin   
     def set_password(self, password: str):
         """Parolni hash qilish (bcrypt)"""
         import bcrypt
