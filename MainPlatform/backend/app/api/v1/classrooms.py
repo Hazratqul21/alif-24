@@ -521,10 +521,6 @@ async def create_student_for_classroom(
     """O'qituvchilar tomonidan yangi o'quvchi yaratish va uni sinfga qo'shish"""
     from shared.database.models import StudentProfile
     
-    # 1. create_notification imporini bu yerda chaqiramiz (chunki add_student_direct dan farqli ravishda tashqarida aniqlanmagan bo'lishi mumkin, lekin pastda ishlatilsa fayl boshida chaqirilgan)
-    # Ammo InAppNotifType va InAppNotification import qilingan
-    from app.services.notification_service import create_notification 
-    
     teacher = await get_teacher_profile(current_user, db)
     
     res = await db.execute(

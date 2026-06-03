@@ -49,8 +49,8 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
     setChildLoading(true);
     try {
       const res = await apiService.post('/auth/child-login', {
-        username: formData.username,
-        pin: formData.pin
+        username: formData.username.trim(),
+        pin: formData.pin.trim()
       });
       const data = res.data;
       // Backend automatically sets HttpOnly Cookies now.

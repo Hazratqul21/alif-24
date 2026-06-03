@@ -558,9 +558,9 @@ async def child_login(
         
     # Check if PIN matches or Password matches
     is_valid = False
-    if getattr(user, 'pin_code', None) == data.pin:
+    if hasattr(user, 'verify_pin') and user.verify_pin(data.pin):
         is_valid = True
-    elif user.verify_password(data.pin):
+    elif hasattr(user, 'verify_password') and user.verify_password(data.pin):
         is_valid = True
         
     if not is_valid:
