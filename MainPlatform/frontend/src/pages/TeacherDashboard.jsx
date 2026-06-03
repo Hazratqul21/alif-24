@@ -281,7 +281,7 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleStudentClick = async (student) => {
+  const handleReadingStudentClick = async (student) => {
     setSelectedStudentHistory(student);
     setStudentHistoryLoading(true);
     try {
@@ -1694,7 +1694,7 @@ const TeacherDashboard = () => {
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {classroomLeaderboard.map((item) => (
-                          <tr key={item.student_id} className="hover:bg-white/5 cursor-pointer" onClick={() => handleStudentClick(item)}>
+                          <tr key={item.student_id} className="hover:bg-white/5 cursor-pointer" onClick={() => handleReadingStudentClick(item)}>
                             <td className="px-4 py-3">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-500 text-white shadow-lg' : item.rank === 2 ? 'bg-gray-300 text-gray-800' : item.rank === 3 ? 'bg-[#CD7F32] text-white' : 'text-white/60'}`}>
                                 {item.rank}
