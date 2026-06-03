@@ -148,8 +148,12 @@ class AuthService:
         if not user:
             user = await self.user_repo.find_by_phone(identifier)
         
+        # Fallback to ID
         if not user:
-            raise UnauthorizedError("Invalid email/phone or password")
+            user = await self.user_repo.find_by_id(identifier)
+        
+        if not user:
+            raise UnauthorizedError("Invalid email, phone, id or password")
         
         # Check user status
         if user.status != AccountStatus.active:
@@ -157,7 +161,7 @@ class AuthService:
         
         if not user.verify_password(password):
             logger.warning(f"Failed login attempt for {identifier}")
-            raise UnauthorizedError("Invalid email/phone or password")
+            raise UnauthorizedError("Invalid email, phone, id or password")
         
         logger.info(f"User logged in: {identifier}")
         

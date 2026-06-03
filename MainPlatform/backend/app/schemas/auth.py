@@ -10,7 +10,7 @@ from shared.database.models import UserRole
 from app.core.errors import BadRequestError
 
 class LoginRequest(BaseModel):
-    email: str  # Can be email or phone
+    email: str  # Can be email, phone or ID
     password: str
 
 class RegisterRequest(BaseModel):
@@ -58,3 +58,18 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     user: dict
+
+class CreateStudentRequest(BaseModel):
+    first_name: str
+    last_name: str
+    password: Optional[str] = None
+    grade: Optional[str] = None
+    school_name: Optional[str] = None
+    
+    def validate(self):
+        if len(self.first_name.strip()) < 2:
+            raise BadRequestError("Ism kamida 2 ta harfdan iborat bo'lishi kerak")
+        if len(self.last_name.strip()) < 2:
+            raise BadRequestError("Familiya kamida 2 ta harfdan iborat bo'lishi kerak")
+        if self.password and len(self.password) < 6:
+            raise BadRequestError("Parol kamida 6 ta belgidan iborat bo'lishi kerak")

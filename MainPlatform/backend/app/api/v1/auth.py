@@ -17,7 +17,9 @@ from shared.auth import create_access_token, create_refresh_token
 from ...core.config import settings
 from ...middleware.auth import get_current_user, get_optional_current_user
 from ...services.auth_service import AuthService
-from ...schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from ...schemas.auth import LoginRequest, RegisterRequest, TokenResponse, CreateStudentRequest
+import secrets
+import string
 from ...schemas.rbac import ChildLoginRequest
 from ...utils.geoip import get_geo_from_ip, get_client_ip, parse_device_type, parse_browser, parse_os
 
@@ -1137,6 +1139,63 @@ async def search_child(
             "last_name": student.last_name,
             "avatar": student.avatar,
             "username": student.username,
+        }
+    }
+
+
+@router.post("/children/create")
+async def create_child(
+    data: CreateStudentRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Ota-onalar tomonidan yangi farzand (o'quvchi) yaratish"""
+    from shared.database.models import UserRole, StudentProfile, ChildRelationship
+    
+    if current_user.role != UserRole.parent:
+        raise HTTPException(status_code=403, detail="Faqat ota-onalar farzand qo'sha oladi")
+        
+    data.validate()
+    
+    password = data.password
+    if not password:
+        alphabet = string.ascii_letters + string.digits
+        password = ''.join(secrets.choice(alphabet) for i in range(6))
+        
+    username = User.generate_username(data.first_name)
+    
+    child_user = User(
+        first_name=data.first_name,
+        last_name=data.last_name,
+        username=username,
+        role=UserRole.student,
+        parent_id=current_user.id
+    )
+    child_user.set_password(password)
+    child_user.set_pin(User.generate_pin())
+    
+    db.add(child_user)
+    await db.flush()
+    
+    student_profile = StudentProfile(
+        user_id=child_user.id,
+        parent_user_id=current_user.id,
+        grade=data.grade,
+        school_name=data.school_name,
+        relationship_type=ChildRelationship.guardian
+    )
+    db.add(student_profile)
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": "Bolaning profili muvaffaqiyatli yaratildi",
+        "data": {
+            "id": child_user.id,
+            "first_name": child_user.first_name,
+            "last_name": child_user.last_name,
+            "username": child_user.username,
+            "password": password
         }
     }
 

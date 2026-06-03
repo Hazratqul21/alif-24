@@ -22,6 +22,9 @@ from shared.database.models.assignment import Assignment, AssignmentTarget, Assi
 from shared.database.models.in_app_notification import InAppNotification, InAppNotifType
 from app.middleware.auth import get_current_user
 from shared.subscription import require_feature, SubscriptionInfo
+from app.schemas.auth import CreateStudentRequest
+import secrets
+import string
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -506,6 +509,80 @@ async def invite_student(
 
     return {"success": True, "message": f"Taklif yuborildi: {student_user.first_name} {student_user.last_name}",
             "data": {"invitation_id": invitation.id}}
+
+
+@router.post("/teachers/classrooms/{classroom_id}/students/create")
+async def create_student_for_classroom(
+    classroom_id: str,
+    data: CreateStudentRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """O'qituvchilar tomonidan yangi o'quvchi yaratish va uni sinfga qo'shish"""
+    from shared.database.models import StudentProfile
+    
+    # 1. create_notification imporini bu yerda chaqiramiz (chunki add_student_direct dan farqli ravishda tashqarida aniqlanmagan bo'lishi mumkin, lekin pastda ishlatilsa fayl boshida chaqirilgan)
+    # Ammo InAppNotifType va InAppNotification import qilingan
+    from app.services.notification_service import create_notification 
+    
+    teacher = await get_teacher_profile(current_user, db)
+    
+    res = await db.execute(
+        select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id)
+    )
+    classroom = res.scalars().first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Sinf topilmadi")
+        
+    data.validate()
+    
+    password = data.password
+    if not password:
+        alphabet = string.ascii_letters + string.digits
+        password = ''.join(secrets.choice(alphabet) for i in range(6))
+        
+    username = User.generate_username(data.first_name)
+    
+    student_user = User(
+        first_name=data.first_name,
+        last_name=data.last_name,
+        username=username,
+        role=UserRole.student
+    )
+    student_user.set_password(password)
+    student_user.set_pin(User.generate_pin())
+    
+    db.add(student_user)
+    await db.flush()
+    
+    student_profile = StudentProfile(
+        user_id=student_user.id,
+        grade=data.grade or classroom.grade_level,
+        school_name=data.school_name
+    )
+    db.add(student_profile)
+    
+    db.add(ClassroomStudent(
+        classroom_id=classroom_id,
+        student_user_id=student_user.id,
+        status=ClassroomStudentStatus.active
+    ))
+    
+    await db.commit()
+    
+    # Xabarni keyinroq commitdan so'ng xavfsiz holda jo'natish mumkin yoki commit oldidan
+    
+    return {
+        "success": True,
+        "message": "O'quvchi yaratildi va sinfga qo'shildi",
+        "data": {
+            "id": student_user.id,
+            "first_name": student_user.first_name,
+            "last_name": student_user.last_name,
+            "username": student_user.username,
+            "password": password
+        }
+    }
 
 
 @router.post("/teachers/classrooms/{classroom_id}/students")
