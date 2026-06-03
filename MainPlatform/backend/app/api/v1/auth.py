@@ -542,76 +542,94 @@ async def child_login(
 ):
     """Login for child accounts using username/id + PIN/Password"""
     from ...repositories.user_repository import UserRepository
-    from ...core.errors import UnauthorizedError
+    from ...core.errors import UnauthorizedError, BadRequestError
     from sqlalchemy import select
+    import traceback
     
-    user_repo = UserRepository(db)
-    
-    # 1. Try to find by ID
-    user = await user_repo.find_by_id(data.username)
-    # 2. Try to find by Username
-    if not user:
-        user = await user_repo.find_by_username(data.username)
+    try:
+        user_repo = UserRepository(db)
         
-    if not user:
-        raise UnauthorizedError("ID yoki foydalanuvchi nomi topilmadi")
+        # 1. Try to find by ID
+        user = await user_repo.find_by_id(data.username)
+        # 2. Try to find by Username
+        if not user:
+            user = await user_repo.find_by_username(data.username)
+            
+        if not user:
+            raise UnauthorizedError("ID yoki foydalanuvchi nomi topilmadi")
+            
+        # Check if PIN matches or Password matches
+        is_valid = False
+        if hasattr(user, 'verify_pin') and user.verify_pin(data.pin):
+            is_valid = True
+        elif hasattr(user, 'verify_password') and user.verify_password(data.pin):
+            is_valid = True
+            
+        if not is_valid:
+            raise UnauthorizedError("Login yoki parol noto'g'ri")
         
-    # Check if PIN matches or Password matches
-    is_valid = False
-    if hasattr(user, 'verify_pin') and user.verify_pin(data.pin):
-        is_valid = True
-    elif hasattr(user, 'verify_password') and user.verify_password(data.pin):
-        is_valid = True
+        # Update last login
+        user.last_login_at = datetime.now(timezone.utc)
         
-    if not is_valid:
-        raise UnauthorizedError("Login yoki parol noto'g'ri")
-    
-    # Update last login
-    user.last_login_at = datetime.now(timezone.utc)
-    
-    # Generate tokens
-    access_token = create_access_token(
-        data={
-            "sub": user.id,
-            "email": user.username,
-            "role": user.role.value
+        # Generate tokens
+        role_val = user.role.value if hasattr(user.role, 'value') else str(user.role)
+        access_token = create_access_token(
+            data={
+                "sub": user.id,
+                "email": user.username,
+                "role": role_val
+            }
+        )
+        refresh_token = create_refresh_token(data={"sub": user.id})
+        
+        # Save refresh token
+        user.refresh_token = refresh_token
+        await db.commit()
+        
+        # Set Cookies
+        domain = ".alif24.uz" if request and request.url.hostname and "alif24.uz" in request.url.hostname else None
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite="lax",
+            domain=domain,
+            max_age=8 * 60 * 60  # 8 hours
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite="lax",
+            domain=domain,
+            path="/api/v1/auth/refresh",
+            max_age=30 * 24 * 60 * 60  # 30 days
+        )
+        
+        # Safe dict conversion
+        user_dict = {}
+        try:
+            user_dict = user.to_dict()
+        except Exception as e:
+            user_dict = {"id": user.id, "username": user.username, "error": str(e)}
+            
+        return {
+            "success": True,
+            "data": {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+                "user": user_dict
+            }
         }
-    )
-    refresh_token = create_refresh_token(data={"sub": user.id})
-    
-    # Save refresh token
-    user.refresh_token = refresh_token
-    await db.commit()
-    
-    # Set Cookies
-    domain = ".alif24.uz" if request and request.url.hostname and "alif24.uz" in request.url.hostname else None
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=not settings.DEBUG,
-        samesite="lax",
-        domain=domain,
-        max_age=8 * 60 * 60  # 8 hours
-    )
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=not settings.DEBUG,
-        samesite="lax",
-        domain=domain,
-        max_age=30 * 24 * 60 * 60  # 30 days
-    )
-    
-    return {
-        "success": True,
-        "data": {
-            "token_type": "bearer",
-            "user": child.to_dict(),
-            "parent_id": child.parent_id
-        }
-    }
+    except UnauthorizedError:
+        raise
+    except Exception as e:
+        error_msg = f"Child login error: {str(e)} - {traceback.format_exc()}"
+        print(error_msg)
+        raise BadRequestError(f"Backend xatosi: {str(e)}")
 
 _AVATAR_ALLOWED_MIME = {
     "image/jpeg": "jpg",
