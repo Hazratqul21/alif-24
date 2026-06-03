@@ -309,6 +309,72 @@ class RatingService:
             "average_score": round(total_score / count, 2) if count > 0 else 0
         }
 
+    async def get_organization_classrooms_reading_stats(self, organization_id: str, period: RatingPeriod) -> List[dict]:
+        """
+        Get list of 'Kitobxonlik' classrooms for an organization and their aggregated reading stats.
+        """
+        period_keys = get_period_keys()
+        p_key = period_keys[period]
+
+        # Get all classrooms for teachers in this organization where subject is 'Kitobxonlik'
+        stmt_classes = select(Classroom, User).join(
+            TeacherProfile, TeacherProfile.id == Classroom.teacher_id
+        ).join(
+            User, User.id == TeacherProfile.user_id
+        ).where(
+            and_(
+                TeacherProfile.organization_id == organization_id,
+                Classroom.subject == 'Kitobxonlik'
+            )
+        )
+        res_classes = await self.db.execute(stmt_classes)
+        classrooms_with_teachers = res_classes.all()
+
+        stats_list = []
+        for c, t_user in classrooms_with_teachers:
+            # get total students in this class
+            count_stmt = select(func.count(ClassroomStudent.id)).where(ClassroomStudent.classroom_id == c.id)
+            count_res = await self.db.execute(count_stmt)
+            total_students = count_res.scalar() or 0
+
+            # get aggregated ratings for students in this class
+            stmt_sum = select(
+                func.sum(ReadingRating.total_books),
+                func.sum(ReadingRating.total_score),
+                func.count(ReadingRating.id)
+            ).select_from(ClassroomStudent).join(
+                ReadingRating,
+                and_(
+                    ReadingRating.student_id == ClassroomStudent.student_user_id,
+                    cast(ReadingRating.period, String) == period.value,
+                    ReadingRating.period_key == p_key,
+                    ReadingRating.total_books > 0
+                )
+            ).where(
+                ClassroomStudent.classroom_id == c.id
+            )
+            sum_res = await self.db.execute(stmt_sum)
+            row = sum_res.first()
+            
+            total_books = row[0] if row and row[0] else 0
+            total_score = row[1] if row and row[1] else 0
+            readers_count = row[2] if row and row[2] else 0
+
+            stats_list.append({
+                "classroom_id": c.id,
+                "classroom_name": c.name,
+                "teacher_name": f"{t_user.first_name or ''} {t_user.last_name or ''}".strip(),
+                "subject": getattr(c, "subject", ""),
+                "grade_level": getattr(c, "grade_level", ""),
+                "invite_code": getattr(c, "invite_code", ""),
+                "total_students": total_students,
+                "readers_count": readers_count,
+                "total_books_read": total_books,
+                "average_score": round(total_score / readers_count, 2) if readers_count > 0 else 0
+            })
+            
+        return stats_list
+
     async def get_classroom_leaderboard(
         self,
         classroom_id: str,

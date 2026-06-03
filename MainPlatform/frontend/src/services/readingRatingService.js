@@ -30,6 +30,16 @@ export const getOrganizationDashboardStats = async (organizationId, period = 'al
     }
 };
 
+export const getOrganizationClassroomsReadingStats = async (organizationId, period = 'all_time') => {
+    try {
+        const response = await api.get(`/ratings/organization/classrooms`, { organization_id: organizationId, period });
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching organization classrooms reading stats:', error);
+        throw error;
+    }
+};
+
 export const getTeacherClassroomsReadingStats = async (teacherId, period = 'all_time') => {
     try {
         const response = await api.get(`/ratings/teacher/classrooms`, { teacher_id: teacherId, period });

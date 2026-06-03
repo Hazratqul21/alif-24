@@ -63,6 +63,21 @@ async def get_organization_dashboard(
         "data": stats
     }
 
+@router.get("/organization/classrooms")
+async def get_organization_classrooms_reading_stats(
+    organization_id: str = Query(..., description="Organization's ID"),
+    period: RatingPeriod = Query(RatingPeriod.all_time, description="Time period for dashboard"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get the reading stats for 'Kitobxonlik' classrooms in an organization."""
+    service = RatingService(db)
+    stats = await service.get_organization_classrooms_reading_stats(organization_id, period)
+    
+    return {
+        "status": "success",
+        "data": stats
+    }
+
 @router.get("/teacher/classrooms")
 async def get_teacher_classrooms_reading_stats(
     teacher_id: str = Query(..., description="Teacher's user ID"),

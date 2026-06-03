@@ -4,11 +4,11 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Common/Navbar';
 import organizationService from '../services/organizationService';
-import { getOrganizationDashboardStats } from '../services/readingRatingService';
+import { getOrganizationDashboardStats, getOrganizationClassroomsReadingStats, getClassroomLeaderboard } from '../services/readingRatingService';
 import {
   BarChart3, Users, BookOpen, Settings, Search, Plus, TrendingUp,
   Building, LogOut, FileText, UserPlus, Trash2, X, Check,
-  Eye, ChevronRight, GraduationCap, Play, Paperclip
+  Eye, ChevronRight, GraduationCap, Play, Paperclip, ArrowLeft
 } from 'lucide-react';
 
 const OrganizationDashboard = () => {
@@ -82,6 +82,11 @@ const OrganizationDashboard = () => {
 
   const [readingStats, setReadingStats] = useState(null);
   const [readingStatsLoading, setReadingStatsLoading] = useState(false);
+  const [orgClassroomsStats, setOrgClassroomsStats] = useState([]);
+  
+  const [selectedClassroomForReading, setSelectedClassroomForReading] = useState(null);
+  const [classroomLeaderboard, setClassroomLeaderboard] = useState([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
   // ============ DATA FETCHING ============
 
@@ -153,9 +158,11 @@ const OrganizationDashboard = () => {
       const fetchReadingStats = async () => {
         setReadingStatsLoading(true);
         try {
-          // org auth user ID is used as organization_id
           const res = await getOrganizationDashboardStats(user?.id, 'all_time');
           setReadingStats(res?.total_students !== undefined ? res : res.data || null);
+          
+          const classRes = await getOrganizationClassroomsReadingStats(user?.id, 'all_time');
+          setOrgClassroomsStats(classRes?.data || classRes || []);
         } catch (e) {
           console.error("Reading stats fetch error", e);
         } finally {
@@ -165,6 +172,20 @@ const OrganizationDashboard = () => {
       fetchReadingStats();
     }
   }, [activeTab, fetchTeachers, fetchStudents, fetchClassrooms, fetchLessons, fetchProfile, readingStats, user?.id]);
+
+  const handleSelectClassroomForReading = async (classroom) => {
+    setSelectedClassroomForReading(classroom);
+    setLeaderboardLoading(true);
+    try {
+      const res = await getClassroomLeaderboard(classroom.classroom_id, 'all_time');
+      setClassroomLeaderboard(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+      showNotif('error', "Leaderboardni yuklashda xatolik");
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  };
 
   // ============ ACTIONS ============
 
@@ -674,39 +695,84 @@ const OrganizationDashboard = () => {
           </div>
         )}
 
-        {/* Leaderboard */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden mt-8">
-          <table className="w-full text-left">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">O'rin</th>
-                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">O'quvchi</th>
-                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">Kitoblar</th>
-                <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase text-right">Umumiy Ball</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {readingStats.leaderboard?.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-white/40">Hozircha natijalar yo'q</td>
-                </tr>
-              ) : readingStats.leaderboard?.map((item) => (
-                <tr key={item.student_id} className="hover:bg-white/5">
-                  <td className="px-6 py-4">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-500 text-white shadow-lg' : item.rank === 2 ? 'bg-gray-300 text-gray-800' : item.rank === 3 ? 'bg-[#CD7F32] text-white' : 'text-white/60'}`}>
-                      {item.rank}
+        {/* Classrooms or Leaderboard */}
+        {selectedClassroomForReading ? (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mt-8">
+            <button onClick={() => setSelectedClassroomForReading(null)} className="flex items-center gap-2 text-white/60 hover:text-white mb-4 bg-transparent border-none cursor-pointer">
+              <ArrowLeft size={16} /> Ortga qaytish
+            </button>
+            <h4 className="text-xl font-bold text-white mb-2">{selectedClassroomForReading.classroom_name}</h4>
+            <p className="text-white/60 mb-6">O'qituvchi: {selectedClassroomForReading.teacher_name}</p>
+
+            {leaderboardLoading ? (
+               <div className="flex justify-center py-8"><div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-white/10">
+                <table className="w-full text-left">
+                  <thead className="bg-white/5">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">O'rin</th>
+                      <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">O'quvchi</th>
+                      <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase">Kitoblar</th>
+                      <th className="px-6 py-4 text-xs font-bold text-white/60 uppercase text-right">Umumiy Ball</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {classroomLeaderboard?.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="px-6 py-8 text-center text-white/40">Hozircha natijalar yo'q</td>
+                      </tr>
+                    ) : classroomLeaderboard?.map((item) => (
+                      <tr key={item.student_id} className="hover:bg-white/5">
+                        <td className="px-6 py-4">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${item.rank === 1 ? 'bg-yellow-500 text-white shadow-lg' : item.rank === 2 ? 'bg-gray-300 text-gray-800' : item.rank === 3 ? 'bg-[#CD7F32] text-white' : 'text-white/60'}`}>
+                            {item.rank}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-medium text-white">
+                          {item.first_name} {item.last_name}
+                        </td>
+                        <td className="px-6 py-4 text-white/80">{item.books_read} ta</td>
+                        <td className="px-6 py-4 text-right font-bold text-blue-400">{item.total_score}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="mt-8">
+            <h4 className="text-lg font-bold text-white mb-4">O'qituvchilar va Sinflar bo'yicha Kitobxonlik</h4>
+            {orgClassroomsStats.length === 0 ? (
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+                <p className="text-white/40">Hozircha kitobxonlik sinflari mavjud emas</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {orgClassroomsStats.map((c) => (
+                  <div key={c.classroom_id} onClick={() => handleSelectClassroomForReading(c)} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all cursor-pointer flex flex-col justify-between group">
+                    <div>
+                      <div className="flex items-start justify-between mb-2">
+                        <h5 className="text-lg font-bold text-white group-hover:text-[#4b30fb] transition-colors">{c.classroom_name}</h5>
+                        <div className="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full text-xs font-bold">{c.total_score} ball</div>
+                      </div>
+                      <div className="text-white/60 text-sm mb-4">O'qituvchi: <span className="text-white/80">{c.teacher_name}</span></div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-white">
-                    {item.first_name} {item.last_name}
-                  </td>
-                  <td className="px-6 py-4 text-white/80">{item.books_read} ta</td>
-                  <td className="px-6 py-4 text-right font-bold text-blue-400">{item.total_score}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-white/50">
+                        <GraduationCap size={14} /> <span>{c.total_students} o'quvchi</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-white/50">
+                        <BookOpen size={14} /> <span>{c.total_books_read} ta o'qilgan</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
