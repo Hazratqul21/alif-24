@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import quizService from '../services/quizService';
 import {
   Plus, Trash2, Play, Users, Trophy, ArrowLeft, Loader2, CheckCircle, Copy,
-  Clock, BarChart3, ChevronRight, X, Target, Save, Pause, PlayCircle, History, List
+  Clock, BarChart3, ChevronRight, X, Target, Save, Pause, PlayCircle, History, List, FileText
 } from 'lucide-react';
 
 const OPTION_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FB8C00'];
@@ -52,6 +52,10 @@ const LiveQuizTeacher = () => {
   // Finished Session
   const [sessionName, setSessionName] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
+
+  // Bulk add
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkText, setBulkText] = useState('');
 
   // Load Templates on Mount
   useEffect(() => {
@@ -143,6 +147,54 @@ const LiveQuizTeacher = () => {
     const updated = [...questions];
     updated[qIdx].options[optIdx] = value;
     setQuestions(updated);
+  };
+
+  const handleParseBulkText = () => {
+    if (!bulkText.trim()) return;
+    setError('');
+    const questionBlocks = bulkText.split(/(?=\n\d+\.)|(?=^\d+\.)/gm);
+    const newQuestions = [];
+    
+    for (let block of questionBlocks) {
+      if (!block.trim()) continue;
+      const lines = block.split('\n').map(l => l.trim()).filter(l => l);
+      if (lines.length < 3) continue;
+      
+      let qText = lines[0].replace(/^\d+\.\s*/, '');
+      let options = ['', '', '', ''];
+      let correct = -1;
+      
+      let optIndex = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        const optMatch = line.match(/^([A-D])[).]\s*(.+)/i);
+        if (optMatch && optIndex < 4) {
+          options[optIndex] = optMatch[2].trim();
+          optIndex++;
+        }
+        
+        const ansMatch = line.match(/^Javob:\s*([A-D])/i);
+        if (ansMatch) {
+          correct = ['A', 'B', 'C', 'D'].indexOf(ansMatch[1].toUpperCase());
+        }
+      }
+      
+      if (qText && optIndex >= 2 && correct !== -1) {
+        newQuestions.push({ text: qText, options: options, correct: correct, points: 100 });
+      }
+    }
+    
+    if (newQuestions.length > 0) {
+      if (questions.length === 1 && !questions[0].text) {
+        setQuestions(newQuestions);
+      } else {
+        setQuestions([...questions, ...newQuestions]);
+      }
+      setShowBulkModal(false);
+      setBulkText('');
+    } else {
+      setError("Matndan savollarni aniqlab bo'lmadi. Format to'g'riligini tekshiring.");
+    }
   };
 
   const handleSaveQuestions = async () => {
@@ -476,9 +528,14 @@ const LiveQuizTeacher = () => {
         <div className="max-w-3xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold">Savollar qo'shish</h1>
-            <button onClick={addQuestion} className="bg-indigo-100 text-indigo-600 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-200">
-              <Plus size={20} /> Yangi savol
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowBulkModal(true)} className="bg-white border border-indigo-200 text-indigo-600 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-50">
+                <FileText size={20} /> Matndan qo'shish
+              </button>
+              <button onClick={addQuestion} className="bg-indigo-100 text-indigo-600 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-200">
+                <Plus size={20} /> Yangi savol
+              </button>
+            </div>
           </div>
 
           <div className="space-y-6">
@@ -529,6 +586,43 @@ const LiveQuizTeacher = () => {
               </button>
             </div>
           </div>
+          
+          {/* Bulk Add Modal */}
+          {showBulkModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-8 w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+                 <div className="flex justify-between items-center mb-4">
+                   <h3 className="text-2xl font-bold">Matndan savollarni ajratish</h3>
+                   <button onClick={() => setShowBulkModal(false)} className="text-gray-400 hover:bg-gray-100 p-2 rounded-full"><X size={24} /></button>
+                 </div>
+                 <p className="text-gray-500 mb-4 text-sm">
+                   Savollarni quyidagi formatda tashlang:<br/>
+                   <span className="font-mono bg-gray-100 px-2 py-1 rounded text-gray-700 mt-2 inline-block">
+                     1. Savol matni?<br/>
+                     A) Variant 1<br/>
+                     B) Variant 2<br/>
+                     C) Variant 3<br/>
+                     D) Variant 4<br/>
+                     Javob: C) Variant 3
+                   </span>
+                 </p>
+                 
+                 <textarea 
+                    value={bulkText}
+                    onChange={e => setBulkText(e.target.value)}
+                    placeholder="Matnni shu yerga tashlang..."
+                    className="w-full flex-1 min-h-[200px] p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none mb-4 text-sm font-mono bg-white text-gray-900 resize-y"
+                 />
+                 
+                 {error && <p className="text-red-500 mb-4 font-medium">{error}</p>}
+                 
+                 <div className="flex gap-3 mt-auto">
+                   <button onClick={() => setShowBulkModal(false)} className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200">Bekor qilish</button>
+                   <button onClick={handleParseBulkText} className="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 shadow-md">Ajratish va Qo'shish</button>
+                 </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
