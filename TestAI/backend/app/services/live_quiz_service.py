@@ -141,6 +141,9 @@ class LiveQuizService:
         if not template.is_template:
             raise BadRequestError("Berilgan ID shablon emas")
             
+        if len(template.questions) < 1:
+            raise BadRequestError("Ushbu shablonda savollar yo'q. Avval unga savol qo'shing.")
+            
         join_code = await self._generate_unique_code()
         
         session = LiveQuiz(
@@ -312,11 +315,11 @@ class LiveQuizService:
         """Get current question for display."""
         quiz = await self._get_quiz_for_teacher(quiz_id, teacher_user_id)
         
+        if quiz.status == LiveQuizStatus.finished or quiz.current_question_index >= len(quiz.questions):
+            return {"message": "Barcha savollar tugadi", "finished": True}
+            
         if quiz.status != LiveQuizStatus.active:
             raise BadRequestError("Quiz faol emas")
-        
-        if quiz.current_question_index >= len(quiz.questions):
-            return {"message": "Barcha savollar tugadi", "finished": True}
         
         question = quiz.questions[quiz.current_question_index]
         
