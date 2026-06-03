@@ -172,7 +172,7 @@ const LiveQuizTeacher = () => {
   // ====== RENDER: CREATE ======
   if (phase === 'create') {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
+      <div className="min-h-screen bg-gray-50 p-4 text-gray-900">
         <div className="max-w-xl mx-auto">
           <button onClick={() => navigate(-1)} className="mb-4 p-2 hover:bg-gray-200 rounded-full">
             <ArrowLeft size={20} />
@@ -186,17 +186,17 @@ const LiveQuizTeacher = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Quiz nomi *</label>
                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Masalan: Matematika test"
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none text-gray-900 bg-white" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tavsif</label>
                 <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ixtiyoriy"
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none text-gray-900 bg-white" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Har bir savol uchun vaqt (soniya)</label>
                 <select value={timePerQuestion} onChange={e => setTimePerQuestion(Number(e.target.value))}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl">
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl text-gray-900 bg-white">
                   <option value={15}>15 soniya</option>
                   <option value={20}>20 soniya</option>
                   <option value={30}>30 soniya</option>
@@ -220,7 +220,7 @@ const LiveQuizTeacher = () => {
   // ====== RENDER: ADD QUESTIONS ======
   if (phase === 'add_questions') {
     return (
-      <div className="min-h-screen bg-gray-50 p-4 pb-32">
+      <div className="min-h-screen bg-gray-50 p-4 pb-32 text-gray-900">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold">Savollar qo'shish</h1>
@@ -237,13 +237,13 @@ const LiveQuizTeacher = () => {
                   )}
                 </div>
                 <input value={q.text} onChange={e => updateQuestion(qIdx, 'text', e.target.value)}
-                  placeholder="Savol matnini kiriting..." className="w-full p-3 border-2 border-gray-200 rounded-xl mb-3 focus:border-indigo-500 focus:outline-none text-lg" />
+                  placeholder="Savol matnini kiriting..." className="w-full p-3 border-2 border-gray-200 rounded-xl mb-3 focus:border-indigo-500 focus:outline-none text-lg text-gray-900 bg-white" />
                 <div className="grid grid-cols-2 gap-2">
                   {q.options.map((opt, optIdx) => (
                     <div key={optIdx} className="relative">
                       <input value={opt} onChange={e => updateOption(qIdx, optIdx, e.target.value)}
                         placeholder={`Variant ${optIdx + 1}`}
-                        className={`w-full p-3 pr-10 border-2 rounded-xl focus:outline-none ${q.correct === optIdx ? 'border-green-400 bg-green-50' : 'border-gray-200'}`} />
+                        className={`w-full p-3 pr-10 border-2 rounded-xl focus:outline-none text-gray-900 ${q.correct === optIdx ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white'}`} />
                       <button onClick={() => updateQuestion(qIdx, 'correct', optIdx)}
                         className={`absolute right-2 top-1/2 -translate-y-1/2 ${q.correct === optIdx ? 'text-green-500' : 'text-gray-300'}`}>
                         <CheckCircle size={20} />
@@ -369,7 +369,7 @@ const LiveQuizTeacher = () => {
     const total = questionResults.total_answers || 1;
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-2xl">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-2xl text-gray-900">
           <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">{questionResults.question_text}</h2>
           <p className="text-center text-gray-500 mb-6">{questionResults.correct_count}/{questionResults.total_answers} ta to'g'ri javob</p>
           <div className="space-y-3">
@@ -408,7 +408,7 @@ const LiveQuizTeacher = () => {
   if (phase === 'leaderboard') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg text-gray-900">
           <div className="text-center mb-6">
             <Trophy size={48} className="text-yellow-500 mx-auto mb-2" />
             <h1 className="text-2xl font-bold text-gray-800">Leaderboard</h1>
@@ -441,7 +441,7 @@ const LiveQuizTeacher = () => {
   if (phase === 'finished') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg text-center">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg text-center text-gray-900">
           <div className="mb-4 flex justify-center"><Trophy size={52} className="text-yellow-500" /></div>
           <h1 className="text-3xl font-bold text-gray-800 mb-6">Quiz tugadi!</h1>
 
