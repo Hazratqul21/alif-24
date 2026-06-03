@@ -1897,8 +1897,8 @@ const TeacherDashboard = () => {
                       className="flex-1 bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none"
                     >
                       <option value="">Sinfni tanlang...</option>
-                      {classrooms.filter(c => c.subject !== 'Kitobxonlik').map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                      {classrooms.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} {c.subject === 'Kitobxonlik' ? '(Kitobxonlik)' : ''}</option>
                       ))}
                     </select>
                     <button 
