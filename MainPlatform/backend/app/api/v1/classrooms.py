@@ -520,65 +520,134 @@ async def create_student_for_classroom(
 ):
     """O'qituvchilar tomonidan yangi o'quvchi yaratish va uni sinfga qo'shish"""
     from shared.database.models import StudentProfile
+    import traceback
     
-    teacher = await get_teacher_profile(current_user, db)
-    
-    res = await db.execute(
-        select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id)
-    )
-    classroom = res.scalars().first()
-    if not classroom:
-        raise HTTPException(status_code=404, detail="Sinf topilmadi")
+    try:
+        teacher = await get_teacher_profile(current_user, db)
         
-    data.validate()
-    
-    password = data.password
-    if not password:
-        alphabet = string.ascii_letters + string.digits
-        password = ''.join(secrets.choice(alphabet) for i in range(6))
+        res = await db.execute(
+            select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id)
+        )
+        classroom = res.scalars().first()
+        if not classroom:
+            raise HTTPException(status_code=404, detail="Sinf topilmadi")
+            
+        data.validate()
         
-    username = User.generate_username(data.first_name)
-    
-    student_user = User(
-        first_name=data.first_name,
-        last_name=data.last_name,
-        username=username,
-        role=UserRole.student
-    )
-    student_user.set_password(password)
-    student_user.set_pin(User.generate_pin())
-    
-    db.add(student_user)
-    await db.flush()
-    
-    student_profile = StudentProfile(
-        user_id=student_user.id,
-        grade=data.grade or classroom.grade_level,
-        school_name=data.school_name
-    )
-    db.add(student_profile)
-    
-    db.add(ClassroomStudent(
-        classroom_id=classroom_id,
-        student_user_id=student_user.id,
-        status=ClassroomStudentStatus.active
-    ))
-    
-    await db.commit()
-    
-    # Xabarni keyinroq commitdan so'ng xavfsiz holda jo'natish mumkin yoki commit oldidan
-    
-    return {
-        "success": True,
-        "message": "O'quvchi yaratildi va sinfga qo'shildi",
-        "data": {
-            "id": student_user.id,
-            "first_name": student_user.first_name,
-            "last_name": student_user.last_name,
-            "username": student_user.username,
-            "password": password
+        password = data.password
+        if not password:
+            alphabet = string.ascii_letters + string.digits
+            password = ''.join(secrets.choice(alphabet) for i in range(6))
+            
+        username = User.generate_username(data.first_name)
+        
+        student_user = User(
+            first_name=data.first_name,
+            last_name=data.last_name,
+            username=username,
+            role=UserRole.student
+        )
+        student_user.set_password(password)
+        student_user.set_pin(User.generate_pin())
+        
+        db.add(student_user)
+        await db.flush()
+        
+        student_profile = StudentProfile(
+            user_id=student_user.id,
+            grade=data.grade or classroom.grade_level,
+            school_name=data.school_name
+        )
+        db.add(student_profile)
+        
+        db.add(ClassroomStudent(
+            classroom_id=classroom_id,
+            student_user_id=student_user.id,
+            status=ClassroomStudentStatus.active
+        ))
+        
+        await db.commit()
+        
+        return {
+            "success": True,
+            "message": "O'quvchi yaratildi va sinfga qo'shildi",
+            "data": {
+                "id": student_user.id,
+                "first_name": student_user.first_name,
+                "last_name": student_user.last_name,
+                "username": student_user.username,
+                "password": password
+            }
         }
-    }
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"Create student error: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        raise HTTPException(status_code=400, detail=f"Backend xatosi: {str(e)}")
+
+
+@router.post("/teachers/students/create")
+async def create_student_general(
+    data: CreateStudentRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """O'qituvchilar tomonidan umumiy tarzda yangi o'quvchi yaratish"""
+    from shared.database.models import StudentProfile
+    import traceback
+    
+    try:
+        # Check if user is a teacher
+        teacher = await get_teacher_profile(current_user, db)
+        
+        data.validate()
+        
+        password = data.password
+        if not password:
+            alphabet = string.ascii_letters + string.digits
+            password = ''.join(secrets.choice(alphabet) for i in range(6))
+            
+        username = User.generate_username(data.first_name)
+        
+        student_user = User(
+            first_name=data.first_name,
+            last_name=data.last_name,
+            username=username,
+            role=UserRole.student
+        )
+        student_user.set_password(password)
+        student_user.set_pin(User.generate_pin())
+        
+        db.add(student_user)
+        await db.flush()
+        
+        student_profile = StudentProfile(
+            user_id=student_user.id,
+            grade=data.grade,
+            school_name=data.school_name
+        )
+        db.add(student_profile)
+        
+        await db.commit()
+        
+        return {
+            "success": True,
+            "message": "O'quvchi muvaffaqiyatli yaratildi",
+            "data": {
+                "id": student_user.id,
+                "first_name": student_user.first_name,
+                "last_name": student_user.last_name,
+                "username": student_user.username,
+                "password": password
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"Create general student error: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        raise HTTPException(status_code=400, detail=f"Backend xatosi: {str(e)}")
 
 
 @router.post("/teachers/classrooms/{classroom_id}/students")

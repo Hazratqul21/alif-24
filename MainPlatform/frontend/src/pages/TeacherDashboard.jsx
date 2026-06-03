@@ -399,13 +399,14 @@ const TeacherDashboard = () => {
     }
     try {
         setLoading(true);
-        const res = await teacherService.createStudentForClass(selectedClassroom, createStudentData);
+        // Call the general createStudent method
+        const res = await teacherService.createStudent(createStudentData);
         if (res.success || res.data) {
-            showNotif('success', "O'quvchi yaratildi!");
+            showNotif('success', "O'quvchi muvaffaqiyatli yaratildi!");
             setShowCreateStudentModal(false);
             setCreateStudentData({ first_name: '', last_name: '', password: '', grade: '', school_name: '' });
             setCreatedStudentInfo(res.data?.data || res.data || res);
-            fetchClassroomDetail(selectedClassroom);
+            // Optionally fetch data if needed
         }
     } catch (e) {
         showNotif('error', e.message || 'Xatolik yuz berdi');
@@ -896,18 +897,24 @@ const TeacherDashboard = () => {
     const regularClassrooms = classrooms.filter(c => c.subject !== 'Kitobxonlik');
     return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-white">Sinflarim</h3>
-        <button onClick={() => setShowCreateClass(true)}
-          className="flex items-center gap-2 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white px-4 py-2 rounded-xl border-none cursor-pointer hover:scale-105 transition-transform text-sm font-medium">
-          <Plus size={16} /> Yangi sinf
-        </button>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-bold text-white">Sinflar ({classrooms.length})</h3>
+        <div className="flex gap-2">
+            <button onClick={() => setShowCreateStudentModal(true)}
+              className="flex items-center gap-2 bg-gradient-to-br from-pink-500 to-rose-500 text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform shadow-lg shadow-pink-500/20">
+              <UserPlus size={16} /> O'quvchi yaratish
+            </button>
+            <button onClick={() => setShowCreateClass(true)}
+              className="flex items-center gap-2 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform shadow-lg shadow-purple-500/20">
+              <Plus size={16} /> Yangi sinf
+            </button>
+        </div>
       </div>
       {regularClassrooms.length === 0 ? (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center">
           <GraduationCap className="w-12 h-12 text-white/30 mx-auto mb-3" />
           <p className="text-white/60">Hozircha sinf yo'q</p>
-          <p className="text-white/40 text-sm mt-1">Yangi sinf yaratish uchun yuqoridagi tugmani bosing</p>
+          <p className="text-white/40 text-sm mt-1">Yangi sinf yoki o'quvchi yaratish uchun yuqoridagi tugmalarni bosing</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -970,12 +977,8 @@ const TeacherDashboard = () => {
           {cls?.description && <p className="text-white/60 text-sm mb-4">{cls.description}</p>}
           <div className="flex gap-3 flex-wrap">
             <button onClick={() => setShowInviteModal(true)}
-              className="flex items-center gap-2 bg-gradient-to-br from-[#4b30fb] to-[#764ba2] text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium transition-colors">
               <UserPlus size={16} /> Taklif qilish
-            </button>
-            <button onClick={() => setShowCreateStudentModal(true)}
-              className="flex items-center gap-2 bg-gradient-to-br from-pink-500 to-rose-500 text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">
-              <UserPlus size={16} /> Yangi yaratish
             </button>
             <button onClick={() => setShowStudentImport(true)}
               className="flex items-center gap-2 bg-gradient-to-br from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform">

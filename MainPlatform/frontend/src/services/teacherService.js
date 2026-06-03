@@ -29,6 +29,15 @@ class TeacherService {
     }
 
     /**
+     * Create a new student (not tied to a specific class)
+     * @param {Object} data - Student data
+     * @returns {Promise<Object>} Response
+     */
+    async createStudent(data) {
+        return apiService.post('/teachers/students/create', data);
+    }
+
+    /**
      * Create a new student and add them to a classroom
      * @param {string} classroomId - Classroom ID
      * @param {Object} data - Student data (first_name, last_name, etc.)
