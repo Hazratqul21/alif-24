@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func, desc, and_, cast, String
 from datetime import datetime, timezone
 
-from shared.database.models import User, UserRole, AccountStatus, TeacherProfile
+from shared.database.models import User, UserRole, AccountStatus, TeacherProfile, OrganizationProfile
 from shared.database.models.book import BookReadingRecord
 from shared.database.models.reading_rating import ReadingRating, RatingPeriod
 from shared.database.models.classroom import Classroom, ClassroomStudent
@@ -316,6 +316,18 @@ class RatingService:
         period_keys = get_period_keys()
         p_key = period_keys[period]
 
+        # Check if the passed ID is user_id of an organization or the org id itself
+        stmt_org = select(OrganizationProfile).where(
+            (OrganizationProfile.id == organization_id) | (OrganizationProfile.user_id == organization_id)
+        )
+        res_org = await self.db.execute(stmt_org)
+        org = res_org.scalars().first()
+        
+        if not org:
+            return []
+            
+        real_org_id = org.id
+
         # Get all classrooms for teachers in this organization where subject is 'Kitobxonlik'
         stmt_classes = select(Classroom, User).join(
             TeacherProfile, TeacherProfile.id == Classroom.teacher_id
@@ -323,7 +335,7 @@ class RatingService:
             User, User.id == TeacherProfile.user_id
         ).where(
             and_(
-                TeacherProfile.organization_id == organization_id,
+                TeacherProfile.organization_id == real_org_id,
                 Classroom.subject == 'Kitobxonlik'
             )
         )
