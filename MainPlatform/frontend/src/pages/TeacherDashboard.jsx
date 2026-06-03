@@ -105,6 +105,7 @@ const TeacherDashboard = () => {
   const [createdStudentsLoading, setCreatedStudentsLoading] = useState(false);
   const [showEditStudentModal, setShowEditStudentModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
+  const [studentToDelete, setStudentToDelete] = useState(null);
 
   // Ertaklar states
   const [ertaklar, setErtaklar] = useState([]);
@@ -1803,14 +1804,15 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleDeleteStudent = async (studentId) => {
-    if (!window.confirm("O'quvchini haqiqatan ham o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi!")) return;
+  const handleDeleteStudent = async () => {
+    if (!studentToDelete) return;
     try {
       setCreatedStudentsLoading(true);
-      const res = await teacherService.deleteCreatedStudent(studentId);
+      const res = await teacherService.deleteCreatedStudent(studentToDelete.id);
       if (res.success || res.data) {
         showNotif('success', "O'quvchi o'chirildi");
         fetchCreatedStudents();
+        setStudentToDelete(null);
       }
     } catch (e) {
       showNotif('error', e.response?.data?.detail || "O'chirishda xatolik");
@@ -1872,7 +1874,7 @@ const TeacherDashboard = () => {
                     <button onClick={() => { setEditingStudent(student); setShowEditStudentModal(true); }} className="text-white/40 hover:text-white transition-colors" title="Tahrirlash">
                       <Edit size={16} />
                     </button>
-                    <button onClick={() => handleDeleteStudent(student.id)} className="text-rose-400/40 hover:text-rose-400 transition-colors" title="O'chirish">
+                    <button onClick={() => setStudentToDelete(student)} className="text-rose-400/40 hover:text-rose-400 transition-colors" title="O'chirish">
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -2373,6 +2375,41 @@ const TeacherDashboard = () => {
              {createdStudentsLoading ? 'Saqlanmoqda...' : 'Saqlash'}
           </button>
         </form>
+      )}
+
+      {/* Studentni o'chirishni tasdiqlash modali */}
+      {studentToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setStudentToDelete(null)}></div>
+          <div className="relative bg-[#1a1b2e] border border-white/10 p-8 rounded-3xl w-full max-w-md shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-rose-500/20 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">O'quvchini o'chirishni tasdiqlaysizmi?</h3>
+              <p className="text-white/60 text-sm mb-6">
+                Siz <strong>{studentToDelete.first_name} {studentToDelete.last_name}</strong> ni butunlay o'chirmoqchisiz.<br/>
+                Ushbu amalni ortga qaytarib bo'lmaydi va o'quvchining barcha yutuqlari o'chadi.
+              </p>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setStudentToDelete(null)}
+                  className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors font-medium"
+                >
+                  Bekor qilish
+                </button>
+                <button 
+                  onClick={handleDeleteStudent}
+                  disabled={createdStudentsLoading}
+                  className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition-colors font-medium disabled:opacity-50"
+                >
+                  {createdStudentsLoading ? 'O\'chirilmoqda...' : 'O\'chirish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {renderModal(!!createdStudentInfo, () => setCreatedStudentInfo(null), "O'quvchi yaratildi",
