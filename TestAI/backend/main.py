@@ -191,6 +191,79 @@ async def create_quiz(
     return {"success": True, "data": result}
 
 
+@app.get("/api/v1/quiz/templates")
+async def get_templates(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all quiz templates for the teacher"""
+    service = LiveQuizService(db)
+    result = await service.get_templates(teacher_user_id=current_user.id)
+    return result
+
+
+@app.post("/api/v1/quiz/{template_id}/start-session")
+async def start_session(
+    template_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Clone a template to start a new quiz session"""
+    service = LiveQuizService(db)
+    result = await service.start_session(
+        teacher_user_id=current_user.id,
+        template_id=template_id
+    )
+    return {"success": True, "data": result}
+
+
+@app.post("/api/v1/quiz/{quiz_id}/save-session")
+async def save_session(
+    quiz_id: str,
+    session_name: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Save a finished session with a name"""
+    service = LiveQuizService(db)
+    result = await service.save_session(
+        teacher_user_id=current_user.id,
+        quiz_id=quiz_id,
+        session_name=session_name
+    )
+    return {"success": True, "data": result}
+
+
+@app.delete("/api/v1/quiz/{quiz_id}/delete-session")
+async def delete_session(
+    quiz_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a session completely"""
+    service = LiveQuizService(db)
+    result = await service.delete_session(
+        teacher_user_id=current_user.id,
+        quiz_id=quiz_id
+    )
+    return {"success": True, "data": result}
+
+
+@app.get("/api/v1/quiz/templates/{template_id}/history")
+async def get_template_history(
+    template_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get history of saved sessions for a template"""
+    service = LiveQuizService(db)
+    result = await service.get_template_history(
+        teacher_user_id=current_user.id,
+        template_id=template_id
+    )
+    return result
+
+
 @app.post("/api/v1/quiz/{quiz_id}/questions")
 async def add_questions(
     quiz_id: str,

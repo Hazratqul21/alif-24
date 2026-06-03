@@ -56,8 +56,13 @@ class LiveQuiz(Base):
     description = Column(Text, nullable=True)
     
     # Qo'shilish kodlari
-    join_code = Column(String(6), unique=True, nullable=False)  # 6 xonali kod
+    join_code = Column(String(6), unique=True, nullable=True)  # 6 xonali kod, template'da null bo'lishi mumkin
     qr_code_data = Column(Text, nullable=True)  # QR kod ma'lumotlari
+    
+    # Template & Session
+    is_template = Column(Boolean, default=False)
+    template_id = Column(String(8), ForeignKey("live_quizzes.id"), nullable=True)
+    session_name = Column(String(100), nullable=True) # "3 G sinf" kabi
     
     # Sozlamalar
     max_participants = Column(Integer, default=40)  # Maksimum 40 o'quvchi

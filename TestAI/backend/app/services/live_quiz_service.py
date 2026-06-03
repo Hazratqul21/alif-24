@@ -62,7 +62,8 @@ class LiveQuizService:
             teacher_id=teacher_profile.id,
             title=title,
             description=description,
-            join_code=join_code,
+            join_code=None,  # Template has no join code
+            is_template=True,
             time_per_question=time_per_question,
             shuffle_questions=shuffle_questions,
             shuffle_options=shuffle_options,
@@ -75,9 +76,8 @@ class LiveQuizService:
         await self.db.refresh(quiz)
         
         return {
-            "message": "Live Quiz yaratildi",
+            "message": "Live Quiz shabloni yaratildi",
             "quiz_id": quiz.id,
-            "join_code": quiz.join_code,
             "title": quiz.title
         }
     
@@ -109,6 +109,132 @@ class LiveQuizService:
         await self.db.commit()
         
         return {"message": f"{len(questions)} ta savol qo'shildi"}
+    
+    async def get_templates(self, teacher_user_id: str) -> Dict:
+        """Get all templates for a teacher."""
+        res = await self.db.execute(select(TeacherProfile).where(TeacherProfile.user_id == teacher_user_id))
+        teacher_profile = res.scalars().first()
+        if not teacher_profile:
+            raise ForbiddenError("O'qituvchi profili topilmadi")
+            
+        res = await self.db.execute(
+            select(LiveQuiz).where(
+                and_(LiveQuiz.teacher_id == teacher_profile.id, LiveQuiz.is_template == True)
+            ).order_by(LiveQuiz.created_at.desc())
+        )
+        templates = res.scalars().all()
+        return {
+            "success": True,
+            "templates": [
+                {
+                    "id": t.id,
+                    "title": t.title,
+                    "description": t.description,
+                    "created_at": t.created_at.isoformat() if t.created_at else None
+                } for t in templates
+            ]
+        }
+
+    async def start_session(self, teacher_user_id: str, template_id: str) -> Dict:
+        """Create a new session from a template."""
+        template = await self._get_quiz_for_teacher(template_id, teacher_user_id)
+        if not template.is_template:
+            raise BadRequestError("Berilgan ID shablon emas")
+            
+        join_code = await self._generate_unique_code()
+        
+        session = LiveQuiz(
+            teacher_id=template.teacher_id,
+            title=template.title,
+            description=template.description,
+            join_code=join_code,
+            is_template=False,
+            template_id=template.id,
+            time_per_question=template.time_per_question,
+            shuffle_questions=template.shuffle_questions,
+            shuffle_options=template.shuffle_options,
+            max_participants=template.max_participants,
+            status=LiveQuizStatus.created
+        )
+        self.db.add(session)
+        await self.db.flush()
+        
+        # Clone questions
+        for q in template.questions:
+            question = LiveQuizQuestion(
+                quiz_id=session.id,
+                question_text=q.question_text,
+                question_image=q.question_image,
+                options=q.options,
+                correct_answer=q.correct_answer,
+                points=q.points,
+                time_limit=q.time_limit,
+                order=q.order
+            )
+            self.db.add(question)
+            
+        await self.db.commit()
+        
+        return {
+            "message": "Yangi sessiya yaratildi",
+            "quiz_id": session.id,
+            "join_code": session.join_code
+        }
+    
+    async def save_session(self, teacher_user_id: str, quiz_id: str, session_name: str) -> Dict:
+        """Save a finished session with a specific name."""
+        quiz = await self._get_quiz_for_teacher(quiz_id, teacher_user_id)
+        if quiz.status != LiveQuizStatus.finished:
+            raise BadRequestError("Faqat tugatilgan quizlarni saqlash mumkin")
+        
+        quiz.session_name = session_name
+        await self.db.commit()
+        return {"message": "Sessiya saqlandi", "session_name": session_name}
+        
+    async def delete_session(self, teacher_user_id: str, quiz_id: str) -> Dict:
+        """Delete a session (e.g. if 'Tugatish' is clicked without saving)."""
+        quiz = await self._get_quiz_for_teacher(quiz_id, teacher_user_id)
+        if quiz.is_template:
+            raise BadRequestError("Shablonni o'chirib bo'lmaydi")
+            
+        await self.db.delete(quiz)
+        await self.db.commit()
+        return {"message": "Sessiya o'chirildi"}
+        
+    async def get_template_history(self, teacher_user_id: str, template_id: str) -> Dict:
+        """Get history of saved sessions for a template."""
+        res = await self.db.execute(select(TeacherProfile).where(TeacherProfile.user_id == teacher_user_id))
+        teacher_profile = res.scalars().first()
+        
+        res = await self.db.execute(
+            select(LiveQuiz).where(
+                and_(
+                    LiveQuiz.template_id == template_id,
+                    LiveQuiz.teacher_id == teacher_profile.id,
+                    LiveQuiz.session_name != None
+                )
+            ).order_by(LiveQuiz.ended_at.desc())
+            .options(selectinload(LiveQuiz.participants))
+        )
+        sessions = res.scalars().all()
+        
+        history = []
+        for s in sessions:
+            history.append({
+                "id": s.id,
+                "session_name": s.session_name,
+                "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+                "participants_count": len(s.participants),
+                "leaderboard": [
+                    {
+                        "display_name": p.display_name,
+                        "total_score": p.total_score,
+                        "correct_count": p.correct_count
+                    } for p in sorted(s.participants, key=lambda x: -x.total_score)[:3] # Top 3
+                ]
+            })
+            
+        return {"success": True, "history": history}
     
     async def open_lobby(self, teacher_user_id: str, quiz_id: str) -> Dict:
         """

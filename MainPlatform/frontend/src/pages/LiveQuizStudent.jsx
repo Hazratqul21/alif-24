@@ -177,7 +177,7 @@ const LiveQuizStudent = () => {
               onChange={e => { setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }}
               placeholder="000000"
               maxLength={6}
-              className="w-full text-center text-4xl font-mono font-bold tracking-[0.5em] border-2 border-gray-200 rounded-2xl p-4 focus:border-indigo-500 focus:outline-none"
+              className="w-full text-center text-4xl font-mono font-bold tracking-[0.5em] border-2 border-gray-200 rounded-2xl p-4 focus:border-indigo-500 focus:outline-none text-gray-900 bg-white"
             />
 
             <input
@@ -185,7 +185,7 @@ const LiveQuizStudent = () => {
               value={displayName}
               onChange={e => setDisplayName(e.target.value.slice(0, 50))}
               placeholder="Ismingiz"
-              className="w-full text-center text-lg border-2 border-gray-200 rounded-2xl p-3 focus:border-indigo-500 focus:outline-none"
+              className="w-full text-center text-lg border-2 border-gray-200 rounded-2xl p-3 focus:border-indigo-500 focus:outline-none text-gray-900 bg-white"
             />
 
             <div className="flex flex-wrap justify-center gap-2">

@@ -63,6 +63,33 @@ class QuizService {
     return res.data || res;
   }
 
+  // ====== TEMPLATES & SESSIONS ======
+
+  async getTemplates() {
+    const res = await apiService.get('/live-quiz/templates');
+    return res.data || res;
+  }
+
+  async startSession(templateId) {
+    const res = await apiService.post(`/live-quiz/${templateId}/start-session`);
+    return res.data || res;
+  }
+
+  async saveSession(quizId, sessionName) {
+    const res = await apiService.post(`/live-quiz/${quizId}/save-session?session_name=${encodeURIComponent(sessionName)}`);
+    return res.data || res;
+  }
+
+  async deleteSession(quizId) {
+    const res = await apiService.delete(`/live-quiz/${quizId}/delete-session`);
+    return res.data || res;
+  }
+
+  async getTemplateHistory(templateId) {
+    const res = await apiService.get(`/live-quiz/templates/${templateId}/history`);
+    return res.data || res;
+  }
+
   // ====== STUDENT FUNCTIONS ======
 
   async joinQuiz(joinCode, displayName, avatarEmoji = '🎮') {

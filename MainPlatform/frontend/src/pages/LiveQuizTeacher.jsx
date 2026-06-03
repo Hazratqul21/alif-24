@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import quizService from '../services/quizService';
 import {
   Plus, Trash2, Play, Users, Trophy, ArrowLeft, Loader2, CheckCircle, Copy,
-  Clock, BarChart3, ChevronRight, X, Zap, Star, Target, Medal, PartyPopper
+  Clock, BarChart3, ChevronRight, X, Target, Save, Pause, PlayCircle, History, List
 } from 'lucide-react';
 
 const OPTION_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FB8C00'];
@@ -11,16 +11,21 @@ const OPTION_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FB8C00'];
 const LiveQuizTeacher = () => {
   const navigate = useNavigate();
 
-  // Phases: create, add_questions, lobby, live, question_result, leaderboard, finished
-  const [phase, setPhase] = useState('create');
-  const [loading, setLoading] = useState(false);
+  // Phases: templates, create, add_questions, lobby, live, question_result, leaderboard, finished, history
+  const [phase, setPhase] = useState('templates');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Templates
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [templateHistory, setTemplateHistory] = useState([]);
 
   // Quiz creation
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [timePerQuestion, setTimePerQuestion] = useState(30);
-  const [quizId, setQuizId] = useState(null);
+  const [quizId, setQuizId] = useState(null); // Actually templateId or sessionId depending on phase
   const [joinCode, setJoinCode] = useState('');
 
   // Questions
@@ -37,10 +42,73 @@ const LiveQuizTeacher = () => {
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [questionResults, setQuestionResults] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  
+  const timerRef = useRef(null);
+  const livePollRef = useRef(null);
+  const autoNextTimeoutRef = useRef(null);
+
+  // Finished Session
+  const [sessionName, setSessionName] = useState('');
+  const [showSaveModal, setShowSaveModal] = useState(false);
+
+  // Load Templates on Mount
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const fetchTemplates = async () => {
+    setLoading(true);
+    try {
+      const res = await quizService.getTemplates();
+      setTemplates(res.templates || []);
+      setPhase('templates');
+    } catch (err) {
+      setError(err.message || 'Shablonlarni yuklashda xatolik');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cleanupIntervals = () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (livePollRef.current) clearInterval(livePollRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
+  };
 
   useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    return cleanupIntervals;
   }, []);
+
+  // ====== TEMPLATES ======
+  const handleStartFromTemplate = async (templateId) => {
+    setLoading(true);
+    try {
+      const session = await quizService.startSession(templateId);
+      setQuizId(session.quiz_id);
+      
+      const lobby = await quizService.openLobby(session.quiz_id);
+      setJoinCode(lobby.join_code);
+      setPhase('lobby');
+      startLobbyPoll(session.quiz_id);
+    } catch (err) {
+      setError(err.message);
+    } finally { setLoading(false); }
+  };
+
+  const handleViewHistory = async (template) => {
+    setLoading(true);
+    try {
+      const res = await quizService.getTemplateHistory(template.id);
+      setTemplateHistory(res.history || []);
+      setSelectedTemplate(template);
+      setPhase('history');
+    } catch (err) {
+      setError(err.message);
+    } finally { setLoading(false); }
+  };
 
   // ====== CREATE QUIZ ======
   const handleCreate = async () => {
@@ -48,8 +116,7 @@ const LiveQuizTeacher = () => {
     setLoading(true); setError('');
     try {
       const res = await quizService.createQuiz(title.trim(), description.trim(), timePerQuestion);
-      setQuizId(res.quiz_id);
-      setJoinCode(res.join_code);
+      setQuizId(res.quiz_id); // This is a template ID
       setPhase('add_questions');
     } catch (err) {
       setError(err.message || 'Xatolik');
@@ -82,25 +149,30 @@ const LiveQuizTeacher = () => {
     const invalid = questions.find(q => !q.text.trim() || q.options.some(o => !o.trim()));
     if (invalid) { setError('Barcha savollar va variantlarni to\'ldiring'); return; }
     const noCorrect = questions.find(q => q.correct < 0);
-    if (noCorrect) { setError('Har bir savolda to\'g\'ri javobni belgilang (yashil tugmani bosing)'); return; }
+    if (noCorrect) { setError('Har bir savolda to\'g\'ri javobni belgilang'); return; }
+    
     setLoading(true); setError('');
     try {
       await quizService.addQuestions(quizId, questions);
-      const lobby = await quizService.openLobby(quizId);
+      // Start a session from this new template immediately
+      const session = await quizService.startSession(quizId);
+      setQuizId(session.quiz_id); // Switch quizId to session ID
+      
+      const lobby = await quizService.openLobby(session.quiz_id);
       setJoinCode(lobby.join_code);
       setPhase('lobby');
-      startLobbyPoll();
+      startLobbyPoll(session.quiz_id);
     } catch (err) {
       setError(err.message || 'Xatolik');
     } finally { setLoading(false); }
   };
 
   // ====== LOBBY ======
-  const startLobbyPoll = () => {
+  const startLobbyPoll = (sessionId) => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
-        const res = await quizService.getLobbyStatus(quizId);
+        const res = await quizService.getLobbyStatus(sessionId);
         setParticipants(res.participants || []);
         setParticipantCount(res.participants_count || 0);
       } catch (e) { console.error(e); }
@@ -109,29 +181,106 @@ const LiveQuizTeacher = () => {
 
   const handleStartQuiz = async () => {
     if (participantCount === 0) { setError('Kamida 1 ta qatnashchi kerak'); return; }
-    if (pollRef.current) clearInterval(pollRef.current);
+    cleanupIntervals();
     setLoading(true); setError('');
     try {
       await quizService.startQuiz(quizId);
       const q = await quizService.getCurrentQuestion(quizId);
-      setCurrentQuestion(q);
-      setPhase('live');
+      startLiveQuestion(q);
     } catch (err) {
       setError(err.message || 'Xatolik');
-    } finally { setLoading(false); }
+      setLoading(false);
+    } 
   };
 
   // ====== LIVE ======
-  const handleShowResults = async () => {
-    if (!currentQuestion) return;
-    try {
-      const res = await quizService.getQuestionResults(quizId, currentQuestion.question_id);
-      setQuestionResults(res);
-      setPhase('question_result');
-    } catch (err) { setError(err.message); }
+  const startLiveQuestion = (q) => {
+    setCurrentQuestion(q);
+    setQuestionResults(null);
+    setPhase('live');
+    setTimeLeft(q.time_limit || 30);
+    setIsPaused(false);
+    setLoading(false);
+
+    // Start teacher timer
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Poll for answers
+    if (livePollRef.current) clearInterval(livePollRef.current);
+    livePollRef.current = setInterval(async () => {
+      try {
+        const res = await quizService.getQuestionResults(quizId, q.question_id);
+        // If everyone answered or time's up, auto show results
+        const isTimeUp = (timeLeft <= 0); // Need to rely on local state or careful logic. 
+        // Actually, we can check inside the interval using a ref or state updater, but fetching here is fine.
+        if (res.total_answers >= participantCount) {
+           clearInterval(livePollRef.current);
+           clearInterval(timerRef.current);
+           handleShowResults(q.question_id, res);
+        }
+      } catch (e) { console.error(e); }
+    }, 1000);
+  };
+
+  // Check for time up effect
+  useEffect(() => {
+    if (phase === 'live' && timeLeft === 0 && currentQuestion) {
+      if (livePollRef.current) clearInterval(livePollRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
+      // Auto show results when time is up
+      quizService.getQuestionResults(quizId, currentQuestion.question_id)
+        .then(res => handleShowResults(currentQuestion.question_id, res))
+        .catch(console.error);
+    }
+  }, [timeLeft, phase, currentQuestion, quizId]);
+
+  const handleShowResults = (qId, preFetchedResults = null) => {
+    const perform = async () => {
+      try {
+        const res = preFetchedResults || await quizService.getQuestionResults(quizId, qId);
+        setQuestionResults(res);
+        setPhase('question_result');
+        
+        // Auto next after 5 seconds IF not paused
+        if (!isPaused) {
+          autoNextTimeoutRef.current = setTimeout(() => {
+            handleNextQuestion();
+          }, 5000);
+        }
+      } catch (err) { setError(err.message); }
+    };
+    perform();
+  };
+
+  useEffect(() => {
+    if (phase === 'question_result') {
+      if (isPaused) {
+        if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
+      } else {
+        // If unpaused on results screen, schedule next
+        if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
+        autoNextTimeoutRef.current = setTimeout(() => {
+          handleNextQuestion();
+        }, 5000);
+      }
+    }
+  }, [isPaused, phase]);
+
+  const togglePause = () => {
+    setIsPaused(!isPaused);
   };
 
   const handleNextQuestion = async () => {
+    cleanupIntervals();
     setLoading(true); setError('');
     try {
       const res = await quizService.nextQuestion(quizId);
@@ -140,24 +289,15 @@ const LiveQuizTeacher = () => {
         setLeaderboard(lb);
         setPhase('finished');
       } else {
-        setCurrentQuestion(res);
-        setQuestionResults(null);
-        setPhase('live');
+        startLiveQuestion(res);
       }
     } catch (err) {
       setError(err.message || 'Xatolik');
     } finally { setLoading(false); }
   };
 
-  const handleShowLeaderboard = async () => {
-    try {
-      const lb = await quizService.getLeaderboard(quizId);
-      setLeaderboard(lb);
-      setPhase('leaderboard');
-    } catch (err) { setError(err.message); }
-  };
-
   const handleEndQuiz = async () => {
+    cleanupIntervals();
     try {
       const res = await quizService.endQuiz(quizId);
       setLeaderboard(res.leaderboard || []);
@@ -165,16 +305,124 @@ const LiveQuizTeacher = () => {
     } catch (err) { setError(err.message); }
   };
 
+  // ====== FINISHED ======
+  const handleSaveSession = async () => {
+    if (!sessionName.trim()) { setError('Nom kiriting'); return; }
+    try {
+      await quizService.saveSession(quizId, sessionName);
+      setShowSaveModal(false);
+      fetchTemplates(); // Return to templates list
+    } catch (err) { setError(err.message); }
+  };
+
+  const handleTerminate = async () => {
+    try {
+      await quizService.deleteSession(quizId);
+      fetchTemplates();
+    } catch (err) { setError(err.message); }
+  };
+
   const copyCode = () => {
     navigator.clipboard?.writeText(joinCode);
   };
+
+  // ====== RENDER: TEMPLATES ======
+  if (phase === 'templates') {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 text-gray-900">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold">Mening Live Quizlarim</h1>
+            <button onClick={() => setPhase('create')} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700">
+              <Plus size={20} /> Yangi Quiz Yaratish
+            </button>
+          </div>
+          
+          {loading ? (
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-indigo-600" size={48} /></div>
+          ) : templates.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-500">
+              Hali quizlar yaratilmagan. Birinchi quizingizni yarating!
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {templates.map(t => (
+                <div key={t.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                  <h3 className="text-xl font-bold mb-2">{t.title}</h3>
+                  <p className="text-gray-500 mb-6 line-clamp-2">{t.description || "Tavsif yo'q"}</p>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => handleStartFromTemplate(t.id)} className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg font-bold flex justify-center items-center gap-2 hover:bg-green-600">
+                      <Play size={18} /> Boshlash
+                    </button>
+                    <button onClick={() => handleViewHistory(t)} className="flex-1 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg font-bold flex justify-center items-center gap-2 hover:bg-indigo-100">
+                      <History size={18} /> Natijalar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ====== RENDER: HISTORY ======
+  if (phase === 'history') {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 text-gray-900">
+        <div className="max-w-4xl mx-auto">
+          <button onClick={() => setPhase('templates')} className="mb-4 p-2 hover:bg-gray-200 rounded-full">
+            <ArrowLeft size={20} />
+          </button>
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h1 className="text-2xl font-bold mb-6">{selectedTemplate?.title} - O'tkazilgan o'yinlar tarixi</h1>
+            {templateHistory.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">Bu quiz hali hech qaysi sinfda o'tkazilmagan yoki saqlanmagan.</p>
+            ) : (
+              <div className="space-y-4">
+                {templateHistory.map(session => (
+                  <div key={session.id} className="border border-gray-200 rounded-xl p-4">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="font-bold text-lg">{session.session_name}</h3>
+                        <p className="text-sm text-gray-500">{new Date(session.ended_at).toLocaleString()}</p>
+                      </div>
+                      <div className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1">
+                        <Users size={16} /> {session.participants_count} o'quvchi
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <h4 className="text-sm font-bold text-gray-600 mb-2">Kuchli uchlik:</h4>
+                      {session.leaderboard.length > 0 ? (
+                        <div className="space-y-1">
+                          {session.leaderboard.map((p, i) => (
+                            <div key={i} className="flex justify-between text-sm">
+                              <span>{i + 1}. {p.display_name}</span>
+                              <span className="font-bold">{p.total_score} ball</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">Hech kim qatnashmadi</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ====== RENDER: CREATE ======
   if (phase === 'create') {
     return (
       <div className="min-h-screen bg-gray-50 p-4 text-gray-900">
         <div className="max-w-xl mx-auto">
-          <button onClick={() => navigate(-1)} className="mb-4 p-2 hover:bg-gray-200 rounded-full">
+          <button onClick={() => setPhase('templates')} className="mb-4 p-2 hover:bg-gray-200 rounded-full">
             <ArrowLeft size={20} />
           </button>
           <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -185,7 +433,7 @@ const LiveQuizTeacher = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Quiz nomi *</label>
-                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Masalan: Matematika test"
+                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Masalan: 3-G sinf Matematika"
                   className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none text-gray-900 bg-white" />
               </div>
               <div>
@@ -198,17 +446,21 @@ const LiveQuizTeacher = () => {
                 <select value={timePerQuestion} onChange={e => setTimePerQuestion(Number(e.target.value))}
                   className="w-full p-3 border-2 border-gray-200 rounded-xl text-gray-900 bg-white">
                   <option value={15}>15 soniya</option>
-                  <option value={20}>20 soniya</option>
                   <option value={30}>30 soniya</option>
-                  <option value={45}>45 soniya</option>
-                  <option value={60}>60 soniya</option>
+                  <option value={60}>1 daqiqa</option>
+                  <option value={120}>2 daqiqa</option>
                 </select>
               </div>
+
               {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
-              <button onClick={handleCreate} disabled={loading}
-                className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
-                {loading ? <Loader2 className="animate-spin" size={20} /> : <Zap size={20} />}
-                {loading ? 'Yaratilmoqda...' : 'Yaratish'}
+
+              <button
+                onClick={handleCreate}
+                disabled={loading}
+                className="w-full py-4 bg-indigo-600 text-white font-bold text-lg rounded-xl shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <ChevronRight />}
+                Davom etish
               </button>
             </div>
           </div>
@@ -220,54 +472,60 @@ const LiveQuizTeacher = () => {
   // ====== RENDER: ADD QUESTIONS ======
   if (phase === 'add_questions') {
     return (
-      <div className="min-h-screen bg-gray-50 p-4 pb-32 text-gray-900">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-bold">Savollar qo'shish</h1>
-            <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold">{questions.length} ta savol</span>
+      <div className="min-h-screen bg-gray-50 p-4 text-gray-900 pb-24">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold">Savollar qo'shish</h1>
+            <button onClick={addQuestion} className="bg-indigo-100 text-indigo-600 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-200">
+              <Plus size={20} /> Yangi savol
+            </button>
           </div>
 
           <div className="space-y-6">
             {questions.map((q, qIdx) => (
-              <div key={qIdx} className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
-                <div className="flex justify-between items-start mb-3">
-                  <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-bold">Savol {qIdx + 1}</span>
-                  {questions.length > 1 && (
-                    <button onClick={() => removeQuestion(qIdx)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={18} /></button>
-                  )}
-                </div>
-                <input value={q.text} onChange={e => updateQuestion(qIdx, 'text', e.target.value)}
-                  placeholder="Savol matnini kiriting..." className="w-full p-3 border-2 border-gray-200 rounded-xl mb-3 focus:border-indigo-500 focus:outline-none text-lg text-gray-900 bg-white" />
-                <div className="grid grid-cols-2 gap-2">
-                  {q.options.map((opt, optIdx) => (
-                    <div key={optIdx} className="relative">
-                      <input value={opt} onChange={e => updateOption(qIdx, optIdx, e.target.value)}
-                        placeholder={`Variant ${optIdx + 1}`}
-                        className={`w-full p-3 pr-10 border-2 rounded-xl focus:outline-none text-gray-900 ${q.correct === optIdx ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white'}`} />
-                      <button onClick={() => updateQuestion(qIdx, 'correct', optIdx)}
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 ${q.correct === optIdx ? 'text-green-500' : 'text-gray-300'}`}>
-                        <CheckCircle size={20} />
+              <div key={qIdx} className="bg-white rounded-2xl shadow-sm p-6 relative">
+                <button onClick={() => removeQuestion(qIdx)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                  <Trash2 size={20} />
+                </button>
+                <h3 className="font-bold text-gray-500 mb-4">{qIdx + 1}-savol</h3>
+
+                <input
+                  value={q.text} onChange={e => updateQuestion(qIdx, 'text', e.target.value)}
+                  placeholder="Savol matni..."
+                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none mb-4 text-lg font-medium text-gray-900 bg-white"
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {q.options.map((opt, oIdx) => (
+                    <div key={oIdx} className="flex items-center gap-2">
+                      <button
+                        onClick={() => updateQuestion(qIdx, 'correct', oIdx)}
+                        className={`p-3 rounded-xl transition-all ${q.correct === oIdx ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                      >
+                        <CheckCircle size={24} />
                       </button>
+                      <input
+                        value={opt} onChange={e => updateOption(qIdx, oIdx, e.target.value)}
+                        placeholder={`${oIdx + 1}-variant`}
+                        className="flex-1 p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none text-gray-900 bg-white"
+                      />
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1"><CheckCircle size={12} className="text-green-500" /> Yashil ramkali variant = to'g'ri javob</p>
               </div>
             ))}
           </div>
 
-          <button onClick={addQuestion} className="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-medium hover:border-indigo-400 hover:text-indigo-600 flex items-center justify-center gap-2">
-            <Plus size={18} /> Savol qo'shish
-          </button>
-
-          {error && <p className="text-red-500 text-sm font-medium mt-3">{error}</p>}
-
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-lg">
-            <div className="max-w-2xl mx-auto">
-              <button onClick={handleSaveQuestions} disabled={loading}
-                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
-                {loading ? <Loader2 className="animate-spin" size={20} /> : <Play size={20} />}
-                {loading ? 'Saqlanmoqda...' : `Saqlash va Lobby ochish (${questions.length} savol)`}
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <div className="max-w-3xl mx-auto flex justify-between items-center">
+              {error && <p className="text-red-500 font-medium">{error}</p>}
+              <button
+                onClick={handleSaveQuestions}
+                disabled={loading}
+                className="ml-auto px-8 py-3 bg-green-500 text-white font-bold rounded-xl shadow-lg hover:bg-green-600 transition-all disabled:opacity-50 flex items-center gap-2"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <Play size={20} />}
+                Saqlash va Boshlash
               </button>
             </div>
           </div>
@@ -279,86 +537,105 @@ const LiveQuizTeacher = () => {
   // ====== RENDER: LOBBY ======
   if (phase === 'lobby') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex flex-col items-center justify-center p-4 text-white">
-        <h1 className="text-3xl font-bold mb-2">{title}</h1>
-        <p className="text-white/70 mb-8">O'quvchilar quyidagi kod bilan qo'shilsin</p>
-
-        <div className="bg-white rounded-3xl p-8 text-center shadow-2xl mb-8">
-          <p className="text-gray-500 text-sm mb-2">Qo'shilish kodi</p>
-          <div className="flex items-center justify-center gap-3">
-            <span className="text-5xl font-mono font-black text-gray-800 tracking-[0.3em]">{joinCode}</span>
-            <button onClick={copyCode} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400"><Copy size={20} /></button>
-          </div>
-        </div>
-
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 w-full max-w-lg">
-          <div className="flex items-center justify-between mb-4">
-            <span className="flex items-center gap-2 font-bold"><Users size={20} /> Qatnashchilar</span>
-            <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-bold">{participantCount}/40</span>
-          </div>
-          {participants.length === 0 ? (
-            <div className="text-center py-6 text-white/50">
-              <Loader2 className="animate-spin mx-auto mb-2" size={32} />
-              <p>Kutilmoqda...</p>
+      <div className="min-h-screen bg-gray-50 p-4 text-gray-900">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="bg-white rounded-3xl shadow-lg p-8 mb-8">
+            <h2 className="text-gray-500 font-bold mb-2">O'quvchilar qo'shilishi uchun kod:</h2>
+            <div className="flex justify-center items-center gap-4 mb-6">
+              <div className="text-6xl md:text-8xl font-black tracking-widest text-indigo-600 font-mono bg-indigo-50 px-8 py-4 rounded-3xl border-4 border-indigo-100">
+                {joinCode}
+              </div>
+              <button onClick={copyCode} className="p-4 bg-gray-100 hover:bg-gray-200 rounded-2xl text-gray-600 transition-colors">
+                <Copy size={32} />
+              </button>
             </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {participants.map((p, i) => (
-                <div key={i} className="bg-white/20 px-3 py-2 rounded-xl flex items-center gap-2">
-                  <span>{p.avatar_emoji}</span>
-                  <span className="font-medium text-sm">{p.display_name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {error && <p className="text-red-200 mt-3">{error}</p>}
-
-        <button onClick={handleStartQuiz} disabled={loading || participantCount === 0}
-          className="mt-8 px-12 py-4 bg-white text-indigo-600 font-bold text-lg rounded-2xl shadow-xl hover:scale-105 transition-transform disabled:opacity-50 flex items-center gap-2">
-          {loading ? <Loader2 className="animate-spin" size={20} /> : <Play size={20} />}
-          {loading ? 'Boshlanmoqda...' : 'Quizni Boshlash!'}
-        </button>
-      </div>
-    );
-  }
-
-  // ====== RENDER: LIVE QUESTION ======
-  if (phase === 'live' && currentQuestion) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex flex-col">
-        <div className="p-4 flex justify-between items-center text-white">
-          <span className="bg-white/10 px-4 py-2 rounded-full font-bold">{currentQuestion.question_number}/{currentQuestion.total_questions}</span>
-          <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full">
-            <Clock size={16} /> {currentQuestion.time_limit}s
+            <p className="text-xl">Qo'shilish sayti: <strong className="text-indigo-600">alif24.uz/join-quiz</strong></p>
           </div>
-          <button onClick={handleShowLeaderboard} className="bg-white/10 px-4 py-2 rounded-full hover:bg-white/20">
-            <Trophy size={16} />
-          </button>
-        </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-6">
-          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-3xl w-full text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-800">{currentQuestion.text}</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-2xl font-bold flex items-center gap-2">
+              <Users className="text-indigo-600" />
+              Qatnashchilar: {participantCount}
+            </h3>
+            <button
+              onClick={handleStartQuiz}
+              disabled={loading || participantCount === 0}
+              className="px-8 py-4 bg-green-500 text-white font-bold text-xl rounded-2xl shadow-lg hover:bg-green-600 disabled:opacity-50 transition-all flex items-center gap-2"
+            >
+              {loading ? <Loader2 className="animate-spin" /> : <Play size={24} />}
+              O'yinni boshlash
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-4 w-full max-w-3xl">
-            {currentQuestion.options?.map((opt, idx) => (
-              <div key={idx} className="p-6 rounded-2xl text-white font-bold text-xl text-center shadow-lg"
-                style={{ backgroundColor: OPTION_COLORS[idx % 4] }}>
-                {opt}
+
+          {error && <p className="text-red-500 text-left mb-4">{error}</p>}
+
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {participants.map((p, idx) => (
+              <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm text-center animate-in zoom-in duration-300">
+                <div className="text-4xl mb-2">{p.avatar_emoji}</div>
+                <div className="font-bold truncate text-gray-900">{p.display_name}</div>
               </div>
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
 
-        <div className="p-4 flex justify-center gap-4">
-          <button onClick={handleShowResults} className="px-8 py-3 bg-white text-gray-800 font-bold rounded-xl shadow-lg hover:bg-gray-100 flex items-center gap-2">
-            <BarChart3 size={18} /> Natijalarni ko'rsatish
+  // ====== RENDER: LIVE (QUESTION) ======
+  if (phase === 'live' && currentQuestion) {
+    const timePercent = currentQuestion.time_limit ? (timeLeft / currentQuestion.time_limit) * 100 : 100;
+    
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col text-gray-900">
+        <div className="p-4 bg-white shadow-sm flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <span className="text-gray-500 font-bold">Savol {currentQuestion.question_number}/{currentQuestion.total_questions}</span>
+            <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full text-indigo-700 font-bold">
+              <Users size={18} /> {participantCount}
+            </div>
+          </div>
+          
+          {/* TEACHER TIMER & PAUSE */}
+          <div className="flex items-center gap-4">
+            <div className={`flex items-center gap-2 px-6 py-2 rounded-full font-bold text-xl ${timeLeft <= 5 ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-800'}`}>
+              <Clock size={24} /> {timeLeft}s
+            </div>
+          </div>
+
+          <button onClick={handleEndQuiz} className="text-red-500 font-bold hover:bg-red-50 px-4 py-2 rounded-lg transition-colors">
+            O'yinni to'xtatish
           </button>
-          <button onClick={handleNextQuestion} className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 flex items-center gap-2">
-            <ChevronRight size={18} /> Keyingi savol
-          </button>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="h-2 bg-gray-200 w-full">
+          <div 
+            className={`h-full transition-all duration-1000 ${timeLeft <= 5 ? 'bg-red-500' : 'bg-indigo-500'}`}
+            style={{ width: `${timePercent}%` }}
+          />
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-5xl mx-auto w-full">
+          <div className="bg-white rounded-3xl p-8 shadow-xl w-full text-center mb-12">
+            <h2 className="text-3xl md:text-5xl font-bold text-gray-800 leading-tight">
+              {currentQuestion.text}
+            </h2>
+            {currentQuestion.image && <img src={currentQuestion.image} alt="Savol" className="mt-8 max-h-64 mx-auto rounded-2xl shadow-md" />}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 w-full">
+            {currentQuestion.options?.map((opt, idx) => (
+              <div key={idx} className="p-6 rounded-2xl text-white font-bold text-2xl shadow-md flex items-center" style={{ backgroundColor: OPTION_COLORS[idx % 4] }}>
+                <span className="bg-white/20 w-10 h-10 rounded-full flex items-center justify-center mr-4 shrink-0">{['A','B','C','D'][idx]}</span>
+                {opt}
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-8 text-center text-gray-500">
+             O'quvchilar javob berishi kutilmoqda... Agar barchasi javob bersa avtomat keyingi bosqichga o'tiladi.
+          </div>
         </div>
       </div>
     );
@@ -366,109 +643,159 @@ const LiveQuizTeacher = () => {
 
   // ====== RENDER: QUESTION RESULTS ======
   if (phase === 'question_result' && questionResults) {
-    const total = questionResults.total_answers || 1;
+    const totalAns = questionResults.total_answers || 1; // avoid div/0
+    
     return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-2xl text-gray-900">
-          <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">{questionResults.question_text}</h2>
-          <p className="text-center text-gray-500 mb-6">{questionResults.correct_count}/{questionResults.total_answers} ta to'g'ri javob</p>
-          <div className="space-y-3">
-            {questionResults.options?.map((opt, idx) => {
-              const count = questionResults.option_counts?.[idx] || 0;
-              const pct = Math.round((count / total) * 100);
+      <div className="min-h-screen bg-gray-50 p-4 text-gray-900">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-800">Savol natijalari</h2>
+            
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={togglePause} 
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-colors ${isPaused ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+              >
+                {isPaused ? <PlayCircle size={20} /> : <Pause size={20} />}
+                {isPaused ? "Davom etish" : "Pauza"}
+              </button>
+              
+              <button
+                onClick={handleNextQuestion}
+                disabled={loading}
+                className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : "Keyingi"} <ChevronRight />
+              </button>
+            </div>
+          </div>
+          
+          {isPaused && (
+             <div className="bg-orange-100 border border-orange-300 text-orange-800 px-4 py-3 rounded-xl mb-8 flex items-center gap-2 font-bold">
+                <Pause /> Avtomatik davom etish to'xtatildi. Tushuntirib bo'lgach, 'Davom etish' yoki 'Keyingi' tugmasini bosing.
+             </div>
+          )}
+
+          <div className="bg-white rounded-3xl p-8 shadow-xl mb-12 text-center">
+            <h3 className="text-2xl font-bold text-gray-800">{questionResults.question_text}</h3>
+          </div>
+
+          <div className="flex items-end justify-center gap-4 h-64 mb-8">
+            {questionResults.options.map((opt, idx) => {
+              const count = questionResults.option_counts[idx] || 0;
+              const percent = (count / totalAns) * 100;
               const isCorrect = idx === questionResults.correct_answer;
+
               return (
-                <div key={idx} className="relative overflow-hidden rounded-xl">
-                  <div className={`p-4 flex justify-between items-center z-10 relative ${isCorrect ? 'text-white' : 'text-gray-700'}`}
-                    style={{ backgroundColor: isCorrect ? '#43A047' : '#f3f4f6' }}>
-                    <span className="font-bold">{isCorrect && <CheckCircle size={16} className="inline mr-2" />}{opt}</span>
-                    <span className="font-bold">{count} ({pct}%)</span>
+                <div key={idx} className="flex flex-col items-center flex-1 max-w-[150px]">
+                  <div className="text-2xl font-bold mb-2">{count}</div>
+                  <div 
+                    className={`w-full rounded-t-xl transition-all duration-1000 relative overflow-hidden ${isCorrect ? 'bg-green-500' : 'bg-gray-300'}`}
+                    style={{ height: `${Math.max(percent, 5)}%`, minHeight: '40px', backgroundColor: isCorrect ? '#43A047' : OPTION_COLORS[idx % 4] }}
+                  >
+                    {!isCorrect && <div className="absolute inset-0 bg-white/40"></div>}
+                    {isCorrect && <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white"><CheckCircle size={24} /></div>}
+                  </div>
+                  <div className="mt-4 p-3 bg-white w-full text-center rounded-xl shadow-sm text-sm font-bold truncate border-2" style={{ borderColor: isCorrect ? '#43A047' : 'transparent' }}>
+                    {opt}
                   </div>
                 </div>
               );
             })}
           </div>
         </div>
-
-        <div className="flex gap-4 mt-6">
-          <button onClick={handleShowLeaderboard} className="px-6 py-3 bg-white text-gray-800 font-bold rounded-xl shadow-lg flex items-center gap-2">
-            <Trophy size={18} /> Leaderboard
-          </button>
-          <button onClick={handleNextQuestion} disabled={loading}
-            className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg flex items-center gap-2">
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <ChevronRight size={18} />}
-            Keyingi savol
-          </button>
-        </div>
       </div>
     );
   }
 
-  // ====== RENDER: LEADERBOARD ======
-  if (phase === 'leaderboard') {
+  // ====== RENDER: LEADERBOARD & FINISHED ======
+  if (phase === 'leaderboard' || phase === 'finished') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg text-gray-900">
-          <div className="text-center mb-6">
-            <Trophy size={48} className="text-yellow-500 mx-auto mb-2" />
-            <h1 className="text-2xl font-bold text-gray-800">Leaderboard</h1>
-          </div>
-          <div className="space-y-3">
-            {leaderboard.map((p, i) => (
-              <div key={i} className={`flex items-center justify-between p-4 rounded-xl ${i === 0 ? 'bg-yellow-50 border-2 border-yellow-300' : i === 1 ? 'bg-gray-50 border border-gray-200' : i === 2 ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50'}`}>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl font-black">{i < 3 ? <Medal size={24} className={i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-amber-600'} /> : `#${i + 1}`}</span>
-                  <span className="text-lg">{p.avatar_emoji}</span>
-                  <span className="font-bold">{p.display_name}</span>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-lg">{p.total_score}</div>
-                  <div className="text-xs text-gray-500">{p.correct_count} to'g'ri</div>
-                </div>
+      <div className="min-h-screen bg-gray-50 p-4 text-gray-900">
+        <div className="max-w-3xl mx-auto">
+          {phase === 'finished' && (
+            <div className="text-center mb-8 animate-in slide-in-from-top fade-in duration-500">
+              <div className="inline-flex items-center justify-center p-4 bg-yellow-100 rounded-full mb-4">
+                <Trophy size={64} className="text-yellow-500" />
               </div>
-            ))}
-          </div>
-          <div className="flex gap-3 mt-6">
-            <button onClick={() => setPhase('live')} className="flex-1 py-3 bg-gray-100 text-gray-800 font-bold rounded-xl">Qaytish</button>
-            <button onClick={handleEndQuiz} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl">Quizni tugatish</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ====== RENDER: FINISHED ======
-  if (phase === 'finished') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg text-center text-gray-900">
-          <div className="mb-4 flex justify-center"><Trophy size={52} className="text-yellow-500" /></div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">Quiz tugadi!</h1>
-
-          {leaderboard.length > 0 && (
-            <div className="space-y-3 mb-6">
-              {leaderboard.slice(0, 5).map((p, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                  <span className="flex items-center gap-2">
-                    <span className="font-black">{i < 3 ? <Medal size={18} className={i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : 'text-amber-600'} /> : `#${i + 1}`}</span>
-                    <span>{p.avatar_emoji} {p.display_name}</span>
-                  </span>
-                  <span className="font-bold text-indigo-600">{p.total_score}</span>
-                </div>
-              ))}
+              <h1 className="text-4xl font-black text-gray-800">Quiz Yakunlandi!</h1>
             </div>
           )}
 
-          <button onClick={() => navigate('/teacher-dashboard')}
-            className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl">
-            Dashboardga qaytish
-          </button>
+          <div className="bg-white rounded-3xl shadow-xl overflow-hidden mb-8 border border-gray-100">
+            <div className="bg-indigo-600 p-6 text-white text-center">
+              <h2 className="text-2xl font-bold flex items-center justify-center gap-2">
+                <BarChart3 /> Natijalar (Top 10)
+              </h2>
+            </div>
+            <div className="p-2">
+              {leaderboard.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 font-medium">Hech qanday ma'lumot yo'q</div>
+              ) : (
+                leaderboard.slice(0, 10).map((p, idx) => (
+                  <div key={idx} className={`flex items-center justify-between p-4 mb-2 rounded-2xl ${idx === 0 ? 'bg-yellow-50 border border-yellow-200' : idx === 1 ? 'bg-gray-50 border border-gray-200' : idx === 2 ? 'bg-orange-50 border border-orange-200' : 'hover:bg-gray-50'}`}>
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${idx === 0 ? 'bg-yellow-400 text-white' : idx === 1 ? 'bg-gray-300 text-gray-700' : idx === 2 ? 'bg-orange-400 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                        {idx + 1}
+                      </div>
+                      <div className="text-3xl">{p.avatar_emoji}</div>
+                      <div>
+                        <div className="font-bold text-lg text-gray-800">{p.display_name}</div>
+                        <div className="text-sm text-gray-500">{p.correct_count} ta to'g'ri</div>
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-indigo-600">{p.total_score}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {phase === 'finished' && (
+            <div className="flex gap-4 mb-12">
+               <button onClick={() => setShowSaveModal(true)} className="flex-1 bg-green-500 text-white py-4 rounded-2xl font-bold text-lg shadow-lg hover:bg-green-600 transition-all flex justify-center items-center gap-2">
+                 <Save /> Saqlash
+               </button>
+               <button onClick={handleTerminate} className="flex-1 bg-gray-200 text-gray-800 py-4 rounded-2xl font-bold text-lg shadow-md hover:bg-gray-300 transition-all flex justify-center items-center gap-2">
+                 <X /> Tugatish (Saqlamasdan)
+               </button>
+            </div>
+          )}
         </div>
+        
+        {/* Save Modal */}
+        {showSaveModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+               <h3 className="text-2xl font-bold mb-4">Natijani saqlash</h3>
+               <p className="text-gray-500 mb-6">Ushbu sinf natijasini qanday nom bilan saqlamoqchisiz? (masalan: 3-G sinf)</p>
+               
+               <input 
+                  autoFocus
+                  value={sessionName}
+                  onChange={e => setSessionName(e.target.value)}
+                  placeholder="Sinf nomi..."
+                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none mb-6 text-lg font-medium bg-white text-gray-900"
+               />
+               
+               {error && <p className="text-red-500 mb-4 font-medium">{error}</p>}
+               
+               <div className="flex gap-3">
+                 <button onClick={() => setShowSaveModal(false)} className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200">Bekor qilish</button>
+                 <button onClick={handleSaveSession} className="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 shadow-md">Saqlash</button>
+               </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
-  return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" size={48} /></div>;
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <Loader2 className="animate-spin text-indigo-600" size={48} />
+    </div>
+  );
 };
 
 export default LiveQuizTeacher;
