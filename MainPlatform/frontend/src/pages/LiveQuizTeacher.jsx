@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import quizService from '../services/quizService';
-import apiService from '../services/api';
+import apiService from '../services/apiService';
 import {
   Plus, Trash2, Play, Users, Trophy, ArrowLeft, Loader2, CheckCircle, Copy,
   Clock, BarChart3, ChevronRight, X, Target, Save, Pause, PlayCircle, History, List, FileText, ShoppingCart
