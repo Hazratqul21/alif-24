@@ -622,10 +622,13 @@ async def create_student_general(
         db.add(student_user)
         await db.flush()
         
+        from shared.database.models.user import ChildRelationship
         student_profile = StudentProfile(
             user_id=student_user.id,
             grade=data.grade,
-            school_name=data.school_name
+            school_name=data.school_name,
+            parent_user_id=current_user.id,
+            relationship_type=ChildRelationship.guardian
         )
         db.add(student_profile)
         
@@ -648,6 +651,163 @@ async def create_student_general(
         error_msg = f"Create general student error: {str(e)}\n{traceback.format_exc()}"
         print(error_msg)
         raise HTTPException(status_code=400, detail=f"Backend xatosi: {str(e)}")
+
+
+@router.get("/teachers/students")
+async def get_teacher_created_students(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """O'qituvchi yaratgan barcha o'quvchilar ro'yxatini qaytaradi"""
+    from shared.database.models import StudentProfile
+    
+    stmt = (
+        select(User, StudentProfile.grade, StudentProfile.school_name)
+        .join(StudentProfile, StudentProfile.user_id == User.id)
+        .where(StudentProfile.parent_user_id == current_user.id)
+        .order_by(User.created_at.desc())
+    )
+    res = await db.execute(stmt)
+    rows = res.all()
+    
+    return {"success": True, "data": [
+        {
+            "id": row[0].id,
+            "first_name": row[0].first_name,
+            "last_name": row[0].last_name,
+            "username": row[0].username,
+            "password": "PIN: " + (row[0].pin_code or "***"), # PIN code
+            "grade": row[1],
+            "school_name": row[2]
+        }
+        for row in rows
+    ]}
+
+
+class UpdateStudentRequest(BaseModel):
+    first_name: str
+    last_name: str
+    password: Optional[str] = None
+    grade: Optional[str] = None
+    school_name: Optional[str] = None
+
+
+@router.put("/teachers/students/{student_id}")
+async def update_teacher_student(
+    student_id: str,
+    data: UpdateStudentRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """O'qituvchi o'zi yaratgan o'quvchi ma'lumotlarini o'zgartirishi"""
+    from shared.database.models import StudentProfile
+    
+    # Check if student exists and belongs to this teacher
+    stmt = select(User, StudentProfile).join(StudentProfile, StudentProfile.user_id == User.id).where(
+        User.id == student_id,
+        StudentProfile.parent_user_id == current_user.id
+    )
+    res = await db.execute(stmt)
+    row = res.first()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail="O'quvchi topilmadi yoki sizga tegishli emas")
+        
+    student_user, student_profile = row
+    
+    student_user.first_name = data.first_name
+    student_user.last_name = data.last_name
+    if data.password:
+        student_user.set_password(data.password)
+        student_user.set_pin(data.password) # Sync pin too
+        
+    student_profile.grade = data.grade
+    student_profile.school_name = data.school_name
+    
+    await db.commit()
+    
+    return {"success": True, "message": "O'quvchi ma'lumotlari yangilandi"}
+
+
+@router.delete("/teachers/students/{student_id}")
+async def delete_teacher_student(
+    student_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """O'qituvchi o'zi yaratgan o'quvchini o'chirishi"""
+    from shared.database.models import StudentProfile
+    
+    # Check if student exists and belongs to this teacher
+    stmt = select(User).join(StudentProfile, StudentProfile.user_id == User.id).where(
+        User.id == student_id,
+        StudentProfile.parent_user_id == current_user.id
+    )
+    res = await db.execute(stmt)
+    student_user = res.scalars().first()
+    
+    if not student_user:
+        raise HTTPException(status_code=404, detail="O'quvchi topilmadi yoki sizga tegishli emas")
+        
+    await db.delete(student_user)
+    await db.commit()
+    
+    return {"success": True, "message": "O'quvchi o'chirildi"}
+
+
+@router.post("/teachers/students/{student_id}/add-to-class/{classroom_id}")
+async def add_student_to_class_direct(
+    student_id: str,
+    classroom_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """O'qituvchi o'zi yaratgan o'quvchini bevosita biror sinfga qo'shishi"""
+    from shared.database.models import StudentProfile
+    
+    teacher = await get_teacher_profile(current_user, db)
+    
+    # Verify student
+    stmt = select(User).join(StudentProfile, StudentProfile.user_id == User.id).where(
+        User.id == student_id,
+        StudentProfile.parent_user_id == current_user.id
+    )
+    res = await db.execute(stmt)
+    student_user = res.scalars().first()
+    
+    if not student_user:
+        raise HTTPException(status_code=404, detail="O'quvchi topilmadi yoki sizga tegishli emas")
+        
+    # Verify classroom
+    res_cls = await db.execute(select(Classroom).where(Classroom.id == classroom_id, Classroom.teacher_id == teacher.id))
+    classroom = res_cls.scalars().first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Sinf topilmadi")
+        
+    # Check if already in class
+    res_exist = await db.execute(select(ClassroomStudent).where(
+        ClassroomStudent.classroom_id == classroom_id,
+        ClassroomStudent.student_user_id == student_id
+    ))
+    exist_link = res_exist.scalars().first()
+    
+    if exist_link:
+        if exist_link.status != ClassroomStudentStatus.active:
+            exist_link.status = ClassroomStudentStatus.active
+            await db.commit()
+            return {"success": True, "message": "O'quvchi sinfga qo'shildi"}
+        return {"success": False, "message": "O'quvchi allaqachon bu sinfda"}
+        
+    # Add to class
+    new_link = ClassroomStudent(
+        classroom_id=classroom_id,
+        student_user_id=student_id,
+        status=ClassroomStudentStatus.active
+    )
+    db.add(new_link)
+    await db.commit()
+    
+    return {"success": True, "message": "O'quvchi sinfga qo'shildi"}
 
 
 @router.post("/teachers/classrooms/{classroom_id}/students")

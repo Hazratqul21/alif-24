@@ -19,6 +19,40 @@ class TeacherService {
     }
 
     /**
+     * Get all students created directly by this teacher
+     * @returns {Promise<Array>} List of students
+     */
+    async getMyCreatedStudents() {
+        return apiService.get('/teachers/students');
+    }
+
+    /**
+     * Update a student created by this teacher
+     * @param {string} studentId
+     * @param {Object} data 
+     */
+    async updateCreatedStudent(studentId, data) {
+        return apiService.put(`/teachers/students/${studentId}`, data);
+    }
+
+    /**
+     * Delete a student created by this teacher
+     * @param {string} studentId
+     */
+    async deleteCreatedStudent(studentId) {
+        return apiService.delete(`/teachers/students/${studentId}`);
+    }
+
+    /**
+     * Add a created student directly to a classroom
+     * @param {string} studentId 
+     * @param {string} classroomId 
+     */
+    async addStudentToClassDirect(studentId, classroomId) {
+        return apiService.post(`/teachers/students/${studentId}/add-to-class/${classroomId}`);
+    }
+
+    /**
      * Add student to a classroom
      * @param {string} classroomId - Classroom ID
      * @param {string} studentId - Student User ID

@@ -99,6 +99,12 @@ const TeacherDashboard = () => {
   const [showCreateStudentModal, setShowCreateStudentModal] = useState(false);
   const [createStudentData, setCreateStudentData] = useState({ first_name: '', last_name: '', password: '', grade: '', school_name: '' });
   const [createdStudentInfo, setCreatedStudentInfo] = useState(null);
+  
+  // Mening o'quvchilarim states
+  const [myCreatedStudents, setMyCreatedStudents] = useState([]);
+  const [createdStudentsLoading, setCreatedStudentsLoading] = useState(false);
+  const [showEditStudentModal, setShowEditStudentModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState(null);
 
   // Ertaklar states
   const [ertaklar, setErtaklar] = useState([]);
@@ -137,6 +143,7 @@ const TeacherDashboard = () => {
   const tabs = [
     { id: 'dashboard', label: tl.dashboard, icon: BarChart3 },
     { id: 'classes', label: tl.classes, icon: GraduationCap },
+    { id: 'students', label: "O'quvchilarim", icon: Users },
     { id: 'jurnal', label: tl.jurnal, icon: LayoutGrid },
     { id: 'lessons', label: tl.lessons, icon: BookOpen },
     { id: 'ertaklar', label: tl.ertaklar, icon: BookOpen },
@@ -1758,8 +1765,169 @@ const TeacherDashboard = () => {
     );
   };
 
+  const fetchCreatedStudents = useCallback(async () => {
+    try {
+      setCreatedStudentsLoading(true);
+      const res = await teacherService.getMyCreatedStudents();
+      setMyCreatedStudents(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+      showNotif('error', e.response?.data?.detail || "O'quvchilarni yuklashda xatolik");
+    } finally {
+      setCreatedStudentsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'students') {
+      fetchCreatedStudents();
+    }
+  }, [activeTab, fetchCreatedStudents]);
+
+  const handleUpdateStudent = async (e) => {
+    e.preventDefault();
+    if (!editingStudent?.first_name || !editingStudent?.last_name) return showNotif('error', 'Ism va familiya kiritish shart');
+    try {
+      setCreatedStudentsLoading(true);
+      const res = await teacherService.updateCreatedStudent(editingStudent.id, editingStudent);
+      if (res.success || res.data) {
+        showNotif('success', "O'quvchi ma'lumotlari yangilandi");
+        setShowEditStudentModal(false);
+        setEditingStudent(null);
+        fetchCreatedStudents();
+      }
+    } catch (e) {
+      showNotif('error', e.response?.data?.detail || "Yangilashda xatolik");
+    } finally {
+      setCreatedStudentsLoading(false);
+    }
+  };
+
+  const handleDeleteStudent = async (studentId) => {
+    if (!window.confirm("O'quvchini haqiqatan ham o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi!")) return;
+    try {
+      setCreatedStudentsLoading(true);
+      const res = await teacherService.deleteCreatedStudent(studentId);
+      if (res.success || res.data) {
+        showNotif('success', "O'quvchi o'chirildi");
+        fetchCreatedStudents();
+      }
+    } catch (e) {
+      showNotif('error', e.response?.data?.detail || "O'chirishda xatolik");
+    } finally {
+      setCreatedStudentsLoading(false);
+    }
+  };
+
+  const handleAddStudentToClassDirect = async (studentId, classroomId) => {
+    if (!classroomId) return showNotif('error', "Sinfni tanlang");
+    try {
+      setCreatedStudentsLoading(true);
+      const res = await teacherService.addStudentToClassDirect(studentId, classroomId);
+      if (res.success || res.data) {
+        showNotif('success', res.message || "O'quvchi sinfga qo'shildi");
+      } else {
+        showNotif('error', res.message || "Xatolik");
+      }
+    } catch (e) {
+      showNotif('error', e.response?.data?.detail || "Sinfga qo'shishda xatolik");
+    } finally {
+      setCreatedStudentsLoading(false);
+    }
+  };
+
+  const renderCreatedStudents = () => {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-white">O'quvchilarim ({myCreatedStudents.length})</h3>
+          <button onClick={() => setShowCreateStudentModal(true)}
+            className="flex items-center gap-2 bg-gradient-to-br from-pink-500 to-rose-500 text-white px-4 py-2 rounded-xl border-none cursor-pointer text-sm font-medium hover:scale-105 transition-transform shadow-lg shadow-pink-500/20">
+            <UserPlus size={16} /> O'quvchi yaratish
+          </button>
+        </div>
+
+        {createdStudentsLoading && myCreatedStudents.length === 0 ? (
+          <div className="text-center p-8 text-white/60">Yuklanmoqda...</div>
+        ) : myCreatedStudents.length === 0 ? (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center">
+            <Users className="w-12 h-12 text-white/30 mx-auto mb-3" />
+            <p className="text-white/60">Siz hali o'quvchi yaratmagansiz.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {myCreatedStudents.map(student => (
+              <div key={student.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-colors group relative">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-orange-400 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                      {student.first_name?.[0]}{student.last_name?.[0]}
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold text-lg leading-tight">{student.first_name} {student.last_name}</h4>
+                      <p className="text-white/50 text-xs">O'quvchi • {student.grade || "Sinf ko'rsatilmagan"}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setEditingStudent(student); setShowEditStudentModal(true); }} className="text-white/40 hover:text-white transition-colors" title="Tahrirlash">
+                      <Edit size={16} />
+                    </button>
+                    <button onClick={() => handleDeleteStudent(student.id)} className="text-rose-400/40 hover:text-rose-400 transition-colors" title="O'chirish">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="bg-black/20 rounded-xl p-3 mb-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-white/40">Login (ID):</span>
+                    <span className="text-white font-mono">{student.id}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/40">Parol:</span>
+                    <span className="text-white font-mono">{student.password}</span>
+                  </div>
+                </div>
+                
+                <div className="mt-3 pt-3 border-t border-white/10">
+                  <p className="text-xs text-white/50 mb-2">Sinfga biriktirish:</p>
+                  <div className="flex gap-2">
+                    <select
+                      id={`class-select-${student.id}`}
+                      className="flex-1 bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none"
+                    >
+                      <option value="">Sinfni tanlang...</option>
+                      {classrooms.filter(c => c.subject !== 'Kitobxonlik').map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    <button 
+                      onClick={() => {
+                        const sel = document.getElementById(`class-select-${student.id}`);
+                        if(sel && sel.value) {
+                          handleAddStudentToClassDirect(student.id, sel.value);
+                          sel.value = '';
+                        }
+                      }}
+                      className="bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 p-1.5 rounded-lg transition-colors"
+                      title="Sinfga qo'shish"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeTab) {
+      case 'students':
+        return renderCreatedStudents();
       case 'reading_stats':
         return renderReadingStats();
       case 'dashboard':
@@ -2155,6 +2323,7 @@ const TeacherDashboard = () => {
         </form>
       )}
 
+      {/* Create Student Modal */}
       {renderModal(showCreateStudentModal, () => setShowCreateStudentModal(false), "Yangi o'quvchi yaratish",
         <form onSubmit={handleCreateStudent} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -2176,6 +2345,32 @@ const TeacherDashboard = () => {
           </div>
           <button type="submit" disabled={loading} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">
              {loading ? 'Yaratilmoqda...' : 'Yaratish'}
+          </button>
+        </form>
+      )}
+
+      {/* Edit Student Modal */}
+      {renderModal(showEditStudentModal, () => setShowEditStudentModal(false), "O'quvchi ma'lumotlarini tahrirlash",
+        <form onSubmit={handleUpdateStudent} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-white/60 mb-2">Ism</label>
+              <input type="text" required value={editingStudent?.first_name || ''} onChange={e => setEditingStudent({...editingStudent, first_name: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-pink-500" />
+            </div>
+            <div>
+              <label className="block text-sm text-white/60 mb-2">Familiya</label>
+              <input type="text" required value={editingStudent?.last_name || ''} onChange={e => setEditingStudent({...editingStudent, last_name: e.target.value})}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-pink-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm text-white/60 mb-2">Yangi parol (ixtiyoriy, kiritilmasa o'zgarmaydi)</label>
+            <input type="text" value={editingStudent?.password?.startsWith('PIN:') ? '' : (editingStudent?.password || '')} onChange={e => setEditingStudent({...editingStudent, password: e.target.value})}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-pink-500" placeholder="Yangi parol..." />
+          </div>
+          <button type="submit" disabled={createdStudentsLoading} className="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">
+             {createdStudentsLoading ? 'Saqlanmoqda...' : 'Saqlash'}
           </button>
         </form>
       )}
