@@ -12,6 +12,7 @@ class MarketplaceItemType(str, enum.Enum):
     ertak = "ertak"
     material = "material"
     bundle = "bundle"
+    live_quiz = "live_quiz"
 
 class MarketplaceStatus(str, enum.Enum):
     draft = "draft"

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import quizService from '../services/quizService';
+import apiService from '../services/api';
 import {
   Plus, Trash2, Play, Users, Trophy, ArrowLeft, Loader2, CheckCircle, Copy,
-  Clock, BarChart3, ChevronRight, X, Target, Save, Pause, PlayCircle, History, List, FileText
+  Clock, BarChart3, ChevronRight, X, Target, Save, Pause, PlayCircle, History, List, FileText, ShoppingCart
 } from 'lucide-react';
 
 const OPTION_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FB8C00'];
@@ -56,6 +57,13 @@ const LiveQuizTeacher = () => {
   // Bulk add
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkText, setBulkText] = useState('');
+
+  // Marketplace
+  const [showMarketModal, setShowMarketModal] = useState(false);
+  const [marketItem, setMarketItem] = useState({
+    title: '', description: '', subject: 'Matematika', grade_level: '1', price: 0, thumbnail_url: ''
+  });
+  const [marketLoading, setMarketLoading] = useState(false);
 
   // Load Templates on Mount
   useEffect(() => {
@@ -378,6 +386,39 @@ const LiveQuizTeacher = () => {
     navigator.clipboard?.writeText(joinCode);
   };
 
+  // ====== MARKETPLACE ======
+  const openMarketModal = (template) => {
+    setMarketItem({
+      title: template.title,
+      description: template.description || '',
+      subject: 'Matematika',
+      grade_level: '1',
+      price: 0,
+      thumbnail_url: ''
+    });
+    setSelectedTemplate(template);
+    setShowMarketModal(true);
+  };
+
+  const handleMarketplaceSubmit = async () => {
+    if (!marketItem.title.trim()) { setError('Sarlavha kiritilishi shart'); return; }
+    setMarketLoading(true);
+    setError('');
+    try {
+      await apiService.post('/marketplace/list-resource', {
+        resource_id: selectedTemplate.id,
+        resource_type: 'live_quiz',
+        ...marketItem
+      });
+      setShowMarketModal(false);
+      alert('Muvaffaqiyatli marketga joylandi!');
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Xatolik yuz berdi');
+    } finally {
+      setMarketLoading(false);
+    }
+  };
+
   // ====== RENDER: TEMPLATES ======
   if (phase === 'templates') {
     return (
@@ -409,11 +450,70 @@ const LiveQuizTeacher = () => {
                     <button onClick={() => handleViewHistory(t)} className="flex-1 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg font-bold flex justify-center items-center gap-2 hover:bg-indigo-100">
                       <History size={18} /> Natijalar
                     </button>
+                    <button onClick={() => openMarketModal(t)} className="bg-yellow-50 text-yellow-600 px-4 py-2 rounded-lg font-bold flex justify-center items-center hover:bg-yellow-100" title="Marketga qo'yish">
+                      <ShoppingCart size={18} />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           )}
+
+          {/* Marketplace Modal */}
+          {showMarketModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+              <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold">Marketplace ga qo'yish</h3>
+                  <button onClick={() => setShowMarketModal(false)} className="text-gray-400 hover:text-gray-600">
+                    <X size={24} />
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Nomi</label>
+                    <input type="text" value={marketItem.title} onChange={e => setMarketItem({...marketItem, title: e.target.value})} 
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Tavsif</label>
+                    <textarea value={marketItem.description} onChange={e => setMarketItem({...marketItem, description: e.target.value})} 
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" rows="3"></textarea>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Fan</label>
+                      <input type="text" value={marketItem.subject} onChange={e => setMarketItem({...marketItem, subject: e.target.value})} 
+                        className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Sinf</label>
+                      <input type="text" value={marketItem.grade_level} onChange={e => setMarketItem({...marketItem, grade_level: e.target.value})} 
+                        className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Narxi (UZS) - 0 bo'lsa bepul</label>
+                    <input type="number" value={marketItem.price} onChange={e => setMarketItem({...marketItem, price: Number(e.target.value)})} 
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none" />
+                  </div>
+                  
+                  {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
+                  
+                  <button 
+                    onClick={handleMarketplaceSubmit}
+                    disabled={marketLoading}
+                    className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors mt-4 flex justify-center items-center gap-2"
+                  >
+                    {marketLoading ? <Loader2 className="animate-spin" /> : <ShoppingCart />}
+                    Sotuvga qo'yish
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     );
