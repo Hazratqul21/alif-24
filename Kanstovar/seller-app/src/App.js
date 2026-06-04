@@ -99,6 +99,13 @@ export default function App() {
     </AppCtx.Provider>
   );
 
+  if (user?.role === 'superadmin') return (
+    <AppCtx.Provider value={ctx}>
+      <SuperAdminLayout />
+      <Toast toasts={toasts} remove={removeToast} />
+    </AppCtx.Provider>
+  );
+
   return (
     <AppCtx.Provider value={ctx}>
       <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -149,6 +156,190 @@ function Sidebar() {
         <button onClick={logout} style={{ width: '100%', padding: '10px', borderRadius: 10, background: 'rgba(225,29,72,0.08)', color: 'var(--accent2)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>🚪 Chiqish</button>
       </div>
     </aside>
+  );
+}
+
+// =================== SUPERADMIN ===================
+const SUPERADMIN_NAV = [
+  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+  { id: 'users', label: 'Foydalanuvchilar', icon: '👥' },
+  { id: 'orders', label: 'Barcha Buyurtmalar', icon: '📦' }
+];
+
+function SuperAdminLayout() {
+  const { page } = useApp();
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <SuperAdminSidebar />
+      <main style={{ flex: 1, marginLeft: 260, minHeight: '100vh' }}>
+        {page === 'dashboard' && <SuperAdminDashboard />}
+        {page === 'users' && <SuperAdminUsers />}
+        {page === 'orders' && <SuperAdminOrders />}
+      </main>
+    </div>
+  );
+}
+
+function SuperAdminSidebar() {
+  const { user, page, setPage, logout } = useApp();
+  return (
+    <aside style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 260, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', zIndex: 50 }}>
+      <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg, #10b981, #047857)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>👑</div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#10b981' }}>ALIF-24</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>Superadmin Paneli</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: '16px 12px', flex: 1 }}>
+        {SUPERADMIN_NAV.map(n => (
+          <button key={n.id} onClick={() => setPage(n.id)} style={{ width: '100%', textAlign: 'left', padding: '11px 14px', borderRadius: 12, background: page === n.id ? 'rgba(16,185,129,0.1)' : 'transparent', color: page === n.id ? '#10b981' : 'var(--text2)', fontSize: 14, fontWeight: page === n.id ? 700 : 500, display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2, transition: 'all 0.2s', border: page === n.id ? '1px solid rgba(16,185,129,0.2)' : '1px solid transparent' }}>
+            <span style={{ fontSize: 18 }}>{n.icon}</span> {n.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ padding: '16px 12px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'var(--surface2)', borderRadius: 12, marginBottom: 8 }}>
+          <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg, #10b981, #047857)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{user?.avatar}</div>
+          <div style={{ overflow: 'hidden' }}>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>{user?.name}</div>
+            <div style={{ fontSize: 11, color: '#10b981' }}>Superadmin</div>
+          </div>
+        </div>
+        <button onClick={logout} style={{ width: '100%', padding: '10px', borderRadius: 10, background: 'rgba(225,29,72,0.08)', color: 'var(--accent2)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>🚪 Chiqish</button>
+      </div>
+    </aside>
+  );
+}
+
+function SuperAdminDashboard() {
+  const { token } = useApp();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/api/superadmin/stats', token).then(data => { setStats(data); setLoading(false); });
+  }, [token]);
+
+  return (
+    <div style={{ padding: '32px' }}>
+      <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 32 }}>📈 Platforma Statistikasi</h1>
+      {loading ? <div className="skeleton" style={{ height: 120, borderRadius: 16 }} /> : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: 24 }}>
+            <div style={{ fontSize: 24, marginBottom: 12 }}>👥</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#4f46e5' }}>{stats?.totalUsers}</div>
+            <div style={{ fontSize: 13, color: 'var(--text2)' }}>Jami Mijozlar</div>
+          </div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: 24 }}>
+            <div style={{ fontSize: 24, marginBottom: 12 }}>🏪</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#059669' }}>{stats?.totalSellers}</div>
+            <div style={{ fontSize: 13, color: 'var(--text2)' }}>Jami Sotuvchilar</div>
+          </div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: 24 }}>
+            <div style={{ fontSize: 24, marginBottom: 12 }}>🛍️</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#d97706' }}>{stats?.totalOrders}</div>
+            <div style={{ fontSize: 13, color: 'var(--text2)' }}>Jami Buyurtmalar</div>
+          </div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: 24 }}>
+            <div style={{ fontSize: 24, marginBottom: 12 }}>💰</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981' }}>{formatSum(stats?.totalRevenue)}</div>
+            <div style={{ fontSize: 13, color: 'var(--text2)' }}>Umumiy Aylanma</div>
+          </div>
+          <div style={{ background: 'var(--surface)', border: '1px solid #10b981', borderRadius: 18, padding: 24, boxShadow: '0 8px 24px rgba(16,185,129,0.1)' }}>
+            <div style={{ fontSize: 24, marginBottom: 12 }}>💎</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981' }}>{formatSum(stats?.platformCommission)}</div>
+            <div style={{ fontSize: 13, color: 'var(--text2)' }}>Platforma Komissiyasi (5%)</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SuperAdminUsers() {
+  const { token } = useApp();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/api/superadmin/users', token).then(data => { setUsers(data); setLoading(false); });
+  }, [token]);
+
+  return (
+    <div style={{ padding: '32px' }}>
+      <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 32 }}>👥 Foydalanuvchilar</h1>
+      {loading ? <div className="skeleton" style={{ height: 400, borderRadius: 16 }} /> : (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--surface2)', textAlign: 'left' }}>
+                <th style={{ padding: '16px', fontSize: 13, color: 'var(--text2)', fontWeight: 600 }}>Ism / Kompaniya</th>
+                <th style={{ padding: '16px', fontSize: 13, color: 'var(--text2)', fontWeight: 600 }}>Email</th>
+                <th style={{ padding: '16px', fontSize: 13, color: 'var(--text2)', fontWeight: 600 }}>Rol</th>
+                <th style={{ padding: '16px', fontSize: 13, color: 'var(--text2)', fontWeight: 600 }}>Ro'yxatdan o'tgan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id} style={{ borderTop: '1px solid var(--border)' }}>
+                  <td style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 32, height: 32, background: 'var(--surface2)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{u.avatar}</div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{u.name}</div>
+                        {u.company && <div style={{ fontSize: 12, color: 'var(--text2)' }}>{u.company}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px', fontSize: 14 }}>{u.email}</td>
+                  <td style={{ padding: '16px' }}>
+                    <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: u.role === 'seller' ? 'rgba(5,150,105,0.1)' : u.role === 'superadmin' ? 'rgba(16,185,129,0.1)' : 'rgba(79,70,229,0.1)', color: u.role === 'seller' ? '#059669' : u.role === 'superadmin' ? '#10b981' : '#4f46e5' }}>
+                      {u.role}
+                    </span>
+                  </td>
+                  <td style={{ padding: '16px', fontSize: 13, color: 'var(--text2)' }}>{new Date(u.createdAt).toLocaleDateString('uz-UZ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SuperAdminOrders() {
+  const { token } = useApp();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/api/superadmin/orders', token).then(data => { setOrders(data); setLoading(false); });
+  }, [token]);
+
+  return (
+    <div style={{ padding: '32px' }}>
+      <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 32 }}>📦 Barcha Buyurtmalar</h1>
+      {loading ? <div className="skeleton" style={{ height: 400, borderRadius: 16 }} /> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {orders.map(o => (
+            <div key={o.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Buyurtma #{o.id.slice(0,8)}</div>
+                <div style={{ fontSize: 13, color: 'var(--text2)' }}>Sana: {new Date(o.createdAt).toLocaleString('uz-UZ')}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--accent)', marginBottom: 4 }}>{formatSum(o.total)}</div>
+                <div style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--surface2)', display: 'inline-block' }}>{o.status}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -286,20 +477,33 @@ function ProductsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 140px 100px 100px 80px 140px', padding: '12px 20px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', gap: 16 }}>
             {['', 'Mahsulot', 'Narx', 'Min.Buyurtma', 'Zaxira', 'Sotilgan', 'Amallar'].map(h => <div key={h} style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>)}
           </div>
-          {products.map((p, idx) => (
-            <div key={p.id} className="fade-in" style={{ display: 'grid', gridTemplateColumns: '60px 1fr 140px 100px 100px 80px 140px', padding: '16px 20px', gap: 16, alignItems: 'center', borderBottom: idx < products.length - 1 ? '1px solid var(--border)' : 'none', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-              <div style={{ fontSize: 32, textAlign: 'center' }}>{p.image}</div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{p.name}</div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <span style={{ fontSize: 11, background: 'rgba(79,70,229,0.1)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>{p.category}</span>
-                  <span style={{ fontSize: 11, color: '#f7b731' }}>⭐ {p.rating}</span>
+          {products.map((p, idx) => {
+            let priceDisplay = formatSum(p.price);
+            if (p.priceTiers && p.priceTiers.length > 0) {
+              const minP = Math.min(...p.priceTiers.map(t => t.price));
+              const maxP = Math.max(...p.priceTiers.map(t => t.price));
+              priceDisplay = minP === maxP ? formatSum(minP) : `${formatSum(minP)} - ${formatSum(maxP)}`;
+            }
+            return (
+              <div key={p.id} className="fade-in" style={{ display: 'grid', gridTemplateColumns: '60px 1fr 140px 100px 100px 80px 140px', padding: '16px 20px', gap: 16, alignItems: 'center', borderBottom: idx < products.length - 1 ? '1px solid var(--border)' : 'none', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                {p.images && p.images.length > 0 ? (
+                  <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                    <img src={`${process.env.REACT_APP_API_URL || 'http://localhost:4000'}${p.images[0]}`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 32, textAlign: 'center' }}>{p.image}</div>
+                )}
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{p.name}</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{ fontSize: 11, background: 'rgba(79,70,229,0.1)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>{p.category}</span>
+                    <span style={{ fontSize: 11, color: '#f7b731' }}>⭐ {p.rating}</span>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div style={{ fontWeight: 800, color: 'var(--accent)', fontSize: 15 }}>{formatSum(p.price)}</div>
-                {p.originalPrice && <div style={{ fontSize: 12, color: 'var(--text2)', textDecoration: 'line-through' }}>{formatSum(p.originalPrice)}</div>}
-              </div>
+                <div>
+                  <div style={{ fontWeight: 800, color: 'var(--accent)', fontSize: 14 }}>{priceDisplay}</div>
+                  {p.originalPrice && <div style={{ fontSize: 12, color: 'var(--text2)', textDecoration: 'line-through' }}>{formatSum(p.originalPrice)}</div>}
+                </div>
               <div>
                 <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--accent3)' }}>{p.minOrder || 1}</span>
                 <span style={{ fontSize: 12, color: 'var(--text2)', marginLeft: 4 }}>dona</span>
@@ -315,7 +519,8 @@ function ProductsPage() {
                 <button onClick={() => deleteProduct(p.id, p.name)} style={{ background: 'rgba(225,29,72,0.08)', border: 'none', color: 'var(--accent2)', padding: '8px 10px', borderRadius: 10, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s' }}>🗑️</button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -328,26 +533,77 @@ function ProductForm({ isEdit }) {
   const [form, setForm] = useState(isEdit && editProduct ? {
     name: editProduct.name,
     category: editProduct.category,
-    price: editProduct.price,
     originalPrice: editProduct.originalPrice || '',
     stock: editProduct.stock,
-    image: editProduct.image,
     description: editProduct.description,
     tags: editProduct.tags?.join(', '),
     minOrder: editProduct.minOrder || 1
-  } : { name: '', category: 'Daftarlar', price: '', originalPrice: '', stock: '', image: '📦', description: '', tags: '', minOrder: 1 });
+  } : { name: '', category: 'Daftarlar', originalPrice: '', stock: '', description: '', tags: '', minOrder: 1 });
+  
+  const [images, setImages] = useState(isEdit && editProduct?.images ? editProduct.images : []);
+  const [files, setFiles] = useState([]);
+  
+  const defaultTier = { minQty: 1, maxQty: '', price: '' };
+  const [priceTiers, setPriceTiers] = useState(isEdit && editProduct?.priceTiers && editProduct.priceTiers.length > 0 ? editProduct.priceTiers : [{...defaultTier}]);
+
   const [saving, setSaving] = useState(false);
 
-  const EMOJIS = ['📓', '✏️', '🖊️', '📁', '🗂️', '📎', '📌', '📄', '🖍️', '📐', '📏', '✂️', '📦', '🔍', '💼', '📋', '🗃️', '📝', '🖨️', '🖥️'];
   const CATEGORIES = ['Daftarlar', 'Qalamlar', 'Ruchkalar', 'Papkalar', 'Flomaster', 'Yopishqoqlar', 'Qog\'oz', 'Stikerlar', 'Ofis jihozlari', 'Boshqa'];
 
+  const handleFileChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    if (images.length + files.length + selectedFiles.length > 3) {
+      return toast('Maksimal 3 ta rasm yuklash mumkin', 'error');
+    }
+    setFiles(prev => [...prev, ...selectedFiles]);
+  };
+
+  const removeFile = (index, isExisting) => {
+    if (isExisting) setImages(images.filter((_, i) => i !== index));
+    else setFiles(files.filter((_, i) => i !== index));
+  };
+
   const submit = async () => {
-    if (!form.name || !form.price || !form.stock) { toast('Majburiy maydonlarni to\'ldiring', 'error'); return; }
+    if (!form.name || !form.stock) { toast('Majburiy maydonlarni to\'ldiring', 'error'); return; }
     if (!form.minOrder || Number(form.minOrder) < 1) { toast('Minimal buyurtma kamida 1 bo\'lishi kerak', 'error'); return; }
+    
+    const validTiers = priceTiers.filter(t => t.minQty && t.price).map(t => ({
+      minQty: Number(t.minQty),
+      maxQty: t.maxQty ? Number(t.maxQty) : null,
+      price: Number(t.price)
+    }));
+    
+    if (validTiers.length === 0) { toast('Kamida 1 ta narx kiritilishi shart', 'error'); return; }
+
     setSaving(true);
+    
+    let uploadedUrls = [...images];
+    if (files.length > 0) {
+      const formData = new FormData();
+      files.forEach(f => formData.append('images', f));
+      try {
+        const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:4000'}/api/upload`, { 
+          method: 'POST', 
+          body: formData, 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        const data = await res.json();
+        if (data.urls) {
+          uploadedUrls = [...uploadedUrls, ...data.urls];
+        }
+      } catch (err) {
+        toast('Rasm yuklashda xatolik', 'error');
+        setSaving(false);
+        return;
+      }
+    }
+
     const payload = {
       ...form,
-      price: Number(form.price),
+      price: validTiers[0].price,
+      priceTiers: validTiers,
+      images: uploadedUrls,
+      image: uploadedUrls[0] || '📦',
       originalPrice: form.originalPrice ? Number(form.originalPrice) : undefined,
       stock: Number(form.stock),
       minOrder: Number(form.minOrder),
@@ -389,38 +645,66 @@ function ProductForm({ isEdit }) {
         </div>
       </div>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '32px', boxShadow: 'var(--shadow2)' }}>
-        {/* Emoji Picker */}
+        
+        {/* Images Upload */}
         <div style={{ marginBottom: 24 }}>
-          <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Mahsulot ikonkasi</label>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {EMOJIS.map(e => (
-              <button key={e} onClick={() => setForm(f => ({ ...f, image: e }))} style={{ width: 44, height: 44, fontSize: 24, background: form.image === e ? 'rgba(79,70,229,0.15)' : 'var(--surface2)', border: form.image === e ? '2px solid var(--accent)' : '2px solid transparent', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s' }}>{e}</button>
+          <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Mahsulot Rasmlari (Maks: 3 ta)</label>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {images.map((url, i) => (
+              <div key={`img-${i}`} style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', position: 'relative', border: '1px solid var(--border)' }}>
+                <img src={`${process.env.REACT_APP_API_URL || 'http://localhost:4000'}${url}`} alt="prod" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <button onClick={() => removeFile(i, true)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>✕</button>
+              </div>
             ))}
+            {files.map((file, i) => (
+              <div key={`file-${i}`} style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', position: 'relative', border: '1px solid var(--border)' }}>
+                <img src={URL.createObjectURL(file)} alt="prod" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <button onClick={() => removeFile(i, false)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>✕</button>
+              </div>
+            ))}
+            {images.length + files.length < 3 && (
+              <label style={{ width: 80, height: 80, borderRadius: 12, background: 'var(--surface2)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 24 }}>+</span>
+                <input type="file" multiple accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+              </label>
+            )}
           </div>
         </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div style={{ gridColumn: '1 / -1' }}>{field('Mahsulot nomi', 'name', { placeholder: 'Masalan: Daftar A4 (96 varaq)' })}</div>
           {field('Kategoriya', 'category', { select: CATEGORIES })}
           {field('Zaxira (dona)', 'stock', { type: 'number', placeholder: '1000' })}
-          {field('Narx (so\'m)', 'price', { type: 'number', placeholder: '8500' })}
           {field('Asl narx (so\'m)', 'originalPrice', { type: 'number', placeholder: '10000', optional: true })}
+          
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Miqdorga Qarab Narxlash</label>
+            <div style={{ background: 'var(--surface2)', borderRadius: 16, padding: 16, border: '1px solid var(--border)' }}>
+              {priceTiers.map((tier, index) => (
+                <div key={index} style={{ display: 'flex', gap: 12, marginBottom: index !== priceTiers.length - 1 ? 12 : 0, alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <input type="number" placeholder="Min" value={tier.minQty} onChange={e => { const newT = [...priceTiers]; newT[index].minQty = e.target.value; setPriceTiers(newT); }} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', outline: 'none' }} />
+                  </div>
+                  <span style={{ color: 'var(--text2)' }}>-</span>
+                  <div style={{ flex: 1 }}>
+                    <input type="number" placeholder="Max (bo'sh qolsa cheksiz)" value={tier.maxQty} onChange={e => { const newT = [...priceTiers]; newT[index].maxQty = e.target.value; setPriceTiers(newT); }} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', outline: 'none' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <input type="number" placeholder="Narx (so'm)" value={tier.price} onChange={e => { const newT = [...priceTiers]; newT[index].price = e.target.value; setPriceTiers(newT); }} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', outline: 'none' }} />
+                  </div>
+                  <button onClick={() => setPriceTiers(priceTiers.filter((_, i) => i !== index))} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(225,29,72,0.1)', color: 'var(--accent2)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>×</button>
+                </div>
+              ))}
+              <button onClick={() => setPriceTiers([...priceTiers, {...defaultTier}])} style={{ marginTop: 16, padding: '8px 16px', borderRadius: 8, background: 'var(--surface)', border: '1px dashed var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>+ Narx qatlamini qo'shish</button>
+            </div>
+          </div>
 
-          {/* Minimal buyurtma */}
           <div style={{ gridColumn: '1 / -1' }}>
             <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Minimal buyurtma (dona) <span style={{ color: 'var(--accent2)' }}>*</span>
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <input
-                value={form.minOrder}
-                onChange={e => setForm(f => ({ ...f, minOrder: e.target.value }))}
-                type="number"
-                min="1"
-                placeholder="10"
-                style={{ width: 160, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 16px', borderRadius: 12, fontSize: 14, outline: 'none' }}
-                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border)'}
-              />
+              <input value={form.minOrder} onChange={e => setForm(f => ({ ...f, minOrder: e.target.value }))} type="number" min="1" placeholder="10" style={{ width: 160, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 16px', borderRadius: 12, fontSize: 14, outline: 'none' }} />
               <div style={{ background: 'rgba(79,70,229,0.08)', border: '1px solid rgba(79,70,229,0.15)', borderRadius: 10, padding: '10px 16px', fontSize: 13, color: 'var(--text2)' }}>
                 📦 Mijoz kamida <strong style={{ color: 'var(--accent)' }}>{form.minOrder || 1} dona</strong> buyurishi kerak bo'ladi
               </div>

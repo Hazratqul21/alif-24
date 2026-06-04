@@ -3,6 +3,9 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import db from './models/index.js';
 
 const { User, Product, Order, Review, CartItem, sequelize } = db;
@@ -12,7 +15,18 @@ const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'kanstovar_secret_2024';
 
 app.use(cors({ origin: '*' }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Static files for images
+if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+app.use('/uploads', express.static('uploads'));
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+});
+const upload = multer({ storage });
 
 // =================== COMPANY DETAILS ===================
 const COMPANY = {
@@ -92,8 +106,15 @@ const seedData = async () => {
       originalPrice: 10000,
       stock: 5000,
       image: '📓',
+      images: [],
       description: 'A4 formatdagi 96 varaqli chiziqli daftar. Yaxshi sifatli qog\'oz, mustahkam muqova.',
       tags: ['daftar', 'a4', 'chiziqli'],
+      priceTiers: [
+        { minQty: 50, maxQty: 100, price: 8500 },
+        { minQty: 101, maxQty: 500, price: 8200 },
+        { minQty: 501, maxQty: 1000, price: 8000 },
+        { minQty: 1001, maxQty: null, price: 7800 }
+      ],
       rating: 4.8, reviews: 124, sold: 3500,
       minOrder: 50
     },
@@ -105,8 +126,14 @@ const seedData = async () => {
       originalPrice: 22000,
       stock: 2000,
       image: '✏️',
+      images: [],
       description: 'HB o\'lchamdagi sharplanadigan qalam to\'plami. 12 ta qalam bir qutida.',
       tags: ['qalam', 'hb', 'sharplanadigan'],
+      priceTiers: [
+        { minQty: 30, maxQty: 100, price: 18000 },
+        { minQty: 101, maxQty: 500, price: 17500 },
+        { minQty: 501, maxQty: null, price: 17000 }
+      ],
       rating: 4.9, reviews: 89, sold: 1200,
       minOrder: 30
     },
@@ -194,8 +221,22 @@ const seedData = async () => {
   console.log("Seed data created.");
 };
 
-sequelize.sync({ alter: true }).then(() => {
-  seedData();
+sequelize.sync({ alter: true }).then(async () => {
+  await seedData();
+  const superadminEmail = 'superadmin@alif.uz';
+  const existingAdmin = await User.findOne({ where: { email: superadminEmail } });
+  if (!existingAdmin) {
+    await User.create({
+      id: uuidv4(),
+      name: 'Super Admin',
+      email: superadminEmail,
+      password: bcrypt.hashSync('Rahbariyar2026_uz', 8),
+      role: 'superadmin',
+      avatar: '👑',
+      joinedAt: new Date().toISOString().split('T')[0]
+    });
+    console.log('Superadmin created!');
+  }
 }).catch(console.error);
 
 // =================== MIDDLEWARE ===================
@@ -216,6 +257,23 @@ const sellerAuth = (req, res, next) => {
     next();
   });
 };
+
+const superadminAuth = (req, res, next) => {
+  auth(req, res, () => {
+    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Faqat superadminlar uchun' });
+    next();
+  });
+};
+
+// =================== UPLOAD ROUTE ===================
+app.post('/api/upload', auth, upload.array('images', 3), (req, res) => {
+  try {
+    const urls = req.files.map(f => `/uploads/${f.filename}`);
+    res.json({ urls });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // =================== AUTH ROUTES ===================
 app.post('/api/auth/register', async (req, res) => {
@@ -465,6 +523,14 @@ app.delete('/api/cart/:itemId', auth, async (req, res) => {
 });
 
 // =================== ORDER ROUTES ===================
+const getPriceForQuantity = (product, quantity) => {
+  if (product.priceTiers && product.priceTiers.length > 0) {
+    const tier = product.priceTiers.find(t => quantity >= t.minQty && (t.maxQty === null || quantity <= t.maxQty));
+    if (tier) return tier.price;
+  }
+  return product.price;
+};
+
 app.post('/api/orders', auth, async (req, res) => {
   try {
     const cart = await CartItem.findAll({ where: { userId: req.user.id }, include: ['product'] });
@@ -475,8 +541,8 @@ app.post('/api/orders', auth, async (req, res) => {
     const items = cart.map(item => ({
       productId: item.productId,
       name: item.product?.name,
-      price: item.product?.price,
-      image: item.product?.image,
+      price: getPriceForQuantity(item.product, item.quantity),
+      image: (item.product?.images && item.product.images[0]) || item.product?.image,
       quantity: item.quantity,
       sellerId: item.product?.sellerId,
       minOrder: item.product?.minOrder || 1
@@ -640,6 +706,46 @@ app.get('/api/seller/stats', sellerAuth, async (req, res) => {
       pendingTransfers,
       receiptsReceived
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =================== SUPERADMIN ROUTES ===================
+app.get('/api/superadmin/stats', superadminAuth, async (req, res) => {
+  try {
+    const totalUsers = await User.count({ where: { role: 'customer' } });
+    const totalSellers = await User.count({ where: { role: 'seller' } });
+    const totalOrders = await Order.count();
+    const sumOrders = await Order.sum('total') || 0;
+    
+    const platformCommission = sumOrders * 0.05; // 5% commission
+
+    res.json({
+      totalUsers,
+      totalSellers,
+      totalOrders,
+      totalRevenue: sumOrders,
+      platformCommission
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/superadmin/users', superadminAuth, async (req, res) => {
+  try {
+    const users = await User.findAll({ attributes: { exclude: ['password'] }, order: [['createdAt', 'DESC']] });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/superadmin/orders', superadminAuth, async (req, res) => {
+  try {
+    const orders = await Order.findAll({ order: [['createdAt', 'DESC']] });
+    res.json(orders);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

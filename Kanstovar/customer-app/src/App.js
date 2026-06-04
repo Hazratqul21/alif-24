@@ -561,10 +561,22 @@ function HomePage() {
 // =================== PRODUCT CARD ===================
 function ProductCard({ product: p, onView, onAdd }) {
   const discount = p.originalPrice ? Math.round((1 - p.price / p.originalPrice) * 100) : 0;
+  
+  let priceDisplay = formatSum(p.price);
+  if (p.priceTiers && p.priceTiers.length > 0) {
+    const minP = Math.min(...p.priceTiers.map(t => t.price));
+    const maxP = Math.max(...p.priceTiers.map(t => t.price));
+    priceDisplay = minP === maxP ? formatSum(minP) : `${formatSum(minP)} - ${formatSum(maxP)}`;
+  }
+
   return (
     <div className="fade-in" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, overflow: 'hidden', transition: 'all 0.3s', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.4)'; e.currentTarget.style.borderColor = 'var(--accent)'; }} onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--border)'; }}>
-      <div onClick={onView} style={{ background: 'linear-gradient(135deg, var(--surface2), var(--bg))', padding: '32px', textAlign: 'center', fontSize: 64, position: 'relative' }}>
-        {p.image}
+      <div onClick={onView} style={{ background: 'linear-gradient(135deg, var(--surface2), var(--bg))', padding: '32px', textAlign: 'center', fontSize: 64, position: 'relative', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {p.images && p.images.length > 0 ? (
+          <img src={`${process.env.REACT_APP_API_URL || 'https://opt.alif24.uz'}${p.images[0]}`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        ) : (
+          p.image
+        )}
         {discount > 0 && <div style={{ position: 'absolute', top: 12, right: 12, background: 'var(--accent2)', color: 'white', padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>-{discount}%</div>}
       </div>
       <div style={{ padding: '16px' }}>
@@ -582,9 +594,8 @@ function ProductCard({ product: p, onView, onAdd }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(p.price)}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--accent)' }}>{priceDisplay}</div>
             {discount > 0 && <div style={{ fontSize: 12, color: 'var(--text2)', textDecoration: 'line-through' }}>{formatSum(p.originalPrice)}</div>}
-            <div style={{ fontSize: 11, color: 'var(--text2)' }}>1 dona narxi</div>
           </div>
           <button onClick={onAdd} style={{ background: 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: 'white', padding: '10px 16px', borderRadius: 12, fontSize: 16, fontWeight: 700, transition: 'all 0.2s', cursor: 'pointer' }} onMouseEnter={e => e.target.style.transform = 'scale(1.1)'} onMouseLeave={e => e.target.style.transform = 'scale(1)'}>+</button>
         </div>
@@ -667,6 +678,7 @@ function ProductDetailPage() {
   const { selectedProduct, addToCart, token, toast, isMobile } = useApp();
   const [product, setProduct] = useState(selectedProduct);
   const [qty, setQty] = useState(selectedProduct?.minOrder || 1);
+  const [activeImage, setActiveImage] = useState(0);
   const [review, setReview] = useState({ rating: 5, comment: '' });
   const [submitting, setSubmitting] = useState(false);
 
@@ -675,6 +687,7 @@ function ProductDetailPage() {
       api.get(`/api/products/${selectedProduct.id}`).then(p => {
         setProduct(p);
         setQty(p.minOrder || 1);
+        setActiveImage(0);
       });
     }
   }, [selectedProduct]);
@@ -683,6 +696,15 @@ function ProductDetailPage() {
 
   const discount = product.originalPrice ? Math.round((1 - product.price / product.originalPrice) * 100) : 0;
   const minOrder = product.minOrder || 1;
+
+  const getCurrentPrice = () => {
+    if (product.priceTiers && product.priceTiers.length > 0) {
+      const tier = product.priceTiers.find(t => qty >= t.minQty && (t.maxQty === null || qty <= t.maxQty));
+      if (tier) return tier.price;
+    }
+    return product.price;
+  };
+  const currentPrice = getCurrentPrice();
 
   const submitReview = async () => {
     if (!token) { toast('Avval tizimga kiring', 'error'); return; }
@@ -698,7 +720,24 @@ function ProductDetailPage() {
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '24px 16px' : '40px 24px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 24 : 48, alignItems: 'start' }}>
-        <div style={{ background: 'linear-gradient(135deg, var(--surface), var(--surface2))', borderRadius: 24, padding: isMobile ? '32px' : '64px', textAlign: 'center', fontSize: 110, border: '1px solid var(--border)' }}>{product.image}</div>
+        <div>
+          <div style={{ background: 'linear-gradient(135deg, var(--surface), var(--surface2))', borderRadius: 24, padding: isMobile ? '16px' : '32px', textAlign: 'center', fontSize: 110, border: '1px solid var(--border)', height: isMobile ? 280 : 400, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            {product.images && product.images.length > 0 ? (
+              <img src={`${process.env.REACT_APP_API_URL || 'https://opt.alif24.uz'}${product.images[activeImage]}`} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            ) : (
+              product.image
+            )}
+          </div>
+          {product.images && product.images.length > 1 && (
+            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
+              {product.images.map((img, i) => (
+                <div key={i} onClick={() => setActiveImage(i)} style={{ width: 80, height: 80, borderRadius: 12, border: activeImage === i ? '2px solid var(--accent)' : '1px solid var(--border)', overflow: 'hidden', cursor: 'pointer', flexShrink: 0 }}>
+                  <img src={`${process.env.REACT_APP_API_URL || 'https://opt.alif24.uz'}${img}`} alt={`thumb-${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div>
           <div style={{ background: 'var(--surface2)', display: 'inline-block', padding: '4px 14px', borderRadius: 20, fontSize: 12, color: 'var(--text2)', marginBottom: 12 }}>{product.category}</div>
           <h1 style={{ fontSize: isMobile ? 26 : 34, fontWeight: 800, marginBottom: 12, lineHeight: 1.2 }}>{product.name}</h1>
@@ -709,7 +748,6 @@ function ProductDetailPage() {
             <span style={{ color: 'var(--text2)', fontSize: 14 }}>• {product.sold} ta sotilgan</span>
           </div>
 
-          {/* Min order highlight */}
           <div style={{ background: 'linear-gradient(135deg, rgba(108,99,255,0.1), rgba(108,99,255,0.05))', border: '1px solid rgba(108,99,255,0.25)', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <span style={{ fontSize: 20 }}>📦</span>
@@ -719,19 +757,43 @@ function ProductDetailPage() {
           </div>
 
           <p style={{ color: 'var(--text2)', lineHeight: 1.7, marginBottom: 20, fontSize: 15 }}>{product.description}</p>
+          
+          {product.priceTiers && product.priceTiers.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Narxlar Jadvali</div>
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                {product.priceTiers.map((t, i) => {
+                  const isActive = qty >= t.minQty && (t.maxQty === null || qty <= t.maxQty);
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: i < product.priceTiers.length - 1 ? '1px solid var(--border)' : 'none', background: isActive ? 'rgba(108,99,255,0.05)' : 'transparent' }}>
+                      <span style={{ fontSize: 14, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--accent)' : 'var(--text)' }}>
+                        {t.minQty} {t.maxQty ? `- ${t.maxQty}` : '+'} dona
+                      </span>
+                      <span style={{ fontSize: 15, fontWeight: isActive ? 800 : 600, color: isActive ? 'var(--accent)' : 'var(--text)' }}>
+                        {formatSum(t.price)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
             <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 4 }}>Sotuvchi</div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{product.sellerName}</div>
             {product.sellerBio && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 4 }}>{product.sellerBio}</div>}
           </div>
+          
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 38, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(product.price)}</div>
-            <div style={{ fontSize: 13, color: 'var(--text2)' }}>1 dona narxi</div>
+            <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 4 }}>Joriy 1 dona narxi ({qty} dona uchun)</div>
+            <div style={{ fontSize: 38, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(currentPrice)}</div>
             {discount > 0 && <><span style={{ fontSize: 16, color: 'var(--text2)', textDecoration: 'line-through', marginRight: 8 }}>{formatSum(product.originalPrice)}</span><span style={{ background: 'var(--accent2)', color: 'white', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>-{discount}%</span></>}
           </div>
+          
           {qty >= minOrder && (
             <div style={{ background: 'rgba(67,233,123,0.08)', border: '1px solid rgba(67,233,123,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--accent3)' }}>
-              💰 Jami narx: <strong>{formatSum(product.price * qty)}</strong>
+              💰 Jami narx: <strong>{formatSum(currentPrice * qty)}</strong>
             </div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexDirection: isMobile ? 'column' : 'row' }}>
@@ -987,7 +1049,16 @@ function CartPage() {
     loadCart(); refreshCart();
   };
 
-  const subtotal = cart.reduce((s, i) => s + (i.product?.price || 0) * i.quantity, 0);
+  const getPriceForQuantity = (product, quantity) => {
+    if (!product) return 0;
+    if (product.priceTiers && product.priceTiers.length > 0) {
+      const tier = product.priceTiers.find(t => quantity >= t.minQty && (t.maxQty === null || quantity <= t.maxQty));
+      if (tier) return tier.price;
+    }
+    return product.price || 0;
+  };
+
+  const subtotal = cart.reduce((s, i) => s + getPriceForQuantity(i.product, i.quantity) * i.quantity, 0);
   const deliveryFee = calcDelivery(subtotal);
   const totalAmount = subtotal + deliveryFee;
 
@@ -1168,10 +1239,16 @@ function CartPage() {
                 return (
                   <div key={item.id} style={{ background: 'var(--surface)', border: `1px solid ${hasError ? 'var(--accent2)' : 'var(--border)'}`, borderRadius: 16, padding: isMobile ? 14 : 18, display: 'flex', gap: isMobile ? 12 : 16, alignItems: isMobile ? 'stretch' : 'center', transition: 'border-color 0.2s', flexDirection: isMobile ? 'column' : 'row' }}>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center', flex: 1 }}>
-                      <div style={{ fontSize: isMobile ? 32 : 44, width: isMobile ? 60 : 72, height: isMobile ? 60 : 72, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface2)', borderRadius: 12, flexShrink: 0 }}>{item.product?.image}</div>
+                      <div style={{ fontSize: isMobile ? 32 : 44, width: isMobile ? 60 : 72, height: isMobile ? 60 : 72, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface2)', borderRadius: 12, flexShrink: 0, overflow: 'hidden' }}>
+                        {item.product?.images && item.product.images.length > 0 ? (
+                          <img src={`${process.env.REACT_APP_API_URL || 'https://opt.alif24.uz'}${item.product.images[0]}`} alt={item.product?.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          item.product?.image
+                        )}
+                      </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.product?.name}</h4>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(item.product?.price)}<span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 400, marginLeft: 4 }}>/ dona</span></div>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(getPriceForQuantity(item.product, item.quantity))}<span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 400, marginLeft: 4 }}>/ dona</span></div>
                         {minOrder > 1 && <div style={{ fontSize: 11, color: hasError ? 'var(--accent2)' : 'var(--text2)', marginTop: 2 }}>📦 Min: {minOrder} dona</div>}
                       </div>
                     </div>
@@ -1184,7 +1261,7 @@ function CartPage() {
                         </div>
                         <button onClick={() => removeItem(item.id)} style={{ background: 'rgba(255,101,132,0.15)', border: '1px solid rgba(255,101,132,0.3)', color: 'var(--accent2)', width: 36, height: 36, borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>✕</button>
                       </div>
-                      <div style={{ fontSize: 15, fontWeight: 800, minWidth: isMobile ? 'auto' : 120, textAlign: 'right', flexShrink: 0 }}>{formatSum(item.product?.price * item.quantity)}</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, minWidth: isMobile ? 'auto' : 120, textAlign: 'right', flexShrink: 0 }}>{formatSum(getPriceForQuantity(item.product, item.quantity) * item.quantity)}</div>
                     </div>
                   </div>
                 );
@@ -1447,7 +1524,13 @@ function OrdersPage() {
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: o.paymentMethod === 'transfer' ? 14 : 0 }}>
                   {o.items?.map(item => (
                     <div key={item.productId} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', padding: '8px 14px', borderRadius: 10 }}>
-                      <span style={{ fontSize: 20 }}>{item.image}</span>
+                      <div style={{ width: 28, height: 28, borderRadius: 6, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)' }}>
+                        {item.image && item.image.startsWith('/uploads/') ? (
+                          <img src={`${process.env.REACT_APP_API_URL || 'https://opt.alif24.uz'}${item.image}`} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span style={{ fontSize: 20 }}>{item.image}</span>
+                        )}
+                      </div>
                       <span style={{ fontSize: 13, fontWeight: 500 }}>{item.name}</span>
                       <span style={{ fontSize: 13, color: 'var(--text2)' }}>×{item.quantity} dona</span>
                     </div>
