@@ -37,6 +37,11 @@ services:
     networks:
       - marketplace-net
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   customer-app:
     build: ./customer-app
