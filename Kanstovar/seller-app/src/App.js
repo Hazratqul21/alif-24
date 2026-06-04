@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : `http://${window.location.hostname}:4000`);
 
 // Format so'm
 const formatSum = (n) => {

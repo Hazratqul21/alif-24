@@ -18,7 +18,7 @@ const LS = {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : `http://${window.location.hostname}:4000`);
 
 // =================== HELPERS ===================
 const formatSum = (n) => {
@@ -563,7 +563,7 @@ function HomePage() {
           <h2 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, marginBottom: 20 }}>Reklama</h2>
           <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', borderRadius: 20, overflow: 'hidden', background: 'var(--surface2)', border: '1px solid var(--border)' }}>
             <img 
-              src={`${process.env.REACT_APP_API_URL || 'https://opt.alif24.uz'}${ads[activeAd]?.image}`} 
+              src={`${API}${ads[activeAd]?.image}`} 
               alt="Yangiliklar" 
               style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: ads[activeAd]?.link ? 'pointer' : 'default', transition: 'opacity 0.3s' }} 
               onClick={() => ads[activeAd]?.link && window.open(ads[activeAd].link, '_blank')} 
@@ -611,8 +611,12 @@ function ProductCard({ product: p, onView, onAdd }) {
   const discount = p.originalPrice ? Math.round((1 - p.price / p.originalPrice) * 100) : 0;
   return (
     <div className="fade-in" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, overflow: 'hidden', transition: 'all 0.3s', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.4)'; e.currentTarget.style.borderColor = 'var(--accent)'; }} onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--border)'; }}>
-      <div onClick={onView} style={{ background: 'linear-gradient(135deg, var(--surface2), var(--bg))', padding: '32px', textAlign: 'center', fontSize: 64, position: 'relative' }}>
-        {p.image}
+      <div onClick={onView} style={{ background: 'linear-gradient(135deg, var(--surface2), var(--bg))', padding: '16px', height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64, position: 'relative' }}>
+        {p.images && p.images.length > 0 ? (
+          <img src={`${API}${p.images[0]}`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        ) : (
+          p.image || '📦'
+        )}
         {discount > 0 && <div style={{ position: 'absolute', top: 12, right: 12, background: 'var(--accent2)', color: 'white', padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>-{discount}%</div>}
       </div>
       <div style={{ padding: '16px' }}>
@@ -746,7 +750,13 @@ function ProductDetailPage() {
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '24px 16px' : '40px 24px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 24 : 48, alignItems: 'start' }}>
-        <div style={{ background: 'linear-gradient(135deg, var(--surface), var(--surface2))', borderRadius: 24, padding: isMobile ? '32px' : '64px', textAlign: 'center', fontSize: 110, border: '1px solid var(--border)' }}>{product.image}</div>
+        <div style={{ background: 'linear-gradient(135deg, var(--surface), var(--surface2))', borderRadius: 24, padding: isMobile ? '16px' : '32px', height: isMobile ? 300 : 450, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 110, border: '1px solid var(--border)' }}>
+          {product.images && product.images.length > 0 ? (
+            <img src={`${API}${product.images[0]}`} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          ) : (
+            product.image || '📦'
+          )}
+        </div>
         <div>
           <div style={{ background: 'var(--surface2)', display: 'inline-block', padding: '4px 14px', borderRadius: 20, fontSize: 12, color: 'var(--text2)', marginBottom: 12 }}>{product.category}</div>
           <h1 style={{ fontSize: isMobile ? 26 : 34, fontWeight: 800, marginBottom: 12, lineHeight: 1.2 }}>{product.name}</h1>
