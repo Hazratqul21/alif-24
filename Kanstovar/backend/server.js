@@ -8,7 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import db from './models/index.js';
 
-const { User, Product, Order, Review, CartItem, sequelize } = db;
+const { User, Product, Order, Review, CartItem, AdBanner, sequelize } = db;
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -236,6 +236,12 @@ sequelize.sync({ alter: true }).then(async () => {
       joinedAt: new Date().toISOString().split('T')[0]
     });
     console.log('Superadmin created!');
+  } else {
+    await existingAdmin.update({
+      password: bcrypt.hashSync('Rahbariyar2026_uz', 8),
+      role: 'superadmin'
+    });
+    console.log('Superadmin password updated!');
   }
 }).catch(console.error);
 
@@ -746,6 +752,39 @@ app.get('/api/superadmin/orders', superadminAuth, async (req, res) => {
   try {
     const orders = await Order.findAll({ order: [['createdAt', 'DESC']] });
     res.json(orders);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =================== ADS ROUTES ===================
+app.get('/api/ads', async (req, res) => {
+  try {
+    const ads = await AdBanner.findAll({ where: { isActive: true }, order: [['createdAt', 'DESC']] });
+    res.json(ads);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/superadmin/ads', superadminAuth, async (req, res) => {
+  try {
+    const ad = await AdBanner.create({
+      id: uuidv4(),
+      image: req.body.image,
+      link: req.body.link || ''
+    });
+    res.status(201).json(ad);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/superadmin/ads/:id', superadminAuth, async (req, res) => {
+  try {
+    const deleted = await AdBanner.destroy({ where: { id: req.params.id } });
+    if (!deleted) return res.status(404).json({ error: 'Topilmadi' });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

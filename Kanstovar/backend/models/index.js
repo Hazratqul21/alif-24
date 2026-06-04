@@ -83,4 +83,11 @@ User.hasMany(CartItem, { foreignKey: 'userId', as: 'cart' });
 CartItem.belongsTo(User, { foreignKey: 'userId' });
 CartItem.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
 
-export default { User, Product, Order, Review, CartItem, sequelize };
+export const AdBanner = sequelize.define('AdBanner', {
+  id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+  image: { type: DataTypes.STRING, allowNull: false },
+  link: { type: DataTypes.STRING },
+  isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
+});
+
+export default { User, Product, Order, Review, CartItem, AdBanner, sequelize };

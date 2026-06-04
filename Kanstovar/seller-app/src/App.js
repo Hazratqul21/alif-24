@@ -66,7 +66,7 @@ export default function App() {
   useEffect(() => {
     if (token) {
       api.get('/api/auth/me', token).then(u => {
-        if (!u.error && u.role === 'seller') setUser(u);
+        if (!u.error && (u.role === 'seller' || u.role === 'superadmin')) setUser(u);
         else { localStorage.removeItem('seller_token'); setToken(null); }
       });
     }
@@ -75,7 +75,7 @@ export default function App() {
   const login = async (email, password) => {
     const data = await api.post('/api/auth/login', { email, password });
     if (data.error) { toast(data.error, 'error'); return false; }
-    if (data.user.role !== 'seller') { toast('Bu panel faqat sotuvchilar uchun!', 'error'); return false; }
+    if (data.user.role !== 'seller' && data.user.role !== 'superadmin') { toast('Bu panel faqat sotuvchilar va adminlar uchun!', 'error'); return false; }
     localStorage.setItem('seller_token', data.token);
     setToken(data.token);
     setUser(data.user);
@@ -163,7 +163,8 @@ function Sidebar() {
 const SUPERADMIN_NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'users', label: 'Foydalanuvchilar', icon: '👥' },
-  { id: 'orders', label: 'Barcha Buyurtmalar', icon: '📦' }
+  { id: 'orders', label: 'Barcha Buyurtmalar', icon: '📦' },
+  { id: 'ads', label: 'Reklamalar', icon: '📢' }
 ];
 
 function SuperAdminLayout() {
@@ -175,6 +176,7 @@ function SuperAdminLayout() {
         {page === 'dashboard' && <SuperAdminDashboard />}
         {page === 'users' && <SuperAdminUsers />}
         {page === 'orders' && <SuperAdminOrders />}
+        {page === 'ads' && <SuperAdminAds />}
       </main>
     </div>
   );
@@ -343,7 +345,93 @@ function SuperAdminOrders() {
   );
 }
 
-// =================== DASHBOARD ===================
+// =================== SUPERADMIN ADS ===================
+function SuperAdminAds() {
+  const { token, toast } = useApp();
+  const [ads, setAds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef();
+
+  const load = useCallback(() => {
+    api.get('/api/ads').then(data => {
+      setAds(Array.isArray(data) ? data : []);
+      setLoading(false);
+    });
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('images', file);
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:4000'}/api/upload`, {
+        method: 'POST',
+        body: formData,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.urls && data.urls.length > 0) {
+        await api.post('/api/superadmin/ads', { image: data.urls[0] }, token);
+        toast('Reklama qo\'shildi! 🎉');
+        load();
+      }
+    } catch (err) {
+      toast('Xatolik yuz berdi', 'error');
+    }
+    setUploading(false);
+    e.target.value = null;
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Rostdan ham o\'chirmoqchimisiz?')) return;
+    await api.del(`/api/superadmin/ads/${id}`, token);
+    toast('Reklama o\'chirildi');
+    load();
+  };
+
+  return (
+    <div style={{ padding: '32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800 }}>📢 Reklama bannerlari (16:9)</h1>
+          <p style={{ color: 'var(--text2)', marginTop: 4 }}>Mijozlar ilovasida aylanib turuvchi (carousel) bannerlar</p>
+        </div>
+        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleUpload} style={{ display: 'none' }} />
+        <button onClick={() => fileInputRef.current?.click()} disabled={uploading} style={{ background: 'linear-gradient(135deg, #10b981, #047857)', border: 'none', color: 'white', padding: '12px 24px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer', boxShadow: '0 4px 16px rgba(16,185,129,0.3)', opacity: uploading ? 0.7 : 1 }}>
+          {uploading ? '⏳ Yuklanmoqda...' : '➕ Yangi banner'}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="skeleton" style={{ height: 200, borderRadius: 16 }} />
+      ) : ads.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '80px 20px', background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>🖼️</div>
+          <h3 style={{ fontSize: 24, marginBottom: 8 }}>Bannerlar yo'q</h3>
+          <p style={{ color: 'var(--text2)' }}>Yangi reklama bannerlarini yuklang</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
+          {ads.map(ad => (
+            <div key={ad.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ aspectRatio: '16/9', background: 'var(--surface2)', position: 'relative' }}>
+                <img src={`${process.env.REACT_APP_API_URL || 'http://localhost:4000'}${ad.image}`} alt="Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <button onClick={() => handleDelete(ad.id)} style={{ position: 'absolute', top: 12, right: 12, width: 36, height: 36, borderRadius: '50%', background: 'rgba(225,29,72,0.9)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =================== SELLER DASHBOARD ===================
 function Dashboard() {
   const { token } = useApp();
   const [stats, setStats] = useState(null);
