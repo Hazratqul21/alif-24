@@ -29,6 +29,8 @@ services:
       - DB_USER=kanstovar
       - DB_PASS=password
       - DB_NAME=kanstovardb
+    ports:
+      - "127.0.0.1:4000:4000"
     depends_on:
       db:
         condition: service_healthy
@@ -41,6 +43,8 @@ services:
     container_name: marketplace-customer
     environment:
       - REACT_APP_API_URL=/api
+    ports:
+      - "127.0.0.1:5182:3000"
     depends_on:
       backend:
         condition: service_healthy
@@ -53,26 +57,11 @@ services:
     container_name: marketplace-seller
     environment:
       - REACT_APP_API_URL=/api
+    ports:
+      - "127.0.0.1:5183:3001"
     depends_on:
       backend:
         condition: service_healthy
-    networks:
-      - marketplace-net
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:alpine
-    container_name: marketplace-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    depends_on:
-      - customer-app
-      - seller-app
-      - backend
     networks:
       - marketplace-net
     restart: unless-stopped
