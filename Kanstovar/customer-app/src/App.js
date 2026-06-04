@@ -564,7 +564,7 @@ function HomePage() {
           <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', borderRadius: 20, overflow: 'hidden', background: 'var(--surface2)', border: '1px solid var(--border)' }}>
             <img 
               src={`${process.env.REACT_APP_API_URL || 'https://opt.alif24.uz'}${ads[activeAd]?.image}`} 
-              alt="Reklama" 
+              alt="Yangiliklar" 
               style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: ads[activeAd]?.link ? 'pointer' : 'default', transition: 'opacity 0.3s' }} 
               onClick={() => ads[activeAd]?.link && window.open(ads[activeAd].link, '_blank')} 
             />
@@ -584,18 +584,7 @@ function HomePage() {
         </div>
       )}
 
-      {/* Categories */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '32px 16px' : '48px 24px' }}>
-        <h2 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, marginBottom: 20 }}>Kategoriyalar</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(150px, 1fr))', gap: 14 }}>
-          {categories.map(([icon, cat, color]) => (
-            <div key={cat} onClick={() => setPage('products')} style={{ background: 'var(--surface)', border: `1px solid ${color}33`, borderRadius: 16, padding: '22px 16px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s', color }} onMouseEnter={e => { e.currentTarget.style.background = `${color}15`; e.currentTarget.style.transform = 'translateY(-4px)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>{icon}</div>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{cat}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+
 
       {/* Featured Products */}
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '0 16px 64px' : '0 24px 64px' }}>
