@@ -526,7 +526,7 @@ function HomePage() {
 
 
       {/* Categories */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '32px 16px' : '48px 24px' }}>
+      {/*<div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '32px 16px' : '48px 24px' }}>
         <h2 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, marginBottom: 20 }}>Kategoriyalar</h2>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(150px, 1fr))', gap: 14 }}>
           {categories.map(([icon, cat, color]) => (
@@ -536,7 +536,7 @@ function HomePage() {
             </div>
           ))}
         </div>
-      </div>
+      </div>*/}
 
       {/* Featured Products */}
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '0 16px 64px' : '0 24px 64px' }}>
@@ -630,16 +630,18 @@ function ProductsPage() {
       </div>
       <div style={{ display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Mahsulot qidirish..." style={{ flex: isMobile ? 'unset' : 1, width: isMobile ? '100%' : 'auto', minWidth: 200, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none' }} />
-        <select value={category} onChange={e => setCategory(e.target.value)} style={{ flex: isMobile ? 'unset' : 1, width: isMobile ? '100%' : 'auto', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
-          <option value="all">Barcha kategoriyalar</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select value={sort} onChange={e => setSort(e.target.value)} style={{ flex: isMobile ? 'unset' : 1, width: isMobile ? '100%' : 'auto', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
-          <option value="rating">⭐ Reyting bo'yicha</option>
-          <option value="sold">🔥 Ko'p sotilgan</option>
-          <option value="price_asc">💰 Arzondan qimmata</option>
-          <option value="price_desc">💎 Qimmatdan arzonga</option>
-        </select>
+        <div style={{ display: 'flex', gap: 12, width: isMobile ? '100%' : 'auto', flex: isMobile ? 'unset' : 2 }}>
+          <select value={category} onChange={e => setCategory(e.target.value)} style={{ flex: 1, width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px', borderRadius: 12, fontSize: isMobile ? 13 : 14, outline: 'none', cursor: 'pointer' }}>
+            <option value="all">Kategoriyalar</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={sort} onChange={e => setSort(e.target.value)} style={{ flex: 1, width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px', borderRadius: 12, fontSize: isMobile ? 13 : 14, outline: 'none', cursor: 'pointer' }}>
+            <option value="rating">⭐ Reyting bo'yicha</option>
+            <option value="sold">🔥 Ko'p sotilgan</option>
+            <option value="price_asc">💰 Arzonroq</option>
+            <option value="price_desc">💎 Qimmatroq</option>
+          </select>
+        </div>
       </div>
       {loading ? (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
