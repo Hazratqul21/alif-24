@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
@@ -164,7 +164,8 @@ const SUPERADMIN_NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'users', label: 'Foydalanuvchilar', icon: '👥' },
   { id: 'orders', label: 'Barcha Buyurtmalar', icon: '📦' },
-  { id: 'ads', label: 'Reklamalar', icon: '📢' }
+  { id: 'ads', label: 'Reklamalar', icon: '📢' },
+  { id: 'delivery', label: 'Yetkazib berish', icon: '🚚' }
 ];
 
 function SuperAdminLayout() {
@@ -177,6 +178,7 @@ function SuperAdminLayout() {
         {page === 'users' && <SuperAdminUsers />}
         {page === 'orders' && <SuperAdminOrders />}
         {page === 'ads' && <SuperAdminAds />}
+        {page === 'delivery' && <SuperAdminDelivery />}
       </main>
     </div>
   );
@@ -427,6 +429,75 @@ function SuperAdminAds() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// =================== SUPERADMIN DELIVERY CONFIG ===================
+function SuperAdminDelivery() {
+  const { token, toast } = useApp();
+  const [rules, setRules] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    api.get('/api/config/delivery').then(data => {
+      setRules(Array.isArray(data) ? data.sort((a, b) => b.minAmount - a.minAmount) : [
+        { minAmount: 2000000, fee: 0 },
+        { minAmount: 1000000, fee: 30000 },
+        { minAmount: 0, fee: 50000 }
+      ]);
+      setLoading(false);
+    });
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const save = async () => {
+    setLoading(true);
+    await api.put('/api/superadmin/config/delivery', rules, token);
+    toast('Saqlandi! ✅');
+    load();
+  };
+
+  const addRule = () => setRules([...rules, { minAmount: 0, fee: 0 }]);
+  const removeRule = (idx) => setRules(rules.filter((_, i) => i !== idx));
+  const updateRule = (idx, field, val) => {
+    const updated = [...rules];
+    updated[idx][field] = Number(val);
+    setRules(updated);
+  };
+
+  return (
+    <div style={{ padding: '32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800 }}>🚚 Yetkazib berish narxlari</h1>
+          <p style={{ color: 'var(--text2)', marginTop: 4 }}>Xarid summasiga qarab yetkazib berish narxlarini belgilang</p>
+        </div>
+        <button onClick={save} disabled={loading} style={{ background: 'linear-gradient(135deg, #10b981, #047857)', border: 'none', color: 'white', padding: '12px 24px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', boxShadow: '0 4px 16px rgba(16,185,129,0.3)', opacity: loading ? 0.7 : 1 }}>
+          💾 Saqlash
+        </button>
+      </div>
+
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 60px', gap: 16, marginBottom: 12, fontWeight: 700, color: 'var(--text2)' }}>
+          <div>Min. xarid summasi (so'm)</div>
+          <div>Dostavka narxi (so'm)</div>
+          <div></div>
+        </div>
+        
+        {rules.sort((a,b) => b.minAmount - a.minAmount).map((r, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 60px', gap: 16, marginBottom: 16 }}>
+            <input type="number" value={r.minAmount} onChange={e => updateRule(i, 'minAmount', e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+            <input type="number" value={r.fee} onChange={e => updateRule(i, 'fee', e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+            <button onClick={() => removeRule(i)} style={{ width: '100%', borderRadius: 12, border: 'none', background: 'rgba(225,29,72,0.1)', color: 'var(--accent2)', cursor: 'pointer', fontSize: 18 }}>🗑️</button>
+          </div>
+        ))}
+
+        <button onClick={addRule} style={{ width: '100%', padding: '14px', borderRadius: 12, border: '2px dashed var(--border)', background: 'transparent', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>
+          ➕ Yangi shart qo'shish
+        </button>
+      </div>
     </div>
   );
 }

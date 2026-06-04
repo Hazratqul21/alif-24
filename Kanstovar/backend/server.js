@@ -8,7 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import db from './models/index.js';
 
-const { User, Product, Order, Review, CartItem, AdBanner, sequelize } = db;
+const { User, Product, Order, Review, CartItem, AdBanner, Config, sequelize } = db;
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -41,7 +41,20 @@ const COMPANY = {
 };
 
 // =================== DELIVERY FEE LOGIC ===================
-const calcDeliveryFee = (totalSum) => {
+const calcDeliveryFee = async (totalSum) => {
+  try {
+    const config = await Config.findOne({ where: { key: 'delivery' } });
+    if (config && config.value && Array.isArray(config.value)) {
+      // Assuming value is sorted descending by minAmount: [{minAmount: 2000000, fee: 0}, {minAmount: 1000000, fee: 30000}, {minAmount: 0, fee: 50000}]
+      const rules = config.value.sort((a, b) => b.minAmount - a.minAmount);
+      for (const rule of rules) {
+        if (totalSum >= rule.minAmount) return rule.fee;
+      }
+    }
+  } catch (err) {
+    console.error("Delivery config error", err);
+  }
+  // Default fallback
   if (totalSum >= 2000000) return 0;
   if (totalSum >= 1000000) return 30000;
   return 50000;
@@ -459,9 +472,9 @@ app.get('/api/categories', async (req, res) => {
 });
 
 // =================== DELIVERY FEE ===================
-app.get('/api/delivery-fee', (req, res) => {
+app.get('/api/delivery-fee', async (req, res) => {
   const { amount } = req.query;
-  const fee = calcDeliveryFee(Number(amount) || 0);
+  const fee = await calcDeliveryFee(Number(amount) || 0);
   res.json({ fee, amount: Number(amount), isFree: fee === 0 });
 });
 
@@ -555,7 +568,7 @@ app.post('/api/orders', auth, async (req, res) => {
     }));
 
     const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const deliveryFee = calcDeliveryFee(subtotal);
+    const deliveryFee = await calcDeliveryFee(subtotal);
     const total = subtotal + deliveryFee;
 
     const orderCount = await Order.count();
@@ -785,6 +798,39 @@ app.delete('/api/superadmin/ads/:id', superadminAuth, async (req, res) => {
     const deleted = await AdBanner.destroy({ where: { id: req.params.id } });
     if (!deleted) return res.status(404).json({ error: 'Topilmadi' });
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =================== CONFIG / SETTINGS ROUTES ===================
+app.get('/api/config/delivery', async (req, res) => {
+  try {
+    const config = await Config.findOne({ where: { key: 'delivery' } });
+    if (config) {
+      res.json(config.value);
+    } else {
+      res.json([
+        { minAmount: 2000000, fee: 0 },
+        { minAmount: 1000000, fee: 30000 },
+        { minAmount: 0, fee: 50000 }
+      ]);
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/superadmin/config/delivery', superadminAuth, async (req, res) => {
+  try {
+    const rules = req.body; // should be array of objects
+    let config = await Config.findOne({ where: { key: 'delivery' } });
+    if (config) {
+      await config.update({ value: rules });
+    } else {
+      config = await Config.create({ key: 'delivery', value: rules });
+    }
+    res.json(config.value);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

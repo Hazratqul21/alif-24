@@ -44,15 +44,11 @@ const COMPANY = {
   account: "2020 8000 7074 1275 5001",
   bank: "Kapitalbank",
   address: "Toshkent shahri, Olmazor tumani, Miskin MFY, Yangi Olmazor ko'chasi, 10-uy, 1-xonadon",
-  phone: "+998 90 000 00 00",
+  phone: "+998 90 827 83 58",
   email: "info@kanstovar.uz"
 };
 
-const calcDelivery = (total) => {
-  if (total >= 2000000) return 0;
-  if (total >= 1000000) return 30000;
-  return 50000;
-};
+
 
 const api = {
   get: async (path, token) => {
@@ -320,6 +316,24 @@ export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [page, setPage] = useState('home');
   const [cartCount, setCartCount] = useState(0);
+  const [deliveryRules, setDeliveryRules] = useState([]);
+
+  useEffect(() => {
+    api.get('/api/config/delivery').then(data => {
+      setDeliveryRules(Array.isArray(data) ? data.sort((a, b) => b.minAmount - a.minAmount) : []);
+    });
+  }, []);
+
+  const calcDelivery = useCallback((total) => {
+    if (deliveryRules.length > 0) {
+      for (const r of deliveryRules) {
+        if (total >= r.minAmount) return r.fee;
+      }
+    }
+    if (total >= 2000000) return 0;
+    if (total >= 1000000) return 30000;
+    return 50000;
+  }, [deliveryRules]);
   const [toasts, setToasts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
@@ -378,7 +392,7 @@ export default function App() {
     return result;
   };
 
-  const ctx = { user, token, page, setPage, cartCount, refreshCart, login, logout, addToCart, toast, selectedProduct, setSelectedProduct, isMobile };
+  const ctx = { user, token, page, setPage, isMobile, toast, addToCart, cartCount, refreshCart, selectedProduct, setSelectedProduct, login, logout, calcDelivery };
 
   return (
     <AppCtx.Provider value={ctx}>
@@ -969,7 +983,7 @@ function MapModal({ onClose, onSelect, initialAddress }) {
 
 // =================== CART PAGE ===================
 function CartPage() {
-  const { token, toast, setPage, refreshCart, user, isMobile } = useApp();
+  const { token, toast, setPage, refreshCart, user, isMobile, calcDelivery } = useApp();
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState(() => LS.get('kanstovar_address') || '');

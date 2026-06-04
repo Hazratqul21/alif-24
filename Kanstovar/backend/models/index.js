@@ -90,4 +90,9 @@ export const AdBanner = sequelize.define('AdBanner', {
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
 });
 
-export default { User, Product, Order, Review, CartItem, AdBanner, sequelize };
+export const Config = sequelize.define('Config', {
+  key: { type: DataTypes.STRING, primaryKey: true },
+  value: { type: DataTypes.JSONB, allowNull: false }
+});
+
+export default { User, Product, Order, Review, CartItem, AdBanner, Config, sequelize };
