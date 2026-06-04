@@ -74,6 +74,7 @@ services:
 networks:
   alif24-network:
     external: true
+    name: alif-24_alif24-network
 
 volumes:
   pgdata:
