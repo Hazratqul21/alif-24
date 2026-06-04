@@ -2,6 +2,18 @@ import React, { useState, useEffect, useCallback, createContext, useContext, use
 
 const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : `http://${window.location.hostname}:4000`);
 
+// =================== RESPONSIVE HOOK ===================
+const useMediaQuery = (query) => {
+  const [matches, setMatches] = useState(window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const listener = () => setMatches(media.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [query]);
+  return matches;
+};
+
 // Format so'm
 const formatSum = (n) => {
   if (!n && n !== 0) return '0';
@@ -90,7 +102,8 @@ export default function App() {
     toast('Chiqib ketdingiz');
   };
 
-  const ctx = { user, token, page, setPage, login, logout, toast, editProduct, setEditProduct };
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const ctx = { user, token, page, setPage, login, logout, toast, editProduct, setEditProduct, isMobile };
 
   if (!token || !user) return (
     <AppCtx.Provider value={ctx}>
@@ -108,9 +121,17 @@ export default function App() {
 
   return (
     <AppCtx.Provider value={ctx}>
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
-        <Sidebar />
-        <main style={{ flex: 1, marginLeft: 260, minHeight: '100vh' }}>
+      <div style={{ display: 'flex', minHeight: '100vh', paddingBottom: isMobile ? 70 : 0 }}>
+        {!isMobile && <Sidebar />}
+        <main style={{ flex: 1, marginLeft: isMobile ? 0 : 260, minHeight: '100vh', width: '100%' }}>
+          {isMobile && (
+            <div style={{ background: 'var(--surface)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🏪</div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--accent)' }}>KANSTOVAR</div>
+              </div>
+            </div>
+          )}
           {page === 'dashboard' && <Dashboard />}
           {page === 'products' && <ProductsPage />}
           {page === 'orders' && <OrdersPage />}
@@ -118,9 +139,28 @@ export default function App() {
           {page === 'edit-product' && <ProductForm isEdit />}
           {page === 'profile' && <ProfilePage />}
         </main>
+        {isMobile && <BottomNav nav={NAV} />}
       </div>
       <Toast toasts={toasts} remove={removeToast} />
     </AppCtx.Provider>
+  );
+}
+
+// =================== BOTTOM NAV ===================
+function BottomNav({ nav }) {
+  const { page, setPage } = useApp();
+  return (
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: 70, background: 'rgba(20,20,25,0.85)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-around', alignItems: 'center', zIndex: 99, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      {nav.map(n => {
+        const isActive = page === n.id || (n.id === 'add-product' && page === 'edit-product');
+        return (
+          <div key={n.id} onClick={() => setPage(n.id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', padding: '8px 12px', color: isActive ? 'var(--accent)' : 'var(--text2)', transition: 'all 0.3s' }}>
+            <div style={{ fontSize: 22, transform: isActive ? 'scale(1.2) translateY(-4px)' : 'scale(1)', transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>{n.icon}</div>
+            <div style={{ fontSize: 10, fontWeight: 600, opacity: isActive ? 1 : 0.7 }}>{n.id === 'add-product' ? 'Qo\'shish' : n.label}</div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -169,17 +209,26 @@ const SUPERADMIN_NAV = [
 ];
 
 function SuperAdminLayout() {
-  const { page } = useApp();
+  const { page, isMobile } = useApp();
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <SuperAdminSidebar />
-      <main style={{ flex: 1, marginLeft: 260, minHeight: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', paddingBottom: isMobile ? 70 : 0 }}>
+      {!isMobile && <SuperAdminSidebar />}
+      <main style={{ flex: 1, marginLeft: isMobile ? 0 : 260, minHeight: '100vh', width: '100%' }}>
+        {isMobile && (
+          <div style={{ background: 'var(--surface)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #10b981, #047857)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>👑</div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: '#10b981' }}>SUPERADMIN</div>
+            </div>
+          </div>
+        )}
         {page === 'dashboard' && <SuperAdminDashboard />}
         {page === 'users' && <SuperAdminUsers />}
         {page === 'orders' && <SuperAdminOrders />}
         {page === 'ads' && <SuperAdminAds />}
         {page === 'delivery' && <SuperAdminDelivery />}
       </main>
+      {isMobile && <BottomNav nav={SUPERADMIN_NAV} />}
     </div>
   );
 }
@@ -688,7 +737,7 @@ function ProductsPage() {
 
 // =================== PRODUCT FORM ===================
 function ProductForm({ isEdit }) {
-  const { token, toast, setPage, editProduct } = useApp();
+  const { token, toast, setPage, editProduct, isMobile } = useApp();
   const [form, setForm] = useState(isEdit && editProduct ? {
     name: editProduct.name,
     category: editProduct.category,
@@ -795,15 +844,15 @@ function ProductForm({ isEdit }) {
   );
 
   return (
-    <div style={{ padding: '32px', maxWidth: 760 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+    <div style={{ padding: isMobile ? '20px 16px' : '32px', maxWidth: 760 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: isMobile ? 20 : 32 }}>
         <button onClick={() => setPage('products')} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text2)', width: 40, height: 40, borderRadius: 10, fontSize: 18, cursor: 'pointer' }}>←</button>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800 }}>{isEdit ? '✏️ Mahsulotni tahrirlash' : '➕ Yangi mahsulot'}</h1>
+          <h1 style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800 }}>{isEdit ? '✏️ Mahsulotni tahrirlash' : '➕ Yangi mahsulot'}</h1>
           <p style={{ color: 'var(--text2)', fontSize: 14, marginTop: 2 }}>{isEdit ? 'Ma\'lumotlarni yangilang' : 'Yangi mahsulot qo\'shing'}</p>
         </div>
       </div>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '32px', boxShadow: 'var(--shadow2)' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: isMobile ? '20px' : '32px', boxShadow: 'var(--shadow2)' }}>
         
         {/* Images Upload */}
         <div style={{ marginBottom: 24 }}>
@@ -822,17 +871,25 @@ function ProductForm({ isEdit }) {
               </div>
             ))}
             {images.length + files.length < 3 && (
-              <label style={{ width: 80, height: 80, borderRadius: 12, background: 'var(--surface2)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 24 }}>+</span>
-                <input type="file" multiple accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
-              </label>
+              <div style={{ display: 'flex', gap: 12, flexDirection: isMobile ? 'column' : 'row', width: isMobile ? '100%' : 'auto' }}>
+                <label style={{ flex: 1, padding: '12px 16px', borderRadius: 12, background: 'var(--surface2)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', color: 'var(--accent)' }}>
+                  <span style={{ fontSize: 20 }}>📷</span>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>Rasmga olish</span>
+                  <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} style={{ display: 'none' }} />
+                </label>
+                <label style={{ flex: 1, padding: '12px 16px', borderRadius: 12, background: 'var(--surface2)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', color: 'var(--accent)' }}>
+                  <span style={{ fontSize: 20 }}>🖼️</span>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>Galereyadan tanlash</span>
+                  <input type="file" multiple accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+                </label>
+              </div>
             )}
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
           <div style={{ gridColumn: '1 / -1' }}>{field('Mahsulot nomi', 'name', { placeholder: 'Masalan: Daftar A4 (96 varaq)' })}</div>
-          {field('Kategoriya', 'category', { select: CATEGORIES })}
+          <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>{field('Kategoriya', 'category', { select: CATEGORIES })}</div>
           {field('Zaxira (dona)', 'stock', { type: 'number', placeholder: '1000' })}
           {field('Asl narx (so\'m)', 'originalPrice', { type: 'number', placeholder: '10000', optional: true })}
           
@@ -840,21 +897,24 @@ function ProductForm({ isEdit }) {
             <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Miqdorga Qarab Narxlash</label>
             <div style={{ background: 'var(--surface2)', borderRadius: 16, padding: 16, border: '1px solid var(--border)' }}>
               {priceTiers.map((tier, index) => (
-                <div key={index} style={{ display: 'flex', gap: 12, marginBottom: index !== priceTiers.length - 1 ? 12 : 0, alignItems: 'center' }}>
+                <div key={index} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 12, marginBottom: index !== priceTiers.length - 1 ? 16 : 0, alignItems: isMobile ? 'stretch' : 'center', background: isMobile ? 'var(--bg)' : 'transparent', padding: isMobile ? 12 : 0, borderRadius: 12 }}>
                   <div style={{ flex: 1 }}>
+                    {isMobile && <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Min miqdor</div>}
                     <input type="number" placeholder="Min" value={tier.minQty} onChange={e => { const newT = [...priceTiers]; newT[index].minQty = e.target.value; setPriceTiers(newT); }} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', outline: 'none' }} />
                   </div>
-                  <span style={{ color: 'var(--text2)' }}>-</span>
+                  {!isMobile && <span style={{ color: 'var(--text2)' }}>-</span>}
                   <div style={{ flex: 1 }}>
+                    {isMobile && <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Max miqdor (ixtiyoriy)</div>}
                     <input type="number" placeholder="Max (bo'sh qolsa cheksiz)" value={tier.maxQty} onChange={e => { const newT = [...priceTiers]; newT[index].maxQty = e.target.value; setPriceTiers(newT); }} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', outline: 'none' }} />
                   </div>
                   <div style={{ flex: 1 }}>
+                    {isMobile && <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Narx (so'm)</div>}
                     <input type="number" placeholder="Narx (so'm)" value={tier.price} onChange={e => { const newT = [...priceTiers]; newT[index].price = e.target.value; setPriceTiers(newT); }} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', outline: 'none' }} />
                   </div>
-                  <button onClick={() => setPriceTiers(priceTiers.filter((_, i) => i !== index))} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(225,29,72,0.1)', color: 'var(--accent2)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>×</button>
+                  <button onClick={() => setPriceTiers(priceTiers.filter((_, i) => i !== index))} style={{ width: isMobile ? '100%' : 36, height: 36, borderRadius: 10, background: 'rgba(225,29,72,0.1)', color: 'var(--accent2)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{isMobile ? 'O\'chirish' : '×'}</button>
                 </div>
               ))}
-              <button onClick={() => setPriceTiers([...priceTiers, {...defaultTier}])} style={{ marginTop: 16, padding: '8px 16px', borderRadius: 8, background: 'var(--surface)', border: '1px dashed var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>+ Narx qatlamini qo'shish</button>
+              <button onClick={() => setPriceTiers([...priceTiers, {...defaultTier}])} style={{ width: isMobile ? '100%' : 'auto', marginTop: 16, padding: '10px 16px', borderRadius: 8, background: 'var(--surface)', border: '1px dashed var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>+ Narx qatlamini qo'shish</button>
             </div>
           </div>
 
