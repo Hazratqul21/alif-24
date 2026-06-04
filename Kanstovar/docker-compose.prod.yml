@@ -8,8 +8,6 @@ services:
       POSTGRES_USER: kanstovar
       POSTGRES_PASSWORD: password
       POSTGRES_DB: kanstovardb
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
