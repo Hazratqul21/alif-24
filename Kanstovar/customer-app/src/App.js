@@ -26,6 +26,17 @@ const formatSum = (n) => {
   return Number(n).toLocaleString('uz-UZ') + ' so\'m';
 };
 
+const useMediaQuery = (query) => {
+  const [matches, setMatches] = useState(window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const listener = () => setMatches(media.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [query]);
+  return matches;
+};
+
 const COMPANY = {
   name: "Alif24 AI Texnologiyes",
   inn: "312821712",
@@ -304,6 +315,7 @@ const generateContractPDF = (order, buyer) => {
 
 // =================== MAIN APP ===================
 export default function App() {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [page, setPage] = useState('home');
@@ -366,11 +378,11 @@ export default function App() {
     return result;
   };
 
-  const ctx = { user, token, page, setPage, cartCount, refreshCart, login, logout, addToCart, toast, selectedProduct, setSelectedProduct };
+  const ctx = { user, token, page, setPage, cartCount, refreshCart, login, logout, addToCart, toast, selectedProduct, setSelectedProduct, isMobile };
 
   return (
     <AppCtx.Provider value={ctx}>
-      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingBottom: isMobile ? 80 : 0 }}>
         <Header />
         <main>
           {page === 'home' && <HomePage />}
@@ -390,29 +402,34 @@ export default function App() {
 
 // =================== HEADER ===================
 function Header() {
-  const { user, page, setPage, cartCount, logout } = useApp();
+  const { user, page, setPage, cartCount, logout, isMobile } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--border)', padding: '0 24px' }}>
-      <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', height: 64, gap: 24 }}>
-        <div onClick={() => setPage('home')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 26 }}>📦</span>
-          <span style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 20, background: 'linear-gradient(135deg, #6c63ff, #ff6584)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>KANSTOVAR</span>
+    <>
+    <header style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--border)', padding: isMobile ? '30px 16px 10px' : '0 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', height: isMobile ? 'auto' : 64, gap: 16 }}>
+        <div onClick={() => setPage('home')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, flex: isMobile ? 1 : 'unset' }}>
+          <span style={{ fontSize: isMobile ? 22 : 26 }}>📦</span>
+          <span style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: isMobile ? 18 : 20, background: 'linear-gradient(135deg, #6c63ff, #ff6584)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>KANSTOVAR</span>
         </div>
+        {!isMobile && (
         <nav style={{ display: 'flex', gap: 4, flex: 1 }}>
           {[['home', '🏠 Bosh sahifa'], ['products', '🏪 Katalog']].map(([p, label]) => (
             <button key={p} onClick={() => setPage(p)} style={{ background: page === p ? 'var(--surface2)' : 'transparent', color: page === p ? 'var(--accent)' : 'var(--text2)', padding: '8px 16px', borderRadius: 10, fontSize: 14, fontWeight: 500, transition: 'all 0.2s', border: page === p ? '1px solid var(--border)' : '1px solid transparent' }}>{label}</button>
           ))}
         </nav>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!isMobile && (
           <button onClick={() => setPage('cart')} style={{ position: 'relative', background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', padding: '10px 16px', borderRadius: 12, fontSize: 16, transition: 'all 0.2s' }}>
             🛒 {cartCount > 0 && <span style={{ position: 'absolute', top: -6, right: -6, background: 'var(--accent2)', color: 'white', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{cartCount}</span>}
           </button>
+          )}
           {user ? (
             <div style={{ position: 'relative' }}>
-              <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: 'white', padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>{user.avatar}</span> {user.name.split(' ')[0]} ▾
+              <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: 'white', padding: isMobile ? '8px 12px' : '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>{user.avatar}</span> {!isMobile && user.name.split(' ')[0]} {!isMobile && '▾'}
               </button>
               {menuOpen && (
                 <div style={{ position: 'absolute', top: '110%', right: 0, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', minWidth: 180, boxShadow: 'var(--shadow)' }}>
@@ -426,19 +443,31 @@ function Header() {
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setPage('login')} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', padding: '10px 18px', borderRadius: 12, fontSize: 14, fontWeight: 500 }}>Kirish</button>
-              <button onClick={() => setPage('register')} style={{ background: 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: 'white', padding: '10px 18px', borderRadius: 12, fontSize: 14, fontWeight: 600 }}>Ro'yxatdan o'tish</button>
+              {!isMobile && <button onClick={() => setPage('login')} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', padding: '10px 18px', borderRadius: 12, fontSize: 14, fontWeight: 500 }}>Kirish</button>}
+              <button onClick={() => setPage('register')} style={{ background: 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: 'white', padding: isMobile ? '8px 12px' : '10px 18px', borderRadius: 12, fontSize: 14, fontWeight: 600 }}>{isMobile ? 'Kirish' : 'Ro\'yxatdan o\'tish'}</button>
             </div>
           )}
         </div>
       </div>
     </header>
+    {isMobile && (
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(20px)', borderTop: '1px solid var(--border)', zIndex: 100, display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '10px 0 30px 0' }}>
+        {[['home', '🏠', 'Asosiy'], ['products', '🏪', 'Katalog'], ['cart', '🛒', 'Savat', cartCount], ['profile', '👤', 'Profil']].map(([p, icon, label, badge]) => (
+          <button key={p} onClick={() => setPage(p === 'profile' && !user ? 'login' : p)} style={{ background: 'transparent', color: page === p ? 'var(--accent)' : 'var(--text2)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, position: 'relative' }}>
+            <span style={{ fontSize: 24, filter: page === p ? 'drop-shadow(0 0 8px rgba(108,99,255,0.4))' : 'none' }}>{icon}</span>
+            <span style={{ fontSize: 10, fontWeight: page === p ? 700 : 500 }}>{label}</span>
+            {badge > 0 && <span style={{ position: 'absolute', top: -4, right: -8, background: 'var(--accent2)', color: 'white', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>{badge}</span>}
+          </button>
+        ))}
+      </div>
+    )}
+    </>
   );
 }
 
 // =================== HOME PAGE ===================
 function HomePage() {
-  const { setPage, addToCart, setSelectedProduct } = useApp();
+  const { setPage, addToCart, setSelectedProduct, isMobile } = useApp();
   const [featured, setFeatured] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -461,21 +490,21 @@ function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, #0a0a12 0%, #12082a 50%, #0a1212 100%)', padding: '80px 24px', textAlign: 'center' }}>
+      <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, #0a0a12 0%, #12082a 50%, #0a1212 100%)', padding: isMobile ? '40px 16px' : '80px 24px', textAlign: 'center' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(108,99,255,0.18) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(255,101,132,0.12) 0%, transparent 50%)' }} />
         <div style={{ position: 'relative', maxWidth: 720, margin: '0 auto' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(108,99,255,0.15)', border: '1px solid rgba(108,99,255,0.3)', padding: '6px 18px', borderRadius: 30, fontSize: 13, color: '#a89bff', marginBottom: 28, fontWeight: 500 }}>
             📦 Optom kanstovar mahsulotlari
           </div>
-          <h1 style={{ fontSize: 'clamp(32px, 5vw, 66px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 20, background: 'linear-gradient(135deg, #ffffff 0%, #a89bff 50%, #ff8fa3 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1 style={{ fontSize: isMobile ? '36px' : 'clamp(32px, 5vw, 66px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 20, background: 'linear-gradient(135deg, #ffffff 0%, #a89bff 50%, #ff8fa3 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             Kanstovar Optom Savdosi
           </h1>
           <p style={{ fontSize: 17, color: 'var(--text2)', marginBottom: 36, lineHeight: 1.7 }}>
             Daftar, qalam, qog'oz va boshqa kanstovar mahsulotlarini<br />optom narxlarda xarid qiling. Toshkent bo'yicha yetkazib berish.
           </p>
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 48 }}>
-            <button onClick={() => setPage('products')} style={{ background: 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: 'white', padding: '16px 36px', borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 8px 30px rgba(108,99,255,0.4)', transition: 'transform 0.2s' }} onMouseEnter={e => e.target.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.target.style.transform = 'translateY(0)'}>Katalogni ko'rish →</button>
-            <button onClick={() => setPage('register')} style={{ background: 'transparent', border: '2px solid rgba(255,255,255,0.2)', color: 'white', padding: '16px 36px', borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Ro'yxatdan o'tish</button>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 48, flexDirection: isMobile ? 'column' : 'row' }}>
+            <button onClick={() => setPage('products')} style={{ width: isMobile ? '100%' : 'auto', background: 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: 'white', padding: '16px 36px', borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 8px 30px rgba(108,99,255,0.4)', transition: 'transform 0.2s' }} onMouseEnter={e => e.target.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.target.style.transform = 'translateY(0)'}>Katalogni ko'rish →</button>
+            <button onClick={() => setPage('register')} style={{ width: isMobile ? '100%' : 'auto', background: 'transparent', border: '2px solid rgba(255,255,255,0.2)', color: 'white', padding: '16px 36px', borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Ro'yxatdan o'tish</button>
           </div>
 
           {/* Delivery info */}
@@ -485,7 +514,7 @@ function HomePage() {
               ['🏎️', '1,000,000–1,999,999 so\'m', '30,000 so\'m yetkazish'],
               ['🎁', '2,000,000+ so\'m', 'BEPUL yetkazish']
             ].map(([icon, range, label]) => (
-              <div key={range} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 20px', textAlign: 'center', minWidth: 160 }}>
+              <div key={range} style={{ width: isMobile ? '100%' : 'auto', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 20px', textAlign: 'center', minWidth: 160 }}>
                 <div style={{ fontSize: 24, marginBottom: 4 }}>{icon}</div>
                 <div style={{ fontSize: 11, color: '#a89bff', fontWeight: 600, marginBottom: 2 }}>{range}</div>
                 <div style={{ fontSize: 12, color: '#fff', fontWeight: 700 }}>{label}</div>
@@ -497,10 +526,10 @@ function HomePage() {
 
       {/* Stats */}
       <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '24px' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', justifyContent: 'center', gap: 48 }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', justifyContent: 'center', gap: isMobile ? 24 : 48, flexWrap: 'wrap' }}>
           {[['1000+', 'Mahsulot'], ['50+', 'Sotuvchi'], ['500+', 'Mijoz'], ['3 kun', 'Yetkazib berish']].map(([n, l]) => (
-            <div key={l} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--accent)' }}>{n}</div>
+            <div key={l} style={{ textAlign: 'center', width: isMobile ? '40%' : 'auto' }}>
+              <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, color: 'var(--accent)' }}>{n}</div>
               <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 2 }}>{l}</div>
             </div>
           ))}
@@ -508,9 +537,9 @@ function HomePage() {
       </div>
 
       {/* Categories */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 24px' }}>
-        <h2 style={{ fontSize: 26, fontWeight: 700, marginBottom: 20 }}>Kategoriyalar</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 14 }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '32px 16px' : '48px 24px' }}>
+        <h2 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, marginBottom: 20 }}>Kategoriyalar</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(150px, 1fr))', gap: 14 }}>
           {categories.map(([icon, cat, color]) => (
             <div key={cat} onClick={() => setPage('products')} style={{ background: 'var(--surface)', border: `1px solid ${color}33`, borderRadius: 16, padding: '22px 16px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s', color }} onMouseEnter={e => { e.currentTarget.style.background = `${color}15`; e.currentTarget.style.transform = 'translateY(-4px)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>{icon}</div>
@@ -521,17 +550,17 @@ function HomePage() {
       </div>
 
       {/* Featured Products */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px 64px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h2 style={{ fontSize: 26, fontWeight: 700 }}>🔥 Mashhur Mahsulotlar</h2>
-          <button onClick={() => setPage('products')} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', padding: '10px 20px', borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>Barchasini ko'rish →</button>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '0 16px 64px' : '0 24px 64px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexDirection: isMobile ? 'column' : 'row', gap: 12 }}>
+          <h2 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700 }}>🔥 Mashhur Mahsulotlar</h2>
+          <button onClick={() => setPage('products')} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', padding: '10px 20px', borderRadius: 10, fontSize: 14, cursor: 'pointer', width: isMobile ? '100%' : 'auto' }}>Barchasini ko'rish →</button>
         </div>
         {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
             {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 320, borderRadius: 16 }} />)}
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
             {featured.map(p => <ProductCard key={p.id} product={p} onView={() => { setSelectedProduct(p); setPage('product'); }} onAdd={() => addToCart(p.id, p.minOrder || 1)} />)}
           </div>
         )}
@@ -578,7 +607,7 @@ function ProductCard({ product: p, onView, onAdd }) {
 
 // =================== PRODUCTS PAGE ===================
 function ProductsPage() {
-  const { addToCart, setSelectedProduct, setPage } = useApp();
+  const { addToCart, setSelectedProduct, setPage, isMobile } = useApp();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -605,18 +634,18 @@ function ProductsPage() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '24px 16px' : '32px 24px' }}>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 34, fontWeight: 800, marginBottom: 6 }}>🏪 Katalog</h1>
+        <h1 style={{ fontSize: isMobile ? 28 : 34, fontWeight: 800, marginBottom: 6 }}>🏪 Katalog</h1>
         <p style={{ color: 'var(--text2)' }}>{total} ta mahsulot</p>
       </div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap' }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Mahsulot qidirish..." style={{ flex: 1, minWidth: 200, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none' }} />
-        <select value={category} onChange={e => setCategory(e.target.value)} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Mahsulot qidirish..." style={{ flex: isMobile ? 'unset' : 1, width: isMobile ? '100%' : 'auto', minWidth: 200, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none' }} />
+        <select value={category} onChange={e => setCategory(e.target.value)} style={{ flex: isMobile ? 'unset' : 1, width: isMobile ? '100%' : 'auto', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
           <option value="all">Barcha kategoriyalar</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
-        <select value={sort} onChange={e => setSort(e.target.value)} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+        <select value={sort} onChange={e => setSort(e.target.value)} style={{ flex: isMobile ? 'unset' : 1, width: isMobile ? '100%' : 'auto', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
           <option value="rating">⭐ Reyting bo'yicha</option>
           <option value="sold">🔥 Ko'p sotilgan</option>
           <option value="price_asc">💰 Arzondan qimmata</option>
@@ -624,11 +653,11 @@ function ProductsPage() {
         </select>
       </div>
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
           {[...Array(6)].map((_, i) => <div key={i} className="skeleton" style={{ height: 340, borderRadius: 16 }} />)}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
           {products.map(p => <ProductCard key={p.id} product={p} onView={() => { setSelectedProduct(p); setPage('product'); }} onAdd={() => addToCart(p.id, p.minOrder || 1)} />)}
         </div>
       )}
@@ -644,7 +673,7 @@ function ProductsPage() {
 
 // =================== PRODUCT DETAIL ===================
 function ProductDetailPage() {
-  const { selectedProduct, addToCart, token, toast } = useApp();
+  const { selectedProduct, addToCart, token, toast, isMobile } = useApp();
   const [product, setProduct] = useState(selectedProduct);
   const [qty, setQty] = useState(selectedProduct?.minOrder || 1);
   const [review, setReview] = useState({ rating: 5, comment: '' });
@@ -676,12 +705,12 @@ function ProductDetailPage() {
   };
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, alignItems: 'start' }}>
-        <div style={{ background: 'linear-gradient(135deg, var(--surface), var(--surface2))', borderRadius: 24, padding: '64px', textAlign: 'center', fontSize: 110, border: '1px solid var(--border)' }}>{product.image}</div>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '24px 16px' : '40px 24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 24 : 48, alignItems: 'start' }}>
+        <div style={{ background: 'linear-gradient(135deg, var(--surface), var(--surface2))', borderRadius: 24, padding: isMobile ? '32px' : '64px', textAlign: 'center', fontSize: 110, border: '1px solid var(--border)' }}>{product.image}</div>
         <div>
           <div style={{ background: 'var(--surface2)', display: 'inline-block', padding: '4px 14px', borderRadius: 20, fontSize: 12, color: 'var(--text2)', marginBottom: 12 }}>{product.category}</div>
-          <h1 style={{ fontSize: 34, fontWeight: 800, marginBottom: 12, lineHeight: 1.2 }}>{product.name}</h1>
+          <h1 style={{ fontSize: isMobile ? 26 : 34, fontWeight: 800, marginBottom: 12, lineHeight: 1.2 }}>{product.name}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
             <span style={{ color: '#f7b731', fontSize: 16 }}>{'⭐'.repeat(Math.round(product.rating))}</span>
             <span style={{ fontWeight: 700 }}>{product.rating}</span>
@@ -714,13 +743,13 @@ function ProductDetailPage() {
               💰 Jami narx: <strong>{formatSum(product.price * qty)}</strong>
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexDirection: isMobile ? 'column' : 'row' }}>
+            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
               <button onClick={() => setQty(q => Math.max(minOrder, q - 1))} style={{ background: 'none', color: 'var(--text)', width: 44, height: 48, fontSize: 20, cursor: 'pointer' }}>−</button>
               <span style={{ width: 52, textAlign: 'center', fontSize: 17, fontWeight: 700 }}>{qty}</span>
               <button onClick={() => setQty(q => q + 1)} style={{ background: 'none', color: 'var(--text)', width: 44, height: 48, fontSize: 20, cursor: 'pointer' }}>+</button>
             </div>
-            <button onClick={() => addToCart(product.id, qty)} disabled={product.stock === 0} style={{ flex: 1, background: product.stock === 0 ? 'var(--surface2)' : 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: product.stock === 0 ? 'var(--text2)' : 'white', padding: '14px', borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: product.stock === 0 ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+            <button onClick={() => addToCart(product.id, qty)} disabled={product.stock === 0} style={{ width: isMobile ? '100%' : 'auto', flex: isMobile ? 'unset' : 1, background: product.stock === 0 ? 'var(--surface2)' : 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: product.stock === 0 ? 'var(--text2)' : 'white', padding: '14px', borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: product.stock === 0 ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
               {product.stock === 0 ? '❌ Tugagan' : `🛒 Savatga qo'shish (${qty} dona)`}
             </button>
           </div>
@@ -730,8 +759,8 @@ function ProductDetailPage() {
       </div>
 
       {/* Reviews */}
-      <div style={{ marginTop: 60 }}>
-        <h2 style={{ fontSize: 26, fontWeight: 700, marginBottom: 20 }}>💬 Sharhlar</h2>
+      <div style={{ marginTop: isMobile ? 40 : 60 }}>
+        <h2 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, marginBottom: 20 }}>💬 Sharhlar</h2>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: 24, marginBottom: 20 }}>
           <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 14 }}>Sharh yozish</h3>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -766,6 +795,7 @@ function ProductDetailPage() {
 const TASHKENT_DISTRICTS = ["Chilonzor", "Yunusobod", "Mirobod", "Mirzo Ulug'bek", "Yashnobod", "Yakkasaroy", "Uchtepa", "Olmazor", "Shayxontohur", "Sergeli", "Bektemir", "Yangihayot"];
 
 function MapModal({ onClose, onSelect, initialAddress }) {
+  const { isMobile } = useApp();
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
@@ -850,7 +880,7 @@ function MapModal({ onClose, onSelect, initialAddress }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.7)' }} onClick={onClose} />
-      <div style={{ position: 'relative', margin: 'auto', width: '90%', maxWidth: 720, background: 'var(--surface)', borderRadius: 20, overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+      <div style={{ position: 'relative', margin: 'auto', width: isMobile ? '100%' : '90%', height: isMobile ? '100%' : 'auto', maxWidth: 720, background: 'var(--surface)', borderRadius: isMobile ? 0 : 20, overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', maxHeight: '100vh' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
           <span style={{ fontSize: 22 }}>🗺️</span>
           <div style={{ flex: 1 }}>
@@ -903,7 +933,7 @@ function MapModal({ onClose, onSelect, initialAddress }) {
 
 // =================== CART PAGE ===================
 function CartPage() {
-  const { token, toast, setPage, refreshCart, user } = useApp();
+  const { token, toast, setPage, refreshCart, user, isMobile } = useApp();
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState(() => LS.get('kanstovar_address') || '');
@@ -1128,8 +1158,8 @@ function CartPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '40px 24px' }}>
-      <h1 style={{ fontSize: 34, fontWeight: 800, marginBottom: 28 }}>🛒 Savat</h1>
+    <div style={{ maxWidth: 1000, margin: '0 auto', padding: isMobile ? '24px 16px' : '40px 24px' }}>
+      <h1 style={{ fontSize: isMobile ? 28 : 34, fontWeight: 800, marginBottom: 28 }}>🛒 Savat</h1>
       {loading ? <div className="skeleton" style={{ height: 200, borderRadius: 16 }} /> :
         cart.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 24px' }}>
@@ -1138,29 +1168,33 @@ function CartPage() {
             <button onClick={() => setPage('products')} style={{ background: 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: 'white', padding: '14px 32px', borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 16 }}>Xarid qilish</button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 380px', gap: 24, alignItems: 'start' }}>
             {/* Cart items */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {cart.map(item => {
                 const minOrder = item.product?.minOrder || 1;
                 const hasError = minOrderErrors.includes(item.id);
                 return (
-                  <div key={item.id} style={{ background: 'var(--surface)', border: `1px solid ${hasError ? 'var(--accent2)' : 'var(--border)'}`, borderRadius: 16, padding: 18, display: 'flex', gap: 16, alignItems: 'center', transition: 'border-color 0.2s' }}>
-                    <div style={{ fontSize: 44, width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface2)', borderRadius: 12, flexShrink: 0 }}>{item.product?.image}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.product?.name}</h4>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(item.product?.price)}<span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 400, marginLeft: 4 }}>/ dona</span></div>
-                      {minOrder > 1 && <div style={{ fontSize: 11, color: hasError ? 'var(--accent2)' : 'var(--text2)', marginTop: 2 }}>📦 Min: {minOrder} dona</div>}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-                        <button onClick={() => updateQty(item.id, item.quantity - 1, minOrder)} style={{ background: 'none', color: 'var(--text)', width: 36, height: 36, fontSize: 17, cursor: 'pointer' }}>−</button>
-                        <span style={{ width: 40, textAlign: 'center', fontWeight: 700, fontSize: 14 }}>{item.quantity}</span>
-                        <button onClick={() => updateQty(item.id, item.quantity + 1, minOrder)} style={{ background: 'none', color: 'var(--text)', width: 36, height: 36, fontSize: 17, cursor: 'pointer' }}>+</button>
+                  <div key={item.id} style={{ background: 'var(--surface)', border: `1px solid ${hasError ? 'var(--accent2)' : 'var(--border)'}`, borderRadius: 16, padding: isMobile ? 14 : 18, display: 'flex', gap: isMobile ? 12 : 16, alignItems: isMobile ? 'stretch' : 'center', transition: 'border-color 0.2s', flexDirection: isMobile ? 'column' : 'row' }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flex: 1 }}>
+                      <div style={{ fontSize: isMobile ? 32 : 44, width: isMobile ? 60 : 72, height: isMobile ? 60 : 72, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface2)', borderRadius: 12, flexShrink: 0 }}>{item.product?.image}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.product?.name}</h4>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(item.product?.price)}<span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 400, marginLeft: 4 }}>/ dona</span></div>
+                        {minOrder > 1 && <div style={{ fontSize: 11, color: hasError ? 'var(--accent2)' : 'var(--text2)', marginTop: 2 }}>📦 Min: {minOrder} dona</div>}
                       </div>
-                      <button onClick={() => removeItem(item.id)} style={{ background: 'rgba(255,101,132,0.15)', border: '1px solid rgba(255,101,132,0.3)', color: 'var(--accent2)', width: 36, height: 36, borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>✕</button>
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 800, minWidth: 120, textAlign: 'right', flexShrink: 0 }}>{formatSum(item.product?.price * item.quantity)}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'space-between' : 'flex-end', borderTop: isMobile ? '1px solid var(--border)' : 'none', paddingTop: isMobile ? 12 : 0, gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                          <button onClick={() => updateQty(item.id, item.quantity - 1, minOrder)} style={{ background: 'none', color: 'var(--text)', width: 36, height: 36, fontSize: 17, cursor: 'pointer' }}>−</button>
+                          <span style={{ width: 40, textAlign: 'center', fontWeight: 700, fontSize: 14 }}>{item.quantity}</span>
+                          <button onClick={() => updateQty(item.id, item.quantity + 1, minOrder)} style={{ background: 'none', color: 'var(--text)', width: 36, height: 36, fontSize: 17, cursor: 'pointer' }}>+</button>
+                        </div>
+                        <button onClick={() => removeItem(item.id)} style={{ background: 'rgba(255,101,132,0.15)', border: '1px solid rgba(255,101,132,0.3)', color: 'var(--accent2)', width: 36, height: 36, borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>✕</button>
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 800, minWidth: isMobile ? 'auto' : 120, textAlign: 'right', flexShrink: 0 }}>{formatSum(item.product?.price * item.quantity)}</div>
+                    </div>
                   </div>
                 );
               })}
@@ -1206,7 +1240,7 @@ function CartPage() {
                 </div>
 
                 {/* Ism va Familiya — 2 ustun */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8, marginBottom: 8 }}>
                   <input
                     value={firstName}
                     onChange={e => handleFirstName(e.target.value)}
@@ -1358,7 +1392,7 @@ function CartPage() {
 
 // =================== ORDERS PAGE ===================
 function OrdersPage() {
-  const { token, setPage, user } = useApp();
+  const { token, setPage, user, isMobile } = useApp();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -1390,8 +1424,8 @@ function OrdersPage() {
   if (!token) return <div style={{ textAlign: 'center', padding: 80 }}><button onClick={() => setPage('login')} style={{ background: 'var(--accent)', border: 'none', color: 'white', padding: '14px 32px', borderRadius: 14, cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>Kirish kerak</button></div>;
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
-      <h1 style={{ fontSize: 34, fontWeight: 800, marginBottom: 28 }}>📦 Buyurtmalarim</h1>
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: isMobile ? '24px 16px' : '40px 24px' }}>
+      <h1 style={{ fontSize: isMobile ? 28 : 34, fontWeight: 800, marginBottom: 28 }}>📦 Buyurtmalarim</h1>
       {loading ? <div className="skeleton" style={{ height: 200, borderRadius: 16 }} /> :
         orders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px', color: 'var(--text2)' }}>
@@ -1403,7 +1437,7 @@ function OrdersPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {orders.map(o => (
               <div key={o.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, flexWrap: 'wrap', gap: 10, flexDirection: isMobile ? 'column' : 'row' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                       <div style={{ fontWeight: 700, fontSize: 15 }}>#{o.id.slice(0, 8)}</div>
@@ -1413,10 +1447,10 @@ function OrdersPage() {
                     <div style={{ fontSize: 13, color: 'var(--text2)' }}>{new Date(o.createdAt).toLocaleString('uz-UZ')}</div>
                     {o.address && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 2 }}>📍 {o.address}</div>}
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ background: `${statusColors[o.status]}22`, color: statusColors[o.status], padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 700, display: 'block', marginBottom: 6 }}>{statusLabels[o.status] || o.status}</span>
+                  <div style={{ textAlign: isMobile ? 'left' : 'right', width: isMobile ? '100%' : 'auto' }}>
+                    <span style={{ background: `${statusColors[o.status]}22`, color: statusColors[o.status], padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 700, display: isMobile ? 'inline-block' : 'block', marginBottom: 6, marginRight: isMobile ? 12 : 0 }}>{statusLabels[o.status] || o.status}</span>
                     <span style={{ fontWeight: 800, fontSize: 18, color: 'var(--accent)' }}>{formatSum(o.total)}</span>
-                    {o.deliveryFee > 0 && <div style={{ fontSize: 11, color: 'var(--text2)' }}>+ {formatSum(o.deliveryFee)} yetkazish</div>}
+                    {o.deliveryFee > 0 && <span style={{ fontSize: 11, color: 'var(--text2)', marginLeft: isMobile ? 8 : 0 }}>+ {formatSum(o.deliveryFee)} yetkazish</span>}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: o.paymentMethod === 'transfer' ? 14 : 0 }}>
@@ -1448,7 +1482,7 @@ function OrdersPage() {
 
 // =================== AUTH PAGE ===================
 function AuthPage({ mode }) {
-  const { login, setPage } = useApp();
+  const { login, setPage, isMobile } = useApp();
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', company: '', district: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -1477,8 +1511,8 @@ function AuthPage({ mode }) {
   );
 
   return (
-    <div style={{ minHeight: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 460, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 24, padding: '48px 40px' }}>
+    <div style={{ minHeight: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '24px 16px' : 24 }}>
+      <div style={{ width: '100%', maxWidth: 460, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 24, padding: isMobile ? '32px 24px' : '48px 40px' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>{mode === 'login' ? '👋' : '🎉'}</div>
           <h2 style={{ fontSize: 28, fontWeight: 800 }}>{mode === 'login' ? 'Xush kelibsiz!' : 'Ro\'yxatdan o\'tish'}</h2>
