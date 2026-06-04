@@ -673,13 +673,7 @@ function SellerLogin() {
               {loading ? '⏳ Kutingiz...' : mode === 'login' ? '→ Kirish' : '→ Ro\'yxatdan o\'tish'}
             </button>
           </div>
-          {mode === 'login' && (
-            <div style={{ background: 'rgba(79,70,229,0.05)', border: '1px solid rgba(79,70,229,0.15)', borderRadius: 12, padding: '13px 16px', marginTop: 20, fontSize: 13 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6, color: '#4f46e5' }}>Test hisoblar:</div>
-              <div style={{ color: '#6b7280' }}>📧 seller@kanstovar.uz / 🔑 password123</div>
-            </div>
-          )}
-        </div>
+         </div>
       </div>
     </div>
   );

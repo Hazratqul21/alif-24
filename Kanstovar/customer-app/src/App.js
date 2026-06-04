@@ -490,7 +490,7 @@ function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, #0a0a12 0%, #12082a 50%, #0a1212 100%)', padding: isMobile ? '40px 16px' : '80px 24px', textAlign: 'center' }}>
+      {/*<div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, #0a0a12 0%, #12082a 50%, #0a1212 100%)', padding: isMobile ? '40px 16px' : '80px 24px', textAlign: 'center' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(108,99,255,0.18) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(255,101,132,0.12) 0%, transparent 50%)' }} />
         <div style={{ position: 'relative', maxWidth: 720, margin: '0 auto' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(108,99,255,0.15)', border: '1px solid rgba(108,99,255,0.3)', padding: '6px 18px', borderRadius: 30, fontSize: 13, color: '#a89bff', marginBottom: 28, fontWeight: 500 }}>
@@ -505,10 +505,10 @@ function HomePage() {
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 48, flexDirection: isMobile ? 'column' : 'row' }}>
             <button onClick={() => setPage('products')} style={{ width: isMobile ? '100%' : 'auto', background: 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: 'white', padding: '16px 36px', borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 8px 30px rgba(108,99,255,0.4)', transition: 'transform 0.2s' }} onMouseEnter={e => e.target.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.target.style.transform = 'translateY(0)'}>Katalogni ko'rish →</button>
             <button onClick={() => setPage('register')} style={{ width: isMobile ? '100%' : 'auto', background: 'transparent', border: '2px solid rgba(255,255,255,0.2)', color: 'white', padding: '16px 36px', borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Ro'yxatdan o'tish</button>
-          </div>
+          </div>*/}
 
           {/* Delivery info */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
+         {/* <div style={{ display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
             {[
               ['🚚', '0–999,999 so\'m', '50,000 so\'m yetkazish'],
               ['🏎️', '1,000,000–1,999,999 so\'m', '30,000 so\'m yetkazish'],
@@ -522,19 +522,8 @@ function HomePage() {
             ))}
           </div>
         </div>
-      </div>
+      </div>*/}
 
-      {/* Stats */}
-      <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '24px' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', justifyContent: 'center', gap: isMobile ? 24 : 48, flexWrap: 'wrap' }}>
-          {[['1000+', 'Mahsulot'], ['50+', 'Sotuvchi'], ['500+', 'Mijoz'], ['3 kun', 'Yetkazib berish']].map(([n, l]) => (
-            <div key={l} style={{ textAlign: 'center', width: isMobile ? '40%' : 'auto' }}>
-              <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, color: 'var(--accent)' }}>{n}</div>
-              <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 2 }}>{l}</div>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Categories */}
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '32px 16px' : '48px 24px' }}>
