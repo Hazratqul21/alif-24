@@ -262,6 +262,9 @@ services:
       - lessions-frontend
       - lessions-backend
       - pgadmin
+      - marketplace-backend
+      - marketplace-customer
+      - marketplace-seller
     networks:
       - alif24-network
 
@@ -283,6 +286,67 @@ services:
       - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
     depends_on:
       - postgres
+    networks:
+      - alif24-network
+
+  # Kanstovar Platform
+  marketplace-db:
+    image: postgres:15
+    container_name: marketplace-db
+    restart: always
+    environment:
+      POSTGRES_USER: kanstovar
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: kanstovardb
+    volumes:
+      - /data/marketplace-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kanstovar -d kanstovardb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - alif24-network
+
+  marketplace-backend:
+    build:
+      context: ./Kanstovar/backend
+    container_name: marketplace-backend
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=marketplace-db
+      - DB_PORT=5432
+      - DB_USER=kanstovar
+      - DB_PASS=password
+      - DB_NAME=kanstovardb
+    depends_on:
+      marketplace-db:
+        condition: service_healthy
+    networks:
+      - alif24-network
+
+  marketplace-customer:
+    build:
+      context: ./Kanstovar/customer-app
+    container_name: marketplace-customer
+    restart: always
+    environment:
+      - REACT_APP_API_URL=/api
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true
+      - HOST=0.0.0.0
+    networks:
+      - alif24-network
+
+  marketplace-seller:
+    build:
+      context: ./Kanstovar/seller-app
+    container_name: marketplace-seller
+    restart: always
+    environment:
+      - REACT_APP_API_URL=/api
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true
+      - HOST=0.0.0.0
     networks:
       - alif24-network
 
