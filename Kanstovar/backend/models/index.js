@@ -50,7 +50,13 @@ export const Order = sequelize.define('Order', {
   coords: { type: DataTypes.JSONB },
   paymentMethod: { type: DataTypes.STRING },
   status: { type: DataTypes.STRING, defaultValue: 'pending' },
-  transferReceipt: { type: DataTypes.JSONB }
+  transferReceipt: { type: DataTypes.JSONB },
+  paymeTransactionId: { type: DataTypes.STRING }, // external_id
+  paymeState: { type: DataTypes.INTEGER, defaultValue: 0 }, // 0=created, 1=processing, 2=completed, -1/-2=cancelled
+  paymeCreateTime: { type: DataTypes.STRING },
+  paymePerformTime: { type: DataTypes.STRING },
+  paymeCancelTime: { type: DataTypes.STRING },
+  paymeReason: { type: DataTypes.INTEGER }
 });
 
 export const Review = sequelize.define('Review', {

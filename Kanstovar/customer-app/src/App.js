@@ -1226,7 +1226,13 @@ function CartPage() {
                 return (
                   <div key={item.id} style={{ background: 'var(--surface)', border: `1px solid ${hasError ? 'var(--accent2)' : 'var(--border)'}`, borderRadius: 16, padding: isMobile ? 14 : 18, display: 'flex', gap: isMobile ? 12 : 16, alignItems: isMobile ? 'stretch' : 'center', transition: 'border-color 0.2s', flexDirection: isMobile ? 'column' : 'row' }}>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center', flex: 1 }}>
-                      <div style={{ fontSize: isMobile ? 32 : 44, width: isMobile ? 60 : 72, height: isMobile ? 60 : 72, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface2)', borderRadius: 12, flexShrink: 0 }}>{item.product?.image}</div>
+                      <div style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72, background: 'var(--surface2)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 32 : 44 }}>
+                        {item.product?.image && typeof item.product.image === 'string' && item.product.image.startsWith('/uploads') ? (
+                          <img src={`${API}${item.product.image}`} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          item.product?.image || '📦'
+                        )}
+                      </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.product?.name}</h4>
                         <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(item.product?.price)}<span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 400, marginLeft: 4 }}>/ dona</span></div>
@@ -1505,7 +1511,13 @@ function OrdersPage() {
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: o.paymentMethod === 'transfer' ? 14 : 0 }}>
                   {o.items?.map(item => (
                     <div key={item.productId} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', padding: '8px 14px', borderRadius: 10 }}>
-                      <span style={{ fontSize: 20 }}>{item.image}</span>
+                      <div style={{ width: 24, height: 24, borderRadius: 6, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
+                        {item.image && typeof item.image === 'string' && item.image.startsWith('/uploads') ? (
+                          <img src={`${API}${item.image}`} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          item.image || '📦'
+                        )}
+                      </div>
                       <span style={{ fontSize: 13, fontWeight: 500 }}>{item.name}</span>
                       <span style={{ fontSize: 13, color: 'var(--text2)' }}>×{item.quantity} dona</span>
                     </div>

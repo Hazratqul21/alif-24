@@ -7,6 +7,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import db from './models/index.js';
+import paymeService from './paymeService.js';
 
 const { User, Product, Order, Review, CartItem, AdBanner, Config, sequelize } = db;
 
@@ -604,7 +605,12 @@ app.post('/api/orders', auth, async (req, res) => {
       }
     }
 
-    res.status(201).json({ ...order.toJSON(), company: COMPANY });
+    let checkoutUrl = null;
+    if (paymentMethod === 'payme') {
+      checkoutUrl = paymeService.generateCheckoutUrl(total, order.id);
+    }
+
+    res.status(201).json({ ...order.toJSON(), company: COMPANY, checkoutUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -834,6 +840,10 @@ app.put('/api/superadmin/config/delivery', superadminAuth, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.post('/api/webhook/payme', async (req, res) => {
+  return await paymeService.handleWebhook(req, res);
 });
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
