@@ -563,7 +563,7 @@ function HomePage() {
           <h2 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, marginBottom: 20 }}>Reklama</h2>
           <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', borderRadius: 20, overflow: 'hidden', background: 'var(--surface2)', border: '1px solid var(--border)' }}>
             <img 
-              src={`${API}${ads[activeAd]?.image}`} 
+              src={`${API}${ads[activeAd]?.image}?v=${Date.now()}`} 
               alt="Yangiliklar" 
               style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: ads[activeAd]?.link ? 'pointer' : 'default', transition: 'opacity 0.3s' }} 
               onClick={() => ads[activeAd]?.link && window.open(ads[activeAd].link, '_blank')} 
@@ -613,7 +613,7 @@ function ProductCard({ product: p, onView, onAdd }) {
     <div className="fade-in" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, overflow: 'hidden', transition: 'all 0.3s', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.4)'; e.currentTarget.style.borderColor = 'var(--accent)'; }} onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--border)'; }}>
       <div onClick={onView} style={{ background: 'linear-gradient(135deg, var(--surface2), var(--bg))', padding: '16px', height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64, position: 'relative' }}>
         {p.images && p.images.length > 0 ? (
-          <img src={`${API}${p.images[0]}`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          <img src={`${API}${p.images[0]}?v=${Date.now()}`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         ) : (
           p.image || '📦'
         )}
@@ -752,7 +752,7 @@ function ProductDetailPage() {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 24 : 48, alignItems: 'start' }}>
         <div style={{ background: 'linear-gradient(135deg, var(--surface), var(--surface2))', borderRadius: 24, padding: isMobile ? '16px' : '32px', height: isMobile ? 300 : 450, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 110, border: '1px solid var(--border)' }}>
           {product.images && product.images.length > 0 ? (
-            <img src={`${API}${product.images[0]}`} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <img src={`${API}${product.images[0]}?v=${Date.now()}`} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           ) : (
             product.image || '📦'
           )}
@@ -1228,7 +1228,7 @@ function CartPage() {
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center', flex: 1 }}>
                       <div style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72, background: 'var(--surface2)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 32 : 44 }}>
                         {item.product?.image && typeof item.product.image === 'string' && item.product.image.startsWith('/uploads') ? (
-                          <img src={`${API}${item.product.image}`} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={`${API}${item.product.image}?v=${Date.now()}`} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           item.product?.image || '📦'
                         )}
@@ -1513,7 +1513,7 @@ function OrdersPage() {
                     <div key={item.productId} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', padding: '8px 14px', borderRadius: 10 }}>
                       <div style={{ width: 24, height: 24, borderRadius: 6, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
                         {item.image && typeof item.image === 'string' && item.image.startsWith('/uploads') ? (
-                          <img src={`${API}${item.image}`} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={`${API}${item.image}?v=${Date.now()}`} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           item.image || '📦'
                         )}
