@@ -26,6 +26,37 @@ const formatSum = (n) => {
   return Number(n).toLocaleString('uz-UZ') + ' so\'m';
 };
 
+const renderPrice = (p) => {
+  if (p.priceTiers && p.priceTiers.length > 0) {
+    const prices = p.priceTiers.map(t => Number(t.price)).filter(val => !isNaN(val) && val > 0);
+    if (prices.length > 0) {
+      const minP = Math.min(...prices);
+      const maxP = Math.max(...prices);
+      if (minP !== maxP) {
+        return `${Number(minP).toLocaleString('uz-UZ')} - ${Number(maxP).toLocaleString('uz-UZ')} so'm`;
+      }
+      return formatSum(minP);
+    }
+  }
+  return formatSum(p.price);
+};
+
+const calcPrice = (p, qty) => {
+  if (p.priceTiers && p.priceTiers.length > 0) {
+    const validTiers = p.priceTiers.filter(t => !isNaN(t.price) && Number(t.price) > 0).sort((a, b) => Number(a.minQty) - Number(b.minQty));
+    if (validTiers.length > 0) {
+      let matchedPrice = validTiers[0].price;
+      for (const t of validTiers) {
+        if (qty >= Number(t.minQty) && (!t.maxQty || qty <= Number(t.maxQty))) {
+          matchedPrice = t.price;
+        }
+      }
+      return Number(matchedPrice);
+    }
+  }
+  return Number(p.price);
+};
+
 const useMediaQuery = (query) => {
   const [matches, setMatches] = useState(window.matchMedia(query).matches);
   useEffect(() => {
@@ -563,7 +594,7 @@ function HomePage() {
           <h2 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, marginBottom: 20 }}>Reklama</h2>
           <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', borderRadius: 20, overflow: 'hidden', background: 'var(--surface2)', border: '1px solid var(--border)' }}>
             <img 
-              src={`${API}${ads[activeAd]?.image}?v=${Date.now()}`} 
+              src={`${API}${ads[activeAd]?.image}`} 
               alt="Yangiliklar" 
               style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: ads[activeAd]?.link ? 'pointer' : 'default', transition: 'opacity 0.3s' }} 
               onClick={() => ads[activeAd]?.link && window.open(ads[activeAd].link, '_blank')} 
@@ -613,7 +644,7 @@ function ProductCard({ product: p, onView, onAdd }) {
     <div className="fade-in" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, overflow: 'hidden', transition: 'all 0.3s', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.4)'; e.currentTarget.style.borderColor = 'var(--accent)'; }} onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--border)'; }}>
       <div onClick={onView} style={{ background: 'linear-gradient(135deg, var(--surface2), var(--bg))', padding: '16px', height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64, position: 'relative' }}>
         {p.images && p.images.length > 0 ? (
-          <img src={`${API}${p.images[0]}?v=${Date.now()}`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          <img src={`${API}${p.images[0]}`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         ) : (
           p.image || '📦'
         )}
@@ -634,9 +665,13 @@ function ProductCard({ product: p, onView, onAdd }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(p.price)}</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--accent)' }}>{renderPrice(p)}</div>
             {discount > 0 && <div style={{ fontSize: 12, color: 'var(--text2)', textDecoration: 'line-through' }}>{formatSum(p.originalPrice)}</div>}
-            <div style={{ fontSize: 11, color: 'var(--text2)' }}>1 dona narxi</div>
+            {p.priceTiers && p.priceTiers.length > 0 ? (
+              <div style={{ fontSize: 11, color: 'var(--accent2)', fontWeight: 600 }}>Ulgurji narxlar</div>
+            ) : (
+              <div style={{ fontSize: 11, color: 'var(--text2)' }}>1 dona narxi</div>
+            )}
           </div>
           <button onClick={onAdd} style={{ background: 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: 'white', padding: '10px 16px', borderRadius: 12, fontSize: 16, fontWeight: 700, transition: 'all 0.2s', cursor: 'pointer' }} onMouseEnter={e => e.target.style.transform = 'scale(1.1)'} onMouseLeave={e => e.target.style.transform = 'scale(1)'}>+</button>
         </div>
@@ -682,12 +717,12 @@ function ProductsPage() {
       </div>
       <div style={{ display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Mahsulot qidirish..." style={{ flex: isMobile ? 'unset' : 1, width: isMobile ? '100%' : 'auto', minWidth: 200, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none' }} />
-        <div style={{ display: 'flex', gap: 12, width: isMobile ? '100%' : 'auto', flex: isMobile ? 'unset' : 2 }}>
-          <select value={category} onChange={e => setCategory(e.target.value)} style={{ flex: 1, width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px', borderRadius: 12, fontSize: isMobile ? 13 : 14, outline: 'none', cursor: 'pointer' }}>
-            <option value="all">Kategoriyalar</option>
+        <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto', flex: isMobile ? 'unset' : 2, flexDirection: 'row' }}>
+          <select value={category} onChange={e => setCategory(e.target.value)} style={{ flex: 1, width: '50%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: isMobile ? '10px 8px' : '12px', borderRadius: 12, fontSize: isMobile ? 13 : 14, outline: 'none', cursor: 'pointer', appearance: 'none' }}>
+            <option value="all">Barcha kategoriyalar</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select value={sort} onChange={e => setSort(e.target.value)} style={{ flex: 1, width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px', borderRadius: 12, fontSize: isMobile ? 13 : 14, outline: 'none', cursor: 'pointer' }}>
+          <select value={sort} onChange={e => setSort(e.target.value)} style={{ flex: 1, width: '50%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: isMobile ? '10px 8px' : '12px', borderRadius: 12, fontSize: isMobile ? 13 : 14, outline: 'none', cursor: 'pointer', appearance: 'none' }}>
             <option value="rating">⭐ Reyting bo'yicha</option>
             <option value="sold">🔥 Ko'p sotilgan</option>
             <option value="price_asc">💰 Arzonroq</option>
@@ -752,7 +787,7 @@ function ProductDetailPage() {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 24 : 48, alignItems: 'start' }}>
         <div style={{ background: 'linear-gradient(135deg, var(--surface), var(--surface2))', borderRadius: 24, padding: isMobile ? '16px' : '32px', height: isMobile ? 300 : 450, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 110, border: '1px solid var(--border)' }}>
           {product.images && product.images.length > 0 ? (
-            <img src={`${API}${product.images[0]}?v=${Date.now()}`} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <img src={`${API}${product.images[0]}`} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           ) : (
             product.image || '📦'
           )}
@@ -783,13 +818,27 @@ function ProductDetailPage() {
             {product.sellerBio && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 4 }}>{product.sellerBio}</div>}
           </div>
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 38, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(product.price)}</div>
-            <div style={{ fontSize: 13, color: 'var(--text2)' }}>1 dona narxi</div>
-            {discount > 0 && <><span style={{ fontSize: 16, color: 'var(--text2)', textDecoration: 'line-through', marginRight: 8 }}>{formatSum(product.originalPrice)}</span><span style={{ background: 'var(--accent2)', color: 'white', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>-{discount}%</span></>}
+            {product.priceTiers && product.priceTiers.length > 0 ? (
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px', marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Ulgurji narxlar</div>
+                {product.priceTiers.map((t, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i !== product.priceTiers.length - 1 ? '1px dashed var(--border)' : 'none', color: qty >= Number(t.minQty) && (!t.maxQty || qty <= Number(t.maxQty)) ? 'var(--accent)' : 'var(--text)', fontWeight: qty >= Number(t.minQty) && (!t.maxQty || qty <= Number(t.maxQty)) ? 700 : 500 }}>
+                    <span>{t.minQty} - {t.maxQty || 'Cheksiz'} dona</span>
+                    <span>{formatSum(t.price)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 38, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(product.price)}</div>
+                <div style={{ fontSize: 13, color: 'var(--text2)' }}>1 dona narxi</div>
+                {discount > 0 && <><span style={{ fontSize: 16, color: 'var(--text2)', textDecoration: 'line-through', marginRight: 8 }}>{formatSum(product.originalPrice)}</span><span style={{ background: 'var(--accent2)', color: 'white', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>-{discount}%</span></>}
+              </>
+            )}
           </div>
           {qty >= minOrder && (
             <div style={{ background: 'rgba(67,233,123,0.08)', border: '1px solid rgba(67,233,123,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--accent3)' }}>
-              💰 Jami narx: <strong>{formatSum(product.price * qty)}</strong>
+              💰 Jami narx: <strong>{formatSum(calcPrice(product, qty) * qty)}</strong>
             </div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexDirection: isMobile ? 'column' : 'row' }}>
@@ -1045,7 +1094,7 @@ function CartPage() {
     loadCart(); refreshCart();
   };
 
-  const subtotal = cart.reduce((s, i) => s + (i.product?.price || 0) * i.quantity, 0);
+  const subtotal = cart.reduce((s, i) => s + calcPrice(i.product, i.quantity) * i.quantity, 0);
   const deliveryFee = calcDelivery(subtotal);
   const totalAmount = subtotal + deliveryFee;
 
@@ -1228,14 +1277,14 @@ function CartPage() {
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center', flex: 1 }}>
                       <div style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72, background: 'var(--surface2)', borderRadius: 12, flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 32 : 44 }}>
                         {item.product?.image && typeof item.product.image === 'string' && item.product.image.startsWith('/uploads') ? (
-                          <img src={`${API}${item.product.image}?v=${Date.now()}`} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={`${API}${item.product.image}`} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           item.product?.image || '📦'
                         )}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.product?.name}</h4>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(item.product?.price)}<span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 400, marginLeft: 4 }}>/ dona</span></div>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{formatSum(calcPrice(item.product, item.quantity))}<span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 400, marginLeft: 4 }}>/ dona</span></div>
                         {minOrder > 1 && <div style={{ fontSize: 11, color: hasError ? 'var(--accent2)' : 'var(--text2)', marginTop: 2 }}>📦 Min: {minOrder} dona</div>}
                       </div>
                     </div>
@@ -1248,7 +1297,7 @@ function CartPage() {
                         </div>
                         <button onClick={() => removeItem(item.id)} style={{ background: 'rgba(255,101,132,0.15)', border: '1px solid rgba(255,101,132,0.3)', color: 'var(--accent2)', width: 36, height: 36, borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>✕</button>
                       </div>
-                      <div style={{ fontSize: 15, fontWeight: 800, minWidth: isMobile ? 'auto' : 120, textAlign: 'right', flexShrink: 0 }}>{formatSum(item.product?.price * item.quantity)}</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, minWidth: isMobile ? 'auto' : 120, textAlign: 'right', flexShrink: 0 }}>{formatSum(calcPrice(item.product, item.quantity) * item.quantity)}</div>
                     </div>
                   </div>
                 );
@@ -1513,7 +1562,7 @@ function OrdersPage() {
                     <div key={item.productId} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', padding: '8px 14px', borderRadius: 10 }}>
                       <div style={{ width: 24, height: 24, borderRadius: 6, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
                         {item.image && typeof item.image === 'string' && item.image.startsWith('/uploads') ? (
-                          <img src={`${API}${item.image}?v=${Date.now()}`} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={`${API}${item.image}`} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           item.image || '📦'
                         )}

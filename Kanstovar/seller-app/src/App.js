@@ -871,18 +871,11 @@ function ProductForm({ isEdit }) {
               </div>
             ))}
             {images.length + files.length < 3 && (
-              <div style={{ display: 'flex', gap: 12, flexDirection: isMobile ? 'column' : 'row', width: isMobile ? '100%' : 'auto' }}>
-                <label style={{ flex: 1, padding: '12px 16px', borderRadius: 12, background: 'var(--surface2)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', color: 'var(--accent)' }}>
-                  <span style={{ fontSize: 20 }}>📷</span>
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>Rasmga olish</span>
-                  <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} style={{ display: 'none' }} />
-                </label>
-                <label style={{ flex: 1, padding: '12px 16px', borderRadius: 12, background: 'var(--surface2)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', color: 'var(--accent)' }}>
-                  <span style={{ fontSize: 20 }}>🖼️</span>
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>Galereyadan tanlash</span>
-                  <input type="file" multiple accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
-                </label>
-              </div>
+              <label style={{ width: 80, height: 80, borderRadius: 12, background: 'var(--surface2)', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', color: 'var(--accent)' }}>
+                <span style={{ fontSize: 24 }}>➕</span>
+                <span style={{ fontSize: 11, fontWeight: 600 }}>Rasm</span>
+                <input type="file" multiple accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+              </label>
             )}
           </div>
         </div>

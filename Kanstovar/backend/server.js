@@ -364,7 +364,7 @@ app.put('/api/auth/me', auth, async (req, res) => {
 app.get('/api/products', async (req, res) => {
   const { category, search, sort, minPrice, maxPrice, page = 1, limit = 12 } = req.query;
   try {
-    let where = {};
+    let where = { stock: { [sequelize.Sequelize.Op.gt]: 0 } };
     if (category && category !== 'all') where.category = category;
     if (search) {
       where[sequelize.Sequelize.Op.or] = [
