@@ -85,6 +85,11 @@ class QuizService {
     return res.data || res;
   }
 
+  async deleteTemplate(templateId) {
+    const res = await apiService.delete(`/live-quiz/templates/${templateId}`);
+    return res.data || res;
+  }
+
   async getTemplateHistory(templateId) {
     const res = await apiService.get(`/live-quiz/templates/${templateId}/history`);
     return res.data || res;

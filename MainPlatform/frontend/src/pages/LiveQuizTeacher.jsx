@@ -110,6 +110,18 @@ const LiveQuizTeacher = () => {
     } finally { setLoading(false); }
   };
 
+  const handleDeleteTemplate = async (templateId) => {
+    if (!window.confirm("Siz rostdan ham bu quizni o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.")) return;
+    setLoading(true);
+    try {
+      await quizService.deleteTemplate(templateId);
+      await loadTemplates();
+    } catch (err) {
+      setError(err.message || "O'chirishda xatolik yuz berdi");
+      setLoading(false);
+    }
+  };
+
   const handleViewHistory = async (template) => {
     setLoading(true);
     try {
@@ -455,6 +467,9 @@ const LiveQuizTeacher = () => {
                     </button>
                     <button onClick={() => openMarketModal(t)} className="bg-yellow-50 text-yellow-600 px-4 py-2 rounded-lg font-bold flex justify-center items-center hover:bg-yellow-100" title="Marketga qo'yish">
                       <ShoppingCart size={18} />
+                    </button>
+                    <button onClick={() => handleDeleteTemplate(t.id)} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-bold flex justify-center items-center hover:bg-red-100" title="O'chirish">
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 </div>

@@ -249,6 +249,21 @@ async def delete_session(
     return {"success": True, "data": result}
 
 
+@app.delete("/api/v1/quiz/templates/{template_id}")
+async def delete_template(
+    template_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a quiz template"""
+    service = LiveQuizService(db)
+    result = await service.delete_template(
+        teacher_user_id=current_user.id,
+        template_id=template_id
+    )
+    return {"success": True, "data": result}
+
+
 @app.get("/api/v1/quiz/templates/{template_id}/history")
 async def get_template_history(
     template_id: str,

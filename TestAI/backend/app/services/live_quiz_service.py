@@ -206,6 +206,16 @@ class LiveQuizService:
         await self.db.commit()
         return {"message": "Sessiya o'chirildi"}
         
+    async def delete_template(self, teacher_user_id: str, template_id: str) -> Dict:
+        """Delete a live quiz template."""
+        quiz = await self._get_quiz_for_teacher(template_id, teacher_user_id)
+        if not quiz.is_template:
+            raise BadRequestError("Faqat shablonni o'chirish mumkin")
+            
+        await self.db.delete(quiz)
+        await self.db.commit()
+        return {"message": "Shablon o'chirildi"}
+        
     async def get_template_history(self, teacher_user_id: str, template_id: str) -> Dict:
         """Get history of saved sessions for a template."""
         res = await self.db.execute(select(TeacherProfile).where(TeacherProfile.user_id == teacher_user_id))
