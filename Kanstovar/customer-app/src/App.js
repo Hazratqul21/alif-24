@@ -345,7 +345,29 @@ export default function App() {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [page, setPage] = useState('home');
+  const [page, setPageState] = useState(() => {
+    const hash = window.location.hash.replace('#', '');
+    return hash || 'home';
+  });
+
+  const setPage = useCallback((newPage) => {
+    if (window.location.hash !== `#${newPage}`) {
+      window.history.pushState(null, '', `#${newPage}`);
+    }
+    setPageState(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      setPageState(hash || 'home');
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('popstate', handleHashChange);
+    return () => window.removeEventListener('popstate', handleHashChange);
+  }, []);
+
   const [cartCount, setCartCount] = useState(0);
   const [deliveryRules, setDeliveryRules] = useState([]);
 
@@ -843,9 +865,9 @@ function ProductDetailPage() {
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexDirection: isMobile ? 'column' : 'row' }}>
             <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
-              <button onClick={() => setQty(q => Math.max(minOrder, q - 1))} style={{ background: 'none', color: 'var(--text)', width: 44, height: 48, fontSize: 20, cursor: 'pointer' }}>−</button>
-              <span style={{ width: 52, textAlign: 'center', fontSize: 17, fontWeight: 700 }}>{qty}</span>
-              <button onClick={() => setQty(q => q + 1)} style={{ background: 'none', color: 'var(--text)', width: 44, height: 48, fontSize: 20, cursor: 'pointer' }}>+</button>
+              <button onClick={() => setQty(q => Math.max(minOrder, (q || minOrder) - 1))} style={{ background: 'none', color: 'var(--text)', width: 44, height: 48, fontSize: 20, cursor: 'pointer' }}>−</button>
+              <input type="number" value={qty === '' ? '' : qty} onChange={e => setQty(e.target.value === '' ? '' : parseInt(e.target.value))} onBlur={e => { if(!qty || qty < minOrder) setQty(minOrder); }} style={{ width: 60, textAlign: 'center', fontSize: 17, fontWeight: 700, border: 'none', background: 'transparent', color: 'var(--text)', outline: 'none', padding: 0 }} />
+              <button onClick={() => setQty(q => (q === '' ? minOrder : q) + 1)} style={{ background: 'none', color: 'var(--text)', width: 44, height: 48, fontSize: 20, cursor: 'pointer' }}>+</button>
             </div>
             <button onClick={() => addToCart(product.id, qty)} disabled={product.stock === 0} style={{ width: isMobile ? '100%' : 'auto', flex: isMobile ? 'unset' : 1, background: product.stock === 0 ? 'var(--surface2)' : 'linear-gradient(135deg, var(--accent), #9b59b6)', border: 'none', color: product.stock === 0 ? 'var(--text2)' : 'white', padding: '14px', borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: product.stock === 0 ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
               {product.stock === 0 ? '❌ Tugagan' : `🛒 Savatga qo'shish (${qty} dona)`}
@@ -1292,7 +1314,7 @@ function CartPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                           <button onClick={() => updateQty(item.id, item.quantity - 1, minOrder)} style={{ background: 'none', color: 'var(--text)', width: 36, height: 36, fontSize: 17, cursor: 'pointer' }}>−</button>
-                          <span style={{ width: 40, textAlign: 'center', fontWeight: 700, fontSize: 14 }}>{item.quantity}</span>
+                          <input type="number" value={item._localQty !== undefined ? item._localQty : item.quantity} onChange={e => { const newCart = [...cart]; const idx = newCart.findIndex(c => c.id === item.id); if (idx !== -1) { newCart[idx]._localQty = e.target.value; setCart(newCart); } }} onBlur={e => { let val = parseInt(e.target.value); if (isNaN(val) || val < minOrder) val = minOrder; updateQty(item.id, val, minOrder); const newCart = [...cart]; const idx = newCart.findIndex(c => c.id === item.id); if (idx !== -1) { delete newCart[idx]._localQty; setCart(newCart); } }} onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }} style={{ width: 50, textAlign: 'center', fontWeight: 700, fontSize: 14, border: 'none', background: 'transparent', color: 'var(--text)', outline: 'none', padding: 0 }} />
                           <button onClick={() => updateQty(item.id, item.quantity + 1, minOrder)} style={{ background: 'none', color: 'var(--text)', width: 36, height: 36, fontSize: 17, cursor: 'pointer' }}>+</button>
                         </div>
                         <button onClick={() => removeItem(item.id)} style={{ background: 'rgba(255,101,132,0.15)', border: '1px solid rgba(255,101,132,0.3)', color: 'var(--accent2)', width: 36, height: 36, borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>✕</button>
