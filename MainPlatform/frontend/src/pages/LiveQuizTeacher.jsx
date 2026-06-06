@@ -184,6 +184,12 @@ const LiveQuizTeacher = () => {
       let options = ['', '', '', ''];
       let correct = -1;
       
+      const inlineCorrectMatch = qText.match(/(?:\s+)?(?:to['’`‘]?g['’`‘]?ri\s+)?(?:javob|answer)\s*[:\-]?\s*([A-Da-d])$/i);
+      if (inlineCorrectMatch) {
+          correct = ['A', 'B', 'C', 'D'].indexOf(inlineCorrectMatch[1].toUpperCase());
+          qText = qText.substring(0, inlineCorrectMatch.index).trim();
+      }
+      
       let optIndex = 0;
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
@@ -193,7 +199,7 @@ const LiveQuizTeacher = () => {
           optIndex++;
         }
         
-        const ansMatch = line.match(/^Javob:\s*([A-D])/i);
+        const ansMatch = line.match(/^(?:to['’`‘]?g['’`‘]?ri\s+)?(?:javob|answer)\s*[:\-]?\s*([A-Da-d])/i);
         if (ansMatch) {
           correct = ['A', 'B', 'C', 'D'].indexOf(ansMatch[1].toUpperCase());
         }

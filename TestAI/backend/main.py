@@ -863,10 +863,16 @@ def _parse_questions_for_testai(text: str) -> list:
         if not q_line:
             continue
         options, correct_idx, correct_letter = [], 0, None
+        
+        inline_m = re.search(r'(?:\s+)?(?:to[\'’`‘]?g[\'’`‘]?ri\s+)?(?:javob|answer)\s*[:\-]?\s*([A-Da-d])$', q_line, re.I)
+        if inline_m:
+            correct_letter = inline_m.group(1).upper()
+            q_line = q_line[:inline_m.start()].strip()
+
         for line in lines[1:]:
-            m_ans = re.match(r'^(javob|answer|to.g.ri|correct)\s*[:\-]\s*([A-Da-d])', line, re.I)
+            m_ans = re.match(r'^(?:to[\'’`‘]?g[\'’`‘]?ri\s+)?(?:javob|answer)\s*[:\-]?\s*([A-Da-d])', line, re.I)
             if m_ans:
-                correct_letter = m_ans.group(2).upper()
+                correct_letter = m_ans.group(1).upper()
                 continue
             m_opt = re.match(r'^([A-Da-d])[\.)\s]\s*(.+)', line)
             if m_opt:

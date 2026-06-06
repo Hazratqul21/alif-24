@@ -3146,11 +3146,21 @@ const TestReviewModal = ({ show, questions, onClose, onSave, onShowNotif }) => {
       const qMatch = line.match(/^(\d+)\s*[\.\)\️⃣]\s*\.?\s*(.+)/);
       if (qMatch) {
         if (current) result.push(current);
+        
+        let qText = qMatch[2].trim();
+        let correctIdx = 0;
+        
+        const inlineCorrectMatch = qText.match(/(?:\s+)?(?:to['’`‘]?g['’`‘]?ri\s+)?(?:javob|answer)\s*[:\-]?\s*([A-Da-d])$/i);
+        if (inlineCorrectMatch) {
+            correctIdx = 'ABCD'.indexOf(inlineCorrectMatch[1].toUpperCase());
+            qText = qText.substring(0, inlineCorrectMatch.index).trim();
+        }
+
         current = {
           id: Date.now() + result.length,
-          question: qMatch[2].trim(),
+          question: qText,
           options: [],
-          correct_answer: 0,
+          correct_answer: correctIdx,
           type: 'multiple',
           image: null,
           optionImages: {},
@@ -3161,7 +3171,7 @@ const TestReviewModal = ({ show, questions, onClose, onSave, onShowNotif }) => {
       if (!current) continue;
 
       // "To'g'ri javob" qatorini aniqlash
-      const correctMatch = line.match(/[Tt]o['']?g['']?ri\s+javob\s*[:\-]?\s*([A-Da-d])/i);
+      const correctMatch = line.match(/^(?:to['’`‘]?g['’`‘]?ri\s+)?(?:javob|answer)\s*[:\-]?\s*([A-Da-d])/i);
       if (correctMatch) {
         const idx = 'ABCD'.indexOf(correctMatch[1].toUpperCase());
         if (idx >= 0) current.correct_answer = idx;

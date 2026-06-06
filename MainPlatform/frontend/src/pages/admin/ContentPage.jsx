@@ -290,13 +290,22 @@ export default function ContentPage() {
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
                 const optMatch = line.match(/^([a-d])\s*[\)\.]\s*(.*)/i);
-                const correctMatch = line.match(/^(?:to['`‘vog]ri\s+)?javob\s*:\s*([a-d])/i);
+                const correctMatch = line.match(/(?:^|\s+)(?:to['’`‘]?g['’`‘]?ri\s+)?(?:javob|answer)\s*[:\-]?\s*([a-d])$/i);
                 
                 if (optMatch) {
                     options.push(optMatch[2].trim());
                 } else if (correctMatch) {
                     const letter = correctMatch[1].toUpperCase();
                     correct = letter.charCodeAt(0) - 65; // 'A' -> 0, 'B' -> 1...
+                    const textWithoutAnswer = line.replace(correctMatch[0], '').trim();
+                    if (textWithoutAnswer) {
+                        if (!foundQuestion) {
+                            question = textWithoutAnswer;
+                            foundQuestion = true;
+                        } else {
+                            question += " " + textWithoutAnswer;
+                        }
+                    }
                 } else {
                     if (!foundQuestion) {
                         question = line;
