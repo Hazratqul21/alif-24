@@ -121,6 +121,7 @@ class LiveQuizService:
             select(LiveQuiz).where(
                 and_(LiveQuiz.teacher_id == teacher_profile.id, LiveQuiz.is_template == True)
             ).order_by(LiveQuiz.created_at.desc())
+            .options(selectinload(LiveQuiz.questions))
         )
         templates = res.scalars().all()
         return {
@@ -130,6 +131,7 @@ class LiveQuizService:
                     "id": t.id,
                     "title": t.title,
                     "description": t.description,
+                    "question_count": len(t.questions),
                     "created_at": t.created_at.isoformat() if t.created_at else None
                 } for t in templates
             ]

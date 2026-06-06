@@ -442,7 +442,10 @@ const LiveQuizTeacher = () => {
               {templates.map(t => (
                 <div key={t.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
                   <h3 className="text-xl font-bold mb-2">{t.title}</h3>
-                  <p className="text-gray-500 mb-6 line-clamp-2">{t.description || "Tavsif yo'q"}</p>
+                  <p className="text-gray-500 mb-4 line-clamp-2">{t.description || "Tavsif yo'q"}</p>
+                  <div className="flex items-center gap-2 text-indigo-600 mb-6 font-medium text-sm bg-indigo-50 w-fit px-3 py-1 rounded-lg">
+                    <List size={16} /> {t.question_count || 0} ta savol
+                  </div>
                   <div className="flex items-center gap-3">
                     <button onClick={() => handleStartFromTemplate(t.id)} className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg font-bold flex justify-center items-center gap-2 hover:bg-green-600">
                       <Play size={18} /> Boshlash
