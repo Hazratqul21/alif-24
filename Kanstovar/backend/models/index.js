@@ -32,7 +32,8 @@ export const Product = sequelize.define('Product', {
   rating: { type: DataTypes.FLOAT, defaultValue: 0 },
   reviews: { type: DataTypes.INTEGER, defaultValue: 0 },
   sold: { type: DataTypes.INTEGER, defaultValue: 0 },
-  minOrder: { type: DataTypes.INTEGER, defaultValue: 1 }
+  minOrder: { type: DataTypes.INTEGER, defaultValue: 1 },
+  color: { type: DataTypes.STRING }
 });
 
 export const Order = sequelize.define('Order', {

@@ -465,8 +465,8 @@ app.get('/api/seller/products', sellerAuth, async (req, res) => {
 // =================== CATEGORIES ===================
 app.get('/api/categories', async (req, res) => {
   try {
-    const cats = await Product.findAll({ attributes: ['category'], group: ['category'] });
-    res.json(cats.map(c => c.category).filter(Boolean));
+    const CATEGORIES = ['Daftarlar', 'Qalamlar', 'Ruchkalar', 'Papkalar', 'Flomaster', 'Yopishqoqlar', 'Qog\'oz', 'Stikerlar', 'Ofis jihozlari', 'Boshqa'];
+    res.json(CATEGORIES);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

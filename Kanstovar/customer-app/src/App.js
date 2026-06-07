@@ -675,8 +675,9 @@ function ProductCard({ product: p, onView, onAdd }) {
       <div style={{ padding: '16px' }}>
         <div style={{ marginBottom: 8 }}>
           <h3 onClick={onView} style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.3, marginBottom: 4 }}>{p.name}</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, color: 'var(--text2)', background: 'var(--surface2)', padding: '2px 8px', borderRadius: 20 }}>{p.category}</span>
+            {p.color && <span style={{ fontSize: 11, background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>🎨 {p.color}</span>}
             <span style={{ fontSize: 11, color: '#f7b731' }}>⭐ {p.rating}</span>
           </div>
         </div>
@@ -713,6 +714,7 @@ function ProductsPage() {
   const [sort, setSort] = useState('rating');
   const [categories, setCategories] = useState([]);
   const [total, setTotal] = useState(0);
+  const [pageNum, setPageNum] = useState(1);
 
   useEffect(() => {
     api.get('/api/categories').then(data => setCategories(Array.isArray(data) ? data : []));
@@ -720,14 +722,14 @@ function ProductsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ sort, limit: 20 });
+    const params = new URLSearchParams({ sort, limit: 20, page: pageNum });
     if (search) params.set('search', search);
     if (category !== 'all') params.set('category', category);
     const data = await api.get(`/api/products?${params}`);
     setProducts(data.products || []);
     setTotal(data.total || 0);
     setLoading(false);
-  }, [search, category, sort]);
+  }, [search, category, sort, pageNum]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -738,13 +740,13 @@ function ProductsPage() {
         <p style={{ color: 'var(--text2)' }}>{total} ta mahsulot</p>
       </div>
       <div style={{ display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Mahsulot qidirish..." style={{ flex: isMobile ? 'unset' : 1, width: isMobile ? '100%' : 'auto', minWidth: 200, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none' }} />
+        <input value={search} onChange={e => { setSearch(e.target.value); setPageNum(1); }} placeholder="🔍 Mahsulot qidirish..." style={{ flex: isMobile ? 'unset' : 1, width: isMobile ? '100%' : 'auto', minWidth: 200, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 18px', borderRadius: 12, fontSize: 14, outline: 'none' }} />
         <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto', flex: isMobile ? 'unset' : 2, flexDirection: 'row' }}>
-          <select value={category} onChange={e => setCategory(e.target.value)} style={{ flex: 1, width: '50%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: isMobile ? '10px 8px' : '12px', borderRadius: 12, fontSize: isMobile ? 13 : 14, outline: 'none', cursor: 'pointer', appearance: 'none' }}>
+          <select value={category} onChange={e => { setCategory(e.target.value); setPageNum(1); }} style={{ flex: 1, width: '50%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: isMobile ? '10px 8px' : '12px', borderRadius: 12, fontSize: isMobile ? 13 : 14, outline: 'none', cursor: 'pointer', appearance: 'none' }}>
             <option value="all">Barcha kategoriyalar</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select value={sort} onChange={e => setSort(e.target.value)} style={{ flex: 1, width: '50%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: isMobile ? '10px 8px' : '12px', borderRadius: 12, fontSize: isMobile ? 13 : 14, outline: 'none', cursor: 'pointer', appearance: 'none' }}>
+          <select value={sort} onChange={e => { setSort(e.target.value); setPageNum(1); }} style={{ flex: 1, width: '50%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: isMobile ? '10px 8px' : '12px', borderRadius: 12, fontSize: isMobile ? 13 : 14, outline: 'none', cursor: 'pointer', appearance: 'none' }}>
             <option value="rating">⭐ Reyting bo'yicha</option>
             <option value="sold">🔥 Ko'p sotilgan</option>
             <option value="price_asc">💰 Arzonroq</option>
@@ -765,6 +767,27 @@ function ProductsPage() {
         <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text2)' }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🔍</div>
           <h3 style={{ fontSize: 22, marginBottom: 8 }}>Mahsulot topilmadi</h3>
+        </div>
+      )}
+      {!loading && products.length > 0 && total > 20 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 40 }}>
+          <button 
+            onClick={() => { setPageNum(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+            disabled={pageNum === 1}
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: pageNum === 1 ? 'var(--text2)' : 'var(--text)', padding: '12px 24px', borderRadius: 12, cursor: pageNum === 1 ? 'not-allowed' : 'pointer', fontWeight: 600, transition: 'all 0.2s' }}
+          >
+            ← Oldingi
+          </button>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text2)' }}>
+            Sahifa {pageNum} / {Math.ceil(total / 20)}
+          </span>
+          <button 
+            onClick={() => { setPageNum(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+            disabled={pageNum >= Math.ceil(total / 20)}
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: pageNum >= Math.ceil(total / 20) ? 'var(--text2)' : 'var(--text)', padding: '12px 24px', borderRadius: 12, cursor: pageNum >= Math.ceil(total / 20) ? 'not-allowed' : 'pointer', fontWeight: 600, transition: 'all 0.2s' }}
+          >
+            Keyingi →
+          </button>
         </div>
       )}
     </div>
@@ -815,7 +838,10 @@ function ProductDetailPage() {
           )}
         </div>
         <div>
-          <div style={{ background: 'var(--surface2)', display: 'inline-block', padding: '4px 14px', borderRadius: 20, fontSize: 12, color: 'var(--text2)', marginBottom: 12 }}>{product.category}</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <div style={{ background: 'var(--surface2)', display: 'inline-block', padding: '4px 14px', borderRadius: 20, fontSize: 12, color: 'var(--text2)' }}>{product.category}</div>
+            {product.color && <div style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', display: 'inline-block', padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>🎨 {product.color}</div>}
+          </div>
           <h1 style={{ fontSize: isMobile ? 26 : 34, fontWeight: 800, marginBottom: 12, lineHeight: 1.2 }}>{product.name}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
             <span style={{ color: '#f7b731', fontSize: 16 }}>{'⭐'.repeat(Math.round(product.rating))}</span>

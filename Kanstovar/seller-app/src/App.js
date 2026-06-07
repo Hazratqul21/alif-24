@@ -703,8 +703,9 @@ function ProductsPage() {
                 )}
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{p.name}</div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11, background: 'rgba(79,70,229,0.1)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>{p.category}</span>
+                    {p.color && <span style={{ fontSize: 11, background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>🎨 {p.color}</span>}
                     <span style={{ fontSize: 11, color: '#f7b731' }}>⭐ {p.rating}</span>
                   </div>
                 </div>
@@ -745,8 +746,9 @@ function ProductForm({ isEdit }) {
     stock: editProduct.stock,
     description: editProduct.description,
     tags: editProduct.tags?.join(', '),
-    minOrder: editProduct.minOrder || 1
-  } : { name: '', category: 'Daftarlar', originalPrice: '', stock: '', description: '', tags: '', minOrder: 1 });
+    minOrder: editProduct.minOrder || 1,
+    color: editProduct.color || ''
+  } : { name: '', category: 'Daftarlar', originalPrice: '', stock: '', description: '', tags: '', minOrder: 1, color: '' });
   
   const [images, setImages] = useState(isEdit && editProduct?.images ? editProduct.images : []);
   const [files, setFiles] = useState([]);
@@ -815,6 +817,7 @@ function ProductForm({ isEdit }) {
       originalPrice: form.originalPrice ? Number(form.originalPrice) : undefined,
       stock: Number(form.stock),
       minOrder: Number(form.minOrder),
+      color: form.color,
       tags: form.tags ? form.tags.split(',').map(t => t.trim()) : []
     };
     if (isEdit) {
@@ -883,6 +886,7 @@ function ProductForm({ isEdit }) {
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
           <div style={{ gridColumn: '1 / -1' }}>{field('Mahsulot nomi', 'name', { placeholder: 'Masalan: Daftar A4 (96 varaq)' })}</div>
           <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>{field('Kategoriya', 'category', { select: CATEGORIES })}</div>
+          <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>{field('Rangi', 'color', { placeholder: 'Masalan: Qizil, Ko\'k', optional: true })}</div>
           {field('Zaxira (dona)', 'stock', { type: 'number', placeholder: '1000' })}
           {field('Asl narx (so\'m)', 'originalPrice', { type: 'number', placeholder: '10000', optional: true })}
           
