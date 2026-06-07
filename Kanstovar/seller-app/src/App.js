@@ -205,7 +205,8 @@ const SUPERADMIN_NAV = [
   { id: 'users', label: 'Foydalanuvchilar', icon: '👥' },
   { id: 'orders', label: 'Barcha Buyurtmalar', icon: '📦' },
   { id: 'ads', label: 'Reklamalar', icon: '📢' },
-  { id: 'delivery', label: 'Yetkazib berish', icon: '🚚' }
+  { id: 'delivery', label: 'Yetkazib berish', icon: '🚚' },
+  { id: 'export', label: 'Eksport (Excel)', icon: '📥' }
 ];
 
 function SuperAdminLayout() {
@@ -227,6 +228,7 @@ function SuperAdminLayout() {
         {page === 'orders' && <SuperAdminOrders />}
         {page === 'ads' && <SuperAdminAds />}
         {page === 'delivery' && <SuperAdminDelivery />}
+        {page === 'export' && <SuperAdminExport />}
       </main>
       {isMobile && <BottomNav nav={SUPERADMIN_NAV} />}
     </div>
@@ -532,20 +534,83 @@ function SuperAdminDelivery() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 60px', gap: 16, marginBottom: 12, fontWeight: 700, color: 'var(--text2)' }}>
           <div>Min. xarid summasi (so'm)</div>
           <div>Dostavka narxi (so'm)</div>
-          <div></div>
-        </div>
-        
-        {rules.sort((a,b) => b.minAmount - a.minAmount).map((r, i) => (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 60px', gap: 16, marginBottom: 16 }}>
-            <input type="number" value={r.minAmount} onChange={e => updateRule(i, 'minAmount', e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
-            <input type="number" value={r.fee} onChange={e => updateRule(i, 'fee', e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
-            <button onClick={() => removeRule(i)} style={{ width: '100%', borderRadius: 12, border: 'none', background: 'rgba(225,29,72,0.1)', color: 'var(--accent2)', cursor: 'pointer', fontSize: 18 }}>🗑️</button>
+      <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>🚚 Yetkazib berish narxlari</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
+        {rules.map((r, i) => (
+          <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-end', background: 'var(--surface2)', padding: 16, borderRadius: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4, display: 'block' }}>Minimal summa</label>
+              <input type="number" value={r.minAmount} onChange={e => updateRule(i, 'minAmount', e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4, display: 'block' }}>Dostavka narxi</label>
+              <input type="number" value={r.fee} onChange={e => updateRule(i, 'fee', e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+            </div>
+            <button onClick={() => removeRule(i)} style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(225,29,72,0.1)', color: '#e11d48', fontWeight: 600 }}>🗑️</button>
           </div>
         ))}
+        <button onClick={addRule} style={{ padding: '12px', borderRadius: 12, background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: 700, border: '2px dashed rgba(16,185,129,0.5)' }}>+ Yangi qoida qo'shish</button>
+        <button onClick={save} disabled={loading} style={{ padding: '14px', borderRadius: 12, background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 16, marginTop: 12 }}>{loading ? 'Saqlanmoqda...' : '💾 Saqlash'}</button>
+      </div>
+    </div>
+  );
+}
 
-        <button onClick={addRule} style={{ width: '100%', padding: '14px', borderRadius: 12, border: '2px dashed var(--border)', background: 'transparent', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>
-          ➕ Yangi shart qo'shish
-        </button>
+// =================== SUPERADMIN EXPORT ===================
+function SuperAdminExport() {
+  const { token, toast } = useApp();
+  const [categories, setCategories] = useState([]);
+  const [selectedCat, setSelectedCat] = useState('all');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    api.get('/api/categories').then(data => setCategories(Array.isArray(data) ? data : []));
+  }, []);
+
+  const handleExport = async () => {
+    setLoading(true);
+    try {
+      const url = `${process.env.REACT_APP_API_URL || 'http://localhost:4000'}/api/superadmin/products/export?category=${encodeURIComponent(selectedCat)}`;
+      
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Export failed');
+      
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = window.URL.createObjectURL(blob);
+      a.download = `mahsulotlar_${selectedCat === 'all' ? 'barcha' : selectedCat}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      
+      toast('Muvaffaqiyatli yuklab olindi! ✅');
+    } catch (err) {
+      toast('Xatolik yuz berdi!', 'error');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ padding: '32px' }}>
+      <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>📥 Excel Export</h2>
+      <div style={{ background: 'var(--surface)', padding: 24, borderRadius: 16, border: '1px solid var(--border)', maxWidth: 500 }}>
+        <p style={{ marginBottom: 16, color: 'var(--text2)' }}>Mahsulotlarni tanlangan kategoriya bo'yicha yoki barchasini Excel formatida yuklab olishingiz mumkin.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Kategoriya tanlang</label>
+            <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', cursor: 'pointer' }}>
+              <option value="all">Barcha kategoriyalar</option>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <button 
+            onClick={handleExport} 
+            disabled={loading}
+            style={{ padding: '14px', borderRadius: 12, background: '#10b981', color: '#fff', fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, transition: 'all 0.2s' }}
+          >
+            {loading ? 'Yuklanmoqda...' : '⬇️ Excel Yuklab olish'}
+          </button>
+        </div>
       </div>
     </div>
   );

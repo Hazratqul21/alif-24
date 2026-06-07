@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import db from './models/index.js';
 import paymeService from './paymeService.js';
+import ExcelJS from 'exceljs';
 
 const { User, Product, Order, Review, CartItem, AdBanner, Config, sequelize } = db;
 
@@ -737,6 +738,94 @@ app.get('/api/seller/stats', sellerAuth, async (req, res) => {
 });
 
 // =================== SUPERADMIN ROUTES ===================
+app.get('/api/superadmin/products/export', superadminAuth, async (req, res) => {
+  try {
+    const { category } = req.query;
+    let where = {};
+    if (category && category !== 'all') {
+      where.category = category;
+    }
+    
+    const products = await Product.findAll({ where, order: [['createdAt', 'DESC']] });
+    
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Mahsulotlar');
+    
+    worksheet.columns = [
+      { header: 'Tartib raqami', key: 'index', width: 15 },
+      { header: 'Kategoriya', key: 'category', width: 20 },
+      { header: 'Nomi', key: 'name', width: 30 },
+      { header: 'Narxlari', key: 'prices', width: 40 },
+      { header: 'Tavsifi', key: 'description', width: 50 },
+      { header: 'Rangi', key: 'color', width: 15 },
+      { header: 'Rasmi', key: 'image', width: 15 }
+    ];
+    
+    // Style headers
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      let pricesStr = '';
+      if (p.priceTiers && p.priceTiers.length > 0) {
+        pricesStr = p.priceTiers.map(t => `${t.minQty}-${t.maxQty || '+'} dona: ${t.price} so'm`).join(',\n');
+      } else {
+        pricesStr = `1+ dona: ${p.price} so'm`;
+      }
+      
+      const row = worksheet.addRow({
+        index: i + 1,
+        category: p.category || '',
+        name: p.name || '',
+        prices: pricesStr,
+        description: p.description || '',
+        color: p.color || '',
+        image: ''
+      });
+      
+      row.alignment = { vertical: 'middle', wrapText: true };
+      
+      const imagePath = (p.images && p.images.length > 0) ? p.images[0] : p.image;
+      if (imagePath) {
+        if (imagePath.startsWith('/uploads/')) {
+          try {
+            const ext = imagePath.split('.').pop().toLowerCase();
+            const format = (ext === 'png') ? 'png' : 'jpeg';
+            const localPath = path.join(process.cwd(), imagePath);
+            if (fs.existsSync(localPath)) {
+              const imageId = workbook.addImage({
+                filename: localPath,
+                extension: format,
+              });
+              worksheet.addImage(imageId, {
+                tl: { col: 6, row: i + 1 },
+                ext: { width: 50, height: 50 }
+              });
+              row.height = 45;
+            } else {
+              row.getCell('image').value = imagePath;
+            }
+          } catch (e) {
+             console.error("Error adding image to excel", e);
+             row.getCell('image').value = imagePath;
+          }
+        } else {
+          row.getCell('image').value = imagePath;
+        }
+      }
+    }
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=' + 'mahsulotlar.xlsx');
+    
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/superadmin/stats', superadminAuth, async (req, res) => {
   try {
     const totalUsers = await User.count({ where: { role: 'customer' } });
