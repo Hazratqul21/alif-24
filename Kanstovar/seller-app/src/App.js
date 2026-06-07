@@ -520,20 +520,6 @@ function SuperAdminDelivery() {
 
   return (
     <div style={{ padding: '32px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800 }}>🚚 Yetkazib berish narxlari</h1>
-          <p style={{ color: 'var(--text2)', marginTop: 4 }}>Xarid summasiga qarab yetkazib berish narxlarini belgilang</p>
-        </div>
-        <button onClick={save} disabled={loading} style={{ background: 'linear-gradient(135deg, #10b981, #047857)', border: 'none', color: 'white', padding: '12px 24px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', boxShadow: '0 4px 16px rgba(16,185,129,0.3)', opacity: loading ? 0.7 : 1 }}>
-          💾 Saqlash
-        </button>
-      </div>
-
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 60px', gap: 16, marginBottom: 12, fontWeight: 700, color: 'var(--text2)' }}>
-          <div>Min. xarid summasi (so'm)</div>
-          <div>Dostavka narxi (so'm)</div>
       <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>🚚 Yetkazib berish narxlari</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
         {rules.map((r, i) => (
